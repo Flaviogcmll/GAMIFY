@@ -214,7 +214,9 @@ export function startup() {
   // tarefa nova sem data no IMEDIATOS/CURTO ganha prazo sozinha ao abrir (regra da planilha)
   S._epoch++;
   const auto = R.distributePlan(S, { onlyNew: true, today: td });
-  for (const p of auto) { const t = T(p.id); if (t) { t.due = p.to; changedQ = true; } }
+  for (const p of auto) { const t = T(p.id); if (t) { t.due = p.to; syncLink(t); changedQ = true; } }
+  // prazos ligados (lista ↔ BREAKDOWN) que estavam diferentes: vale o da tarefa; se ela não tem, herda o do bloco
+  for (const t of q.tasks) { const lb = t.link && B(t.link); if (!lb || (lb.due || null) === (t.due || null)) continue; if (t.due) lb.due = t.due; else t.due = lb.due; changedQ = true; }
   S._autoDue = auto.length;
   S._epoch++;
   const extra = sync();
@@ -394,6 +396,8 @@ export function setStatus(id, st) {
 }
 
 /** custo de EMPURRAR o prazo de uma tarefa: 1ª vez RESCHED XP, depois dobra (até 16x). Antecipar ou dar prazo novo não custa. */
+/** tarefa da lista ligada a um bloco do BREAKDOWN: o prazo é um só (a tarefa manda, o bloco acompanha) */
+function syncLink(t) { const lb = t?.link && B(t.link); if (lb) lb.due = t.due || null; }
 export function reschedBase(t, newDue) {
   if (!t || !t.due || !newDue || newDue <= t.due) return 0;
   return Math.min(R.C.RESCHED * 2 ** (t.rs || 0), R.C.RESCHED * 16);
@@ -435,6 +439,7 @@ export function updateTask(id, patch) {
     }
     Object.assign(t, patch);
     if (!t.due) t.due = null;
+    syncLink(t);
   });
 }
 
@@ -590,7 +595,7 @@ export function toBreakdown(id) {
     const blk = { id: uid('k'), group: 'bd', title: t.text.replace(/\s*\(\d+\s*XP\)/i, '').trim(), color: 'green', st: '', due: t.due || null, created: today(), ord: maxOrd() + 1, src: t.id };
     S.quests.blocks.push(blk);
     t.link = blk.id;
-    return { block: blk, msg: '🔗 Foi pro BREAKDOWN. Toque na tarefa pra ir lá.' };
+    return { block: blk, msg: '🔗 Foi pro BREAKDOWN. Toque em 🔗 BREAKDOWN pra ir lá.' };
   });
 }
 export function unlinkTask(id) {
@@ -773,7 +778,7 @@ export function applyPlan(plan) {
     for (const p of plan) {
       const t = T(p.id); if (!t) continue;
       const b = reschedBase({ ...t, due: p.from ?? t.due }, p.to);
-      t.due = p.to;
+      t.due = p.to; syncLink(t);
       if (b && free) { free = false; useFree(); t.rs = (t.rs || 0) + 1; } else if (b) pids.push(chargeResched(t, b));
     }
     S.core.lastPlan = plan.map((p) => ({ id: p.id, from: p.from, to: p.to }));
@@ -784,7 +789,7 @@ export function applyPlan(plan) {
 export function undoPlan() {
   const plan = S.core.lastPlan || [], pids = new Set(S.core.lastPlanPids || []);
   return commit(['quests', 'core', 'loja'], () => {
-    for (const p of plan) { const t = T(p.id); if (t && t.due === p.to) { t.due = p.from || null; if (pids.size && t.rs) t.rs -= 1; } }
+    for (const p of plan) { const t = T(p.id); if (t && t.due === p.to) { t.due = p.from || null; syncLink(t); if (pids.size && t.rs) t.rs -= 1; } }
     S.loja.purchases = S.loja.purchases.filter((x) => !pids.has(x.id));
     delete S.core.lastPlan; delete S.core.lastPlanPids;
     return { msg: `↺ ${plan.length} prazo(s) voltaram como estavam${pids.size ? ' e o XP foi devolvido' : ''}.` };

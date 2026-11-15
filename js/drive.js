@@ -1,16 +1,18 @@
 // GOOGLE DRIVE — sincroniza celular e PC no app instalado (fora do claude.ai). Grátis: usa a pasta escondida do app no SEU Drive
 // (escopo drive.appdata: o app só enxerga o próprio arquivo, nunca o resto do Drive). Você cria o ID de acesso uma vez, no Google Cloud.
-// AINDA NÃO TESTADO com login de verdade.
+// O dono usa no dia a dia (celular e PC). O Claude não consegue testar o login daqui: mudanças neste arquivo precisam ser conferidas por ele.
 import { S, exportAll, backendKind } from './store.js';
 import { restoreDocs, markBackup } from './backup.js';
 import { esc, hash } from './util.js';
 import { toast, ask } from './ui.js';
 import { sfx } from './audio.js';
 
-const ls = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* */ } } };
+const ls = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* */ } }, del: (k) => { try { localStorage.removeItem(k); } catch { /* */ } } };
 const FILE = 'gamify-backup.json', API = 'https://www.googleapis.com';
 let token = null, tokenExp = 0, tc = null, busy = false;
 const clientId = () => (ls.get('gamify-ui:gclient') || '').trim();
+/** conta Google usada da última vez (fica só neste aparelho): com ela o Google não pergunta de novo "qual conta?" */
+const account = () => (ls.get('gamify-ui:gmail') || '').trim();
 const snapHash = () => String(hash(JSON.stringify(exportAll().docs)));
 
 function loadGis() {
@@ -21,21 +23,36 @@ function loadGis() {
     document.head.appendChild(s);
   });
 }
+/** a chave de acesso do Google vale ~1 h: guardada neste aparelho, reabrir o app dentro desse tempo não abre a janela do Google de novo */
+function cachedToken() {
+  if (token) return;
+  try { const c = JSON.parse(ls.get('gamify-ui:gtok') || 'null'); if (c?.t && c.exp > Date.now()) { token = c.t; tokenExp = c.exp; } } catch { /* */ }
+}
+function dropToken() { token = null; tokenExp = 0; ls.del('gamify-ui:gtok'); }
 async function getToken(interactive) {
+  cachedToken();
   if (token && Date.now() < tokenExp - 60000) return token;
   if (!clientId()) throw new Error('Cole primeiro o ID de acesso do Google (veja o guia).');
   await loadGis();
   return new Promise((res, rej) => {
     tc = tc || window.google.accounts.oauth2.initTokenClient({ client_id: clientId(), scope: 'https://www.googleapis.com/auth/drive.appdata', callback: () => {} });
-    tc.callback = (r) => { if (r.error) rej(new Error(r.error_description || r.error)); else { token = r.access_token; tokenExp = Date.now() + (r.expires_in || 3600) * 1000; ls.set('gamify-ui:gdrive', '1'); res(token); } };
+    tc.callback = (r) => { if (r.error) rej(new Error(r.error_description || r.error)); else { token = r.access_token; tokenExp = Date.now() + (r.expires_in || 3600) * 1000; ls.set('gamify-ui:gdrive', '1'); ls.set('gamify-ui:gtok', JSON.stringify({ t: token, exp: tokenExp })); res(token); } };
     tc.error_callback = (e) => rej(new Error(e?.type === 'popup_closed' ? 'Janela do Google fechada.' : 'O Google não abriu a janela de login.'));
-    tc.requestAccessToken({ prompt: interactive ? (ls.get('gamify-ui:gdrive') ? '' : 'consent') : '' });
+    const hint = account(), cfg = { prompt: interactive ? (ls.get('gamify-ui:gdrive') ? '' : 'consent') : '' };
+    if (hint) { cfg.login_hint = hint; cfg.hint = hint; } // o nome do campo mudou entre versões da biblioteca do Google: mando os dois
+    tc.requestAccessToken(cfg);
   });
 }
 async function api(path, opts = {}, tk) {
   const r = await fetch(API + path, { ...opts, headers: { Authorization: 'Bearer ' + tk, ...(opts.headers || {}) } });
+  if (r.status === 401) dropToken(); // chave vencida ou cancelada: na próxima tentativa pede uma nova
   if (!r.ok) throw new Error('Drive ' + r.status);
   return r;
+}
+/** descobre e guarda o e-mail da conta que entrou (uma vez) */
+async function rememberAccount(tk) {
+  if (account()) return;
+  try { const r = await (await api('/drive/v3/about?fields=user(emailAddress)', {}, tk)).json(); if (r.user?.emailAddress) ls.set('gamify-ui:gmail', r.user.emailAddress); } catch { /* sem o e-mail, o Google só volta a perguntar a conta */ }
 }
 async function findFile(tk) {
   const r = await (await api(`/drive/v3/files?spaces=appDataFolder&q=${encodeURIComponent(`name='${FILE}'`)}&fields=files(id,modifiedTime)`, {}, tk)).json();
@@ -52,7 +69,9 @@ export async function driveSync({ interactive = true, render = () => {} } = {}) 
   if (busy || backendKind() !== 'local') return;
   busy = true;
   try {
-    const tk = await getToken(interactive), file = await findFile(tk);
+    const tk = await getToken(interactive);
+    await rememberAccount(tk);
+    const file = await findFile(tk);
     const localNow = snapHash(), lastSynced = ls.get('gamify-ui:gsnap'), localChanged = localNow !== lastSynced;
     if (!file) { await upload(tk, null, JSON.stringify(exportAll())); ls.set('gamify-ui:gsnap', localNow); markBackup(); if (interactive) toast('☁ Primeiro backup criado no seu Drive', 'good'); return; }
     const remote = await (await api(`/drive/v3/files/${file.id}?alt=media`, {}, tk)).json();
@@ -70,13 +89,16 @@ export async function driveSync({ interactive = true, render = () => {} } = {}) 
 export function driveCard() {
   if (backendKind() !== 'local') return '';
   const id = clientId(), on = ls.get('gamify-ui:gdrive') === '1';
-  return `<div class="card c12" data-gk="drive"><header><h2>☁ Google Drive · sincronizar celular e PC</h2><span class="meta">${on ? 'conectado' : id ? 'pronto pra entrar' : 'falta o ID de acesso'}</span></header>
+  return `<div class="card c12" data-gk="drive"><header><h2>☁ Google Drive · sincronizar celular e PC</h2><span class="meta">${on ? 'conectado' + (account() ? ' · ' + esc(account()) : '') : id ? 'pronto pra entrar' : 'falta o ID de acesso'}</span></header>
     <form data-v4form="drive-id" class="row" autocomplete="off"><input class="inp grow" name="id" value="${esc(id)}" placeholder="ID de acesso do Google (termina com .apps.googleusercontent.com)" aria-label="ID de acesso do Google"><button class="btn sm">SALVAR ID</button></form>
-    <div class="row" style="margin-top:10px"><button class="btn sm pri" data-act="drive-sync" ${id ? '' : 'disabled'}>☁ ${on ? 'SINCRONIZAR AGORA' : 'ENTRAR E SINCRONIZAR'}</button></div>
-    <p class="meta" style="margin:8px 0 0">O app só enxerga o próprio arquivo escondido no seu Drive. Ainda em teste: o ID de acesso é criado no Google Cloud (peça o passo a passo ao Claude). Enquanto isso, use o BAIXAR.</p></div>`;
+    <div class="row" style="margin-top:10px"><button class="btn sm pri" data-act="drive-sync" ${id ? '' : 'disabled'}>☁ ${on ? 'SINCRONIZAR AGORA' : 'ENTRAR E SINCRONIZAR'}</button>${account() ? '<button class="btn sm ghost" data-act="drive-account" title="Esquece a conta guardada: na próxima vez o Google pergunta qual usar">TROCAR DE CONTA</button>' : ''}</div>
+    <p class="meta" style="margin:8px 0 0">O app só enxerga o próprio arquivo escondido no seu Drive. O ID de acesso é criado uma vez no Google Cloud. O app lembra a conta que você usou, pra não perguntar toda vez.</p></div>`;
 }
 export function extendDrive(ACTIONS, render) {
-  Object.assign(ACTIONS, { 'drive-sync': () => driveSync({ interactive: true, render }) });
+  Object.assign(ACTIONS, {
+    'drive-sync': () => driveSync({ interactive: true, render }),
+    'drive-account': () => { ls.del('gamify-ui:gmail'); dropToken(); tc = null; toast('Conta esquecida. Na próxima sincronização o Google pergunta qual usar.'); render(); },
+  });
   document.addEventListener('submit', (e) => {
     const f = e.target.closest?.('form[data-v4form="drive-id"]');
     if (!f) return;

@@ -37,7 +37,7 @@ O backup do dono NUNCA entra no repositório.
 - `actions.js` — tudo que MUDA dados, sempre via `commit()` (desfazer/refazer). Migrações rodam no `startup()`.
 - `store.js` — carrega/salva. `S` = estado global. No GitHub Pages os dados ficam no `localStorage` do aparelho.
 - `backup.js` — proteção dos dados no aparelho: cópia automática diária (`gamify-bak:*`), lembrete de backup, restaurar.
-- `drive.js` — sincronização com Google Drive (nunca testada com login real).
+- `drive.js` — sincronização com Google Drive. O dono usa no dia a dia (celular e PC); o Claude não consegue testar o login real, só com um Google simulado (rotas do Playwright).
 - `primo.js`, `pdraw.js`, `pacc.js`, `pstate.js`, `falas.js`, `saber.js`, `claude.js` — o mascote PRIMO.
 - `v3.js`, `v35.js`, `v4.js` — recursos adicionados por versão (legado; têm imports circulares, cuidado).
 - `views/*.js` — uma tela por arquivo. `css/app.css` — todo o visual. `sw.js` — modo offline.
@@ -46,6 +46,8 @@ O backup do dono NUNCA entra no repositório.
 - Ao REMOVER um tipo de dado salvo, o dado antigo do dono continua existindo: trate valores legados e crie migração idempotente (registrada em `core.migrations`).
 - Trocar TODOS os dados de uma vez (importar, restaurar, Drive): use `restoreDocs()` de `backup.js`, nunca `replaceAll()` direto. Ele guarda antes uma cópia do estado atual.
 - O cache de totais depende de `S._epoch++`.
+- O topo (`.top` + `.tabs`) só fica preso na primeira tela de rolagem (o `body` tem altura fixa). A variável CSS `--stick`, atualizada em `app.js`, diz onde ele termina; a barra das janelas do QUESTS e o painel da direita usam essa variável.
+- Qualquer redesenho (`render()`) recria a tela: o que estiver digitado nas linhas "+ adicionar" e a rolagem do painel da direita são guardados e devolvidos por `render()`. Campo novo desse tipo precisa entrar em `ADD_SEL`.
 - O XP do topo anima: leitura no meio da animação dá número intermediário.
 - A fonte pixel desenha mal acentos: `deaccent()` tira acentos dos rótulos.
 - A IA do PRIMO (`window.claude.use('sample')`) só existe dentro do claude.ai; no GitHub Pages esses botões não têm IA.

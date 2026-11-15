@@ -186,6 +186,20 @@ export function streak(s, h, d = today()) {
   return (c.streak[key] = { streak: n, total, forged, mult });
 }
 
+/** recorde: a maior sequência que o hábito já teve (mesma regra da sequência atual: folga, sábado e falha perdoada não quebram) */
+export function bestStreak(s, h, d = today()) {
+  const c = cache(s), key = 'best|' + h + '|' + d;
+  if (c.streak[key] != null) return c.streak[key];
+  let n = 0, best = 0;
+  for (let x = s.core?.startDate || d, guard = 0; x <= d && guard < 4000; guard++, x = addDays(x, 1)) {
+    const m = marksOf(s, x)[h];
+    if (m === 'x') { n++; if (n > best) best = n; }
+    else if (m === '-' || !registered(s, x) || !failed(s, h, x) || forgiven(s, h, x)) continue;
+    else n = 0;
+  }
+  return (c.streak[key] = Math.max(best, streak(s, h, d).streak));
+}
+
 export function isPerfect(s, d) {
   const ids = habitIds(s);
   if (!ids.length) return false;

@@ -28,7 +28,7 @@ function grid(ui) {
     if (h.id === 'rd') info = `total: ${R.totalX(S, 'rd')} · +30 cada`;
     else {
       const sk = R.streak(S, h.id, td);
-      info = `🔥${sk.streak} ${sk.mult > 1 ? `x${String(sk.mult).replace('.', ',')}` : ''} · ⚒ ${sk.forged ? 'FORJADO' : `${sk.total}/66`}`;
+      info = `🔥${sk.streak} ${sk.mult > 1 ? `x${String(sk.mult).replace('.', ',')}` : ''} · <span title="recorde: maior sequência que você já fez">🏆${R.bestStreak(S, h.id, td)}</span> · ⚒ ${sk.forged ? 'FORJADO' : `${sk.total}/66`}`;
     }
     return `<tr><th class="hn" title="${esc(h.name)}">${h.icon} <span class="hname">${esc(h.name)}</span></th>${cells}<td class="info">${info}</td></tr>`;
   }).join('');
@@ -38,7 +38,7 @@ function grid(ui) {
       <div class="row"><button class="btn sm" data-act="hweek" data-dir="-1" aria-label="Semana anterior">◄</button><span class="meta">${fmtDM(days[0])} – ${fmtDM(days[6])}</span><button class="btn sm" data-act="hweek" data-dir="1" aria-label="Próxima semana" ${(ui.hweek || 0) >= 0 ? 'disabled' : ''}>►</button></div></header>
     <div class="grid2w"><table class="hg"><thead><tr><th></th>${head}<th></th></tr></thead><tbody>${body}
       <tr><th class="hn dim">XP DO DIA</th>${xpRow}<td></td></tr><tr><th class="hn dim">STATUS <span class="meta">(toque)</span></th>${stRow}<td></td></tr></tbody></table></div>
-    <div class="hleg"><span class="chip">toque: ✓ fiz → – folga → vazio</span><span class="chip soon">verde = fez</span><span class="chip late">vermelho = falhou</span><span class="chip today">🛡 perdoada</span></div>
+    <div class="hleg"><span class="chip">toque: ✓ fiz → – folga → vazio</span><span class="chip soon">verde = fez</span><span class="chip late">vermelho = falhou</span><span class="chip today">🛡 perdoada</span><span class="chip">🔥 sequência atual · 🏆 recorde</span></div>
   </div>`;
 }
 

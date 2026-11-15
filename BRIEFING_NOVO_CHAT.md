@@ -1,6 +1,6 @@
 # BRIEFING — GAMIFY (leia tudo antes de mexer em qualquer coisa)
 
-Atualizado em 15/11/2026, depois de conferir o repositório real (v5.1) e da rodada 1 (v5.2: proteção dos dados + limpeza).
+Atualizado em 15/11/2026, depois de conferir o repositório real (v5.1), da rodada 1 (v5.2: proteção dos dados + limpeza) e da rodada 2 (v5.3: bugs e praticidade).
 Este arquivo substitui o briefing antigo. O que mudou em relação a ele está na seção "CONFERIDO EM 15/11/2026".
 
 ## PASSO 0: ALINHAR ANTES DE TUDO
@@ -62,7 +62,7 @@ FEED e notícias; A VILA inteira; BUJO; janela TUDO; CRÔNICA; Google Agenda; ab
 - `actions.js`: tudo que MUDA dados, sempre via `commit(docs, fn, opts)` (desfazer/refazer 40 passos); migrações no `startup()`.
 - `store.js`: carrega/salva (banco do claude.ai ou `localStorage`); `S` = estado global.
 - `backup.js`: proteção dos dados no aparelho (cópia automática diária, lembrete de backup, restaurar). Toda troca geral de dados passa por `restoreDocs()`.
-- `drive.js`: sync com Google Drive (OAuth GIS, escopo `drive.appdata`, arquivo `gamify-backup.json`) — NUNCA testado com login real.
+- `drive.js`: sync com Google Drive (OAuth GIS, escopo `drive.appdata`, arquivo `gamify-backup.json`). O dono usa no dia a dia para ter os dados no celular e no PC. O Claude não consegue testar o login real: só com um Google simulado.
 - `primo.js`, `pdraw.js`, `pacc.js`, `pstate.js`, `falas.js`, `saber.js`, `claude.js`: o PRIMO.
 - `v3.js`, `v35.js`, `v4.js`: legado por versões. Imports circulares (primo ↔ v35 ↔ v3): cuidado.
 - `kingdom.js`, `interiors.js`, `sky.js`: sobras da época da VILA, ainda usadas em parte (cenas, céu, estação). Têm funções que ninguém usa mais.
@@ -108,6 +108,25 @@ FEED e notícias; A VILA inteira; BUJO; janela TUDO; CRÔNICA; Google Agenda; ab
 - `manifest.json`: descrição sem "vila". Cartão do Drive: não cita mais o guia que não existe e avisa que está em teste.
 - Os itens 2 (texto do guia), 6 e 7 da lista acima ficaram resolvidos.
 
+## RODADA 2 — v5.3 (15/11/2026): bugs e praticidade
+O dono usa muito mais o PC. Pedidos atendidos:
+- Clicar no texto de uma tarefa ligada ao BREAKDOWN abre as configs (antes pulava pro BREAKDOWN); o chip 🔗 BREAKDOWN leva pra lá.
+- Prazo único entre tarefa da lista e bloco ligado (`syncLink` em `actions.js`): muda de um lado, muda do outro; mudar pelo bloco segue a regra de remarcação da tarefa. Ao abrir, pares diferentes são igualados (vale o da tarefa).
+- Painel da direita do QUESTS não volta mais pro topo a cada clique (a rolagem própria é guardada no `render()`).
+- Texto não se perde: sair de uma linha "+ adicionar" com texto já adiciona (sem Enter); o texto digitado sobrevive a redesenhos; na janela de tarefa/bloco/boss o texto salva ao sair do campo e em qualquer forma de fechar.
+- Botão RECOLHER TUDO / ABRIR TUDO na barra das janelas (vale para a janela aberta).
+- Barra das janelas do QUESTS presa no topo ao rolar (só em tela grande).
+- ⬛ parados com botão próprio (MOSTRAR/OCULTAR PARADOS, preferência `gamify-ui:stalled`), separado do MOSTRAR FEITAS; vale para blocos e tarefas com a cor PARADO.
+- Recorde de sequência por hábito (`R.bestStreak`): 🏆 no SURVIVAL e na dica do cartão de hábitos.
+- Drive: o app guarda a conta usada (`gamify-ui:gmail`, lida do próprio Drive) e a chave de acesso por ~1 h (`gamify-ui:gtok`), para o Google não perguntar "qual conta" a cada abertura. Botão TROCAR DE CONTA em PERKS.
+
+## PRÓXIMAS RODADAS (combinado com o dono em 15/11/2026)
+Princípio dele: qualidade de vida e praticidade; tudo integrado como um ecossistema; simples no fim das contas (o app não pode tomar o tempo das tarefas). Ele aceita sugestões melhores que o pedido.
+- **Rodada 3 — LISTAS como janela mãe.** Decidido: listas AUTOMÁTICAS pelo prazo (HOJE, AMANHÃ, ESTA SEMANA, DEPOIS, SEM PRAZO, AGUARDANDO; arrastar para outra lista muda o prazo) e UM campo só de "aguardando: quem ou o quê" (pessoa ou outra tarefa), que alimenta a lista AGUARDANDO, o filtro por pessoa no FILTRO e a volta automática quando a outra tarefa é concluída. Também: LISTAS com cor própria e as outras janelas derivando dela; botão ＋ para criar/renomear janelas; cores nas listas; botão REVISADO no fim do bloco (vale 24 h, com selo visual); personalizar textos fixos sem quebrar as mecânicas.
+- **Rodada 4 — rituais, loja, fogos, distribuir.** Ritual com data marcada (ex.: SPA num dia específico, mesmo com aviso a cada 15 dias) aparecendo na AGENDA e no cronograma; item ACORDAR TARDE na loja; JOGO STEAM na forja; aba no SHOP com o histórico do que já foi forjado; REDENÇÃO vira só "aula de curso (40 XP)" ou "meditação"; fogos de artifício (som + animação pequena) ao concluir algo demorado; DISTRIBUIR pergunta "só as que já tinham prazo ou todas" e usa a produtividade real do dono (tarefas por dia da semana).
+- **Rodada 5 — voltar ao jogo.** Entrevista do dia com o PRIMO na primeira abertura; detectar que ficou muito tempo sem preencher e oferecer revisão rápida de retorno; modo VIAGEM/VISITAS (trava tudo sem perder progresso; na volta, lista de guardar malas e reorganizar).
+- **Por último — economia.** Analisar toda a economia e propor valores (o dono citou um PDF de referência que não está no repositório; pedir de novo). Só mudar valores depois de ele aprovar a análise.
+
 ## LIÇÕES TÉCNICAS
 - Playwright (Chromium) já vem instalado: `require('playwright')`. Servidor local: `python3 -m http.server 8080`.
 - No ambiente do Claude, enviar TAG para o GitHub pode ser recusado (só branch passa). Alternativa: o dono cria a versão em GitHub → Releases → "Draft a new release".
@@ -118,7 +137,7 @@ FEED e notícias; A VILA inteira; BUJO; janela TUDO; CRÔNICA; Google Agenda; ab
 - A fonte pixel desenha mal acentos (há `deaccent()` para rótulos).
 
 ## BACKLOG
-- Testar o Google Drive de verdade (login real, celular e PC) e escrever o passo a passo do ID de acesso.
+- Escrever o passo a passo do ID de acesso do Google Drive (o dono já tem o dele funcionando).
 - Otimizações ainda não feitas: abrir da cópia offline primeiro e fontes dentro do app; aliviar abas pesadas (CONQUISTAS, PERKS, FILTRO); trocar nomes pessoais do código; remover sobras da VILA.
 - Trocar o mascote por um com fases de vida reais (Gridwright Virtual Pet Kit, pago, não redistribuir os arquivos).
 - Mais frases e curiosidades; evolução visual do porquinho; sons por expressão.

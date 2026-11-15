@@ -10,13 +10,18 @@ export function openModal(html, { onClose, wide } = {}) {
   const ov = document.createElement('div');
   ov.className = 'overlay';
   ov.innerHTML = `<div class="modal" role="dialog" aria-modal="true" ${wide ? 'style="width:min(820px,100%)"' : ''}>${html}</div>`;
-  ov.addEventListener('mousedown', (e) => { if (e.target === ov) closeModal(); });
+  ov.addEventListener('mousedown', (e) => { if (e.target === ov) { document.activeElement?.blur?.(); closeModal(); } }); // blur antes: o texto em edição é salvo
   document.body.appendChild(ov);
   modalClose = () => { ov.remove(); modalClose = null; onClose?.(); };
   setTimeout(() => { ov.querySelector('[autofocus]')?.focus(); window.__deaccent?.(ov); }, 0);
   return ov.querySelector('.modal');
 }
-export function closeModal() { modalClose?.(); }
+export function closeModal() {
+  // sai do campo antes de fechar: o texto que estava sendo editado é salvo (evento "change"), feche como fechar
+  const a = document.activeElement;
+  if (modalClose && a && a !== document.body && a.closest?.('.overlay')) a.blur();
+  modalClose?.();
+}
 export const modalOpen = () => !!modalClose;
 
 /** pergunta sim/não dentro da página (o claude.ai bloqueia confirm()) */
@@ -76,8 +81,8 @@ export function taskRow(t, opts = {}) {
     <span class="row" style="gap:6px;margin-top:5px"><button class="btn sm" data-act="cycle-back" data-id="${t.id}">↩ VOLTOU</button><button class="btn sm good" data-act="cycle-ok" data-id="${t.id}">✓ APROVADO</button></span>` : '';
   return `<li class="${cls}" data-id="${t.id}" ${t.color ? `data-color="${t.color}"` : ''}><span class="handle" data-handle="task" data-id="${t.id}" title="Segure e arraste">⠿</span>
     <button class="check" data-act="toggle" data-id="${t.id}" aria-label="Concluir ${esc(t.text)}">${CHECK[t.st] || ''}</button>
-    <div class="txt" ${t.link && R.isOpen(t) ? `data-act="jump-block" data-id="${t.link}" title="Ir pro BREAKDOWN"` : `data-act="edit-task" data-id="${t.id}"`}>${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}${sub}${sent}</div>
-    <div class="info">${t.link ? `<button class="chip cyc" data-act="jump-block" data-id="${t.link}" title="No BREAKDOWN MACHINE">🔗 BREAKDOWN</button><button class="icon-btn mini" data-act="edit-task" data-id="${t.id}" title="Editar" aria-label="Editar">✎</button>` : opts.list && !p.step && R.isOpen(t) ? `<button class="icon-btn mini" data-act="to-breakdown" data-id="${t.id}" title="Mandar pro BREAKDOWN MACHINE (fica ligada)" aria-label="Mandar pro breakdown">⤴</button>` : ''}${t.prio ? '<span class="chip prio">!</span>' : ''}${t.cycle ? `<span class="chip cyc" title="vai e volta">🔁${rounds ? ' ' + rounds : ''}</span>` : ''}${t.pin && opts.showPin ? '<span class="chip">↗</span>' : ''}${dueChip(t.due, !R.isOpen(t))}${xp ? `<span class="chip xp">${xp}</span>` : ''}</div>
+    <div class="txt" data-act="edit-task" data-id="${t.id}">${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}${sub}${sent}</div>
+    <div class="info">${t.link ? `<button class="chip cyc" data-act="jump-block" data-id="${t.link}" title="Ir pro BREAKDOWN MACHINE">🔗 BREAKDOWN</button>` : opts.list && !p.step && R.isOpen(t) ? `<button class="icon-btn mini" data-act="to-breakdown" data-id="${t.id}" title="Mandar pro BREAKDOWN MACHINE (fica ligada)" aria-label="Mandar pro breakdown">⤴</button>` : ''}${t.prio ? '<span class="chip prio">!</span>' : ''}${t.cycle ? `<span class="chip cyc" title="vai e volta">🔁${rounds ? ' ' + rounds : ''}</span>` : ''}${t.pin && opts.showPin ? '<span class="chip">↗</span>' : ''}${dueChip(t.due, !R.isOpen(t))}${xp ? `<span class="chip xp">${xp}</span>` : ''}</div>
   </li>`;
 }
 

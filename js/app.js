@@ -25,7 +25,7 @@ import { viewFiltro } from './views/filtro.js';
 
 import { viewRotina } from './views/rotina.js';
 
-import { sceneBanner, mountScenes, extend, viewArquivo3, chapterCard } from './v3.js';
+import { sceneBanner, mountScenes, extend, viewArquivo3, chapterCard, isCollapsed, toggleCollapse } from './v3.js';
 
 import { afterRender, extend35 } from './v35.js';
 
@@ -63,7 +63,7 @@ document.addEventListener('drop', (e) => {
   try { localStorage.setItem('gamify-ui:tabs', JSON.stringify(ord)); } catch { /* */ }
   dragTabK = null; render();
 });
-const ui = { ltab: 'taverna', fcat: null, showDone: false, hweek: 0, tlWeek: 0, arqLimit: 80 };
+const ui = { ltab: 'taverna', fcat: null, showDone: false, showStalled: (() => { try { return localStorage.getItem('gamify-ui:stalled') === '1'; } catch { return false; } })(), hweek: 0, tlWeek: 0, arqLimit: 80 };
 const $main = document.getElementById('main');
 let started = false;
 const route = () => { const h = location.hash.replace('#', ''); return ROUTES.find((r) => r[0] === h) ? h : 'quests'; };
@@ -118,20 +118,73 @@ function render() {
   if (status.mode === 'local' && !localStorage.getItem('gamify-ui:localok')) setTimeout(() => { try { localStorage.setItem('gamify-ui:localok', '1'); } catch { /* */ } }, 20000);
   if (status.mode === 'local' && !status.error && !localStorage.getItem('gamify-ui:localok')) banners.push(typeof window.claude === 'undefined' ? '<div class="banner info">📱 Modo app: seus dados ficam neste aparelho. Conecte o Google Drive em PERKS AND RULES para sincronizar celular e PC, ou baixe um backup. <button class="btn sm ghost" data-act="local-ok">ENTENDI</button></div>' : '<div class="banner info">Modo local: os dados ficam só neste navegador. Abra pelo link do claude.ai pra sincronizar celular e PC.</div>');
   if (!status.error) banners.push(backupBanner());
-  const y = scrollY, refocus = captureFocus();
+  const y = scrollY, refocus = captureFocus(), sideY = $main.querySelector('.side')?.scrollTop || 0, redraft = captureDrafts();
   let bodyHtml;
   try { bodyHtml = sceneBanner(cur, ui) + ROUTES.find((r) => r[0] === cur)[3](ui); } catch (err) {
     console.error(err);
     bodyHtml = `<div class="banner bad"><b>Erro ao desenhar esta aba:</b> ${esc(String(err?.message || err))}<br><small>${esc(String(err?.stack || '').split('\n').slice(1, 4).join(' · '))}</small><br>Recarregue com Ctrl+Shift+R. Se continuar, me mande esta mensagem.</div>`;
   }
   $main.innerHTML = banners.join('') + bodyHtml;
+  setStick();
   scrollTo(0, y);
   try { mountScenes(); } catch (err) { console.error(err); }
   deaccent(document.body);
   try { afterRender(cur); } catch (err) { console.error(err); }
   try { afterRender4(cur); } catch (err) { console.error(err); }
   refocus();
+  redraft();
+  const side = $main.querySelector('.side'); // o painel da direita tem rolagem própria: volta pra onde estava
+  if (side && sideY) side.scrollTop = sideY;
 }
+/** onde termina o topo (cabeçalho + abas) na tela agora: a barra das janelas do QUESTS e o painel da direita ficam presos logo abaixo.
+ *  O topo só acompanha a primeira tela de rolagem; quando ele sai, os dois sobem e aproveitam o espaço. */
+let stickV = -1, stickRaf = 0;
+function setStick() {
+  const v = Math.max(0, Math.round(document.getElementById('tabs').getBoundingClientRect().bottom || document.getElementById('top').getBoundingClientRect().bottom));
+  if (v !== stickV) { stickV = v; document.documentElement.style.setProperty('--stick', v + 'px'); }
+}
+const stickSoon = () => { if (!stickRaf) stickRaf = requestAnimationFrame(() => { stickRaf = 0; setStick(); }); };
+addEventListener('resize', stickSoon);
+addEventListener('scroll', stickSoon, { passive: true });
+
+// ───────────────────────── TEXTO NÃO SE PERDE ─────────────────────────
+// 1) o que está digitado nas linhas "+ adicionar" sobrevive quando a tela é redesenhada;
+// 2) sair do campo com texto (sem dar Enter) já adiciona; 3) na janela da tarefa/bloco/boss o texto salva ao sair do campo.
+const ADD_SEL = 'form[data-form="add-task"], form[data-form="add-block"], form[data-form="add-boss"]';
+const addKey = (f) => `form[data-form="${f.dataset.form}"]` + (f.dataset.block ? `[data-block="${f.dataset.block}"]` : f.dataset.area ? `[data-area="${f.dataset.area}"]` : f.dataset.group ? `[data-group="${f.dataset.group}"]` : '');
+function captureDrafts() {
+  const act = document.activeElement, list = [];
+  for (const f of $main.querySelectorAll(ADD_SEL)) { const i = f.querySelector('input'); if (i && (i.value || i === act)) list.push([addKey(f), i.value, i === act]); }
+  return () => { for (const [k, v, focus] of list) { const i = $main.querySelector(k + ' input'); if (!i) continue; if (v) i.value = v; if (focus && document.activeElement !== i && !modalOpen()) { i.focus(); try { i.setSelectionRange(v.length, v.length); } catch { /* */ } } } };
+}
+let pendingAdd = null, pendingT = null;
+function flushAdd() {
+  clearTimeout(pendingT);
+  if (!pendingAdd) return;
+  const f = document.querySelector(pendingAdd), inp = f?.querySelector('input');
+  pendingAdd = null;
+  // ignora quando o foco voltou pro campo ou quando só trocou de janela do computador (o texto continua no campo)
+  if (!f || !inp || !inp.value.trim() || document.activeElement === inp || !document.hasFocus()) return;
+  FORMS[f.dataset.form]?.(f, true);
+}
+document.addEventListener('focusout', (e) => {
+  const f = e.target.closest?.(ADD_SEL);
+  if (!f || !e.target.value?.trim()) return;
+  // não adiciona na hora: espera o clique terminar (senão o redesenho da tela engole o clique)
+  pendingAdd = addKey(f); clearTimeout(pendingT); pendingT = setTimeout(flushAdd, 300);
+});
+function saveModalText(el) {
+  const f = el?.closest?.('form[data-form="task"], form[data-form="block"], form[data-form="boss"]');
+  if (!f || !['text', 'title'].includes(el.name)) return;
+  const v = el.value.trim(), id = f.dataset.id;
+  if (!v) return;
+  if (f.dataset.form === 'task') {
+    const t = S.quests.tasks.find((x) => x.id === id), text = t && rebuildText(v, { star: f.star.checked, home: f.home.checked, money: f.money.checked, xp: +f.xp.value || null });
+    if (t && text !== t.text) A.updateTask(id, { text });
+  } else if (f.dataset.form === 'block') { const b = S.quests.blocks.find((x) => x.id === id); if (b && v !== b.title) A.updateBlock(id, { title: v }); }
+  else { const b = S.quests.bosses.find((x) => x.id === id); if (b && v !== b.text) A.updateBoss(id, { text: v }); }
+}
+document.addEventListener('change', (e) => saveModalText(e.target));
 const PX_SEL = 'h1,h2,h3,.btn,.px,.tabs a,.chip,.lv,.coin small,.rar,.band,.seg button,.stat small,label.lbl,.hab .hn,.bottom a,.logo,.item .ip,.k,.timer-chip,.ftab th,.tl th,.rot th,.medal .mn';
 const plain = (t) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 function deaccent(root) {
@@ -458,6 +511,13 @@ const ACTIONS = {
   fcat: (d) => { ui.fcat = d.cat; render(); },
   fsort: (d) => { const f = ui.filtro; if (f.sort === d.k) f.dir *= -1; else { f.sort = d.k; f.dir = 1; } render(); },
   'toggle-done': () => { ui.showDone = !ui.showDone; render(); },
+  'toggle-stalled': () => { ui.showStalled = !ui.showStalled; try { localStorage.setItem('gamify-ui:stalled', ui.showStalled ? '1' : '0'); } catch { /* */ } render(); sfx('tab'); },
+  'collapse-all': () => {
+    const keys = [...new Set([...$main.querySelectorAll('.board [data-act="collapse"][data-k]')].map((x) => x.dataset.k).filter((k) => /^[bl]:/.test(k)))];
+    const close = keys.some((k) => !isCollapsed(k));
+    for (const k of keys) if (isCollapsed(k) !== close) toggleCollapse(k);
+    render(); sfx('swish');
+  },
   'arq-more': () => { ui.arqLimit += 100; render(); },
   'archive-now': async () => { if (await ask('Atualizar o quadro?', 'Arquiva agora tudo que está ✓ ou ✕ (e blocos fechados). O XP continua valendo.', 'ATUALIZAR')) A.archiveNow(); },
   distribute: () => distribute(),
@@ -539,15 +599,16 @@ document.addEventListener('click', (e) => {
 
 // ───────────────────────── FORMULÁRIOS ─────────────────────────
 const FORMS = {
-  'add-task': (f) => {
+  'add-task': (f, blur) => {
     const text = f.text.value.trim();
     if (!text) return;
+    f.text.value = '';
     if (f.dataset.block) A.addTask({ text, block: f.dataset.block }); else A.addTask({ text, area: f.dataset.area });
     sfx('tab');
-    requestAnimationFrame(() => document.querySelector(`form[data-form="add-task"][data-${f.dataset.block ? 'block' : 'area'}="${f.dataset.block || f.dataset.area}"] input`)?.focus());
+    if (!blur) requestAnimationFrame(() => document.querySelector(`form[data-form="add-task"][data-${f.dataset.block ? 'block' : 'area'}="${f.dataset.block || f.dataset.area}"] input`)?.focus());
   },
-  'add-block': (f) => A.addBlock(f.dataset.group, f.title.value),
-  'add-boss': (f) => { const v = f.text.value; const m = /([\d.]+)\s*XP/i.exec(v); A.addBoss(v, m ? +m[1].replace(/\./g, '') : 500); },
+  'add-block': (f) => { const v = f.title.value.trim(); f.title.value = ''; if (v) A.addBlock(f.dataset.group, v); },
+  'add-boss': (f) => { const v = f.text.value.trim(); f.text.value = ''; if (!v) return; const m = /([\d.]+)\s*XP/i.exec(v); A.addBoss(v, m ? +m[1].replace(/\./g, '') : 500); },
   task: async (f) => {
     const t = S.quests.tasks.find((x) => x.id === f.dataset.id);
     const text = rebuildText(f.text.value, { star: f.star.checked, home: f.home.checked, money: f.money.checked, xp: +f.xp.value || null });
@@ -561,10 +622,16 @@ const FORMS = {
     if (cost) primoReact('remarcou', { xp: cost });
     closeModal();
   },
-  block: (f) => {
+  block: async (f) => {
     const b = S.quests.blocks.find((x) => x.id === f.dataset.id);
     const patch = { title: f.title.value.trim() || b.title, color: f.querySelector('[name=color]:checked')?.value || b.color, due: f.due.value || null, group: f.group.value };
     if (f.st.value !== 'done') patch.st = f.st.value;
+    const lt = b.src && S.quests.tasks.find((x) => x.id === b.src);
+    if (lt && (lt.due || null) !== patch.due) {
+      if (!(await confirmResched(lt, patch.due))) return;
+      const r = A.updateTask(lt.id, { due: patch.due });
+      if (r?.error) { toast(esc(r.error), 'bad'); return; }
+    }
     A.updateBlock(b.id, patch);
     closeModal();
   },
@@ -605,6 +672,7 @@ const FORMS = {
   },
 };
 document.addEventListener('submit', (e) => { const f = e.target.closest('form[data-form]'); if (!f) return; e.preventDefault(); FORMS[f.dataset.form]?.(f); });
+document.addEventListener('click', () => flushAdd()); // depois do clique tratado: adiciona o texto que ficou numa linha "+ adicionar"
 document.addEventListener('change', (e) => {
   const el = e.target.closest('[data-change]');
   if (!el) return;
@@ -663,7 +731,7 @@ document.addEventListener('drop', (e) => {
 
 // ───────────────────────── ATALHOS ─────────────────────────
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') { if (modalOpen()) closeModal(); return; }
+  if (e.key === 'Escape') { if (modalOpen()) { document.activeElement?.blur?.(); closeModal(); } return; } // blur antes: salva o texto em edição
   if (modalOpen() || e.ctrlKey || e.metaKey || e.altKey || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)) return;
   const r = ROUTES.find((x) => x[4] && x[4] === e.key.toLowerCase());
   if (r) { location.hash = '#' + r[0]; return; }
