@@ -113,7 +113,7 @@ export function legendHtml() {
       <tr><td>(60XP)</td><td>no texto: define o valor da tarefa</td></tr>
       <tr><td>⚔ ↳</td><td>⚔ mini-boss = a vitória · ↳ passo (escreva > no começo) = 3 XP; todos os ↳ feitos marcam o ⚔ sozinho</td></tr>
       <tr><td>📅 🐦</td><td>no prazo x1,5 · 2+ dias antes x2 · atrasou = sem bônus</td></tr>
-      <tr><td>🟥🟨🟩🟧⬛</td><td>cor do bloco/tarefa: urgente · andamento · pessoal · gestão · parado</td></tr>
+      <tr><td>🟥🟨🟩🟧⬛</td><td>cor do bloco: urgente · andamento · pessoal · gestão · parado</td></tr>
       <tr><td>LISTA</td><td>subtarefa 5 · lista 10 · fechar bloco: breakdown 100 · 🎯 meta 200 · captação 150 · trabalho 300</td></tr>
     </table>`;
 }
@@ -196,7 +196,7 @@ function topStrip() {
   return `<div class="topstrip">
     <div class="card"><header><h2>📌 Missões da ${sunday ? 'próxima semana' : 'semana'}</h2><span class="meta">${wm.done}/3 · cada uma x1,5 · as 3 = +100 XP +1 🎟 <button class="btn sm" data-act="weekly-pick">ESCOLHER</button></span></header>
       ${wm.tasks.length ? `<ul class="tasks">${wm.tasks.map((t) => taskRow(t, { sub: t.block ? R.findBlock(S, t.block)?.title : R.AREAS[t.area] })).join('')}</ul>` : '<div class="empty">Escolha as 3 pedras grandes da semana. O resto é backlog, sem culpa.</div>'}</div>
-    ${boss ? `<div class="card boss-r"><header><h2>👹 Boss do capítulo</h2><span class="meta">${esc(boss.label)} <button class="btn sm pri" data-act="save-money">💰 GUARDEI</button></span></header>
-      <div class="num" style="font-size:12px">R$ ${fmtN(boss.left)} <span class="meta">de vida</span></div>${segBar(boss.pct, 'hp')}<p class="meta" style="margin:6px 0 0">o que você guarda dá dano · R$ ${fmtN(boss.got)} guardados de R$ ${fmtN(boss.target)}</p></div>` : ''}
+    ${boss ? `<div class="card boss-r"><header><h2>👹 Boss do capítulo</h2><span class="meta">${esc(boss.label)} <span class="row" style="gap:4px;justify-content:flex-end;margin-top:4px"><button class="btn sm pri" data-act="save-money">💰 GUARDEI</button>${boss.got > 0 ? '<button class="btn sm" data-act="take-money" title="Tirei dinheiro do que estava guardado: o boss recupera vida">↩ RETIREI</button>' : ''}</span></span></header>
+      <div class="num" style="font-size:12px">R$ ${fmtN(boss.left)} <span class="meta">de vida</span></div>${segBar(boss.pct, 'hp')}<p class="meta" style="margin:6px 0 0">o que você guarda dá dano · R$ ${fmtN(boss.got)} guardados de R$ ${fmtN(boss.target)}${boss.out ? ` · <span class="bad">R$ ${fmtN(boss.out)} retirados</span>` : ''}${boss.moves.length ? ` · <a href="#" data-act="money-log">histórico (${boss.moves.length})</a>` : ''}</p></div>` : ''}
   </div>`;
 }

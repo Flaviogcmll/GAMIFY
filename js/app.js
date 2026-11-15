@@ -261,7 +261,6 @@ function editTask(id) {
       <label title="Prefeitura, aprovação, cliente revisando"><input type="checkbox" name="cycle" ${t.cycle || suggestCycle ? 'checked' : ''}> 🔁 vai e volta${suggestCycle ? ' <span class="warn">(sugerido)</span>' : ''}</label>
       <span class="xpset">XP ${[['', 'AUTO'], [5, '5'], [10, '10'], [30, '30'], [60, '60'], [100, '100']].map(([v, n]) => `<button type="button" class="btn sm ghost ${String(p.xpFix ?? '') === String(v) ? 'on' : ''}" data-act="xp-preset" data-v="${v}">${n}</button>`).join('')}<input class="inp" type="number" min="1" name="xp" value="${p.xpFix ?? ''}" placeholder="auto" aria-label="XP fixo" style="width:70px;min-height:28px;display:inline-block"></span></div>
     <div class="row"><div class="grow"><label class="lbl" for="t-where">Onde</label><select class="inp" id="t-where" name="where">${whereOptions(t)}</select></div>
-      <div><label class="lbl" for="t-color">Cor</label><select class="inp" id="t-color" name="color">${COLORS.map(([k, n]) => `<option value="${k}" ${(t.color || '') === k ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
       ${t.block ? `<div><label class="lbl" for="t-pin">↗ Também em</label><select class="inp" id="t-pin" name="pin"><option value="">—</option>${Object.entries(R.AREAS).map(([k, n]) => `<option value="${k}" ${t.pin === k ? 'selected' : ''}>${n}</option>`).join('')}</select></div>` : ''}</div>
     <div class="actions"><div class="left"><button type="button" class="btn sm" data-act="move-task" data-id="${id}" data-dir="-1">↑</button><button type="button" class="btn sm" data-act="move-task" data-id="${id}" data-dir="1">↓</button>
       ${t.block && !p.step ? `<button type="button" class="btn sm" data-act="add-step" data-id="${id}">+ ↳ PASSO</button>` : ''}<button type="button" class="btn sm" data-act="sos" data-id="${id}">${px('sos', 10)} TRAVEI</button>${t.link ? `<button type="button" class="btn sm" data-act="unlink" data-id="${id}">↯ DESVINCULAR</button>` : ''}<button type="button" class="btn sm danger" data-act="del-task" data-id="${id}">APAGAR</button></div>
@@ -613,7 +612,7 @@ const FORMS = {
     const t = S.quests.tasks.find((x) => x.id === f.dataset.id);
     const text = rebuildText(f.text.value, { star: f.star.checked, home: f.home.checked, money: f.money.checked, xp: +f.xp.value || null });
     const [kind, val] = f.where.value.split(':');
-    const patch = { text, due: f.due.value || null, color: f.color.value || undefined, prio: f.prio.checked || undefined, cycle: f.cycle.checked };
+    const patch = { text, due: f.due.value || null, prio: f.prio.checked || undefined, cycle: f.cycle.checked };
     if (f.pin) patch.pin = f.pin.value || undefined;
     if (f.where.value !== (t.block ? `block:${t.block}` : `area:${t.area}`)) { if (kind === 'block') patch.block = val; else { patch.block = null; patch.area = val; } }
     if (!(await confirmResched(t, patch.due))) return;

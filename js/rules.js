@@ -348,7 +348,7 @@ export function dayStatus(s, d) {
   if ((s.core?.rests || []).includes(y1)) add('descansado', { habit: 20 });
   // v4: ecossistema
   const week = range(addDays(d, -6), 7), dayMs = (x) => new Date(x + 'T00:00:00').getTime();
-  if ((s.core?.savings || []).some((g) => week.includes(g.date))) add('poupador', { shop: 0.9 });
+  if ((s.core?.savings || []).some((g) => g.amount > 0 && week.includes(g.date))) add('poupador', { shop: 0.9 }); // só guardar conta; retirada não dá o bônus
   if ((s.core?.focus || []).filter((f) => f.ok && week.includes(f.date)).length >= 3) add('focado', { task: 10 });
   if ((s.core?.bonus || []).some((b) => b.kind === 'expedicao' && b.date >= addDays(d, -2) && b.date <= d)) add('explorador', { habit: 10 });
   if ([y1, y2, y3].every((x) => s.core?.journal?.[x])) add('cronista', { task: 5 });
@@ -959,8 +959,10 @@ export function chapterBoss(s) {
   const ch = s.core?.chapter || {}, target = +ch.goal || 0;
   if (!target) return null;
   const since = ch.start || s.core?.startDate || '2000-01-01';
-  const got = (s.core?.savings || []).filter((g) => g.date >= since).reduce((a, g) => a + (+g.amount || 0), 0); // só o que você GUARDOU dá dano
-  return { label: ch.goalLabel || 'META DO CAPÍTULO', target, got, left: Math.max(0, target - got), pct: Math.max(0, 1 - got / target) };
+  // só o que você GUARDOU dá dano; retirada entra com valor negativo e devolve vida ao boss
+  const moves = (s.core?.savings || []).filter((g) => g.date >= since);
+  const got = Math.max(0, moves.reduce((a, g) => a + (+g.amount || 0), 0)), out = moves.reduce((a, g) => a + (g.amount < 0 ? -g.amount : 0), 0);
+  return { label: ch.goalLabel || 'META DO CAPÍTULO', target, got, out, moves, left: Math.max(0, target - got), pct: Math.min(1, Math.max(0, 1 - got / target)) };
 }
 /** as 3 missões da semana (pedras grandes): cada uma x1,5; as 3 feitas = +100 XP e +1 🎟 */
 export function weeklyMissions(s, d = today()) {

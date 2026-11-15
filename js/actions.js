@@ -814,6 +814,18 @@ export function addSaving(amount, note) {
   if (!(+amount > 0)) return;
   return commit(['core'], () => { S.core.savings ||= []; S.core.savings.push({ id: uid('sv'), date: today(), amount: +amount, note: String(note || '').trim() }); return { msg: `💰 R$ ${(+amount).toLocaleString('pt-BR')} guardados: dano no boss!` }; });
 }
+/** retirada: você tirou dinheiro do que estava guardado. Fica no histórico com valor negativo e o boss do capítulo recupera essa vida. */
+export function withdrawSaving(amount, note) {
+  amount = +amount;
+  if (!(amount > 0)) return;
+  const got = R.chapterBoss(S)?.got ?? 0;
+  if (amount > got) return { error: `Só dá pra retirar até R$ ${got.toLocaleString('pt-BR')}: é o que está guardado neste capítulo.` };
+  return commit(['core'], () => { S.core.savings ||= []; S.core.savings.push({ id: uid('sv'), date: today(), amount: -amount, note: String(note || '').trim() }); return { msg: `💸 R$ ${amount.toLocaleString('pt-BR')} retirados: o boss recuperou vida.` }; });
+}
+/** apaga um lançamento do histórico (pra corrigir erro de digitação) */
+export function deleteSaving(id) {
+  return commit(['core'], () => { S.core.savings = (S.core.savings || []).filter((x) => x.id !== id); });
+}
 export function setWeekly(ids, ws = weekStart(today())) {
   return commit(['core'], () => { S.core.weekly ||= {}; S.core.weekly[ws] = ids.slice(0, 3); for (const k of Object.keys(S.core.weekly)) if (k < addDays(today(), -60)) delete S.core.weekly[k]; });
 }

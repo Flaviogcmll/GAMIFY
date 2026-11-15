@@ -119,9 +119,13 @@ O dono usa muito mais o PC. Pedidos atendidos:
 - ⬛ parados com botão próprio (MOSTRAR/OCULTAR PARADOS, preferência `gamify-ui:stalled`), separado do MOSTRAR FEITAS; vale para blocos e tarefas com a cor PARADO.
 - Recorde de sequência por hábito (`R.bestStreak`): 🏆 no SURVIVAL e na dica do cartão de hábitos.
 - Drive: o app guarda a conta usada (`gamify-ui:gmail`, lida do próprio Drive) e a chave de acesso por ~1 h (`gamify-ui:gtok`), para o Google não perguntar "qual conta" a cada abertura. Botão TROCAR DE CONTA em PERKS.
+- BOSS DO CAPÍTULO: botão ↩ RETIREI (lançamento negativo em `core.savings`; a vida do boss sobe), limite = o que está guardado no capítulo, e "histórico" com ✕ para apagar lançamento errado. Retirada não dá o bônus POUPADOR.
+- Janela da tarefa sem o campo Cor (o dono nunca usou). Tarefas antigas que já tinham cor continuam com ela; a cor do BLOCO continua (é por ela que se marca ⬛ PARADO).
+- Publicado na `main` em 15/11/2026 a pedido do dono. Ponto de retorno: branch `versao-v5.1` (o app como estava antes das rodadas 1 e 2).
 
 ## PRÓXIMAS RODADAS (combinado com o dono em 15/11/2026)
 Princípio dele: qualidade de vida e praticidade; tudo integrado como um ecossistema; simples no fim das contas (o app não pode tomar o tempo das tarefas). Ele aceita sugestões melhores que o pedido.
+- O dono pediu para REMOVER COISAS REDUNDANTES. Candidatos levantados (confirmar com ele antes): campo "↗ Também em" da tarefa (nenhuma tarefa usa), botões ↑ ↓ da janela (já existe arrastar), cartão COMANDOS do painel (repete as abas), COPIAR BACKUP (já existe BAIXAR).
 - **Rodada 3 — LISTAS como janela mãe.** Decidido: listas AUTOMÁTICAS pelo prazo (HOJE, AMANHÃ, ESTA SEMANA, DEPOIS, SEM PRAZO, AGUARDANDO; arrastar para outra lista muda o prazo) e UM campo só de "aguardando: quem ou o quê" (pessoa ou outra tarefa), que alimenta a lista AGUARDANDO, o filtro por pessoa no FILTRO e a volta automática quando a outra tarefa é concluída. Também: LISTAS com cor própria e as outras janelas derivando dela; botão ＋ para criar/renomear janelas; cores nas listas; botão REVISADO no fim do bloco (vale 24 h, com selo visual); personalizar textos fixos sem quebrar as mecânicas.
 - **Rodada 4 — rituais, loja, fogos, distribuir.** Ritual com data marcada (ex.: SPA num dia específico, mesmo com aviso a cada 15 dias) aparecendo na AGENDA e no cronograma; item ACORDAR TARDE na loja; JOGO STEAM na forja; aba no SHOP com o histórico do que já foi forjado; REDENÇÃO vira só "aula de curso (40 XP)" ou "meditação"; fogos de artifício (som + animação pequena) ao concluir algo demorado; DISTRIBUIR pergunta "só as que já tinham prazo ou todas" e usa a produtividade real do dono (tarefas por dia da semana).
 - **Rodada 5 — voltar ao jogo.** Entrevista do dia com o PRIMO na primeira abertura; detectar que ficou muito tempo sem preencher e oferecer revisão rápida de retorno; modo VIAGEM/VISITAS (trava tudo sem perder progresso; na volta, lista de guardar malas e reorganizar).
@@ -140,6 +144,7 @@ Princípio dele: qualidade de vida e praticidade; tudo integrado como um ecossis
 - Escrever o passo a passo do ID de acesso do Google Drive (o dono já tem o dele funcionando).
 - Otimizações ainda não feitas: abrir da cópia offline primeiro e fontes dentro do app; aliviar abas pesadas (CONQUISTAS, PERKS, FILTRO); trocar nomes pessoais do código; remover sobras da VILA.
 - Trocar o mascote por um com fases de vida reais (Gridwright Virtual Pet Kit, pago, não redistribuir os arquivos).
+- O dono quer gerar os sprites e animações do porquinho com uma IA de imagem (qualidade melhor). Preparar para ele a especificação: tamanho do quadro, lista de animações (parado, feliz, dormindo, andando), vistas (frente, lados, costas) e o formato de `assets/pets/piglet.json` com as âncoras da cabeça para os acessórios.
 - Mais frases e curiosidades; evolução visual do porquinho; sons por expressão.
 - COFRE (`core.cofre`) ligado à planilha de gastos.
 - Tarefas compartilhadas do casal (precisa de servidor).
