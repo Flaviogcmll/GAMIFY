@@ -35,6 +35,7 @@ import { extendPrimo, openPrimoHub, primoFeedback, primoReact } from './primo.js
 
 import { extendDrive } from './drive.js';
 import { autoSnapshot, backupBanner, extendBackup, markBackup, restoreDocs } from './backup.js';
+import { tripBanner, tripCheck, extendTrip } from './trip.js';
 
 
 // abas na mesma ordem da planilha
@@ -106,7 +107,7 @@ function render() {
     autoSnapshot(); // cópia de segurança do dia, antes de o app ajustar qualquer coisa sozinho
     A.startup();
     if (S._autoDue) toast(`📅 ${S._autoDue} tarefa(s) nova(s) do IMEDIATOS/CURTO ganharam prazo sozinhas.`);
-    try { if (!localStorage.getItem('gamify-ui:tour')) setTimeout(tour, 600); } catch { /* */ }
+    try { if (!localStorage.getItem('gamify-ui:tour')) setTimeout(tour, 600); else tripCheck(); } catch { /* */ }
   }
   document.getElementById('top').innerHTML = header();
   document.getElementById('tabs').innerHTML = tabOrder().map(([k, n, ic]) => `<a href="#${k}" draggable="true" data-tabk="${k}" class="${k === cur ? 'on' : ''}">${px(ic, 12)}${n}</a>`).join('');
@@ -118,6 +119,7 @@ function render() {
   if (status.mode === 'local' && !localStorage.getItem('gamify-ui:localok')) setTimeout(() => { try { localStorage.setItem('gamify-ui:localok', '1'); } catch { /* */ } }, 20000);
   if (status.mode === 'local' && !status.error && !localStorage.getItem('gamify-ui:localok')) banners.push(typeof window.claude === 'undefined' ? '<div class="banner info">📱 Modo app: seus dados ficam neste aparelho. Conecte o Google Drive em PERKS AND RULES para sincronizar celular e PC, ou baixe um backup. <button class="btn sm ghost" data-act="local-ok">ENTENDI</button></div>' : '<div class="banner info">Modo local: os dados ficam só neste navegador. Abra pelo link do claude.ai pra sincronizar celular e PC.</div>');
   if (!status.error) banners.push(backupBanner());
+  banners.push(tripBanner());
   const y = scrollY, refocus = captureFocus(), sideY = $main.querySelector('.side')?.scrollTop || 0, redraft = captureDrafts();
   let bodyHtml;
   try { bodyHtml = sceneBanner(cur, ui) + ROUTES.find((r) => r[0] === cur)[3](ui); } catch (err) {
@@ -185,6 +187,11 @@ function saveModalText(el) {
   else { const b = S.quests.bosses.find((x) => x.id === id); if (b && v !== b.text) A.updateBoss(id, { text: v }); }
 }
 document.addEventListener('change', (e) => saveModalText(e.target));
+document.addEventListener('change', async (e) => { // arquivo de backup escolhido: o conteúdo vai pra caixa de texto
+  const el = e.target;
+  if (!el.matches?.('[data-import-file]') || !el.files?.[0]) return;
+  try { el.closest('form').json.value = await el.files[0].text(); } catch { toast('Não consegui ler esse arquivo.', 'bad'); }
+});
 const PX_SEL = 'h1,h2,h3,.btn,.px,.tabs a,.chip,.lv,.coin small,.rar,.band,.seg button,.stat small,label.lbl,.hab .hn,.bottom a,.logo,.item .ip,.k,.timer-chip,.ftab th,.tl th,.rot th,.medal .mn';
 const plain = (t) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 function deaccent(root) {
@@ -261,8 +268,8 @@ function editTask(id) {
       <label title="Prefeitura, aprovação, cliente revisando"><input type="checkbox" name="cycle" ${t.cycle || suggestCycle ? 'checked' : ''}> 🔁 vai e volta${suggestCycle ? ' <span class="warn">(sugerido)</span>' : ''}</label>
       <span class="xpset">XP ${[['', 'AUTO'], [5, '5'], [10, '10'], [30, '30'], [60, '60'], [100, '100']].map(([v, n]) => `<button type="button" class="btn sm ghost ${String(p.xpFix ?? '') === String(v) ? 'on' : ''}" data-act="xp-preset" data-v="${v}">${n}</button>`).join('')}<input class="inp" type="number" min="1" name="xp" value="${p.xpFix ?? ''}" placeholder="auto" aria-label="XP fixo" style="width:70px;min-height:28px;display:inline-block"></span></div>
     <div class="row"><div class="grow"><label class="lbl" for="t-where">Onde</label><select class="inp" id="t-where" name="where">${whereOptions(t)}</select></div>
-      ${t.block ? `<div><label class="lbl" for="t-pin">↗ Também em</label><select class="inp" id="t-pin" name="pin"><option value="">—</option>${Object.entries(R.AREAS).map(([k, n]) => `<option value="${k}" ${t.pin === k ? 'selected' : ''}>${n}</option>`).join('')}</select></div>` : ''}</div>
-    <div class="actions"><div class="left"><button type="button" class="btn sm" data-act="move-task" data-id="${id}" data-dir="-1">↑</button><button type="button" class="btn sm" data-act="move-task" data-id="${id}" data-dir="1">↓</button>
+      </div>
+    <div class="actions"><div class="left">
       ${t.block && !p.step ? `<button type="button" class="btn sm" data-act="add-step" data-id="${id}">+ ↳ PASSO</button>` : ''}<button type="button" class="btn sm" data-act="sos" data-id="${id}">${px('sos', 10)} TRAVEI</button>${t.link ? `<button type="button" class="btn sm" data-act="unlink" data-id="${id}">↯ DESVINCULAR</button>` : ''}<button type="button" class="btn sm danger" data-act="del-task" data-id="${id}">APAGAR</button></div>
       <button type="button" class="btn" data-close>FECHAR</button><button class="btn pri">SALVAR</button></div></form>`, { wide: true });
 }
@@ -275,7 +282,7 @@ function editBlock(id) {
     <div class="row"><div class="grow"><label class="lbl" for="b-due">◆ Prazo final</label><input class="inp" type="date" id="b-due" name="due" value="${b.due || ''}"></div>
       <div class="grow"><label class="lbl" for="b-group">Área</label><select class="inp" id="b-group" name="group">${Object.entries(R.GROUPS).map(([g, i]) => `<option value="${g}" ${b.group === g ? 'selected' : ''}>${i.name}</option>`).join('')}</select></div>
       <div class="grow"><label class="lbl" for="b-st">Situação</label><select class="inp" id="b-st" name="st"><option value="">ATIVO</option><option value="wait" ${b.st === 'wait' ? 'selected' : ''}>… SÓ AGUARDANDO</option>${b.st === 'done' ? '<option value="done" selected>FECHADO</option>' : ''}</select></div></div>
-    <div class="actions"><div class="left"><button type="button" class="btn sm" data-act="move-block" data-id="${id}" data-dir="-1">↑</button><button type="button" class="btn sm" data-act="move-block" data-id="${id}" data-dir="1">↓</button><button type="button" class="btn sm danger" data-act="del-block" data-id="${id}">APAGAR BLOCO</button></div>
+    <div class="actions"><div class="left"><button type="button" class="btn sm danger" data-act="del-block" data-id="${id}">APAGAR BLOCO</button></div>
       <button type="button" class="btn" data-close>FECHAR</button><button class="btn pri">SALVAR</button></div></form>`);
 }
 function distribute() {
@@ -495,7 +502,7 @@ const ACTIONS = {
   redemption: () => redemption(),
   'rd-do': (d) => { closeModal(); if (S.marks.days[today()]?.h?.rd !== 'x') { A.setHabit(today(), 'rd', 'x'); toast(`⚔ Redenção: ${esc(d.o)}. +30 XP e debuffs curados.`, 'good'); } else toast('A redenção de hoje já foi feita.'); },
   'rd-undo': () => { closeModal(); A.setHabit(today(), 'rd', ''); },
-  'rest-day': async () => { if (await ask('Dia de descanso?', 'Viagem ou doença: todos os hábitos de hoje viram folga (–), sem punição.', 'DESCANSAR')) A.restDay(today()); },
+  'rest-day': async () => { if (await ask('Dia de descanso?', 'Doença ou dia puxado: todos os hábitos de HOJE viram folga (–), sem punição. Vai ficar fora mais dias? Use o botão ✈ VIAGEM.', 'DESCANSAR')) A.restDay(today()); },
   hweek: (d) => { ui.hweek = Math.min(0, (ui.hweek || 0) + +d.dir); render(); },
   'tl-week': (d) => { ui.tlWeek = +d.dir === 0 ? 0 : (ui.tlWeek || 0) + +d.dir; render(); },
   'ag-filter': (d) => { ui.agB = d.b; render(); },
@@ -572,7 +579,7 @@ const ACTIONS = {
     try { await navigator.clipboard.writeText(json); markBackup(); render(); toast('Backup copiado. Cole num e-mail ou nota.', 'good'); }
     catch { openModal(`<h2>backup</h2><textarea class="inp" rows="10" readonly>${esc(json)}</textarea><div class="actions"><button class="btn pri" data-close>FECHAR</button></div>`); }
   },
-  'backup-import': () => openModal(`<form data-form="import"><h2>importar backup</h2><p class="muted">Cole o texto do backup. Isso SUBSTITUI os dados atuais.</p><textarea class="inp" name="json" rows="10" required></textarea><div class="actions"><button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">IMPORTAR</button></div></form>`),
+  'backup-import': () => openModal(`<form data-form="import"><h2>importar backup</h2><p class="muted">Escolha o arquivo que o BAIXAR BACKUP gerou (gamify-backup-….json) ou cole o texto dele. Isso SUBSTITUI os dados atuais.</p><input class="inp" type="file" accept=".json,application/json" data-import-file aria-label="Arquivo de backup" style="margin-bottom:8px"><textarea class="inp" name="json" rows="8" required placeholder="…ou cole o texto aqui"></textarea><div class="actions"><button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">IMPORTAR</button></div></form>`),
   'new-game': () => { replaceAll(A.newGameDocs()); render(); },
 };
 extend(ACTIONS, () => render());
@@ -581,6 +588,7 @@ extend4(ACTIONS, () => render());
 extendPrimo(ACTIONS);
 extendDrive(ACTIONS, () => render());
 extendBackup(ACTIONS, () => render());
+extendTrip(ACTIONS);
 window.__ui = ui;
 function stepPrompt(t) {
   openModal(`<form data-form="step" data-id="${t.id}" autocomplete="off"><h2>+ ↳ passo</h2><p class="meta" style="margin:0">dentro de: ${esc(t.text)}</p><label class="lbl" for="st-text">Passo (até 2h)</label><input class="inp" id="st-text" name="text" required autofocus><div class="actions"><button type="button" class="btn" data-close>FECHAR</button><button class="btn pri">ADICIONAR</button></div></form>`);

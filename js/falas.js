@@ -1,5 +1,6 @@
 // O QUE O PRIMO FALA — um banco grande de frases, cada uma com a expressão do rosto dele (neutro, feliz, animado, orgulhoso,
 // cansado, dormindo, preocupado, bravo, surpreso, pensativo, debochado, apaixonado, triste, festa, enjoado, suspeito, piscada).
+// Tipos extras: piada, ditado, causo (botão 😂 PROSA) e viagem_ida / viagem_volta.
 // Modelos: {n} {xp} {falta} {tarefa} {streak} {dias} {nome}. Nada se repete em sequência (guarda as últimas 60).
 import { S } from './store.js';
 import * as R from './rules.js';
@@ -275,6 +276,7 @@ export function primoLine(kind = 'auto', ctx = {}) {
   if (g.today >= g.goal) add(2.4, BANK.meta_batida); else if (g.today / g.goal >= 0.75) add(2.2, BANK.meta_perto); else if (g.today > 0) add(1.6, BANK.meta_meio); else add(2.2, BANK.meta_zero);
   if (g.streak >= 3) add(1, BANK.sequencia);
   add(1.6, BANK.idle); add(1.1, BANK.dica);
+  add(0.5, BANK.piada); add(0.5, BANK.ditado); add(0.25, BANK.causo); // de vez em quando ele solta uma prosa de roça
   if (!R.openTasks(S).length) add(2, BANK.vazio);
   // linhas dinâmicas com dados reais
   const dyn = [];
@@ -334,9 +336,83 @@ const MINEIRO = {
   idle: [['pensativo', 'Dizem que o mineiro desconfia até de elogio. Eu também, uai.'], ['piscada', 'Trem de arquiteto: se tá torto, é conceito, sô.'], ['debochado', 'Quem vê cara não vê coração, nem planta de prefeitura, uai.'], ['feliz', 'Arquiteto bão é aquele que faz projeto e ainda lembra de pagar o boleto, sô.'], ['suspeito', 'O cliente falou "é rapidinho"? Fica de olho, sô. Rapidinho nunca é rapidinho.'], ['neutro', 'Café na mão, régua na outra e é nóis, uai.'], ['pensativo', 'Sabe o que é bão? Uma varanda, uma rede e a obra terminada, sô.'], ['debochado', 'Se o prazo é amanhã e o projeto tá em 20%, é "pressão faz diamante", uai.'], ['surpreso', 'Uai, eu falei "trem" cinco vezes hoje. É sintoma de mineiridade avançada, sô.'], ['feliz', 'Já tomou água, sô? Hidratação é meme que a gente leva a sério.'], ['animado', 'Hakuna matata, sô! Quer dizer: sem pressão, mas com prazo.'], ['debochado', 'Mestre Yoda diria: "Faça ou não faça. Tentativa não há." E eu diria: faz logo, uai.'], ['piscada', 'Isso aí é o suco, sô. Ou melhor, é o café.'], ['pensativo', 'Tudo é possível, só falta tempo... e cafezinho, uai.'], ['cansado', 'Alguém aí viu minha energia? Perdi ela debaixo do sofá, sô.'], ['festa', 'Nóis vai, nóis vai, nóis vai! Mas primeiro o café, uai.'], ['debochado', 'Meu planejamento tá igual obra pública: previsto pra março, entrega... a gente vê.']],
   dica: [['neutro', 'Dica de mineiro: devagar e sempre, uai. O trem anda.'], ['pensativo', 'Sem data não é missão, é desejo, sô.'], ['feliz', 'Quem guarda um pouquinho todo mês, constrói casa, uai.'], ['orgulhoso', 'Feito é melhor que perfeito, sô. Mas feito e bão é ouro.'], ['piscada', 'Começa pelo trem mais chato, uai. Depois o resto é ladeira.']],
 };
+// ───────────────────────── PROSA DE ROÇA: piadas, ditados, causos e mais falas caipiras ─────────────────────────
+// Tudo original ou de domínio popular (ditado de vó não tem dono). Causo é mentira contada com carinho: não é curiosidade verificada.
+const CAIPIRA = {
+  piada: [
+    ['debochado', 'O que o pão de queijo falou pro café? "Sem ocê eu fico seco, sô."'], ['piscada', 'Mineiro não fala "te amo". Fala "cê já comeu?". Dá no mesmo, uai.'],
+    ['debochado', 'Perguntei na roça: "essa estrada vai pra cidade?" O véio respondeu: "vai não, sô. Ela fica aqui mesmo. Quem vai é ocê."'],
+    ['feliz', 'Por que o porquinho levou a escada pro chiqueiro? Pra subir de nível, uai!'], ['debochado', 'Fui fazer regime e cortei o pão de queijo... no meio. Comi as duas metades, sô.'],
+    ['piscada', 'O galo cantou às cinco e eu levantei às sete. Cada um com seu prazo, uai.'], ['debochado', 'Qual o cúmulo da paciência? Esperar aprovação de prefeitura contando os dias, sô.'],
+    ['suspeito', 'O cliente pediu "só uma alteraçãozinha". Tô rindo até agora... de nervoso, uai.'], ['debochado', 'Mineiro é tão desconfiado que, quando ganha na rifa, pergunta quanto vai custar, sô.'],
+    ['feliz', 'Dois tijolos conversando: "cê acredita em vida depois da obra?" "Uai, depende do reboco."'], ['piscada', 'Na roça, wi-fi é quando a galinha passa correndo e a gente grita: "uai, fi!"'],
+    ['feliz', 'Sabe o que o zero falou pro oito? "Bonito cinto, sô!"'], ['debochado', '"Vou ali e volto já" de mineiro pode ser hoje, amanhã ou na festa de São João, uai.'],
+    ['piscada', 'Porco não usa relógio porque vive no presunto... digo, no presente, sô.'], ['debochado', 'A tarefa atrasada entrou na venda. O dono olhou e falou: "ocê de novo, uai?"'],
+    ['feliz', 'Qual a diferença do trem pro mineiro? O trem às vezes atrasa. O mineiro só "tá chegando", sô.'], ['piscada', 'Eu ia contar uma piada sobre enrolação... depois eu conto, uai.'],
+    ['feliz', 'O que uma parede falou pra outra? "A gente se encontra no canto, sô."'], ['debochado', 'Tem três tipos de gente: as que sabem contar e as que não sabem, uai.'],
+    ['pensativo', 'Perguntei pra vaca se ela tava ocupada. Ela disse: "tô ruminando umas ideias aqui, sô."'], ['debochado', 'Por que a planta do projeto não foi na festa? Porque tava em análise, uai.'],
+    ['feliz', 'O médico mandou eu cortar o doce. Cortei: agora como o doce de leite em fatia, sô.'], ['piscada', 'O café é o melhor funcionário que existe: chega quente, trabalha coado e nunca reclama, uai.'],
+    ['suspeito', 'O prazo e eu temos um combinado: ele chega e eu finjo surpresa, sô.'], ['debochado', 'Perguntaram se eu sou porco de raça. Sou sim: raça de quem não desiste, uai.'],
+    ['feliz', 'Qual é o prato preferido do arquiteto? Planta baixa com tempero de prazo, sô.'], ['piscada', 'O relógio faz tic, faz tac e nunca me diz se dá tempo. Trem mal-educado, uai.'],
+    ['debochado', 'Sabe por que mineiro não corre? Porque o queijo não foge, sô.'], ['feliz', 'Fui pesar minha preguiça na balança da venda. Deu "volte amanhã", uai.'],
+    ['piscada', 'O que é um pontinho rosa no canto da tela? Eu, sô, esperando ocê riscar uma tarefa.'],
+  ],
+  ditado: [
+    ['pensativo', 'De grão em grão a galinha enche o papo, sô. E de tarefa em tarefa cê enche a barra de XP.'], ['neutro', 'Água mole em pedra dura tanto bate até que fura. Hábito é isso aí, uai.'],
+    ['piscada', 'Quem não tem cão caça com gato. Quem não tem tempo, caça 25 minutinhos, sô.'], ['pensativo', 'Devagar com o andor que o santo é de barro, uai.'],
+    ['neutro', 'Quem planta colhe. Quem só olha a enxada, colhe é mato, sô.'], ['feliz', 'Passarinho que acorda cedo bebe água limpa, uai.'],
+    ['neutro', 'Não adianta chorar o leite derramado: limpa o fogão e ferve outro, sô.'], ['piscada', 'Cada macaco no seu galho e cada tarefa no seu prazo, uai.'],
+    ['debochado', 'Em casa de ferreiro o espeto é de pau. Em casa de arquiteto a reforma nunca acaba, sô.'], ['orgulhoso', 'Mais vale um pássaro na mão que dois voando. Mais vale uma tarefa feita que dez planejadas, uai.'],
+    ['pensativo', 'Quem tem pressa come cru, quem enrola come frio. O bão é comer na hora certa, sô.'], ['feliz', 'O olho do dono é que engorda o porco. Olha eu aqui: um trem de bonito, uai.'],
+    ['neutro', 'Panela velha é que faz comida boa, e rotina velha é que faz resultado, sô.'], ['feliz', 'Quem corre cansa, quem anda alcança, uai.'],
+    ['suspeito', 'Boi lerdo bebe água suja. Bora chegar primeiro no ribeirão, sô.'], ['piscada', 'Antes tarde do que nunca. Mas antes no prazo do que tarde, uai.'],
+    ['pensativo', 'Pra quem sabe ler, um pingo é letra. Pra quem tem prazo, um dia é ouro, sô.'], ['neutro', 'Não se põe a carroça na frente dos bois. Primeiro o passo pequeno, uai.'],
+    ['suspeito', 'Quem avisa amigo é: tem prazo chegando, sô.'], ['debochado', 'Gato escaldado tem medo de água fria. E quem já pagou multa de atraso, tem medo de quê, uai?'],
+    ['animado', 'Um dia é da caça, outro do caçador. Hoje cê é o caçador, sô.'], ['pensativo', 'Em dia de preguiça, quem faz uma tarefa é rei, uai.'],
+    ['neutro', 'Roupa suja se lava em casa. E casa bagunçada se arruma hoje, sô.'], ['feliz', 'Queijo bão não tem pressa: quanto mais cura, mais vale. Igual projeto, uai.'],
+  ],
+  causo: [
+    ['debochado', 'Causo: meu tio plantou uma abóbora tão grande que a gente morou dentro dela na chuvarada. Era sobrado, sô.'], ['piscada', 'Causo: lá na roça o galo era tão pontual que acertavam o relógio da igreja por ele, uai.'],
+    ['debochado', 'Causo: uma vez pesquei um peixe tão grande que só a foto dele pesava dois quilos, sô.'], ['feliz', 'Causo: teve uma seca tão brava que a vaca dava leite em pó, uai.'],
+    ['piscada', 'Causo: o cachorro do vizinho era tão esperto que só latia em horário comercial, sô.'], ['debochado', 'Causo: na venda o fiado era tão antigo que a caderneta já tava no museu, uai.'],
+    ['feliz', 'Causo: fez tanto frio no sítio que a gente quebrava o "bom dia" no ar pra escutar depois, sô.'], ['debochado', 'Causo: a estrada era tão torta que eu encontrava comigo mesmo voltando, uai.'],
+    ['apaixonado', 'Causo: minha vó fazia um doce de leite tão bão que a colher pedia pra ficar na panela, sô.'], ['piscada', 'Causo: meu avô jurava que terminou a casa em um dia. Só não contava que era o dia de São Nunca, uai.'],
+  ],
+  viagem_ida: [
+    ['animado', 'Boa viagem, sô! Eu fico tomando conta da fogueira. Nada quebra enquanto cê tá fora.'], ['piscada', 'Vai tranquilo, uai. Congelei o jogo: hábito em folga e prazo sem multa.'],
+    ['feliz', 'Aproveita a estrada, sô! E traz um queijo pra mim.'], ['apaixonado', 'Vai com Deus e volta com história, uai.'],
+  ],
+  viagem_volta: [
+    ['festa', 'Uai, cê voltou, sô! A fogueira tava com saudade!'], ['feliz', 'Chegou! Primeiro guarda a mala, depois a gente bota o trem nos trilhos, uai.'],
+    ['orgulhoso', 'Voltar é a parte mais difícil e cê já fez, sô. Agora é uma tarefa de cada vez.'], ['piscada', 'Não precisa correr atrás do prejuízo, uai: os prazos andaram pra frente sem cobrar nada.'],
+    ['animado', 'Bem-vindo de volta! Escolhe UMA coisa pequena pra fazer agora e pronto: tá no jogo de novo, sô.'],
+  ],
+  manha: [['feliz', 'Bão dia, sô! O galo cantou, o café coou e o trem já apitou.'], ['debochado', 'Cê levantou ou só mudou de lado, uai?'], ['animado', 'Dia novo na roça: enxada na mão e uma tarefa de cada vez, sô.']],
+  tarde: [['pensativo', 'Depois do almoço o trem pesa, uai. Faz a tarefa mais leve primeiro que o resto embala.'], ['piscada', 'Tarde boa pra fechar um trem pendente, sô. Qual vai ser?']],
+  noite: [['feliz', 'A lua subiu, sô. Fecha o dia, marca os hábitos e vem prosear na fogueira.'], ['cansado', 'Hoje rendeu ou só cansou, uai? Amanhã a gente ajeita.']],
+  tarefa: [['festa', 'Ô trem bão de ver: mais uma riscada, sô!'], ['feliz', 'Feito! Pode passar um cafezinho de comemoração, uai.'], ['orgulhoso', 'Isso que é capinar o lote, sô. Uma a menos.'], ['piscada', 'Riscou bonito! Desse jeito a lista fica com medo docê, uai.'], ['animado', 'Arreda, tarefa! Passou o trator, sô.']],
+  tarefa_grande: [['festa', 'Nossa Senhora, sô! Esse trem era grande e cê derrubou no braço!'], ['orgulhoso', 'Tarefa parruda no chão, uai. Hoje o jantar é em dobro.']],
+  meta_batida: [['festa', 'Meta batida, sô! Pode soltar o foguete e servir o pão de queijo!'], ['orgulhoso', 'Bateu a meta com folga, uai. O resto do dia é lucro.']],
+  atrasadas: [['preocupado', 'Uai, tem {n} trem atrasado ali no canto... resolver um só já alivia, sô.'], ['suspeito', 'Tem tarefa atrasada me olhando torto, uai. Bora pegar a menorzinha?']],
+  habito_feito: [['feliz', 'Hábito marcado, sô! De grão em grão o papo enche.'], ['piscada', 'Mais um dia na corrente, uai. Não arrebenta ela não.']],
+  carinho: [['apaixonado', 'Ô trem bão... coça atrás da orelha que eu gosto, sô.'], ['feliz', 'Oinc! Digo... brigado, uai.']],
+  levelup: [['festa', 'SUBIU DE NÍVEL, sô! Tá ficando importante, hein? Não esquece dos pobre, uai.']],
+  boss: [['festa', 'O bichão caiu, sô! Pode tocar a sanfona!']],
+  compra: [['feliz', 'Comprou e pagou com suor, uai. Agora aproveita sem dó.']],
+  idle: [
+    ['debochado', 'Falam que porco é sujo. Calúnia, sô: eu só gosto de uma laminha de vez em quando.'], ['debochado', 'Tô aqui parado igual poste, uai. Me dá um serviço ou pede uma piada.'],
+    ['piscada', 'Se ocê fizer uma tarefa agora, eu conto um causo. Trato é trato, sô.'], ['feliz', 'O segredo do queijo é o tempo, o do projeto é o prazo e o meu é o chapéu, uai.'],
+    ['pensativo', 'Prosa boa é igual café: sem pressa, sô. Tarefa não: tarefa é pra hoje.'], ['suspeito', 'Cê tá olhando pra tela faz tempo... tá trabalhando ou admirando eu, uai?'],
+  ],
+  dica: [
+    ['neutro', 'Dica da roça: não tenta carregar o saco de milho inteiro. Leva de balde em balde, sô.'], ['pensativo', 'Trem grande assusta. Pica ele em pedacinho de 25 minutos que ele amansa, uai.'],
+    ['feliz', 'Antes de dormir, deixa escolhida a primeira tarefa de amanhã. Acordar sabendo o rumo é meio caminho, sô.'],
+  ],
+};
 const mineiroize = (t) => t.replace(/\bprimo\b/g, 'sô').replace(/^Bom dia/, 'Bão dia').replace(/Boa tarde!/, 'Boa tarde, uai!').replace(/\bmuito bom\b/g, 'bão demais');
 (function merge() {
   for (const k of Object.keys(BANK)) if (Array.isArray(BANK[k]) && k !== 'dia') BANK[k] = BANK[k].map(([e, t]) => [e, mineiroize(t)]);
   for (const [k, v] of Object.entries(MINEIRO)) BANK[k] = (BANK[k] || []).concat(v);
+  for (const [k, v] of Object.entries(CAIPIRA)) BANK[k] = (BANK[k] || []).concat(v);
   BANK.dia = BANK.dia.map((d) => d.map(([e, t]) => [e, mineiroize(t)]));
 })();

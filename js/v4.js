@@ -310,8 +310,8 @@ export function extend4(ACTIONS, render) {
     },
     'explain-text': (d) => openModal(`<h2>${esc(d.n)}</h2><p>${esc(d.d)}</p><div class="actions"><button class="btn pri" data-close autofocus>OK</button></div>`),
     'backup-download': () => {
-      try { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(exportAll())], { type: 'application/json' })); a.download = `gamify-backup-${new Date().toISOString().slice(0, 10)}.json`; document.body.appendChild(a); a.click(); a.remove(); markBackup(); render(); toast('⬇ Backup baixado (se o navegador bloquear, use COPIAR BACKUP)', 'good'); }
-      catch { toast('Não consegui baixar. Use COPIAR BACKUP.', 'bad'); }
+      try { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(exportAll())], { type: 'application/json' })); a.download = `gamify-backup-${new Date().toISOString().slice(0, 10)}.json`; document.body.appendChild(a); a.click(); a.remove(); markBackup(); render(); toast('⬇ Backup baixado', 'good'); }
+      catch { ACTIONS['backup-copy']?.(); } // navegador não deixou baixar: copia o backup como texto
     },
     'journal-edit': (d) => {
       const x = S.core.journal?.[d.d];

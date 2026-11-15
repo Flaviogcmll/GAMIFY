@@ -1,6 +1,6 @@
 # BRIEFING — GAMIFY (leia tudo antes de mexer em qualquer coisa)
 
-Atualizado em 15/11/2026, depois de conferir o repositório real (v5.1), da rodada 1 (v5.2: proteção dos dados + limpeza) e da rodada 2 (v5.3: bugs e praticidade).
+Atualizado em 15/11/2026: repositório real conferido (v5.1) e três rodadas feitas (v5.2 proteção dos dados, v5.3 bugs e praticidade, v5.4 limpeza + viagem + PRIMO).
 Este arquivo substitui o briefing antigo. O que mudou em relação a ele está na seção "CONFERIDO EM 15/11/2026".
 
 ## PASSO 0: ALINHAR ANTES DE TUDO
@@ -47,7 +47,7 @@ O PRIMO (mascote) é o centro do jogo.
 ### O PRIMO
 - Visual: um PORQUINHO. Sprite "Free Pets Pack" de Frakassets (CC BY 4.0, crédito obrigatório), em `assets/pets/piglet.png` + `piglet.json`. Animações: parado, feliz, dormindo, andando. Muda com buff/debuff.
 - Acessórios (`js/pacc.js`): armário com 18 itens (`WARDROBE` em `pstate.js`) liberados por nível, expedições, bosses e conquistas.
-- Falas (`falas.js`): 413 frases em 40 grupos, 17 expressões, jeito mineiro + memes. `primoLine(kind | 'auto' | 'tab:<rota>', ctx)`. Cada aba tem uma faixa fina com o rosto dele comentando.
+- Falas (`falas.js`): 584 frases, 17 expressões, jeito mineiro + memes. Inclui piadas, ditados e causos de roça (botão 😂 PROSA no cartão do PRIMO; também saem sozinhos de vez em quando). `primoLine(kind | 'auto' | 'tab:<rota>', ctx)`. Cada aba tem uma faixa fina com o rosto dele comentando.
 - Curiosidades (`saber.js`): 140 itens verificados com fonte. Nada inventado.
 - Expedições: passeio 30 min / feira 2 h / viagem 8 h / aventura 1 dia. Tarefa concluída tira 3 min, 25 min de foco tira 1 h, ticket termina na hora. Ao voltar: seguro (XP normal) ou arriscado (50% dobra, 50% metade).
 - Pedido do dia, mascote FAÍSCA (8 fases, nunca regride), diário semanal, amizade (corações).
@@ -62,6 +62,7 @@ FEED e notícias; A VILA inteira; BUJO; janela TUDO; CRÔNICA; Google Agenda; ab
 - `actions.js`: tudo que MUDA dados, sempre via `commit(docs, fn, opts)` (desfazer/refazer 40 passos); migrações no `startup()`.
 - `store.js`: carrega/salva (banco do claude.ai ou `localStorage`); `S` = estado global.
 - `backup.js`: proteção dos dados no aparelho (cópia automática diária, lembrete de backup, restaurar). Toda troca geral de dados passa por `restoreDocs()`.
+- `trip.js`: modo VIAGEM/VISITAS (telas e botões). Regras em `rules.js` (`tripNow`, `tripDay`) e dados em `actions.js` (`startTrip`, `endTrip`).
 - `drive.js`: sync com Google Drive (OAuth GIS, escopo `drive.appdata`, arquivo `gamify-backup.json`). O dono usa no dia a dia para ter os dados no celular e no PC. O Claude não consegue testar o login real: só com um Google simulado.
 - `primo.js`, `pdraw.js`, `pacc.js`, `pstate.js`, `falas.js`, `saber.js`, `claude.js`: o PRIMO.
 - `v3.js`, `v35.js`, `v4.js`: legado por versões. Imports circulares (primo ↔ v35 ↔ v3): cuidado.
@@ -75,7 +76,7 @@ FEED e notícias; A VILA inteira; BUJO; janela TUDO; CRÔNICA; Google Agenda; ab
 - Os dados ficam POR ENDEREÇO e POR APARELHO: mudar de endereço, limpar os dados do navegador ou trocar de celular = app vazio. Proteção: BAIXAR/IMPORTAR backup (manual, com lembrete a cada 7 dias) + cópias automáticas no próprio navegador. O Drive ainda não foi testado.
 - Cópias automáticas (`backup.js`): `gamify-bak:AAAA-MM-DD` (uma por dia, tirada ao abrir o app antes das migrações; ficam as 3 últimas) e `gamify-bak:pre` (estado anterior à última importação/restauração/download do Drive). Elas NÃO protegem de limpar os dados do navegador. Se faltar espaço, `store.js` apaga as cópias para salvar os dados de verdade. Preferências: `gamify-ui:lastBackup`, `gamify-ui:bakSnooze`, `gamify-ui:bakPreAt`.
 - No claude.ai: banco do artifact, coleção `gamify` (máx. 256 KB por documento).
-- Campos do `core`: `primo`, `weights`, `rests`, `settings.rules`, `bonus[]`, `migrations[]`, `savings[]` (o que foi guardado para o BOSS DO CAPÍTULO, botão GUARDEI), `cofre` (lido em `rules.js` para NO AZUL/VAZANDO; a aba foi removida e os dados atuais do dono não têm esse campo), `inbox`, `claude`.
+- Campos do `core`: `trip` (viagem em andamento: `{ from, until }`), `trips[]` (viagens encerradas: `{ from, to }`), `primo`, `weights`, `rests`, `settings.rules`, `bonus[]`, `migrations[]`, `savings[]` (o que foi guardado para o BOSS DO CAPÍTULO, botão GUARDEI), `cofre` (lido em `rules.js` para NO AZUL/VAZANDO; a aba foi removida e os dados atuais do dono não têm esse campo), `inbox`, `claude`.
 - Migrações já aplicadas nos dados do dono: `gestao`, `bosses4`, `shop4`, `vila-off`, `v5-clean`.
 - ARMADILHA QUE JÁ QUEBROU O QUESTS: ao REMOVER um tipo de dado salvo, o dado antigo continua lá e o código novo quebra. Sempre trate valores legados e crie migração idempotente.
 
@@ -123,12 +124,21 @@ O dono usa muito mais o PC. Pedidos atendidos:
 - Janela da tarefa sem o campo Cor (o dono nunca usou). Tarefas antigas que já tinham cor continuam com ela; a cor do BLOCO continua (é por ela que se marca ⬛ PARADO).
 - Publicado na `main` em 15/11/2026 a pedido do dono. Ponto de retorno: branch `versao-v5.1` (o app como estava antes das rodadas 1 e 2).
 
+## RODADA 3a — v5.4 (15/11/2026): limpeza, viagem e PRIMO
+- Removido por ser redundante (o dono confirmou): campo "↗ Também em" e botões ↑ ↓ das janelas de tarefa e bloco (dados antigos de `pin` continuam valendo); botão COPIAR BACKUP (o BAIXAR cai nele sozinho se o navegador bloquear o download); atalhos do cartão COMANDOS que repetiam as abas.
+- COMANDOS agora: ATUALIZAR, VIAGEM, DESCANSO, REDENÇÃO, SOS TRAVEI, BACKUP.
+- Barra das janelas do QUESTS: RECOLHER TUDO, DISTRIBUIR e um menu MOSTRAR ▾ (FEITAS / PARADOS).
+- IMPORTAR backup aceita o arquivo `.json` direto (antes só colando o texto).
+- **Modo VIAGEM/VISITAS** (botão ✈ em COMANDOS): pode ser ligado com data retroativa (até 30 dias, para quando esquecer). Enquanto dura: hábitos em branco viram folga (sem recalcular o XP do dia: viajar não dá nem tira XP), a sequência da meta do dia não quebra, não há multa de atraso, e uma faixa no topo mostra EM VIAGEM com o botão VOLTEI. Na volta: prazos que venceram durante a viagem andam o mesmo número de dias pra frente, sem custo, e o dono escolhe as tarefas de volta (guardar malas, lavar roupa, revisar agenda…), criadas para hoje. Se a data de volta prevista já passou, o app pergunta ao abrir.
+- PRIMO: +171 falas (30 piadas, 24 ditados, 10 causos, falas de viagem e mais falas caipiras nas reações); botão 😂 PROSA.
+- `GUIA_SPRITES_IA.md`: guia para o dono gerar o porquinho novo, acessórios e cenários com IA de imagem (Higgsfield), com prompts prontos e a lista de arquivos a enviar.
+
 ## PRÓXIMAS RODADAS (combinado com o dono em 15/11/2026)
 Princípio dele: qualidade de vida e praticidade; tudo integrado como um ecossistema; simples no fim das contas (o app não pode tomar o tempo das tarefas). Ele aceita sugestões melhores que o pedido.
-- O dono pediu para REMOVER COISAS REDUNDANTES. Candidatos levantados (confirmar com ele antes): campo "↗ Também em" da tarefa (nenhuma tarefa usa), botões ↑ ↓ da janela (já existe arrastar), cartão COMANDOS do painel (repete as abas), COPIAR BACKUP (já existe BAIXAR).
 - **Rodada 3 — LISTAS como janela mãe.** Decidido: listas AUTOMÁTICAS pelo prazo (HOJE, AMANHÃ, ESTA SEMANA, DEPOIS, SEM PRAZO, AGUARDANDO; arrastar para outra lista muda o prazo) e UM campo só de "aguardando: quem ou o quê" (pessoa ou outra tarefa), que alimenta a lista AGUARDANDO, o filtro por pessoa no FILTRO e a volta automática quando a outra tarefa é concluída. Também: LISTAS com cor própria e as outras janelas derivando dela; botão ＋ para criar/renomear janelas; cores nas listas; botão REVISADO no fim do bloco (vale 24 h, com selo visual); personalizar textos fixos sem quebrar as mecânicas.
 - **Rodada 4 — rituais, loja, fogos, distribuir.** Ritual com data marcada (ex.: SPA num dia específico, mesmo com aviso a cada 15 dias) aparecendo na AGENDA e no cronograma; item ACORDAR TARDE na loja; JOGO STEAM na forja; aba no SHOP com o histórico do que já foi forjado; REDENÇÃO vira só "aula de curso (40 XP)" ou "meditação"; fogos de artifício (som + animação pequena) ao concluir algo demorado; DISTRIBUIR pergunta "só as que já tinham prazo ou todas" e usa a produtividade real do dono (tarefas por dia da semana).
-- **Rodada 5 — voltar ao jogo.** Entrevista do dia com o PRIMO na primeira abertura; detectar que ficou muito tempo sem preencher e oferecer revisão rápida de retorno; modo VIAGEM/VISITAS (trava tudo sem perder progresso; na volta, lista de guardar malas e reorganizar).
+- **Rodada 5 — voltar ao jogo.** Entrevista do dia com o PRIMO na primeira abertura; detectar que ficou muito tempo sem preencher e oferecer revisão rápida de retorno (pode reaproveitar a janela de volta da VIAGEM, já feita na rodada 3a).
+- **PRIMO novo com IA de imagem.** O dono vai gerar no Higgsfield seguindo o `GUIA_SPRITES_IA.md`. Quando ele mandar os arquivos: recortar fundo, montar as folhas de animação e as âncoras, trocar o desenho do porquinho, os acessórios e o fundo da cena; manter o sprite atual como reserva até ele aprovar.
 - **Por último — economia.** Analisar toda a economia e propor valores (o dono citou um PDF de referência que não está no repositório; pedir de novo). Só mudar valores depois de ele aprovar a análise.
 
 ## LIÇÕES TÉCNICAS
@@ -144,7 +154,6 @@ Princípio dele: qualidade de vida e praticidade; tudo integrado como um ecossis
 - Escrever o passo a passo do ID de acesso do Google Drive (o dono já tem o dele funcionando).
 - Otimizações ainda não feitas: abrir da cópia offline primeiro e fontes dentro do app; aliviar abas pesadas (CONQUISTAS, PERKS, FILTRO); trocar nomes pessoais do código; remover sobras da VILA.
 - Trocar o mascote por um com fases de vida reais (Gridwright Virtual Pet Kit, pago, não redistribuir os arquivos).
-- O dono quer gerar os sprites e animações do porquinho com uma IA de imagem (qualidade melhor). Preparar para ele a especificação: tamanho do quadro, lista de animações (parado, feliz, dormindo, andando), vistas (frente, lados, costas) e o formato de `assets/pets/piglet.json` com as âncoras da cabeça para os acessórios.
 - Mais frases e curiosidades; evolução visual do porquinho; sons por expressão.
 - COFRE (`core.cofre`) ligado à planilha de gastos.
 - Tarefas compartilhadas do casal (precisa de servidor).

@@ -3,7 +3,7 @@
 import { S, save, deleteDocs } from './store.js';
 
 import * as R from './rules.js';
-import { uid, today, addDays, weekStart, weekday } from './util.js';
+import { uid, today, addDays, diffDays, weekStart, weekday } from './util.js';
 
 let feedbackFn = () => {};
 export const onFeedback = (fn) => { feedbackFn = fn; };
@@ -224,6 +224,7 @@ export function startup() {
   if (changedQ) docs.push('quests');
   if (changedCore || changedCoreV4 || extra.changed) docs.push('core');
   if (S._lojaChanged) { docs.push('loja'); S._lojaChanged = false; }
+  if (R.tripNow(S) && fillTrip(td)) docs.push('marks'); // ✈ em viagem: os dias fora entram como folga
   if (docs.length) save(...docs);
   if (extra.achievements.length) feedbackFn({ xp: 0, achievements: extra.achievements });
 }
@@ -979,6 +980,61 @@ export function sosDone(taskId) {
 
 // ───────────────────────── v2: SURVIVAL / ROTINA ─────────────────────────
 /** 🏕 dia de descanso (viagem, doença): todos os hábitos viram folga, sem punição */
+// ───────────────────────── VIAGEM / VISITAS ─────────────────────────
+// core.trip = { from, until } enquanto você está fora; na volta vira um registro em core.trips = [{ from, to }].
+// Nos dias fora: hábitos sem marca viram folga (–), a sequência da meta do dia não quebra e não há multa de atraso.
+// Na volta: prazos que venceram durante a viagem andam o mesmo número de dias pra frente, sem custo.
+/** marca como folga os hábitos sem marca, do início da viagem até `upTo`; devolve true se mudou algo */
+function fillTrip(upTo) {
+  const tr = R.tripNow(S);
+  if (!tr) return false;
+  let changed = false;
+  for (let d = tr.from, guard = 0; d <= upTo && guard < 400; guard++, d = addDays(d, 1)) {
+    const day = (S.marks.days[d] ||= { h: {}, xp: 0 });
+    // só preenche o que estava em branco e NÃO recalcula o XP do dia: viajar não pode dar nem tirar XP
+    for (const h of S.core.habits) if (!day.h[h.id]) { day.h[h.id] = '-'; changed = true; }
+  }
+  if (changed) S._epoch++;
+  return changed;
+}
+export function startTrip(from, until) {
+  const td = today();
+  from = from && from <= td && from >= addDays(td, -30) ? from : td;
+  until = until && until >= from ? until : null;
+  return commit(['core', 'marks'], () => {
+    S.core.trip = { from, until };
+    fillTrip(td);
+    return { msg: '✈ Modo viagem ligado: o jogo fica congelado até você voltar.' };
+  }, { label: 'viagem' });
+}
+/** o que a volta vai fazer (pra mostrar antes de confirmar) */
+export function tripPreview() {
+  const tr = R.tripNow(S), td = today();
+  if (!tr) return null;
+  const days = Math.max(0, diffDays(tr.from, td));
+  const late = days ? S.quests.tasks.filter((t) => R.isOpen(t) && t.due && t.due >= tr.from && t.due < td) : [];
+  return { from: tr.from, until: tr.until, days, late: late.length };
+}
+/** voltei: fecha a viagem, empurra os prazos vencidos nela e cria as tarefas de volta escolhidas */
+export function endTrip(texts = []) {
+  const tr = R.tripNow(S), td = today();
+  if (!tr) return null;
+  const days = Math.max(0, diffDays(tr.from, td));
+  return commit(['core', 'marks', 'quests'], () => {
+    fillTrip(addDays(td, -1));
+    let moved = 0;
+    if (days) {
+      for (const t of S.quests.tasks) if (R.isOpen(t) && t.due && t.due >= tr.from && t.due < td) { t.due = addDays(t.due, days); syncLink(t); moved++; }
+      for (const b of S.quests.blocks) if (b.st !== 'done' && !b.src && b.due && b.due >= tr.from && b.due < td) b.due = addDays(b.due, days);
+      S.core.trips = [...(S.core.trips || []), { from: tr.from, to: addDays(td, -1) }].slice(-20);
+    }
+    delete S.core.trip;
+    let ord = maxOrd() + 1, made = 0;
+    for (const raw of texts) { const text = normalizeText(raw); if (text) { S.quests.tasks.push({ id: uid('t'), area: 'imed', text, st: '', due: td, created: td, ord: ord++ }); made++; } }
+    return { trip: { days, moved, made }, msg: `🏠 De volta! ${days} dia(s) fora${moved ? ` · ${moved} prazo(s) empurrado(s) ${days} dia(s), sem custo` : ''}${made ? ` · ${made} tarefa(s) de volta criada(s)` : ''}.` };
+  }, { label: 'volta da viagem' });
+}
+
 export function restDay(d) {
   return commit(['marks'], () => {
     S.marks.days[d] ||= { h: {}, xp: 0 };
