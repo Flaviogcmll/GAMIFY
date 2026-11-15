@@ -138,17 +138,12 @@ export function sidePanel(ui) {
     ['ouro', '💰 Baú de ouro (quando tem)', goldCard(td)],
     ['habitos', '✓ Hábitos de hoje', habitsCard(td)],
     ['comandos', '🎮 Comandos', `<div class="card"><header><h2>🎮 Comandos</h2></header><div class="cmds">
-      <button class="btn" data-act="archive-now">🔄<span>ATUALIZAR</span></button>
-      <a class="btn" href="#agenda">${px('agenda', 14)}<span>AGENDA</span></a>
-      <a class="btn" href="#survival">${px('survival', 14)}<span>SURVIVAL</span></a>
-      <a class="btn" href="#filtro">${px('filtro', 14)}<span>FILTRO</span></a>
-      <a class="btn" href="#domingo">${px('domingo', 14)}<span>BAÚ</span></a>
+      <button class="btn" data-act="archive-now" title="Arquiva o que já foi feito e recalcula tudo">🔄<span>ATUALIZAR</span></button>
+      <button class="btn ${R.tripNow(S) ? 'pri' : ''}" data-act="trip" title="Viagem ou visitas: congela o jogo enquanto você está fora">✈<span>${R.tripNow(S) ? 'VOLTEI' : 'VIAGEM'}</span></button>
+      <button class="btn" data-act="rest-day" title="Doença ou dia puxado: os hábitos de hoje viram folga">🏕<span>DESCANSO</span></button>
       <button class="btn" data-act="redemption">${px('sword', 14)}<span>REDENÇÃO</span></button>
-      <a class="btn" href="#shop">${px('shop', 14)}<span>SHOP</span></a>
-      <a class="btn" href="#conquistas">${px('conquistas', 14)}<span>CONQUISTAS</span></a>
-      <button class="btn pri" data-act="primo-hub">${px('fire', 14)}<span>PRIMO</span></button>
       <button class="btn" data-act="sos">${px('sos', 14)}<span>SOS TRAVEI</span></button>
-      <a class="btn" href="#regras">${px('regras', 14)}<span>REGRAS</span></a></div></div>`],
+      <button class="btn" data-act="backup-download" title="Baixa um arquivo com todos os seus dados">⬇<span>BACKUP</span></button></div></div>`],
     ['fila', '⏰ Fila de prazos', filaCard(td)],
   ])}
     <p class="meta" style="text-align:center">${weekday(td) === 5 ? '⚠ sexta-feira: o dia em que mais se quebra sequência. marque os hábitos!' : ''}</p>
@@ -182,7 +177,10 @@ export function viewQuests(ui) {
     : group(tab, ui).replace('class="group ', 'class="group wide ');
   return `<div class="quests"><div class="board">
       <div class="band qbar"><div class="seg">${QTABS.map(([k, t]) => `<button class="${tab === k ? 'on' : ''}" data-act="qtab" data-tab="${k}" draggable="true" title="arraste pra mudar a ordem">${t}${n[k] != null ? ' · ' + n[k] : ''}</button>`).join('')}</div>
-        <span class="row" style="gap:6px"><button class="btn sm ghost" data-act="collapse-all" title="Recolhe ou abre tudo desta janela de uma vez">${allCol ? '▾ ABRIR TUDO' : '▸ RECOLHER TUDO'}</button><button class="btn sm" data-act="distribute">📅 DISTRIBUIR</button><button class="btn sm ghost" data-act="toggle-done">${ui.showDone ? 'ESCONDER FEITAS' : 'MOSTRAR FEITAS'}</button><button class="btn sm ghost" data-act="toggle-stalled" title="⬛ parados: blocos e tarefas com a cor PARADO">${ui.showStalled ? 'OCULTAR PARADOS' : 'MOSTRAR PARADOS'}</button></span></div>
+        <span class="row" style="gap:6px"><button class="btn sm ghost" data-act="collapse-all" title="Recolhe ou abre tudo desta janela de uma vez">${allCol ? '▾ ABRIR TUDO' : '▸ RECOLHER TUDO'}</button><button class="btn sm" data-act="distribute">📅 DISTRIBUIR</button>
+          <details class="qmenu"><summary class="btn sm ghost" title="Escolha o que aparece nesta tela">MOSTRAR${ui.showDone || ui.showStalled ? ' · ' + (!!ui.showDone + !!ui.showStalled) : ''} ▾</summary><div class="qpop">
+            <button class="btn sm ${ui.showDone ? 'pri' : 'ghost'}" data-act="toggle-done">${ui.showDone ? '☑' : '☐'} FEITAS</button>
+            <button class="btn sm ${ui.showStalled ? 'pri' : 'ghost'}" data-act="toggle-stalled" title="⬛ parados: blocos e tarefas com a cor PARADO">${ui.showStalled ? '☑' : '☐'} PARADOS</button></div></details></span></div>
       ${chapterDue()}${topStrip()}${body}
     </div>${sidePanel(ui)}</div>`;
 }

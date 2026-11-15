@@ -406,6 +406,7 @@ export function taskXp(s, t, d = today()) {
   if (early) { const k = ev?.type === 'early' ? 3 : C.M_EARLY; m *= k; parts.push(`🐦 x${k}`); }
   else if (onTime) { m *= C.M_ONTIME; parts.push('📅 x1,5'); }
   else if (t.due && (s.core?.rests || []).includes(d)) parts.push('🏕 dia de descanso: sem multa de atraso');
+  else if (t.due && tripDay(s, d)) parts.push('✈ viagem: sem multa de atraso');
   else if (t.due) { const k = Math.max(C.LATE_MIN, 1 - C.LATE_DAY * -diffDays(d, t.due)); m *= k; parts.push(`⏰ atraso −${Math.round((1 - k) * 100)}%`); }
   const money = p.money || g === 'tr' || g === 'cap';
   if (money) {
@@ -808,11 +809,22 @@ export function attributes(s) {
 }
 
 // ───────────────────────── v3: META DIÁRIA E DIAS EM CHAMA (estilo Duolingo) ─────────────────────────
+// ───────────────────────── VIAGEM / VISITAS: o jogo fica congelado nesses dias ─────────────────────────
+/** a viagem em andamento (ou null) */
+export const tripNow = (s) => s.core?.trip || null;
+/** o dia d caiu dentro de uma viagem (a de agora ou uma já encerrada)? */
+export function tripDay(s, d) {
+  const cur = s.core?.trip;
+  if (cur && d >= cur.from && d <= today()) return true;
+  return (s.core?.trips || []).some((t) => d >= t.from && d <= t.to);
+}
+
 export function dailyGoal(s, d = today()) {
   const goal = s.core?.settings?.dailyGoal || C.DAILY_GOAL, xp = idx(s).xpByDay;
   let streak = 0, x = (xp[d] || 0) >= goal ? d : addDays(d, -1), skips = 0;
   for (let i = 0; i < 400; i++, x = addDays(x, -1)) {
     if ((xp[x] || 0) >= goal) streak++;
+    else if (tripDay(s, x)) { /* ✈ viagem: não conta e não quebra a sequência */ }
     else if ((weekday(x) === 0 || weekday(x) === 6) && skips < 1) skips++; // 1 fim de semana perdoado por vez
     else break;
     if (weekday(x) === 1) skips = 0;
