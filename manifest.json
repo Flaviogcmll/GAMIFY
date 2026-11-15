@@ -1,7 +1,7 @@
 {
   "name": "GAMIFY",
   "short_name": "GAMIFY",
-  "description": "Metas, tarefas e hábitos como um jogo de vila.",
+  "description": "Metas, tarefas e hábitos como um jogo.",
   "lang": "pt-BR",
   "start_url": "./",
   "scope": "./",

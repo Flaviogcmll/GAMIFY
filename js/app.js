@@ -34,6 +34,7 @@ import { extend4, afterRender4, captureFocus, checkMilestones, confirmResched } 
 import { extendPrimo, openPrimoHub, primoFeedback, primoReact } from './primo.js';
 
 import { extendDrive } from './drive.js';
+import { autoSnapshot, backupBanner, extendBackup, markBackup, restoreDocs } from './backup.js';
 
 
 // abas na mesma ordem da planilha
@@ -102,6 +103,7 @@ function render() {
   if (!S.core || !S.quests || !S.marks || !S.loja) { $main.innerHTML = '<div class="empty px" style="padding:60px;text-align:center">carregando…</div>'; return; }
   if (!started) {
     started = true;
+    autoSnapshot(); // cópia de segurança do dia, antes de o app ajustar qualquer coisa sozinho
     A.startup();
     if (S._autoDue) toast(`📅 ${S._autoDue} tarefa(s) nova(s) do IMEDIATOS/CURTO ganharam prazo sozinhas.`);
     try { if (!localStorage.getItem('gamify-ui:tour')) setTimeout(tour, 600); } catch { /* */ }
@@ -115,6 +117,7 @@ function render() {
   if (status.stale) banners.push('<div class="banner info">Ainda não consegui confirmar os dados com o servidor. Pode estar desatualizado.</div>');
   if (status.mode === 'local' && !localStorage.getItem('gamify-ui:localok')) setTimeout(() => { try { localStorage.setItem('gamify-ui:localok', '1'); } catch { /* */ } }, 20000);
   if (status.mode === 'local' && !status.error && !localStorage.getItem('gamify-ui:localok')) banners.push(typeof window.claude === 'undefined' ? '<div class="banner info">📱 Modo app: seus dados ficam neste aparelho. Conecte o Google Drive em PERKS AND RULES para sincronizar celular e PC, ou baixe um backup. <button class="btn sm ghost" data-act="local-ok">ENTENDI</button></div>' : '<div class="banner info">Modo local: os dados ficam só neste navegador. Abra pelo link do claude.ai pra sincronizar celular e PC.</div>');
+  if (!status.error) banners.push(backupBanner());
   const y = scrollY, refocus = captureFocus();
   let bodyHtml;
   try { bodyHtml = sceneBanner(cur, ui) + ROUTES.find((r) => r[0] === cur)[3](ui); } catch (err) {
@@ -507,7 +510,7 @@ const ACTIONS = {
   more: () => openModal(`<h2>mais</h2><div class="list"><a class="li" href="#" data-act="primo-hub" data-close style="text-decoration:none;color:var(--ink)"><span class="lt">${px('fire', 16)} PRIMO</span><span class="dim">→</span></a>${ROUTES.filter((r) => !['quests', 'survival', 'shop', 'agenda'].includes(r[0])).map(([k, n, ic]) => `<a class="li" href="#${k}" data-close style="text-decoration:none;color:var(--ink)"><span class="lt">${px(ic, 16)} ${n}</span><span class="dim">→</span></a>`).join('')}</div>`),
   'backup-copy': async () => {
     const json = JSON.stringify(exportAll());
-    try { await navigator.clipboard.writeText(json); toast('Backup copiado. Cole num e-mail ou nota.', 'good'); }
+    try { await navigator.clipboard.writeText(json); markBackup(); render(); toast('Backup copiado. Cole num e-mail ou nota.', 'good'); }
     catch { openModal(`<h2>backup</h2><textarea class="inp" rows="10" readonly>${esc(json)}</textarea><div class="actions"><button class="btn pri" data-close>FECHAR</button></div>`); }
   },
   'backup-import': () => openModal(`<form data-form="import"><h2>importar backup</h2><p class="muted">Cole o texto do backup. Isso SUBSTITUI os dados atuais.</p><textarea class="inp" name="json" rows="10" required></textarea><div class="actions"><button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">IMPORTAR</button></div></form>`),
@@ -518,6 +521,7 @@ extend35(ACTIONS, () => render());
 extend4(ACTIONS, () => render());
 extendPrimo(ACTIONS);
 extendDrive(ACTIONS, () => render());
+extendBackup(ACTIONS, () => render());
 window.__ui = ui;
 function stepPrompt(t) {
   openModal(`<form data-form="step" data-id="${t.id}" autocomplete="off"><h2>+ ↳ passo</h2><p class="meta" style="margin:0">dentro de: ${esc(t.text)}</p><label class="lbl" for="st-text">Passo (até 2h)</label><input class="inp" id="st-text" name="text" required autofocus><div class="actions"><button type="button" class="btn" data-close>FECHAR</button><button class="btn pri">ADICIONAR</button></div></form>`);
@@ -597,7 +601,7 @@ const FORMS = {
     const docs = data.docs || data;
     if (!docs.core || !docs.quests) { toast('Backup incompleto.', 'bad'); return; }
     closeModal();
-    if (status.empty || await ask('Substituir tudo?', 'Os dados atuais serão trocados pelos do backup.', 'SUBSTITUIR', true)) { replaceAll(docs); render(); toast('Backup importado', 'good'); }
+    if (status.empty || await ask('Substituir tudo?', 'Os dados atuais serão trocados pelos do backup.', 'SUBSTITUIR', true)) { restoreDocs(docs); render(); toast('Backup importado', 'good'); }
   },
 };
 document.addEventListener('submit', (e) => { const f = e.target.closest('form[data-form]'); if (!f) return; e.preventDefault(); FORMS[f.dataset.form]?.(f); });

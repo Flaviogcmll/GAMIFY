@@ -141,7 +141,11 @@ export async function flush() {
           else throw e;
         }
       } else {
-        localStorage.setItem(LS + id, json);
+        try { localStorage.setItem(LS + id, json); }
+        catch { // sem espaço: as cópias automáticas (backup.js) cedem lugar aos dados de verdade
+          for (const k of Object.keys(localStorage)) if (k.startsWith('gamify-bak:')) localStorage.removeItem(k);
+          localStorage.setItem(LS + id, json);
+        }
       }
     } catch (e) {
       if (e?.code === 'invalid_argument') { status.readonly = true; status.error = 'Este jogo é privado: só o dono consegue salvar.'; }

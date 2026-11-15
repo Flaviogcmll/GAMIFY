@@ -1,6 +1,6 @@
 # BRIEFING — GAMIFY (leia tudo antes de mexer em qualquer coisa)
 
-Atualizado em 15/11/2026, depois de conferir o repositório real (versão v5.1, a que está no ar).
+Atualizado em 15/11/2026, depois de conferir o repositório real (v5.1) e da rodada 1 (v5.2: proteção dos dados + limpeza).
 Este arquivo substitui o briefing antigo. O que mudou em relação a ele está na seção "CONFERIDO EM 15/11/2026".
 
 ## PASSO 0: ALINHAR ANTES DE TUDO
@@ -61,6 +61,7 @@ FEED e notícias; A VILA inteira; BUJO; janela TUDO; CRÔNICA; Google Agenda; ab
 - `rules.js`: TODAS as regras (funções puras).
 - `actions.js`: tudo que MUDA dados, sempre via `commit(docs, fn, opts)` (desfazer/refazer 40 passos); migrações no `startup()`.
 - `store.js`: carrega/salva (banco do claude.ai ou `localStorage`); `S` = estado global.
+- `backup.js`: proteção dos dados no aparelho (cópia automática diária, lembrete de backup, restaurar). Toda troca geral de dados passa por `restoreDocs()`.
 - `drive.js`: sync com Google Drive (OAuth GIS, escopo `drive.appdata`, arquivo `gamify-backup.json`) — NUNCA testado com login real.
 - `primo.js`, `pdraw.js`, `pacc.js`, `pstate.js`, `falas.js`, `saber.js`, `claude.js`: o PRIMO.
 - `v3.js`, `v35.js`, `v4.js`: legado por versões. Imports circulares (primo ↔ v35 ↔ v3): cuidado.
@@ -71,7 +72,8 @@ FEED e notícias; A VILA inteira; BUJO; janela TUDO; CRÔNICA; Google Agenda; ab
 
 ## DADOS
 - No GitHub Pages (app no ar): `localStorage` do navegador. Documentos com prefixo `gamify:` (core, quests, marks, loja, arq-AAAA-MM); preferências do aparelho com `gamify-ui:`.
-- Os dados ficam POR ENDEREÇO e POR APARELHO: mudar de endereço, limpar os dados do navegador ou trocar de celular = app vazio. Proteção hoje: BAIXAR/IMPORTAR backup (manual). O Drive ainda não foi testado.
+- Os dados ficam POR ENDEREÇO e POR APARELHO: mudar de endereço, limpar os dados do navegador ou trocar de celular = app vazio. Proteção: BAIXAR/IMPORTAR backup (manual, com lembrete a cada 7 dias) + cópias automáticas no próprio navegador. O Drive ainda não foi testado.
+- Cópias automáticas (`backup.js`): `gamify-bak:AAAA-MM-DD` (uma por dia, tirada ao abrir o app antes das migrações; ficam as 3 últimas) e `gamify-bak:pre` (estado anterior à última importação/restauração/download do Drive). Elas NÃO protegem de limpar os dados do navegador. Se faltar espaço, `store.js` apaga as cópias para salvar os dados de verdade. Preferências: `gamify-ui:lastBackup`, `gamify-ui:bakSnooze`, `gamify-ui:bakPreAt`.
 - No claude.ai: banco do artifact, coleção `gamify` (máx. 256 KB por documento).
 - Campos do `core`: `primo`, `weights`, `rests`, `settings.rules`, `bonus[]`, `migrations[]`, `savings[]` (o que foi guardado para o BOSS DO CAPÍTULO, botão GUARDEI), `cofre` (lido em `rules.js` para NO AZUL/VAZANDO; a aba foi removida e os dados atuais do dono não têm esse campo), `inbox`, `claude`.
 - Migrações já aplicadas nos dados do dono: `gestao`, `bosses4`, `shop4`, `vila-off`, `v5-clean`.
@@ -99,6 +101,13 @@ FEED e notícias; A VILA inteira; BUJO; janela TUDO; CRÔNICA; Google Agenda; ab
 9. Velocidade medida (simulando celular médio): redesenhar uma aba leva de 0,06 a 0,3 s. As mais pesadas: PERKS, CONQUISTAS (7.700 elementos na tela), FILTRO e AGENDA.
 10. Tamanho dos dados do dono: maior documento com 37 KB (longe do limite).
 
+## RODADA 1 — v5.2 (15/11/2026)
+- Novo `js/backup.js`: cópia automática diária, cópia antes de trocas gerais, lembrete de backup (3 dias de jogo sem nenhum backup; depois a cada 7 dias; botão DEPOIS adia 1 dia), painel em PERKS → AJUSTES para restaurar, pedido de armazenamento persistente ao navegador.
+- Corrigido: importar/restaurar não deixa mais meses antigos do ARQUIVO "ressuscitarem" (só no modo local).
+- `sw.js`: versão `gamify-v5-2`, guarda `js/backup.js` e o ícone maskable, e guarda os arquivos um por um (um arquivo faltando não derruba os outros).
+- `manifest.json`: descrição sem "vila". Cartão do Drive: não cita mais o guia que não existe e avisa que está em teste.
+- Os itens 2 (texto do guia), 6 e 7 da lista acima ficaram resolvidos.
+
 ## LIÇÕES TÉCNICAS
 - Playwright (Chromium) já vem instalado: `require('playwright')`. Servidor local: `python3 -m http.server 8080`.
 - No ambiente do Claude, enviar TAG para o GitHub pode ser recusado (só branch passa). Alternativa: o dono cria a versão em GitHub → Releases → "Draft a new release".
@@ -109,8 +118,8 @@ FEED e notícias; A VILA inteira; BUJO; janela TUDO; CRÔNICA; Google Agenda; ab
 - A fonte pixel desenha mal acentos (há `deaccent()` para rótulos).
 
 ## BACKLOG
-- Proteger os dados: testar o Drive de verdade ou criar lembrete/backup automático.
-- Otimizações levantadas em 15/11/2026 (ver Pull Request da documentação).
+- Testar o Google Drive de verdade (login real, celular e PC) e escrever o passo a passo do ID de acesso.
+- Otimizações ainda não feitas: abrir da cópia offline primeiro e fontes dentro do app; aliviar abas pesadas (CONQUISTAS, PERKS, FILTRO); trocar nomes pessoais do código; remover sobras da VILA.
 - Trocar o mascote por um com fases de vida reais (Gridwright Virtual Pet Kit, pago, não redistribuir os arquivos).
 - Mais frases e curiosidades; evolução visual do porquinho; sons por expressão.
 - COFRE (`core.cofre`) ligado à planilha de gastos.
