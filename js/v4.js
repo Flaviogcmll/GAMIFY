@@ -334,6 +334,14 @@ export function extend4(ACTIONS, render) {
 }
 
 /** empurrar o prazo custa XP: mostra o preço e pergunta antes (devolve true se pode seguir) */
+/** arrastar pra uma lista mais distante é remarcar: pergunta antes quando custa XP */
+export async function dropTaskSmart(id, { area, block, before }) {
+  const t = S.quests.tasks.find((x) => x.id === id);
+  if (!t) return;
+  if (!block && area && area !== 'wait' && (t.block || R.listOf(t) !== area) && !(await confirmResched(t, R.dueForList(area, today(), t.due)))) return;
+  const r = A.dropTask(id, { area, block, before });
+  if (r?.error) { sfx('error'); toast(esc(r.error), 'bad'); }
+}
 export async function confirmResched(t, due) {
   const cost = A.reschedCost(t, due || null);
   if (!cost) return true;

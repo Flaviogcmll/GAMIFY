@@ -44,7 +44,7 @@ export function viewAgenda(ui) {
   const punct = d30.length ? Math.round((d30.filter((t) => t.onTime).length / d30.length) * 100) : null;
   let seq = 0;
   for (const c of [...done].sort((a, b) => (a.doneAt < b.doneAt ? 1 : -1))) { if (c.onTime) seq++; else break; }
-  const where = (t) => (t.block ? R.findBlock(S, t.block)?.title : R.AREAS[t.area]) || '';
+  const where = (t) => (t.block ? R.findBlock(S, t.block)?.title : R.areaName(t.area)) || '';
   const q = (ui.agQ || '').toLowerCase();
   const fb = ui.agB || '';
   let queue = R.deadlineQueue(S, td);

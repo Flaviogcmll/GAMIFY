@@ -29,7 +29,7 @@ import { sceneBanner, mountScenes, extend, viewArquivo3, chapterCard, isCollapse
 
 import { afterRender, extend35 } from './v35.js';
 
-import { extend4, afterRender4, captureFocus, checkMilestones, confirmResched } from './v4.js';
+import { extend4, afterRender4, captureFocus, checkMilestones, confirmResched, dropTaskSmart } from './v4.js';
 
 import { extendPrimo, openPrimoHub, primoFeedback, primoReact } from './primo.js';
 
@@ -219,6 +219,7 @@ A.onFeedback((fb) => {
   if (fb.using) { sfx('xp'); toast(`⏱ <b>${esc(fb.using.item)}</b>: aproveite sem culpa.`, 'gold'); }
   for (const a of fb.achievements || []) { toast(`🏆 CONQUISTA: <b>${esc(a.name)}</b> · +${a.xp} XP`, 'gold'); sfx('chest'); }
   if (fb.msg) toast(esc(fb.msg));
+  if (fb.released?.length) { toast(`🔓 Liberada${fb.released.length > 1 ? 's' : ''}: <b>${esc(fb.released.map((x) => x.text.replace(/\s*\(\d+\s*XP\)/i, '')).join(' · ').slice(0, 140))}</b>. Saiu do AGUARDANDO.`, 'good'); sfx('ready'); }
   primoFeedback(fb);
   if (fb.levelUp) levelUp(fb.levelUp);
   if (fb.chapterClosed) chapterCard(fb.chapterClosed);
@@ -242,7 +243,7 @@ function rebuildText(text, { star, home, money, xp }) {
   return t.trim();
 }
 function whereOptions(t) {
-  const lists = Object.entries(R.AREAS).map(([k, n]) => `<option value="area:${k}" ${!t.block && t.area === k ? 'selected' : ''}>${n}</option>`).join('');
+  const lists = `<option value="area:auto" ${!t.block ? 'selected' : ''}>LISTAS (a data decide a lista)</option>`;
   const groups = Object.entries(R.GROUPS).map(([g, info]) => { const bl = S.quests.blocks.filter((b) => b.group === g).sort((a, b) => a.ord - b.ord); return bl.length ? `<optgroup label="${info.name}">${bl.map((b) => `<option value="block:${b.id}" ${t.block === b.id ? 'selected' : ''}>${esc(b.title)}</option>`).join('')}</optgroup>` : ''; }).join('');
   return `<optgroup label="LISTAS">${lists}</optgroup>${groups}`;
 }
@@ -256,9 +257,13 @@ function editTask(id) {
   const suggestCycle = t.cycle === undefined && /PREFEITURA|APROVA|AN[AÁ]LISE|PROTOCOLO/i.test(t.text);
   openModal(`<form data-form="task" data-id="${id}" autocomplete="off">
     <h2>${p.mini ? '⚔ mini-boss' : p.step ? '↳ passo' : 'tarefa'}</h2>
-    <p class="meta" style="margin:0">${t.block ? esc(R.findBlock(S, t.block)?.title || '') : R.AREAS[t.area]} · ${t.st === 'done' ? `feita ${fmtDM(t.doneAt)} · +${t.xp} XP` : `vale <b class="acc">${now.xp} XP</b>${now.parts.length ? ' (' + esc(now.parts.join(' · ')) + ')' : ''}`}${(t.rounds || []).length ? ` · 🔁 ${t.rounds.length} rodada(s)` : ''}</p>
+    <p class="meta" style="margin:0">${t.block ? esc(R.findBlock(S, t.block)?.title || '') : R.areaName(t.area)} · ${t.st === 'done' ? `feita ${fmtDM(t.doneAt)} · +${t.xp} XP` : `vale <b class="acc">${now.xp} XP</b>${now.parts.length ? ' (' + esc(now.parts.join(' · ')) + ')' : ''}`}${(t.rounds || []).length ? ` · 🔁 ${t.rounds.length} rodada(s)` : ''}</p>
     <label class="lbl" for="t-text">Texto</label><textarea class="inp" id="t-text" name="text" rows="2" autofocus>${esc(t.text.replace(MARK_RE.star, '').replace(MARK_RE.home, '').replace(MARK_RE.xp, '').trim())}</textarea>
     <label class="lbl">Status</label><div class="statusbtns">${sts.map(([k, n]) => `<button type="button" class="btn sm ${(t.st || '') === k ? 'on' : ''}" data-act="set-status" data-id="${id}" data-st="${k}">${n}</button>`).join('')}</div>
+    <label class="lbl" for="t-who">⏳ Aguardando quem ou o quê (opcional)</label><div class="row">
+      <input class="inp grow" id="t-who" name="who" value="${esc(t.who || '')}" list="who-list" placeholder="pessoa ou motivo: PREFEITURA, CLIENTE, FULANO…" autocomplete="off"><datalist id="who-list">${R.people(S).map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
+      <select class="inp" name="dep" aria-label="Depende de outra tarefa" style="flex:1 1 220px;min-width:0"><option value="">— não depende de outra tarefa —</option>${R.openTasks(S).filter((x) => x.id !== t.id && x.dep !== t.id).sort((x, y) => (x.block === t.block ? 0 : 1) - (y.block === t.block ? 0 : 1) || x.text.localeCompare(y.text)).map((x) => `<option value="${x.id}" ${t.dep === x.id ? 'selected' : ''}>🔗 ${esc(x.text.replace(/\s*\(\d+\s*XP\)/i, '').slice(0, 60))}</option>`).join('')}</select></div>
+    <p class="meta" style="margin:4px 0 0">Preencher manda a tarefa pra lista AGUARDANDO. Se depender de outra tarefa, ela volta sozinha quando a outra for concluída.</p>
     <label class="lbl" for="t-due">Prazo</label><div class="row"><input class="inp" type="date" id="t-due" name="due" value="${t.due || ''}" style="width:auto">
       ${[['HOJE', td], ['AMANHÃ', addDays(td, 1)], ['+3', addDays(td, 3)], ['PRÓX. SEG', nextMon], ['SEM', '']].map(([n, d]) => `<button type="button" class="btn sm ghost" data-act="due-quick" data-d="${d}">${n}</button>`).join('')}</div>
     ${t.due ? `<p class="meta" style="margin:4px 0 0">${t.due < td ? `⏰ Atrasada: concluir agora paga só ${Math.round(Math.max(R.C.LATE_MIN, 1 - R.C.LATE_DAY * diffDays(t.due, td)) * 100)}% do XP. ` : ''}Empurrar o prazo custa <b>${A.reschedBase({ ...t, due: '0' }, '9')}</b> XP${A.freeResched() ? ' (mas a 1ª remarcação da semana é grátis)' : ''}${t.rs ? ` · já remarcada ${t.rs}x` : ''}; antecipar é de graça.</p>` : ''}
@@ -286,19 +291,24 @@ function editBlock(id) {
       <button type="button" class="btn" data-close>FECHAR</button><button class="btn pri">SALVAR</button></div></form>`);
 }
 function distribute() {
-  let resched = true;
+  let scope = 'dated';
+  const SC = [['dated', 'SÓ AS QUE JÁ TINHAM PRAZO'], ['new', 'SÓ DAR DATA ÀS SEM PRAZO DOS BLOCOS'], ['all', 'TODAS']];
   const draw = () => {
-    const plan = R.distributePlan(S, { reschedule: resched });
+    const plan = R.distributePlan(S, { scope });
     const m = document.querySelector('.modal');
-    const moved = plan.filter((p) => p.from).length, cost = A.planCost(plan);
-    m.innerHTML = `<h2>📅 distribuir prazos</h2><p class="meta" style="margin:0">Dá data a tudo do IMEDIATOS/CURTO (⭐ primeiro) e à próxima ação de cada bloco. Máx. ${S.core.settings?.maxPerDay || R.C.MAX_PER_DAY} por dia útil; pula fim de semana e feriado.</p>
-      <label style="display:block;margin:10px 0;font-size:12.5px"><input type="checkbox" id="dist-resched" ${resched ? 'checked' : ''}> remarcar também as atrasadas</label>
+    const moved = plan.filter((p) => p.from).length, cost = A.planCost(plan), pace = R.weekdayPace(S), max = S.core.settings?.maxPerDay || R.C.MAX_PER_DAY;
+    const paceTxt = pace.some((p) => p != null) ? [1, 2, 3, 4, 5, 6, 0].map((w) => `${DOW[w]} ${pace[w] == null ? '–' : String(Math.round(pace[w] * 10) / 10).replace('.', ',')}`).join(' · ') : '';
+    m.innerHTML = `<h2>📅 distribuir prazos</h2>
+      <div class="seg" style="margin:8px 0;flex-wrap:wrap">${SC.map(([k, n]) => `<button type="button" class="${scope === k ? 'on' : ''}" data-scope="${k}">${n}</button>`).join('')}</div>
+      <p class="meta" style="margin:0">${scope === 'dated' ? 'Remarca só as tarefas que JÁ TINHAM prazo e atrasaram. Quem não tinha data continua sem.' : scope === 'new' ? 'Dá data só à próxima ação de cada bloco que está sem prazo. Não mexe nas atrasadas nem na lista SEM PRAZO.' : 'Remarca as atrasadas e também dá data à próxima ação de cada bloco. A lista SEM PRAZO não é mexida.'}</p>
+      <p class="meta" style="margin:6px 0 0">${paceTxt ? `Seu ritmo (tarefas concluídas por dia, últimas 8 semanas): ${paceTxt}. Cada dia recebe até 80% do seu ritmo (a folga cobre imprevisto), no máximo ${max}. ` : `Ainda há pouco histórico: uso o máximo de ${max} por dia útil. `}Ordem: ! prioridade, ⭐, depois a mais atrasada primeiro. Feriado não entra.</p>
       <p><b>${plan.length - moved}</b> ganham data nova · <b>${moved}</b> remarcadas${cost ? ` · <b class="${cost > R.totals(S).balance ? 'bad' : 'acc'}">custo ${cost} XP</b> <span class="meta">(saldo ${fmtN(R.totals(S).balance)})</span>` : ''}</p>
-      <div class="list" style="max-height:48vh;overflow:auto">${plan.map((p) => `<div class="li"><div class="lt">${esc(p.text)}<small>${esc(p.why)}</small></div><span class="chip ${p.from ? 'today' : 'soon'}">${p.from ? fmtDM(p.from) + ' → ' : ''}${DOW[weekday(p.to)]} ${fmtDM(p.to)}</span></div>`).join('') || '<div class="empty">tudo já tem prazo. 👏</div>'}</div>
+      <div class="list" style="max-height:42vh;overflow:auto">${plan.map((p) => `<div class="li"><div class="lt">${esc(p.text)}<small>${esc(p.why)}</small></div><span class="chip ${p.from ? 'today' : 'soon'}">${p.from ? fmtDM(p.from) + ' → ' : ''}${DOW[weekday(p.to)]} ${fmtDM(p.to)}</span></div>`).join('') || '<div class="empty">nada pra distribuir aqui. 👏</div>'}</div>
       <div class="actions"><button class="btn" data-close>CANCELAR</button>${plan.length ? `<button class="btn pri" id="dist-apply" ${cost > R.totals(S).balance ? 'disabled' : ''}>APLICAR ${plan.length}${cost ? ` · −${cost} XP` : ''}</button>` : ''}</div>`;
-    m.querySelector('#dist-resched').onchange = (e) => { resched = e.target.checked; draw(); };
+    m.querySelectorAll('[data-scope]').forEach((b) => { b.onclick = () => { scope = b.dataset.scope; draw(); }; });
     const ap = m.querySelector('#dist-apply');
     if (ap) ap.onclick = () => { const r = A.applyPlan(plan); if (r?.error) { toast(esc(r.error), 'bad'); return; } closeModal(); toast(`📅 ${plan.length} prazo(s) aplicados. <button class="btn sm" data-act="undo-plan">↺ DESFAZER</button>`, 'good'); };
+    window.__deaccent?.(m);
   };
   openModal('', { wide: true });
   draw();
@@ -620,9 +630,11 @@ const FORMS = {
     const t = S.quests.tasks.find((x) => x.id === f.dataset.id);
     const text = rebuildText(f.text.value, { star: f.star.checked, home: f.home.checked, money: f.money.checked, xp: +f.xp.value || null });
     const [kind, val] = f.where.value.split(':');
-    const patch = { text, due: f.due.value || null, prio: f.prio.checked || undefined, cycle: f.cycle.checked };
+    const patch = { text, due: f.due.value || null, prio: f.prio.checked || undefined, cycle: f.cycle.checked, who: f.who.value.trim().toUpperCase() || undefined, dep: f.dep.value || undefined };
+    if ((patch.who || patch.dep) && (!t.st || t.st === 'doing')) patch.st = 'wait'; // disse quem segura: vai pra AGUARDANDO
+    if (!patch.who && !patch.dep && (t.who || t.dep) && t.st === 'wait') patch.st = ''; // limpou: volta pra fila
     if (f.pin) patch.pin = f.pin.value || undefined;
-    if (f.where.value !== (t.block ? `block:${t.block}` : `area:${t.area}`)) { if (kind === 'block') patch.block = val; else { patch.block = null; patch.area = val; } }
+    if (f.where.value !== (t.block ? `block:${t.block}` : 'area:auto')) { if (kind === 'block') patch.block = val; else { patch.block = null; patch.area = 'sem'; } } // fora de bloco, a data escolhe a lista
     if (!(await confirmResched(t, patch.due))) return;
     const cost = A.reschedCost(t, patch.due || null), r = A.updateTask(t.id, patch);
     if (r?.error) { toast(esc(r.error), 'bad'); return; }
@@ -732,7 +744,7 @@ document.addEventListener('drop', (e) => {
   if (!zone) return;
   e.preventDefault();
   const before = e.target.closest('li.task')?.dataset.id;
-  A.dropTask(dragId, { area: zone.dataset.dropArea, block: zone.dataset.dropBlock, before: before !== dragId ? before : undefined });
+  dropTaskSmart(dragId, { area: zone.dataset.dropArea, block: zone.dataset.dropBlock, before: before !== dragId ? before : undefined });
   sfx('tab');
 });
 
@@ -744,7 +756,7 @@ document.addEventListener('keydown', (e) => {
   if (r) { location.hash = '#' + r[0]; return; }
   if (e.key === ' ') { e.preventDefault(); openPrimoHub(); }
   if (e.key === 'n') ACTIONS.mode();
-  if (e.key === '/') { e.preventDefault(); location.hash = '#quests'; setTimeout(() => document.querySelector('form[data-area="imed"] input')?.focus(), 60); }
+  if (e.key === '/') { e.preventDefault(); location.hash = '#quests'; setTimeout(() => document.querySelector('form[data-area="hoje"] input')?.focus(), 60); }
 });
 
 // ───────────────────────── RELÓGIO: cronômetros, virada do dia, dia/noite ─────────────────────────
