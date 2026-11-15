@@ -1,6 +1,7 @@
 // v4 — conforto: desfazer (Ctrl+Z), clique exato, sons em tudo, editores de regras e loja (PERKS AND RULES),
 // diário/históricos que dá pra corrigir e cartões que você arrasta em todas as abas.
 import { S, exportAll } from './store.js';
+import { markBackup } from './backup.js';
 
 import * as A from './actions.js';
 import * as R from './rules.js';
@@ -309,7 +310,7 @@ export function extend4(ACTIONS, render) {
     },
     'explain-text': (d) => openModal(`<h2>${esc(d.n)}</h2><p>${esc(d.d)}</p><div class="actions"><button class="btn pri" data-close autofocus>OK</button></div>`),
     'backup-download': () => {
-      try { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(exportAll())], { type: 'application/json' })); a.download = `gamify-backup-${new Date().toISOString().slice(0, 10)}.json`; document.body.appendChild(a); a.click(); a.remove(); toast('⬇ Backup baixado (se o navegador bloquear, use COPIAR BACKUP)', 'good'); }
+      try { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(exportAll())], { type: 'application/json' })); a.download = `gamify-backup-${new Date().toISOString().slice(0, 10)}.json`; document.body.appendChild(a); a.click(); a.remove(); markBackup(); render(); toast('⬇ Backup baixado (se o navegador bloquear, use COPIAR BACKUP)', 'good'); }
       catch { toast('Não consegui baixar. Use COPIAR BACKUP.', 'bad'); }
     },
     'journal-edit': (d) => {

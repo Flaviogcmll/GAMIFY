@@ -200,6 +200,12 @@ export function extend(ACTIONS, render) {
     'ag-day': (d) => { const list = R.openTasks(S).filter((t) => t.due === d.d); openModal(`<h2>${fmtDM(d.d)}</h2><div class="list">${list.map((t) => `<div class="li"><div class="lt" data-act="jump" data-id="${t.id}" style="cursor:pointer">${esc(t.text)}<small>${esc(t.block ? R.findBlock(S, t.block)?.title || '' : R.AREAS[t.area])}</small></div><span class="chip xp">${R.taskXp(S, t).xp}</span></div>`).join('') || '<div class="empty">nada vence nesse dia.</div>'}</div><div class="actions"><button class="btn" data-close>FECHAR</button></div>`); },
     'comp-talk': () => talk(),
     'comp-rename': () => openModal(`<form data-v3form="rename"><h2>nome do companheiro</h2><input class="inp" name="n" value="${esc(R.companion(S).name)}" maxlength="12" autofocus aria-label="Nome"><div class="actions"><button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">SALVAR</button></div></form>`),
+    'take-money': () => openModal(`<form data-v3form="take"><h2>↩ retirei</h2><p class="muted">Quanto você TIROU do que estava guardado? O boss do capítulo recupera essa vida. Fica anotado no histórico, sem multa.</p><input class="inp" name="v" type="number" min="1" step="1" placeholder="R$" autofocus aria-label="Valor"><input class="inp" name="n" placeholder="pra quê (ex.: CONSERTO DO CARRO)" style="margin-top:8px" aria-label="Motivo"><div class="actions"><button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">RETIRAR</button></div></form>`),
+    'money-log': () => {
+      const moves = [...(R.chapterBoss(S)?.moves || [])].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+      openModal(`<h2>💰 guardado e retirado</h2><p class="muted">Movimentos deste capítulo. O ✕ apaga um lançamento errado (Ctrl+Z desfaz).</p><div class="list" style="max-height:52vh;overflow:auto">${moves.map((g) => `<div class="li"><div class="lt"><b class="${g.amount < 0 ? 'bad' : 'good'}">${g.amount < 0 ? '− R$ ' : '+ R$ '}${fmtN(Math.abs(g.amount))}</b><small>${fmtDM(g.date)}${g.note ? ' · ' + esc(g.note) : ''}</small></div><button class="icon-btn" data-act="money-del" data-id="${g.id}" aria-label="Apagar lançamento">✕</button></div>`).join('') || '<div class="empty">nada guardado ainda.</div>'}</div><div class="actions"><button class="btn pri" data-close>FECHAR</button></div>`);
+    },
+    'money-del': (d) => { A.deleteSaving(d.id); sfx('tab'); ACTIONS['money-log'](); },
     'save-money': () => openModal(`<form data-v3form="save"><h2>💰 guardei</h2><p class="muted">Quanto você GUARDOU de verdade (a outra metade do projeto, por exemplo)? Isso dá dano no boss do capítulo.</p><input class="inp" name="v" type="number" min="1" step="1" placeholder="R$" autofocus aria-label="Valor"><input class="inp" name="n" placeholder="de onde (ex.: FABIANA NOV)" style="margin-top:8px" aria-label="Origem"><div class="actions"><button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">GUARDAR</button></div></form>`),
     'weekly-pick': () => {
       const sunday = new Date().getDay() === 0, target = sunday ? addDays(today(), 1) : today();
@@ -222,6 +228,7 @@ export function extend(ACTIONS, render) {
     if (f.dataset.v3form === 'rename') { A.renameCompanion(f.n.value); closeModal(); }
     if (f.dataset.v3form === 'weekly') { const ids = [...f.querySelectorAll('[name=w]:checked')].map((x) => x.value); if (ids.length > 3) { toast('Só 3. Foco é escolher o que fica de fora.', 'bad'); return; } A.setWeekly(ids, R.weeklyMissions(S, f.dataset.target).ws); closeModal(); }
     if (f.dataset.v3form === 'save') { A.addSaving(f.v.value, f.n.value); closeModal(); sfx('coin'); }
+    if (f.dataset.v3form === 'take') { const r = A.withdrawSaving(f.v.value, f.n.value); if (r?.error) { sfx('error'); toast(esc(r.error), 'bad'); return; } closeModal(); sfx('coin'); }
     if (f.dataset.v3form === 'chat') {
       const q = f.q.value.trim(); if (!q) return;
       f.q.value = '';

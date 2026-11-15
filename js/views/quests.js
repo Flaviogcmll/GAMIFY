@@ -9,9 +9,12 @@ import { arrange } from '../v35.js';
 
 const sortOrd = (a, b) => a.ord - b.ord;
 const visible = (t) => R.isOpen(t) || t.st === 'sent' || (t.doneAt || t.cancelAt) === today();
+/** ⬛ parado: só aparece com MOSTRAR PARADOS ligado */
+const stalledOff = (ui) => (t) => t.color !== 'black' || ui.showStalled;
 
 function listCard(area, ui) {
-  const all = S.quests.tasks.filter((t) => (!t.block && t.area === area) || t.pin === area).sort(sortOrd);
+  const every = S.quests.tasks.filter((t) => (!t.block && t.area === area) || t.pin === area).sort(sortOrd);
+  const all = every.filter(stalledOff(ui)), stalled = every.length - all.length;
   const open = all.filter(R.isOpen), hidden = all.filter((t) => !visible(t));
   const show = ui.showDone ? all : all.filter(visible);
   const noDue = area === 'imed' || area === 'curto' ? open.filter((t) => !t.due && t.st !== 'wait').length : 0;
@@ -19,6 +22,7 @@ function listCard(area, ui) {
       <span class="row" style="gap:4px"><span class="meta">${open.length}${noDue ? ` · <span class="warn">${noDue} s/ prazo</span>` : ''}</span><button class="icon-btn" data-act="sort" data-area="${area}" title="Organizar por data (⏳ agrupado embaixo)">⇅</button></span></header>
     <ul class="tasks">${show.map((t) => taskRow(t, { list: true, sub: t.pin === area && t.block ? '↗ ' + (R.findBlock(S, t.block)?.title || '') : '' })).join('') || '<div class="empty">vazio.</div>'}</ul>
     ${!ui.showDone && hidden.length ? `<button class="more" data-act="toggle-done">✓ ${hidden.length} feitas · mostrar</button>` : ''}
+    ${stalled ? `<button class="more" data-act="toggle-stalled">⬛ ${stalled} parada(s) · mostrar</button>` : ''}
     <form class="addline" data-form="add-task" data-area="${area}" autocomplete="off"><input class="inp" name="text" placeholder="+ adicionar" aria-label="Adicionar em ${R.AREAS[area]}"></form>
   </section>`;
 }
@@ -47,7 +51,8 @@ function bossPanel(ui) {
 function blockCard(b, ui) {
   const items = S.quests.tasks.filter((t) => t.block === b.id).sort(sortOrd);
   const open = items.filter(R.isOpen), done = items.filter((t) => t.st === 'done'), counted = items.filter((t) => t.st !== 'cancel');
-  const show = ui.showDone || b.st === 'done' ? items : items.filter((t) => visible(t) || (t.parent && R.isOpen(items.find((p) => p.id === t.parent) || {})));
+  const shown = ui.showDone || b.st === 'done' ? items : items.filter((t) => visible(t) || (t.parent && R.isOpen(items.find((p) => p.id === t.parent) || {})));
+  const show = shown.filter(stalledOff(ui)), stalled = shown.length - show.length; // a conta do bloco (feitas/total) não muda ao ocultar parados
   const dues = open.map((t) => t.due).filter(Boolean).sort();
   const xpLeft = open.reduce((a, t) => a + R.taskXp(S, t).xp, 0) + (b.st === 'done' ? 0 : R.blockXp(b));
   return `<article class="block ${b.st === 'done' ? 'closed' : ''} ${isCollapsed('b:' + b.id) ? 'collapsed' : ''}" data-color="${b.color}" data-drop-block="${b.id}">
@@ -58,19 +63,20 @@ function blockCard(b, ui) {
       <div style="display:flex;flex-direction:column;padding:4px 2px;align-items:center"><button class="icon-btn" data-act="collapse" data-k="b:${b.id}" aria-label="Recolher bloco"><span class="chev">${isCollapsed('b:' + b.id) ? '▸' : '▾'}</span></button><span class="handle" data-handle="block" data-id="${b.id}" title="Segure e arraste">⠿</span><button class="icon-btn" data-act="edit-block" data-id="${b.id}" aria-label="Editar bloco">⋯</button><button class="icon-btn" data-act="sort" data-block="${b.id}" title="Organizar por data">⇅</button></div>
     </div>
     <div class="bbody"><ul class="tasks">${show.map((t) => taskRow(t, { showPin: true })).join('') || '<div class="empty">sem itens.</div>'}</ul>
-      ${!ui.showDone && b.st !== 'done' && items.length > show.length ? `<button class="more" data-act="toggle-done">✓ ${items.length - show.length} feitas · mostrar</button>` : ''}
+      ${!ui.showDone && b.st !== 'done' && items.length > shown.length ? `<button class="more" data-act="toggle-done">✓ ${items.length - shown.length} feitas · mostrar</button>` : ''}
+      ${stalled ? `<button class="more" data-act="toggle-stalled">⬛ ${stalled} parada(s) · mostrar</button>` : ''}
       <form class="addline" data-form="add-task" data-block="${b.id}" autocomplete="off"><input class="inp" name="text" placeholder="+ subtarefa  (> passo · ⚔ mini-boss)" aria-label="Adicionar subtarefa"></form></div>
   </article>`;
 }
 
 function group(g, ui) {
   const blocks = S.quests.blocks.filter((b) => b.group === g).sort(sortOrd);
-  const active = blocks.filter((b) => b.color !== 'black' || ui.showDone);
+  const active = blocks.filter(stalledOff(ui));
   return `<div class="group ${isCollapsed('g:' + g) ? 'collapsed' : ''}" data-group="${g}"><div class="band" data-act="collapse" data-k="g:${g}"><span><span class="chev">${isCollapsed('g:' + g) ? '▸' : '▾'}</span> ${R.GROUPS[g].name}</span><span class="meta">${blocks.filter((b) => b.st !== 'done').length} blocos</span></div>
     <form class="row" data-form="add-block" data-group="${g}" autocomplete="off"><input class="inp grow" name="title" placeholder="+ novo bloco${g === 'bd' ? ' (🎯 meta)' : ' (3000💰 · / MES DIA 05)'}" aria-label="Novo bloco"></form>
     ${g === 'bd' ? `<button class="btn sm" data-act="ai-breakdown">🤖 QUEBRAR META COM IA</button>` : ''}
     ${active.map((b) => blockCard(b, ui)).join('') || '<div class="empty">nenhum bloco.</div>'}
-    ${blocks.length > active.length ? `<button class="more" data-act="toggle-done">⬛ ${blocks.length - active.length} parado(s) · mostrar</button>` : ''}</div>`;
+    ${blocks.length > active.length ? `<button class="more" data-act="toggle-stalled">⬛ ${blocks.length - active.length} parado(s) · mostrar</button>` : ''}</div>`;
 }
 
 function habitsCard(td) {
@@ -80,7 +86,7 @@ function habitsCard(td) {
   return `<div class="card"><header><h2>Hábitos de hoje</h2><span class="meta">${blanks ? `faltam ${blanks}` : R.isPerfect(S, td) ? '🌟 PERFEITO x2' : 'tudo marcado'} · +${S.marks.days[td]?.xp || 0} XP</span></header>
     <div class="habs">${S.core.habits.map((h) => {
       const v = m[h.id] || '', sk = R.streak(S, h.id, td);
-      return `<button class="hab ${v === 'x' ? 'x' : v === '-' ? 'f' : ''} ${ev?.type === 'habit' && ev.habit === h.id ? 'ev' : ''}" data-act="habit" data-d="${td}" data-h="${h.id}" title="${esc(h.name)} · ${sk.forged ? 'forjado' : `${sk.total}/66`}"><span class="hi">${h.icon}</span><span class="hn">${esc(h.name.slice(0, 9))}</span><span class="hs">🔥${sk.streak}${sk.mult > 1 ? ' x' + String(sk.mult).replace('.', ',') : ''}</span></button>`;
+      return `<button class="hab ${v === 'x' ? 'x' : v === '-' ? 'f' : ''} ${ev?.type === 'habit' && ev.habit === h.id ? 'ev' : ''}" data-act="habit" data-d="${td}" data-h="${h.id}" title="${esc(h.name)} · recorde 🏆${R.bestStreak(S, h.id, td)} · ${sk.forged ? 'forjado' : `${sk.total}/66`}"><span class="hi">${h.icon}</span><span class="hn">${esc(h.name.slice(0, 9))}</span><span class="hs">🔥${sk.streak}${sk.mult > 1 ? ' x' + String(sk.mult).replace('.', ',') : ''}</span></button>`;
     }).join('')}
       <button class="hab ${m.rd ? 'x' : ''}" data-act="redemption"><span class="hi">⚔</span><span class="hn">REDENÇÃO</span><span class="hs">+30 · cura</span></button></div>
     <p class="meta" style="margin:8px 0 0">toque: ✓ fiz → – folga → vazio</p></div>`;
@@ -107,7 +113,7 @@ export function legendHtml() {
       <tr><td>(60XP)</td><td>no texto: define o valor da tarefa</td></tr>
       <tr><td>⚔ ↳</td><td>⚔ mini-boss = a vitória · ↳ passo (escreva > no começo) = 3 XP; todos os ↳ feitos marcam o ⚔ sozinho</td></tr>
       <tr><td>📅 🐦</td><td>no prazo x1,5 · 2+ dias antes x2 · atrasou = sem bônus</td></tr>
-      <tr><td>🟥🟨🟩🟧⬛</td><td>cor do bloco/tarefa: urgente · andamento · pessoal · gestão · parado</td></tr>
+      <tr><td>🟥🟨🟩🟧⬛</td><td>cor do bloco: urgente · andamento · pessoal · gestão · parado</td></tr>
       <tr><td>LISTA</td><td>subtarefa 5 · lista 10 · fechar bloco: breakdown 100 · 🎯 meta 200 · captação 150 · trabalho 300</td></tr>
     </table>`;
 }
@@ -165,13 +171,18 @@ export function viewQuests(ui) {
     bd: S.quests.blocks.filter((b) => b.group === 'bd' && b.st !== 'done').length, tr: S.quests.blocks.filter((b) => b.group === 'tr' && b.st !== 'done').length,
     cap: S.quests.blocks.filter((b) => b.group === 'cap' && b.st !== 'done').length, gs: S.quests.blocks.filter((b) => b.group === 'gs' && b.st !== 'done').length, boss: S.quests.bosses.filter((b) => b.st !== 'done').length,
   };
+  // RECOLHER TUDO: vale para o que está na janela aberta (listas, blocos ou bosses)
+  const ckeys = tab === 'listas' ? ['imed', 'curto', 'longo', 'sem'].map((a) => 'l:' + a)
+    : tab === 'boss' ? S.quests.bosses.map((b) => 'b:' + (b.block || b.id))
+    : S.quests.blocks.filter((b) => b.group === tab).filter(stalledOff(ui)).map((b) => 'b:' + b.id);
+  const allCol = ckeys.length > 0 && ckeys.every(isCollapsed);
   const lists = arrange('lists', ['imed', 'curto', 'longo', 'sem'].map((a) => [a, R.AREAS[a], listCard(a, ui)]), { button: false });
   const body = tab === 'listas' ? `<div class="lists four">${lists}</div>`
     : tab === 'boss' ? bossPanel(ui)
     : group(tab, ui).replace('class="group ', 'class="group wide ');
   return `<div class="quests"><div class="board">
       <div class="band qbar"><div class="seg">${QTABS.map(([k, t]) => `<button class="${tab === k ? 'on' : ''}" data-act="qtab" data-tab="${k}" draggable="true" title="arraste pra mudar a ordem">${t}${n[k] != null ? ' · ' + n[k] : ''}</button>`).join('')}</div>
-        <span class="row" style="gap:6px"><button class="btn sm" data-act="distribute">📅 DISTRIBUIR</button><button class="btn sm ghost" data-act="toggle-done">${ui.showDone ? 'ESCONDER FEITAS' : 'MOSTRAR FEITAS'}</button></span></div>
+        <span class="row" style="gap:6px"><button class="btn sm ghost" data-act="collapse-all" title="Recolhe ou abre tudo desta janela de uma vez">${allCol ? '▾ ABRIR TUDO' : '▸ RECOLHER TUDO'}</button><button class="btn sm" data-act="distribute">📅 DISTRIBUIR</button><button class="btn sm ghost" data-act="toggle-done">${ui.showDone ? 'ESCONDER FEITAS' : 'MOSTRAR FEITAS'}</button><button class="btn sm ghost" data-act="toggle-stalled" title="⬛ parados: blocos e tarefas com a cor PARADO">${ui.showStalled ? 'OCULTAR PARADOS' : 'MOSTRAR PARADOS'}</button></span></div>
       ${chapterDue()}${topStrip()}${body}
     </div>${sidePanel(ui)}</div>`;
 }
@@ -185,7 +196,7 @@ function topStrip() {
   return `<div class="topstrip">
     <div class="card"><header><h2>📌 Missões da ${sunday ? 'próxima semana' : 'semana'}</h2><span class="meta">${wm.done}/3 · cada uma x1,5 · as 3 = +100 XP +1 🎟 <button class="btn sm" data-act="weekly-pick">ESCOLHER</button></span></header>
       ${wm.tasks.length ? `<ul class="tasks">${wm.tasks.map((t) => taskRow(t, { sub: t.block ? R.findBlock(S, t.block)?.title : R.AREAS[t.area] })).join('')}</ul>` : '<div class="empty">Escolha as 3 pedras grandes da semana. O resto é backlog, sem culpa.</div>'}</div>
-    ${boss ? `<div class="card boss-r"><header><h2>👹 Boss do capítulo</h2><span class="meta">${esc(boss.label)} <button class="btn sm pri" data-act="save-money">💰 GUARDEI</button></span></header>
-      <div class="num" style="font-size:12px">R$ ${fmtN(boss.left)} <span class="meta">de vida</span></div>${segBar(boss.pct, 'hp')}<p class="meta" style="margin:6px 0 0">o que você guarda dá dano · R$ ${fmtN(boss.got)} guardados de R$ ${fmtN(boss.target)}</p></div>` : ''}
+    ${boss ? `<div class="card boss-r"><header><h2>👹 Boss do capítulo</h2><span class="meta">${esc(boss.label)} <span class="row" style="gap:4px;justify-content:flex-end;margin-top:4px"><button class="btn sm pri" data-act="save-money">💰 GUARDEI</button>${boss.got > 0 ? '<button class="btn sm" data-act="take-money" title="Tirei dinheiro do que estava guardado: o boss recupera vida">↩ RETIREI</button>' : ''}</span></span></header>
+      <div class="num" style="font-size:12px">R$ ${fmtN(boss.left)} <span class="meta">de vida</span></div>${segBar(boss.pct, 'hp')}<p class="meta" style="margin:6px 0 0">o que você guarda dá dano · R$ ${fmtN(boss.got)} guardados de R$ ${fmtN(boss.target)}${boss.out ? ` · <span class="bad">R$ ${fmtN(boss.out)} retirados</span>` : ''}${boss.moves.length ? ` · <a href="#" data-act="money-log">histórico (${boss.moves.length})</a>` : ''}</p></div>` : ''}
   </div>`;
 }
