@@ -67,13 +67,13 @@ FEED e notícias; A VILA inteira; BUJO; janela TUDO; CRÔNICA; Google Agenda; ab
 - `kingdom.js`, `interiors.js`, `sky.js`: sobras da época da VILA, ainda usadas em parte (cenas, céu, estação). Têm funções que ninguém usa mais.
 - `views/*.js`: uma tela por arquivo. `audio.js` (sons e lo-fi gerados no aparelho), `fx.js`, `icons.js`, `ui.js`, `util.js`.
 - CSS: `css/app.css`. PWA: `manifest.json` + `sw.js` (lista de arquivos guardados para uso offline; ao criar arquivo novo, adicione na lista e troque a versão `V`).
-- Assets: ícones PWA, `assets/pets/*`, `dungeon.png` + `town.png` (Kenney CC0, ícones da SHOP), `audio/fire.mp3` (CC0; ver nota abaixo).
+- Assets: ícones PWA, `assets/pets/*`, `dungeon.png` + `town.png` (Kenney CC0, ícones da SHOP), `audio/fire.mp3` (CC0; gravação real da fogueira, tocada junto com o lo-fi; se não carregar, o app usa um som gerado).
 
 ## DADOS
 - No GitHub Pages (app no ar): `localStorage` do navegador. Documentos com prefixo `gamify:` (core, quests, marks, loja, arq-AAAA-MM); preferências do aparelho com `gamify-ui:`.
 - Os dados ficam POR ENDEREÇO e POR APARELHO: mudar de endereço, limpar os dados do navegador ou trocar de celular = app vazio. Proteção hoje: BAIXAR/IMPORTAR backup (manual). O Drive ainda não foi testado.
 - No claude.ai: banco do artifact, coleção `gamify` (máx. 256 KB por documento).
-- Campos do `core`: `primo`, `weights`, `rests`, `settings.rules`, `bonus[]`, `migrations[]`, `savings[]` (o antigo "cofre": no código o nome é `core.savings`), `inbox`, `claude`.
+- Campos do `core`: `primo`, `weights`, `rests`, `settings.rules`, `bonus[]`, `migrations[]`, `savings[]` (o que foi guardado para o BOSS DO CAPÍTULO, botão GUARDEI), `cofre` (lido em `rules.js` para NO AZUL/VAZANDO; a aba foi removida e os dados atuais do dono não têm esse campo), `inbox`, `claude`.
 - Migrações já aplicadas nos dados do dono: `gestao`, `bosses4`, `shop4`, `vila-off`, `v5-clean`.
 - ARMADILHA QUE JÁ QUEBROU O QUESTS: ao REMOVER um tipo de dado salvo, o dado antigo continua lá e o código novo quebra. Sempre trate valores legados e crie migração idempotente.
 
@@ -90,9 +90,9 @@ FEED e notícias; A VILA inteira; BUJO; janela TUDO; CRÔNICA; Google Agenda; ab
 ## CONFERIDO EM 15/11/2026 (diferenças entre o briefing antigo e o repositório real)
 1. O ZIP enviado pelo dono e o repositório são idênticos. Um único envio no histórico ("Add files via upload"), sem tags.
 2. Não existem no repositório (existiam só no ambiente antigo): `CLAUDE.md`, este briefing, `GUIA_LANCAMENTO.md`, `tools/pack_pages.py`, `tests/rules.test.mjs`. O cartão do Drive em PERKS ainda manda ler o `GUIA_LANCAMENTO.md`, que não existe.
-3. `audio/fire.mp3` (469 KB, mais da metade do peso do repositório) não é usado por nenhuma linha do código.
+3. `audio/fire.mp3` (469 KB) é usado pelo lo-fi (`audio.js`), mas não está na lista offline do `sw.js`: fica guardado só depois de tocar a primeira vez.
 4. Falas: 413 no banco (o briefing antigo dizia ~480).
-5. "core.cofre" não existe: o nome real é `core.savings`.
+5. `core.cofre` continua sendo lido pelo código, mas os dados atuais do dono não têm esse campo. `core.savings` é outra coisa (poupança do boss do capítulo).
 6. `manifest.json` ainda descreve o app como "jogo de vila" (a vila foi removida).
 7. `sw.js` não guarda `assets/icon-maskable-512.png` para uso offline; e se um arquivo da lista faltar, ele falha em silêncio.
 8. Todos os `.js` passam no `node --check`. Com os dados reais do dono: as 10 abas abrem sem erro e sem rolagem horizontal em 390 px e 1366 px.
@@ -113,6 +113,6 @@ FEED e notícias; A VILA inteira; BUJO; janela TUDO; CRÔNICA; Google Agenda; ab
 - Otimizações levantadas em 15/11/2026 (ver Pull Request da documentação).
 - Trocar o mascote por um com fases de vida reais (Gridwright Virtual Pet Kit, pago, não redistribuir os arquivos).
 - Mais frases e curiosidades; evolução visual do porquinho; sons por expressão.
-- Poupança (`core.savings`) ligada à planilha de gastos.
+- COFRE (`core.cofre`) ligado à planilha de gastos.
 - Tarefas compartilhadas do casal (precisa de servidor).
 - Expedições com eventos mais variados.
