@@ -1,5 +1,5 @@
 // v3 — companheiro, cenários por aba, fogueira de foco, arrastar com dedo/mouse, recolher e arquivo com filtro.
-import { historyCard } from './v4.js';
+import { historyCard, dropTaskSmart } from './v4.js';
 
 import { S } from './store.js';
 
@@ -163,7 +163,7 @@ document.addEventListener('pointerup', () => {
   document.querySelectorAll('.drop-before,.drop-zone').forEach((x) => x.classList.remove('drop-before', 'drop-zone'));
   if (!d.on || !d.target) return;
   const z = d.target.zone;
-  if (d.kind === 'task') A.dropTask(d.id, { area: z.dataset.dropArea, block: z.dataset.dropBlock, before: d.target.li?.dataset.id });
+  if (d.kind === 'task') dropTaskSmart(d.id, { area: z.dataset.dropArea, block: z.dataset.dropBlock, before: d.target.li?.dataset.id });
   else A.dropBlock(d.id, { group: z.dataset.group, before: d.target.li?.dataset.dropBlock });
   sfx('drop');
 });
@@ -185,7 +185,7 @@ export function viewArquivo3(ui) {
       <button class="btn" data-act="archive-now">🔄 ATUALIZAR</button><button class="btn danger" data-act="arq-empty" ${old.length ? '' : 'disabled'} title="Apaga meses com mais de 30 dias; XP e medalhas ficam">🗑 ESVAZIAR ANTIGOS (${old.length})</button></div>
       ${L ? `<p class="meta" style="margin:8px 0 0">saldo histórico guardado: ${fmtN(L.done || 0)} concluídas · ${fmtN(L.onTime || 0)} no prazo</p>` : ''}</div>
     <div class="card" style="max-width:920px"><div class="list">${all.slice(0, lim).map((t) => {
-      const ctx = t.blockTitle || (t.block ? R.findBlock(S, t.block)?.title : R.AREAS[t.area]) || '';
+      const ctx = t.blockTitle || (t.block ? R.findBlock(S, t.block)?.title : R.areaName(t.area)) || '';
       const xp = (t.xp || 0) + (t.rounds || []).reduce((a, r) => a + r.xp, 0) + (t.bonusXp || 0);
       return `<div class="li"><div class="lt">${t.st === 'cancel' ? '✕' : '✓'} ${esc(t.text)}<small>${fmtDM(t.doneAt || t.cancelAt || t.sentAt)} · ${esc(ctx)}${(t.rounds || []).length ? ` · 🔁 ${t.rounds.length}` : ''}</small></div><span class="chip xp">+${xp}</span></div>`;
     }).join('') || '<div class="empty">nada encontrado.</div>'}</div>${all.length > lim ? '<button class="more" data-act="arq-more">mostrar mais</button>' : ''}</div>`;

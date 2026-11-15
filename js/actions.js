@@ -58,6 +58,8 @@ export function commit(docs, fn, opts = {}) {
   const before = R.totals(S);
   touched.clear();
   const res = fn();
+  const lsync = syncLists(); // listas pela data + tarefas que dependiam de outra já concluída
+  if (lsync.changed) docs.push('quests');
   docs.push(...touched);
   S._epoch++;
   const extra = sync();
@@ -71,7 +73,7 @@ export function commit(docs, fn, opts = {}) {
   feedbackFn({
     xp: after.earned - before.earned, spent: after.spent - before.spent, gold: after.gold - before.gold,
     tickets: after.tickets - before.tickets, levelUp: after.level > before.level ? after : null,
-    achievements: extra.achievements, at: opts.at, msg: res?.msg, ...(res?.feedback || {}),
+    achievements: extra.achievements, at: opts.at, msg: res?.msg, released: lsync.released, ...(res?.feedback || {}),
   });
   return res;
 }
@@ -211,7 +213,8 @@ export function startup() {
     delete S.core.inbox;
     changedQ = changedCore = true;
   }
-  // tarefa nova sem data no IMEDIATOS/CURTO ganha prazo sozinha ao abrir (regra da planilha)
+  // as listas são pela data: ao abrir (e na virada do dia) cada tarefa vai pra lista certa
+  if (syncLists().changed) changedQ = true;
   S._epoch++;
   const auto = R.distributePlan(S, { onlyNew: true, today: td });
   for (const p of auto) { const t = T(p.id); if (t) { t.due = p.to; syncLink(t); changedQ = true; } }
@@ -233,6 +236,23 @@ export function startup() {
 const T = (id) => S.quests.tasks.find((t) => t.id === id);
 const B = (id) => S.quests.blocks.find((b) => b.id === id);
 const maxOrd = () => Math.max(0, ...S.quests.tasks.map((t) => t.ord || 0), ...S.quests.blocks.map((b) => b.ord || 0));
+/** LISTAS automáticas: grava em t.area a lista que a DATA manda (hoje, amanha, semana, depois, sem, wait)
+ *  e libera quem estava esperando uma tarefa que já foi concluída, cancelada ou arquivada. Roda a cada alteração e ao abrir. */
+function syncLists() {
+  const td = today(), released = [];
+  let changed = false;
+  const byId = new Map(S.quests.tasks.map((t) => [t.id, t]));
+  for (const t of S.quests.tasks) {
+    if (t.dep) {
+      const d = byId.get(t.dep);
+      if (!d || d.st === 'done' || d.st === 'cancel') { delete t.dep; if (!t.who && t.st === 'wait') t.st = ''; released.push({ id: t.id, text: t.text }); changed = true; }
+    }
+    if (t.block) continue;
+    const k = R.isOpen(t) || t.st === 'sent' ? R.listOf(t, td) : R.AREAS[t.area] ? t.area : R.AREA_FROM_OLD[t.area] || 'sem';
+    if (t.area !== k) { t.area = k; changed = true; }
+  }
+  return { changed, released };
+}
 const container = (t) => S.quests.tasks.filter((x) => (t.block ? x.block === t.block : !x.block && x.area === t.area));
 
 export function normalizeText(text) {
@@ -241,11 +261,13 @@ export function normalizeText(text) {
   return t;
 }
 
-export function addTask({ text, area = 'imed', block = null, due = null, parent = null, after = null }) {
+export function addTask({ text, area = 'hoje', block = null, due = null, parent = null, after = null }) {
   text = normalizeText(text);
   if (!text) return null;
+  area = R.AREA_FROM_OLD[area] || area;
   return commit(['quests'], () => {
-    const t = { id: uid('t'), area: block ? 'block' : area, text, st: '', due: due || null, created: today(), ord: maxOrd() + 1 };
+    // adicionar numa lista já dá a data daquela lista (HOJE = hoje, AMANHÃ = amanhã…); em AGUARDANDO a tarefa nasce aguardando
+    const t = { id: uid('t'), area: block ? 'block' : area, text, st: !block && area === 'wait' ? 'wait' : '', due: due || (block ? null : R.dueForList(area, today())), created: today(), ord: maxOrd() + 1 };
     if (block) {
       t.block = block;
       const bl = B(block);
@@ -525,7 +547,7 @@ export function addGoalBlock(title, minis) {
 function pushTask(it) {
   const text = normalizeText(it.text);
   if (!text) return null;
-  const t = { id: uid('t'), area: it.block ? 'block' : it.area || 'imed', ...(it.block ? { block: it.block } : {}), text, st: '', due: it.due || null, created: today(), ord: maxOrd() + 1 };
+  const t = { id: uid('t'), area: it.block ? 'block' : 'sem', ...(it.block ? { block: it.block } : {}), text, st: '', due: it.due || (it.block ? null : R.dueForList(R.AREA_FROM_OLD[it.area] || it.area || 'hoje', today())), created: today(), ord: maxOrd() + 1 };
   S.quests.tasks.push(t);
   return t;
 }
@@ -907,7 +929,18 @@ export function sortContainer({ area, block }) {
 export function dropTask(id, { area, block, before }) {
   const t = T(id);
   if (!t) return;
-  return commit(['quests'], () => {
+  // soltar numa LISTA muda a data (a lista é a data). Empurrar pra frente segue a regra de remarcação; mudar a ordem dentro da mesma lista não mexe em nada.
+  const toList = !block && area && (t.block || R.listOf(t) !== area);
+  const nd = toList && area !== 'wait' ? R.dueForList(area, today(), t.due) : undefined;
+  const base = nd !== undefined ? reschedBase(t, nd) : 0, free = base > 0 && freeResched(), cost = free ? 0 : base;
+  if (cost && R.totals(S).balance < cost) return { error: `Faltam ${cost - R.totals(S).balance} XP pra remarcar (custa ${cost} XP).` };
+  return commit(cost ? ['quests', 'loja'] : free ? ['quests', 'core'] : ['quests'], () => {
+    if (toList) {
+      if (cost) chargeResched(t, cost);
+      if (free) { useFree(); t.rs = (t.rs || 0) + 1; }
+      if (area === 'wait') { if (R.isOpen(t)) t.st = 'wait'; }
+      else { if (t.st === 'wait') { t.st = ''; delete t.who; delete t.dep; } t.due = nd; syncLink(t); }
+    }
     const moving = [t, ...S.quests.tasks.filter((k) => k.parent === t.id).sort((a, b) => a.ord - b.ord)];
     const target = before ? T(before) : null;
     if (target && moving.includes(target)) return;

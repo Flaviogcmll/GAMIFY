@@ -1,6 +1,6 @@
 # BRIEFING — GAMIFY (leia tudo antes de mexer em qualquer coisa)
 
-Atualizado em 15/11/2026: repositório real conferido (v5.1) e três rodadas feitas (v5.2 proteção dos dados, v5.3 bugs e praticidade, v5.4 limpeza + viagem + PRIMO).
+Atualizado em 15/11/2026: repositório real conferido (v5.1) e quatro rodadas feitas (v5.2 proteção dos dados, v5.3 bugs e praticidade, v5.4 limpeza + viagem + PRIMO, v5.5 listas automáticas + AGUARDANDO).
 Este arquivo substitui o briefing antigo. O que mudou em relação a ele está na seção "CONFERIDO EM 15/11/2026".
 
 ## PASSO 0: ALINHAR ANTES DE TUDO
@@ -133,11 +133,19 @@ O dono usa muito mais o PC. Pedidos atendidos:
 - PRIMO: +171 falas (30 piadas, 24 ditados, 10 causos, falas de viagem e mais falas caipiras nas reações); botão 😂 PROSA.
 - `GUIA_SPRITES_IA.md`: guia para o dono gerar o porquinho novo, acessórios e cenários com IA de imagem (Higgsfield), com prompts prontos e a lista de arquivos a enviar.
 
+## RODADA 4a — v5.5 (15/11/2026): listas automáticas e AGUARDANDO
+- **LISTAS automáticas pelo prazo.** As listas agora são HOJE, AMANHÃ, ESTA SEMANA, DEPOIS, SEM PRAZO e AGUARDANDO (`R.AREAS`, `R.AREA_KEYS`). A DATA decide a lista: `R.listOf(t)`. `t.area` continua existindo, mas é recalculado sozinho por `syncLists()` em `actions.js` (a cada alteração e ao abrir o app). Atrasada fica em HOJE. As listas antigas (imed/curto/longo) só existem como nomes para tarefas arquivadas (`R.areaName`).
+- Adicionar numa lista já dá a data dela (`R.dueForList`). Arrastar para outra lista muda a data; empurrar pra frente segue a regra de remarcação (pergunta antes, `dropTaskSmart` em `v4.js`); mudar a ordem dentro da mesma lista não mexe em nada. Nada mais ganha prazo sozinho ao abrir.
+- **AGUARDANDO** junta: tarefas das listas em espera, tarefas em espera DENTRO de blocos (continuam morando no bloco) e blocos inteiros em espera.
+- **Um campo só de "aguardando quem ou o quê"** na janela da tarefa: `t.who` (pessoa/motivo) e `t.dep` (id de outra tarefa). Preencher manda pra AGUARDANDO; limpar devolve. Quando a tarefa em `dep` é concluída, cancelada ou arquivada, a que esperava volta sozinha e o app avisa (🔓). FILTRO ganhou a coluna e o filtro PESSOA.
+- **DISTRIBUIR** novo: escolha entre "só as que já tinham prazo", "só dar data às sem prazo dos blocos" e "todas". Capacidade de cada dia = 80% do ritmo real do dono naquele dia da semana (`R.weekdayPace`, `R.dayCapacity`), limitado pelo máximo dos AJUSTES; ordem: prioridade, ⭐, mais atrasada primeiro.
+- NÃO feito nesta rodada (parou por limite de uso): tudo que está em PRÓXIMAS RODADAS abaixo.
+
 ## PRÓXIMAS RODADAS (combinado com o dono em 15/11/2026)
 Princípio dele: qualidade de vida e praticidade; tudo integrado como um ecossistema; simples no fim das contas (o app não pode tomar o tempo das tarefas). Ele aceita sugestões melhores que o pedido.
-- **Rodada 3 — LISTAS como janela mãe.** Decidido: listas AUTOMÁTICAS pelo prazo (HOJE, AMANHÃ, ESTA SEMANA, DEPOIS, SEM PRAZO, AGUARDANDO; arrastar para outra lista muda o prazo) e UM campo só de "aguardando: quem ou o quê" (pessoa ou outra tarefa), que alimenta a lista AGUARDANDO, o filtro por pessoa no FILTRO e a volta automática quando a outra tarefa é concluída. Também: LISTAS com cor própria e as outras janelas derivando dela; botão ＋ para criar/renomear janelas; cores nas listas; botão REVISADO no fim do bloco (vale 24 h, com selo visual); personalizar textos fixos sem quebrar as mecânicas.
-- **Rodada 4 — rituais, loja, fogos, distribuir.** Ritual com data marcada (ex.: SPA num dia específico, mesmo com aviso a cada 15 dias) aparecendo na AGENDA e no cronograma; item ACORDAR TARDE na loja; JOGO STEAM na forja; aba no SHOP com o histórico do que já foi forjado; REDENÇÃO vira só "aula de curso (40 XP)" ou "meditação"; fogos de artifício (som + animação pequena) ao concluir algo demorado; DISTRIBUIR pergunta "só as que já tinham prazo ou todas" e usa a produtividade real do dono (tarefas por dia da semana).
-- **Rodada 5 — voltar ao jogo.** Entrevista do dia com o PRIMO na primeira abertura; detectar que ficou muito tempo sem preencher e oferecer revisão rápida de retorno (pode reaproveitar a janela de volta da VIAGEM, já feita na rodada 3a).
+- **Janela mãe e personalização.** LISTAS com cor própria e as outras janelas derivando dela; botão ＋ para criar/renomear janelas; botão REVISADO no fim do bloco (vale 24 h, com selo visual); personalizar textos fixos (nomes das listas e janelas) sem quebrar as mecânicas. As listas automáticas e o AGUARDANDO já foram feitos na rodada 4a.
+- **Rituais, loja e fogos.** Ritual com data marcada (ex.: SPA num dia específico, mesmo com aviso a cada 15 dias) aparecendo na AGENDA e no cronograma; item ACORDAR TARDE na loja; JOGO STEAM na forja; aba no SHOP com o histórico do que já foi forjado; REDENÇÃO vira só "aula de curso (40 XP)" ou "meditação"; fogos de artifício (som + animação pequena) ao concluir algo demorado. (O DISTRIBUIR novo já foi feito na rodada 4a.)
+- **Voltar ao jogo (o dono escolheu: 3 dias sem abrir dispara a revisão; entrevista toda primeira abertura do dia, 3 passos, com PULAR).** Entrevista do dia com o PRIMO na primeira abertura; detectar que ficou muito tempo sem preencher e oferecer revisão rápida de retorno (pode reaproveitar a janela de volta da VIAGEM, já feita na rodada 3a).
 - **PRIMO novo com IA de imagem.** O dono vai gerar no Higgsfield seguindo o `GUIA_SPRITES_IA.md`. Quando ele mandar os arquivos: recortar fundo, montar as folhas de animação e as âncoras, trocar o desenho do porquinho, os acessórios e o fundo da cena; manter o sprite atual como reserva até ele aprovar.
 - **Por último — economia.** Analisar toda a economia e propor valores (o dono citou um PDF de referência que não está no repositório; pedir de novo). Só mudar valores depois de ele aprovar a análise.
 

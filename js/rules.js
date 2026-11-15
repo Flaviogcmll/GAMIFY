@@ -48,9 +48,42 @@ export const GROUPS = {
   gs: { name: 'GESTÃO', short: 'GESTÃO' },
   bs: { name: 'BOSSES', short: 'BOSSES' }, // v4: cada boss é um bloco com subtarefas (vida = o que falta)
 };
+// LISTAS (a janela mãe): são automáticas. A DATA da tarefa decide em qual lista ela aparece; AGUARDANDO junta o que está parado por alguém ou por outra tarefa.
 export const AREAS = {
-  imed: 'IMEDIATOS', curto: 'CURTO PRAZO', longo: 'LONGO PRAZO', sem: 'SEM PRAZO',
+  hoje: 'HOJE', amanha: 'AMANHÃ', semana: 'ESTA SEMANA', depois: 'DEPOIS', sem: 'SEM PRAZO', wait: 'AGUARDANDO',
 };
+export const AREA_KEYS = ['hoje', 'amanha', 'semana', 'depois', 'sem', 'wait'];
+/** nomes das listas antigas (só para mostrar tarefas já arquivadas) e conversão ao criar tarefa com nome antigo */
+const AREAS_OLD = { imed: 'IMEDIATOS', curto: 'CURTO PRAZO', longo: 'LONGO PRAZO' };
+export const AREA_FROM_OLD = { imed: 'hoje', curto: 'semana', longo: 'depois' };
+export const areaName = (k) => AREAS[k] || AREAS_OLD[k] || '';
+/** em qual lista uma tarefa (fora de bloco) aparece hoje */
+export function listOf(t, td = today()) {
+  if (t.st === 'wait' || t.st === 'sent') return 'wait';
+  if (!t.due) return 'sem';
+  const d = diffDays(td, t.due);
+  return d <= 0 ? 'hoje' : d === 1 ? 'amanha' : d <= 7 ? 'semana' : 'depois'; // atrasada fica em HOJE
+}
+/** que data uma tarefa ganha ao entrar numa lista (adicionar ali ou arrastar pra lá). `cur` = data atual dela */
+export function dueForList(k, td = today(), cur = null) {
+  if (k === 'hoje') return td;
+  if (k === 'amanha') return addDays(td, 1);
+  if (k === 'semana') {
+    if (cur && diffDays(td, cur) >= 2 && diffDays(td, cur) <= 7) return cur;
+    const win = [2, 3, 4, 5, 6, 7].map((n) => addDays(td, n));
+    return win.find((d) => weekday(d) === 5) || win.find((d) => isWorkday(d)) || win[0]; // a sexta da janela; sem sexta, o 1º dia útil
+  }
+  if (k === 'depois') return cur && diffDays(td, cur) > 7 ? cur : addDays(td, 14);
+  if (k === 'wait') return cur;
+  return null; // SEM PRAZO
+}
+/** quem/o quê está segurando a tarefa, pra mostrar na tela */
+export function waitingOn(s, t) {
+  const dep = t.dep ? allTasks(s).find((x) => x.id === t.dep) : null;
+  return { who: t.who || '', dep, label: [t.who, dep && '🔗 ' + dep.text.replace(/\s*\(\d+\s*XP\)/i, '')].filter(Boolean).join(' · ') };
+}
+/** todas as pessoas já usadas em "aguardando quem" */
+export const people = (s) => [...new Set(allTasks(s).map((t) => t.who).filter(Boolean))].sort();
 
 // ───────────────────────── CACHE (recalcula quando o estado muda) ─────────────────────────
 // O estado carrega um contador `_epoch` que sobe a cada alteração.
@@ -673,13 +706,37 @@ export function nextAction(s, b) {
     items.find(isOpen) || null;
 }
 /** 📅 DISTRIBUIR PRAZOS: propõe datas (máx. 6 por dia útil, pula fim de semana e feriado). */
+/** seu ritmo real: média de tarefas concluídas em cada dia da semana nas últimas 8 semanas (dias de viagem não contam). null = pouco histórico */
+export function weekdayPace(s, td = today()) {
+  const done = idx(s).doneByDay, start = s.core?.startDate || td, sum = Array(7).fill(0), n = Array(7).fill(0);
+  for (let i = 1; i <= 56; i++) {
+    const d = addDays(td, -i);
+    if (d < start) break;
+    if (tripDay(s, d)) continue;
+    const w = weekday(d); sum[w] += done[d] || 0; n[w]++;
+  }
+  return sum.map((x, w) => (n[w] >= 2 ? x / n[w] : null));
+}
+/** quantos prazos cabem num dia: 80% do seu ritmo naquele dia da semana (a folga cobre imprevistos), entre 1 e o máximo dos AJUSTES.
+ *  Fim de semana só entra se você costuma render nele; feriado nunca. Sem histórico suficiente, vale o máximo dos AJUSTES nos dias úteis. */
+export function dayCapacity(s, d, pace = weekdayPace(s), max = s.core?.settings?.maxPerDay || C.MAX_PER_DAY) {
+  const w = weekday(d), p = pace[w], weekend = w === 0 || w === 6;
+  if (holidayName(d)) return 0;
+  if (p == null) return weekend ? 0 : max;
+  const c = Math.min(max, Math.round(p * 0.8));
+  return weekend ? c : Math.max(1, c);
+}
+/** DISTRIBUIR. opts.scope: 'dated' = só remarca as que JÁ TINHAM prazo e atrasaram · 'new' = só dá data à próxima ação de cada bloco · 'all' = as duas coisas.
+ *  Ordem: prioridade (!), depois ⭐, depois a mais atrasada primeiro (regra "prazo mais antigo primeiro", que é a que menos acumula atraso). */
 export function distributePlan(s, opts = {}) {
+  if (opts.onlyNew) return []; // as listas agora são pela data: nada ganha prazo sozinho ao abrir
   const td = opts.today || today(), max = opts.max || s.core?.settings?.maxPerDay || C.MAX_PER_DAY;
-  const load = loadByDay(s);
+  const scope = opts.scope || (opts.reschedule === false ? 'new' : 'all');
+  const load = loadByDay(s), pace = weekdayPace(s, td);
   const plan = [];
   const pick = (from) => {
     let d = from;
-    for (let i = 0; i < 400; i++, d = addDays(d, 1)) if (isWorkday(d) && (load[d] || 0) < max) return d;
+    for (let i = 0; i < 400; i++, d = addDays(d, 1)) if ((load[d] || 0) < dayCapacity(s, d, pace, max)) return d;
     return from;
   };
   const push = (t, from, why) => {
@@ -689,20 +746,17 @@ export function distributePlan(s, opts = {}) {
     load[d] = (load[d] || 0) + 1;
     plan.push({ id: t.id, text: t.text, from: t.due || null, to: d, why });
   };
-  const starFirst = (a, b) => (parse(b.text).star - parse(a.text).star) || a.ord - b.ord;
-  const open = openTasks(s).sort(starFirst);
-  if (opts.onlyNew) {
-    for (const t of open.filter((t) => (t.area === 'imed' || t.area === 'curto') && !t.due && t.st !== 'wait'))
-      push(t, t.area === 'imed' ? td : addDays(td, 2), 'prazo automático');
-    return plan;
+  const open = openTasks(s).filter((t) => t.st !== 'wait');
+  if (scope !== 'new') {
+    const late = open.filter((t) => t.due && t.due < td).sort((a, b) => (!!b.prio - !!a.prio) || (parse(b.text).star - parse(a.text).star) || a.due.localeCompare(b.due) || a.ord - b.ord);
+    for (const t of late) push(t, td, `atrasada ${diffDays(t.due, td)} dia(s)`);
   }
-  const blocks = (s.quests?.blocks || []).filter((b) => b.st !== 'done' && b.st !== 'wait' && b.color !== 'black');
-  if (opts.reschedule !== false) for (const t of open.filter((t) => t.due && t.due < td)) push(t, td, 'atrasada');
-  for (const t of open.filter((t) => t.area === 'imed' && !t.due && t.st !== 'wait')) push(t, td, 'IMEDIATOS');
-  for (const t of open.filter((t) => t.area === 'curto' && !t.due && t.st !== 'wait')) push(t, addDays(td, 2), 'CURTO PRAZO');
-  for (const b of [...blocks].sort((a, b) => a.ord - b.ord)) {
-    const n = nextAction(s, b);
-    if (n && !n.due && n.st !== 'wait' && !plan.some((p) => p.id === n.id)) push(n, addDays(td, 1), b.title);
+  if (scope !== 'dated') {
+    const blocks = (s.quests?.blocks || []).filter((b) => b.st !== 'done' && b.st !== 'wait' && b.color !== 'black');
+    for (const b of [...blocks].sort((a, b) => a.ord - b.ord)) {
+      const n = nextAction(s, b);
+      if (n && !n.due && n.st !== 'wait' && !plan.some((p) => p.id === n.id)) push(n, addDays(td, 1), b.title);
+    }
   }
   return plan;
 }
@@ -892,7 +946,7 @@ export function filterRows(s, td = today()) {
   for (const t of openTasks(s)) {
     const b = t.block ? findBlock(s, t.block) : null, p = parse(t.text);
     rows.push({
-      id: t.id, kind: 'task', text: t.text, where: b ? b.title : AREAS[t.area], cat: b ? GROUPS[b.group].short : 'LISTA',
+      id: t.id, kind: 'task', text: t.text, where: b ? b.title : areaName(t.area), cat: b ? GROUPS[b.group].short : 'LISTA', who: t.who || (t.dep ? '🔗 OUTRA TAREFA' : ''),
       date: t.due || '', time: '', left: t.due ? diffDays(td, t.due) : null, bucket: bucket(t.due), status: ST[t.st || ''] || 'ABERTA',
       type: p.mini ? 'MINI-BOSS' : p.step ? 'PASSO' : 'TAREFA', color: b?.color || '', marks: [p.star && '⭐', p.home && '🛡', p.money && '💰'].filter(Boolean).join(''),
       xp: taskXp(s, t, td).xp,
@@ -990,7 +1044,7 @@ export function restSuggest(s, d = today()) {
   return g.streak >= 5 && !recent;
 }
 /** rotina ↔ tarefas: o que a ROTINA diz pra agora e uma tarefa que combina */
-const SLOT_HINTS = [[/SOFTWARE|PROJETO/, (t, g) => g === 'tr' || g === 'bd'], [/ESTUD|CURSO|LEITURA/, (t, g) => g === 'bd' || t.area === 'longo'],
+const SLOT_HINTS = [[/SOFTWARE|PROJETO/, (t, g) => g === 'tr' || g === 'bd'], [/ESTUD|CURSO|LEITURA/, (t, g) => g === 'bd' || t.area === 'depois' || t.area === 'sem'],
   [/LIMPAR|CASA/, (t) => parse(t.text).home], [/POSTAR|STORIES|REELS|FEED|YOUTUBE|GRAVAR|IG/, (t, g) => g === 'gs']];
 export function routineNow(s, d = today(), hour = new Date().getHours()) {
   const r = s.core?.routine;

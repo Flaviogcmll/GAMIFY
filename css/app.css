@@ -482,6 +482,14 @@ body { background-image: none; }
 .qbar .seg button { background: transparent; color: #b3aca0; border-color: #3a4656; }
 .qbar .seg button.on { background: #e6e0d6; color: #1b1b1f; border-color: #e6e0d6; }
 .lists.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+/* LISTAS automáticas: 6 listas, cada uma com a sua cor (a cor diz a urgência) */
+.lists.six { grid-template-columns: repeat(auto-fit, minmax(225px, 1fr)); }
+.list-card[data-list] { --lc: var(--line); border-top: 5px solid var(--lc); }
+.list-card[data-list] > header h2 { color: var(--lc); }
+.list-card[data-list="hoje"] { --lc: #c0392b; } .list-card[data-list="amanha"] { --lc: #d9772b; } .list-card[data-list="semana"] { --lc: #c79a17; }
+.list-card[data-list="depois"] { --lc: #2f7fa3; } .list-card[data-list="sem"] { --lc: #8d8a83; } .list-card[data-list="wait"] { --lc: #7a5fb5; }
+.chip.wait { background: #7a5fb522; border-color: #7a5fb5; color: #7a5fb5; }
+:root[data-mode="night"] .chip.wait { color: #b9a4ea; }
 .group.wide { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; align-items: start; }
 .group.wide > .band, .group.wide > form, .group.wide > .btn, .group.wide > .more, .group.wide > .empty { grid-column: 1 / -1; }
 .daystrip { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x proximity; }

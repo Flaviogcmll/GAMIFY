@@ -12,18 +12,26 @@ const visible = (t) => R.isOpen(t) || t.st === 'sent' || (t.doneAt || t.cancelAt
 /** ⬛ parado: só aparece com MOSTRAR PARADOS ligado */
 const stalledOff = (ui) => (t) => t.color !== 'black' || ui.showStalled;
 
+/** dica de cada lista (aparece no "+ adicionar") */
+const LIST_HINT = { hoje: 'pra hoje', amanha: 'pra amanhã', semana: 'pra esta semana', depois: 'pra depois', sem: 'sem prazo', wait: 'aguardando alguém' };
 function listCard(area, ui) {
-  const every = S.quests.tasks.filter((t) => (!t.block && t.area === area) || t.pin === area).sort(sortOrd);
+  const td = today(), wait = area === 'wait';
+  const own = S.quests.tasks.filter((t) => !t.block && t.area === area);
+  // AGUARDANDO também mostra o que está aguardando DENTRO dos blocos (a tarefa continua morando no bloco) e os blocos inteiros em espera
+  const fromBlocks = wait ? R.openTasks(S).filter((t) => t.block && (t.st === 'wait' || t.st === 'sent')) : [];
+  const wBlocks = wait ? S.quests.blocks.filter((b) => b.st === 'wait') : [];
+  const every = [...own, ...fromBlocks].sort(area === 'hoje' ? (a, b) => (a.due || '').localeCompare(b.due || '') || sortOrd(a, b) : sortOrd);
   const all = every.filter(stalledOff(ui)), stalled = every.length - all.length;
-  const open = all.filter(R.isOpen), hidden = all.filter((t) => !visible(t));
+  const open = all.filter((t) => R.isOpen(t) || t.st === 'sent'), hidden = all.filter((t) => !visible(t));
   const show = ui.showDone ? all : all.filter(visible);
-  const noDue = area === 'imed' || area === 'curto' ? open.filter((t) => !t.due && t.st !== 'wait').length : 0;
-  return `<section class="list-card ${isCollapsed('l:' + area) ? 'collapsed' : ''}" data-drop-area="${area}"><header><h2 data-act="collapse" data-k="l:${area}" style="cursor:pointer"><span class="chev">${isCollapsed('l:' + area) ? '▸' : '▾'}</span> ${R.AREAS[area]}</h2>
-      <span class="row" style="gap:4px"><span class="meta">${open.length}${noDue ? ` · <span class="warn">${noDue} s/ prazo</span>` : ''}</span><button class="icon-btn" data-act="sort" data-area="${area}" title="Organizar por data (⏳ agrupado embaixo)">⇅</button></span></header>
-    <ul class="tasks">${show.map((t) => taskRow(t, { list: true, sub: t.pin === area && t.block ? '↗ ' + (R.findBlock(S, t.block)?.title || '') : '' })).join('') || '<div class="empty">vazio.</div>'}</ul>
+  const late = area === 'hoje' ? open.filter((t) => t.due && t.due < td).length : 0;
+  const sub = (t) => [t.block ? '↗ ' + (R.findBlock(S, t.block)?.title || '') : '', wait ? R.waitingOn(S, t).label && '⏳ ' + R.waitingOn(S, t).label : ''].filter(Boolean).join(' · ');
+  return `<section class="list-card ${isCollapsed('l:' + area) ? 'collapsed' : ''}" data-list="${area}" data-drop-area="${area}"><header><h2 data-act="collapse" data-k="l:${area}" style="cursor:pointer"><span class="chev">${isCollapsed('l:' + area) ? '▸' : '▾'}</span> ${R.AREAS[area]}</h2>
+      <span class="row" style="gap:4px"><span class="meta">${open.length + wBlocks.length}${late ? ` · <span class="bad">${late} atrasada${late > 1 ? 's' : ''}</span>` : ''}</span><button class="icon-btn" data-act="sort" data-area="${area}" title="Organizar por data">⇅</button></span></header>
+    <ul class="tasks">${show.map((t) => taskRow(t, { list: !t.block, sub: sub(t) })).join('')}${wBlocks.map((b) => `<li class="task wait"><span class="handle"></span><span class="check" style="cursor:default">…</span><div class="txt" data-act="jump-block" data-id="${b.id}" title="Ir pro bloco">▣ ${esc(b.title)}<small>bloco inteiro aguardando · ${esc(R.GROUPS[b.group]?.short || '')}</small></div></li>`).join('')}${show.length + wBlocks.length ? '' : `<div class="empty">${wait ? 'ninguém te segurando. 👏' : 'vazio.'}</div>`}</ul>
     ${!ui.showDone && hidden.length ? `<button class="more" data-act="toggle-done">✓ ${hidden.length} feitas · mostrar</button>` : ''}
     ${stalled ? `<button class="more" data-act="toggle-stalled">⬛ ${stalled} parada(s) · mostrar</button>` : ''}
-    <form class="addline" data-form="add-task" data-area="${area}" autocomplete="off"><input class="inp" name="text" placeholder="+ adicionar" aria-label="Adicionar em ${R.AREAS[area]}"></form>
+    <form class="addline" data-form="add-task" data-area="${area}" autocomplete="off"><input class="inp" name="text" placeholder="+ adicionar ${LIST_HINT[area]}" aria-label="Adicionar em ${R.AREAS[area]}"></form>
   </section>`;
 }
 
@@ -94,7 +102,7 @@ function habitsCard(td) {
 
 function filaCard(td) {
   const q = R.deadlineQueue(S, td).slice(0, 12);
-  const where = (t) => (t.block ? R.findBlock(S, t.block)?.title : R.AREAS[t.area]) || '';
+  const where = (t) => (t.block ? R.findBlock(S, t.block)?.title : R.areaName(t.area)) || '';
   return `<div class="card"><header><h2>⏰ Fila de prazos</h2><a class="meta" href="#agenda">agenda →</a></header>
     <div class="list">${q.map((t) => `<div class="li" data-act="jump" data-id="${t.id}" style="cursor:pointer"><div class="lt">${t.st === 'doing' ? '▶ ' : ''}${t.prio ? '<b class="bad">!</b> ' : ''}${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}<small>${esc(where(t))}</small></div><div class="row" style="flex-wrap:nowrap">${dueChip(t.due, false, true)}</div></div>`).join('') || '<div class="empty">nenhuma tarefa com prazo.</div>'}</div></div>`;
 }
@@ -167,12 +175,12 @@ export function viewQuests(ui) {
     cap: S.quests.blocks.filter((b) => b.group === 'cap' && b.st !== 'done').length, gs: S.quests.blocks.filter((b) => b.group === 'gs' && b.st !== 'done').length, boss: S.quests.bosses.filter((b) => b.st !== 'done').length,
   };
   // RECOLHER TUDO: vale para o que está na janela aberta (listas, blocos ou bosses)
-  const ckeys = tab === 'listas' ? ['imed', 'curto', 'longo', 'sem'].map((a) => 'l:' + a)
+  const ckeys = tab === 'listas' ? R.AREA_KEYS.map((a) => 'l:' + a)
     : tab === 'boss' ? S.quests.bosses.map((b) => 'b:' + (b.block || b.id))
     : S.quests.blocks.filter((b) => b.group === tab).filter(stalledOff(ui)).map((b) => 'b:' + b.id);
   const allCol = ckeys.length > 0 && ckeys.every(isCollapsed);
-  const lists = arrange('lists', ['imed', 'curto', 'longo', 'sem'].map((a) => [a, R.AREAS[a], listCard(a, ui)]), { button: false });
-  const body = tab === 'listas' ? `<div class="lists four">${lists}</div>`
+  const lists = arrange('lists', R.AREA_KEYS.map((a) => [a, R.AREAS[a], listCard(a, ui)]), { button: false });
+  const body = tab === 'listas' ? `<div class="lists six">${lists}</div>`
     : tab === 'boss' ? bossPanel(ui)
     : group(tab, ui).replace('class="group ', 'class="group wide ');
   return `<div class="quests"><div class="board">
@@ -193,7 +201,7 @@ function topStrip() {
   const sunday = new Date().getDay() === 0, wm = R.weeklyMissions(S, sunday ? addDays(today(), 1) : today()), boss = R.chapterBoss(S);
   return `<div class="topstrip">
     <div class="card"><header><h2>📌 Missões da ${sunday ? 'próxima semana' : 'semana'}</h2><span class="meta">${wm.done}/3 · cada uma x1,5 · as 3 = +100 XP +1 🎟 <button class="btn sm" data-act="weekly-pick">ESCOLHER</button></span></header>
-      ${wm.tasks.length ? `<ul class="tasks">${wm.tasks.map((t) => taskRow(t, { sub: t.block ? R.findBlock(S, t.block)?.title : R.AREAS[t.area] })).join('')}</ul>` : '<div class="empty">Escolha as 3 pedras grandes da semana. O resto é backlog, sem culpa.</div>'}</div>
+      ${wm.tasks.length ? `<ul class="tasks">${wm.tasks.map((t) => taskRow(t, { sub: t.block ? R.findBlock(S, t.block)?.title : R.areaName(t.area) })).join('')}</ul>` : '<div class="empty">Escolha as 3 pedras grandes da semana. O resto é backlog, sem culpa.</div>'}</div>
     ${boss ? `<div class="card boss-r"><header><h2>👹 Boss do capítulo</h2><span class="meta">${esc(boss.label)} <span class="row" style="gap:4px;justify-content:flex-end;margin-top:4px"><button class="btn sm pri" data-act="save-money">💰 GUARDEI</button>${boss.got > 0 ? '<button class="btn sm" data-act="take-money" title="Tirei dinheiro do que estava guardado: o boss recupera vida">↩ RETIREI</button>' : ''}</span></span></header>
       <div class="num" style="font-size:12px">R$ ${fmtN(boss.left)} <span class="meta">de vida</span></div>${segBar(boss.pct, 'hp')}<p class="meta" style="margin:6px 0 0">o que você guarda dá dano · R$ ${fmtN(boss.got)} guardados de R$ ${fmtN(boss.target)}${boss.out ? ` · <span class="bad">R$ ${fmtN(boss.out)} retirados</span>` : ''}${boss.moves.length ? ` · <a href="#" data-act="money-log">histórico (${boss.moves.length})</a>` : ''}</p></div>` : ''}
   </div>`;

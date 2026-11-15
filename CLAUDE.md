@@ -46,6 +46,7 @@ O backup do dono NUNCA entra no repositório.
 ## Armadilhas
 - Ao REMOVER um tipo de dado salvo, o dado antigo do dono continua existindo: trate valores legados e crie migração idempotente (registrada em `core.migrations`).
 - Trocar TODOS os dados de uma vez (importar, restaurar, Drive): use `restoreDocs()` de `backup.js`, nunca `replaceAll()` direto. Ele guarda antes uma cópia do estado atual.
+- As LISTAS do QUESTS são automáticas: a data decide a lista (`R.listOf`). Não grave `t.area` na mão: `syncLists()` (em `actions.js`, dentro do `commit()`) recalcula. Para pôr uma tarefa numa lista, mude a data (`R.dueForList`).
 - O cache de totais depende de `S._epoch++`.
 - O topo (`.top` + `.tabs`) só fica preso na primeira tela de rolagem (o `body` tem altura fixa). A variável CSS `--stick`, atualizada em `app.js`, diz onde ele termina; a barra das janelas do QUESTS e o painel da direita usam essa variável.
 - Qualquer redesenho (`render()`) recria a tela: o que estiver digitado nas linhas "+ adicionar" e a rolagem do painel da direita são guardados e devolvidos por `render()`. Campo novo desse tipo precisa entrar em `ADD_SEL`.
