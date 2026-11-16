@@ -1,6 +1,6 @@
 # BRIEFING — GAMIFY (leia tudo antes de mexer em qualquer coisa)
 
-Atualizado em 16/11/2026: repositório real conferido (v5.1) e cinco rodadas feitas (v5.2 proteção dos dados, v5.3 bugs e praticidade, v5.4 limpeza + viagem + PRIMO, v5.5 listas automáticas + AGUARDANDO, v5.6 retorno + rituais + loja + janelas).
+Atualizado em 16/11/2026: repositório real conferido (v5.1) e seis rodadas feitas (v5.2 a v5.7; a última: AGUARDANDO só com tarefas principais + cor da janela).
 Este arquivo substitui o briefing antigo. O que mudou em relação a ele está na seção "CONFERIDO EM 15/11/2026".
 
 ## PASSO 0: ALINHAR ANTES DE TUDO
@@ -153,12 +153,17 @@ O dono usa muito mais o PC. Pedidos atendidos:
 - **Janela mãe**: LISTAS fica sempre em primeiro, com cor própria. Botão ＋ cria **janelas do dono** (`core.windows = [{ id, name, base }]`). Uma janela é uma gaveta: o bloco guarda `b.win` e continua com `b.group` = tipo-base (bd, tr, cap, gs), então nenhuma regra de XP muda. Apagar a janela devolve os blocos ao tipo-base. Chave da aba: `w:<id>`.
 - **Nomes personalizáveis** (`core.labels`, editor em PERKS → "Nomes das listas e janelas"): `R.applyLabels` troca só o texto de `R.AREAS`, `R.GROUPS` e `R.TAB_NAMES`; as chaves internas não mudam.
 
+## RODADA 6 — v5.7 (16/11/2026): AGUARDANDO só com tarefas principais + cor da janela
+- A lista AGUARDANDO mostra só as tarefas PRINCIPAIS (as das LISTAS). Subtarefas em espera e blocos em espera não aparecem mais ali: ficam na janela deles. Motivo do dono: tudo passa pela LISTAS antes de ir pras outras janelas.
+- Tarefa da lista ligada a um bloco (`t.link`): o selo 🔗 mostra o NOME da janela onde o bloco está (antes dizia sempre BREAKDOWN) e a linha ganha uma faixa na COR daquela janela (`data-g` + variável CSS `--wc`). As abas das janelas têm a mesma cor na borda de baixo.
+- Se o bloco ligado é marcado como "só aguardando", a tarefa principal dele vai pra AGUARDANDO (`syncLists`).
+
 ## PRÓXIMAS RODADAS
 Princípio do dono: qualidade de vida e praticidade; tudo integrado como um ecossistema; simples no fim das contas (o app não pode tomar o tempo das tarefas). Ele aceita sugestões melhores que o pedido.
 - **Economia (o dono deixou por último).** Analisar toda a economia e propor valores; ele citou um PDF de referência que não está no repositório (pedir de novo). Só mudar valores depois de ele aprovar a análise. Os preços de ACORDAR TARDE e JOGO NA STEAM e o XP da REDENÇÃO são provisórios até lá.
 - **PRIMO novo com IA de imagem.** O dono assinou o Higgsfield e vai gerar as artes seguindo `PROMPTS_HIGGSFIELD.txt` (82 prompts completos) e `GUIA_SPRITES_IA.md`. Quando ele mandar os arquivos: recortar fundo, montar as folhas de animação e as âncoras, trocar o desenho do porquinho, os rostos, os acessórios e o fundo da cena; manter o sprite atual como reserva até ele aprovar.
 - **Mecânicas sugeridas e ainda não escolhidas por ele:** "o que eu faço agora?" (PRIMO escolhe uma tarefa), fechamento do dia às 18h, combo de foco, dia mínimo.
-- **Ajustes prováveis depois do uso:** a lista AGUARDANDO fica longa com os dados dele (tarefas em espera dentro dos blocos); personalizar a lista de tarefas de volta da viagem; mais textos personalizáveis além de listas e janelas.
+- **Ajustes prováveis depois do uso:** personalizar a lista de tarefas de volta da viagem; mais textos personalizáveis além de listas e janelas.
 
 ## LIÇÕES TÉCNICAS
 - Playwright (Chromium) já vem instalado: `require('playwright')`. Servidor local: `python3 -m http.server 8080`.

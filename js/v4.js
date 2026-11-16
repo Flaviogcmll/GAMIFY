@@ -338,7 +338,7 @@ export function extend4(ACTIONS, render) {
 export async function dropTaskSmart(id, { area, block, before }) {
   const t = S.quests.tasks.find((x) => x.id === id);
   if (!t) return;
-  if (!block && area && area !== 'wait' && (t.block || R.listOf(t) !== area) && !(await confirmResched(t, R.dueForList(area, today(), t.due)))) return;
+  if (!block && area && area !== 'wait' && (t.block || t.area !== area) && !(await confirmResched(t, R.dueForList(area, today(), t.due)))) return;
   const r = A.dropTask(id, { area, block, before });
   if (r?.error) { sfx('error'); toast(esc(r.error), 'bad'); }
 }

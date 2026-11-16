@@ -17,18 +17,16 @@ const LIST_HINT = { hoje: 'pra hoje', amanha: 'pra amanhã', semana: 'pra esta s
 function listCard(area, ui) {
   const td = today(), wait = area === 'wait';
   const own = S.quests.tasks.filter((t) => !t.block && t.area === area);
-  // AGUARDANDO também mostra o que está aguardando DENTRO dos blocos (a tarefa continua morando no bloco) e os blocos inteiros em espera
-  const fromBlocks = wait ? R.openTasks(S).filter((t) => t.block && (t.st === 'wait' || t.st === 'sent')) : [];
-  const wBlocks = wait ? S.quests.blocks.filter((b) => b.st === 'wait') : [];
-  const every = [...own, ...fromBlocks].sort(area === 'hoje' ? (a, b) => (a.due || '').localeCompare(b.due || '') || sortOrd(a, b) : sortOrd);
+  // AGUARDANDO mostra só as tarefas principais (as das LISTAS). Subtarefas em espera ficam dentro do bloco delas, na janela delas.
+  const every = [...own].sort(area === 'hoje' ? (a, b) => (a.due || '').localeCompare(b.due || '') || sortOrd(a, b) : sortOrd);
   const all = every.filter(stalledOff(ui)), stalled = every.length - all.length;
   const open = all.filter((t) => R.isOpen(t) || t.st === 'sent'), hidden = all.filter((t) => !visible(t));
   const show = ui.showDone ? all : all.filter(visible);
   const late = area === 'hoje' ? open.filter((t) => t.due && t.due < td).length : 0;
-  const sub = (t) => [t.block ? '↗ ' + (R.findBlock(S, t.block)?.title || '') : '', wait ? R.waitingOn(S, t).label && '⏳ ' + R.waitingOn(S, t).label : ''].filter(Boolean).join(' · ');
+  const sub = (t) => (wait ? [R.waitingOn(S, t).label && '⏳ ' + R.waitingOn(S, t).label, t.link && R.findBlock(S, t.link)?.st === 'wait' && 'o bloco dela está aguardando'].filter(Boolean).join(' · ') : '');
   return `<section class="list-card ${isCollapsed('l:' + area) ? 'collapsed' : ''}" data-list="${area}" data-drop-area="${area}"><header><h2 data-act="collapse" data-k="l:${area}" style="cursor:pointer"><span class="chev">${isCollapsed('l:' + area) ? '▸' : '▾'}</span> ${R.AREAS[area]}</h2>
-      <span class="row" style="gap:4px"><span class="meta">${open.length + wBlocks.length}${late ? ` · <span class="bad">${late} atrasada${late > 1 ? 's' : ''}</span>` : ''}</span><button class="icon-btn" data-act="sort" data-area="${area}" title="Organizar por data">⇅</button></span></header>
-    <ul class="tasks">${show.map((t) => taskRow(t, { list: !t.block, sub: sub(t) })).join('')}${wBlocks.map((b) => `<li class="task wait"><span class="handle"></span><span class="check" style="cursor:default">…</span><div class="txt" data-act="jump-block" data-id="${b.id}" title="Ir pro bloco">▣ ${esc(b.title)}<small>bloco inteiro aguardando · ${esc(R.GROUPS[b.group]?.short || '')}</small></div></li>`).join('')}${show.length + wBlocks.length ? '' : `<div class="empty">${wait ? 'ninguém te segurando. 👏' : 'vazio.'}</div>`}</ul>
+      <span class="row" style="gap:4px"><span class="meta">${open.length}${late ? ` · <span class="bad">${late} atrasada${late > 1 ? 's' : ''}</span>` : ''}</span><button class="icon-btn" data-act="sort" data-area="${area}" title="Organizar por data">⇅</button></span></header>
+    <ul class="tasks">${show.map((t) => taskRow(t, { list: true, sub: sub(t) })).join('')}${show.length ? '' : `<div class="empty">${wait ? 'ninguém te segurando. 👏' : 'vazio.'}</div>`}</ul>
     ${!ui.showDone && hidden.length ? `<button class="more" data-act="toggle-done">✓ ${hidden.length} feitas · mostrar</button>` : ''}
     ${stalled ? `<button class="more" data-act="toggle-stalled">⬛ ${stalled} parada(s) · mostrar</button>` : ''}
     <form class="addline" data-form="add-task" data-area="${area}" autocomplete="off"><input class="inp" name="text" placeholder="+ adicionar ${LIST_HINT[area]}" aria-label="Adicionar em ${R.AREAS[area]}"></form>
