@@ -7,7 +7,7 @@ export const C = {
   XP_LIST: 10, XP_SUB: 5, XP_STEP: 3, XP_HOME: 50, XP_MINI: 30,
   XP_BLOCK: { bd: 100, tr: 300, cap: 150, gs: 100, bs: 0 }, XP_GOAL: 200, XP_BOSS: 200,
   M_STAR: 2, M_ONTIME: 1.5, M_EARLY: 2, M_MONEY: 1.5,
-  HABIT_XP: 5, RD_XP: 30, FORGE: 66,
+  HABIT_XP: 5, RD_XP: 40, FORGE: 66,
   LVL_BASE: 500, LVL_CURVE: 150,
   RIT_PESSOA: 15, RIT_OUTRO: 20,
   BAU_BASE: 50, BAU_NOTE: 10,
@@ -774,15 +774,35 @@ export function ritualNext(r, td = today()) {
   }
   return null;
 }
+/** dia que VOCÊ marcou pra fazer o ritual (ex.: SPA no sábado). Vale no lugar do aviso automático até você fazer. */
+export const ritualPlan = (r) => (r.plan && (!r.last || r.plan > r.last) ? r.plan : null);
+/** rituais por dia numa janela (pra AGENDA e linha do tempo): o dia marcado ou o próximo aviso, mais as repetições seguintes. Atrasado aparece em hoje. */
+export function ritualDates(s, from, n, td = today()) {
+  const end = addDays(from, n - 1), out = {};
+  for (const r of s.core?.rituals || []) {
+    let d = ritualPlan(r) || ritualNext(r, td);
+    if (!d) continue;
+    if (d < td) d = td;
+    for (let guard = 0; d <= end && guard < 60; guard++) {
+      if (d >= from) (out[d] ||= []).push(r);
+      d = r.every ? addDays(d, r.every) : ritualNext({ ...r, last: d }, d);
+      if (!d) break;
+    }
+  }
+  return out;
+}
 export function ritualStatus(r, td = today()) {
-  const next = ritualNext(r, td);
+  const plan = ritualPlan(r), next = plan || ritualNext(r, td);
   if (!next) return { next: null, left: null, label: 'SEM FREQUÊNCIA', tone: 'muted' };
   const left = diffDays(td, next);
+  if (plan && left > 0) return { next, left, plan, label: left === 1 ? '📅 AMANHÃ' : `📅 EM ${left}d`, tone: 'good' };
   if (left < 0) return { next, left, label: `⚠ ATRASADO ${-left}d`, tone: 'bad' };
   if (left === 0) return { next, left, label: 'HOJE', tone: 'warn' };
   if (left <= 2) return { next, left, label: `⏳ EM ${left}d`, tone: 'warn' };
   return { next, left, label: '✔ EM DIA', tone: 'good' };
 }
+/** bloco marcado como REVISADO nas últimas 24 h */
+export const reviewed = (b, now = Date.now()) => !!b?.rev && now - b.rev < 864e5;
 export const ritualXp = (r) => (r.type === 'pessoa' ? C.RIT_PESSOA : C.RIT_OUTRO);
 
 // ───────────────────────── ALERTAS ─────────────────────────

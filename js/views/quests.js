@@ -63,17 +63,19 @@ function blockCard(b, ui) {
   const show = shown.filter(stalledOff(ui)), stalled = shown.length - show.length; // a conta do bloco (feitas/total) não muda ao ocultar parados
   const dues = open.map((t) => t.due).filter(Boolean).sort();
   const xpLeft = open.reduce((a, t) => a + R.taskXp(S, t).xp, 0) + (b.st === 'done' ? 0 : R.blockXp(b));
-  return `<article class="block ${b.st === 'done' ? 'closed' : ''} ${isCollapsed('b:' + b.id) ? 'collapsed' : ''}" data-color="${b.color}" data-drop-block="${b.id}">
+  const rev = R.reviewed(b);
+  return `<article class="block ${b.st === 'done' ? 'closed' : ''} ${isCollapsed('b:' + b.id) ? 'collapsed' : ''} ${rev ? 'reviewed' : ''}" data-color="${b.color}" data-drop-block="${b.id}">
     <div class="bh"><div class="stripe"></div>
       <div class="bt" data-act="edit-block" data-id="${b.id}"><h3>${esc(b.title)}</h3>
-        <div class="bm"><span>${done.length}/${counted.length}</span>${b.src && S.quests.tasks.find((x) => x.id === b.src) ? `<button class="chip cyc" data-act="jump" data-id="${b.src}" title="Tarefa ligada nas listas">🔗 LISTA</button>` : ''}${b.st === 'done' ? `<span class="good">FECHADO ${fmtDM(b.doneAt)} · +${b.xp}</span>` : `<span>${b.st === 'wait' ? '⏳ aguardando · ' : ''}${b.due ? '◆ ' + fmtDM(b.due) : dues[0] ? 'próx. ' + fmtDM(dues[0]) : 'sem prazo'}</span><span class="acc">${fmtN(xpLeft)} XP</span>`}</div>
+        <div class="bm"><span>${done.length}/${counted.length}</span>${rev ? `<span class="chip rev" title="Revisado: vale até ${new Date(b.rev + 864e5).toLocaleString('pt-BR', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}">👁 REVISADO</span>` : ''}${b.src && S.quests.tasks.find((x) => x.id === b.src) ? `<button class="chip cyc" data-act="jump" data-id="${b.src}" title="Tarefa ligada nas listas">🔗 LISTA</button>` : ''}${b.st === 'done' ? `<span class="good">FECHADO ${fmtDM(b.doneAt)} · +${b.xp}</span>` : `<span>${b.st === 'wait' ? '⏳ aguardando · ' : ''}${b.due ? '◆ ' + fmtDM(b.due) : dues[0] ? 'próx. ' + fmtDM(dues[0]) : 'sem prazo'}</span><span class="acc">${fmtN(xpLeft)} XP</span>`}</div>
         ${segBar(counted.length ? done.length / counted.length : 0, 'good sm')}</div>
       <div style="display:flex;flex-direction:column;padding:4px 2px;align-items:center"><button class="icon-btn" data-act="collapse" data-k="b:${b.id}" aria-label="Recolher bloco"><span class="chev">${isCollapsed('b:' + b.id) ? '▸' : '▾'}</span></button><span class="handle" data-handle="block" data-id="${b.id}" title="Segure e arraste">⠿</span><button class="icon-btn" data-act="edit-block" data-id="${b.id}" aria-label="Editar bloco">⋯</button><button class="icon-btn" data-act="sort" data-block="${b.id}" title="Organizar por data">⇅</button></div>
     </div>
     <div class="bbody"><ul class="tasks">${show.map((t) => taskRow(t, { showPin: true })).join('') || '<div class="empty">sem itens.</div>'}</ul>
       ${!ui.showDone && b.st !== 'done' && items.length > shown.length ? `<button class="more" data-act="toggle-done">✓ ${items.length - shown.length} feitas · mostrar</button>` : ''}
       ${stalled ? `<button class="more" data-act="toggle-stalled">⬛ ${stalled} parada(s) · mostrar</button>` : ''}
-      <form class="addline" data-form="add-task" data-block="${b.id}" autocomplete="off"><input class="inp" name="text" placeholder="+ subtarefa  (> passo · ⚔ mini-boss)" aria-label="Adicionar subtarefa"></form></div>
+      <form class="addline" data-form="add-task" data-block="${b.id}" autocomplete="off"><input class="inp" name="text" placeholder="+ subtarefa  (> passo · ⚔ mini-boss)" aria-label="Adicionar subtarefa"></form>
+      ${b.st === 'done' ? '' : `<button class="rev-btn ${rev ? 'on' : ''}" data-act="review-block" data-id="${b.id}" title="${rev ? 'Tirar o selo de revisado' : 'Olhei este bloco e está tudo em ordem. O selo dura 24 horas.'}">${rev ? '👁 revisado · tirar' : '👁 marcar como revisado'}</button>`}</div>
   </article>`;
 }
 
@@ -96,7 +98,7 @@ function habitsCard(td) {
       const v = m[h.id] || '', sk = R.streak(S, h.id, td);
       return `<button class="hab ${v === 'x' ? 'x' : v === '-' ? 'f' : ''} ${ev?.type === 'habit' && ev.habit === h.id ? 'ev' : ''}" data-act="habit" data-d="${td}" data-h="${h.id}" title="${esc(h.name)} · recorde 🏆${R.bestStreak(S, h.id, td)} · ${sk.forged ? 'forjado' : `${sk.total}/66`}"><span class="hi">${h.icon}</span><span class="hn">${esc(h.name.slice(0, 9))}</span><span class="hs">🔥${sk.streak}${sk.mult > 1 ? ' x' + String(sk.mult).replace('.', ',') : ''}</span></button>`;
     }).join('')}
-      <button class="hab ${m.rd ? 'x' : ''}" data-act="redemption"><span class="hi">⚔</span><span class="hn">REDENÇÃO</span><span class="hs">+30 · cura</span></button></div>
+      <button class="hab ${m.rd ? 'x' : ''}" data-act="redemption"><span class="hi">⚔</span><span class="hn">REDENÇÃO</span><span class="hs">+${R.C.RD_XP} · cura</span></button></div>
     <p class="meta" style="margin:8px 0 0">toque: ✓ fiz → – folga → vazio</p></div>`;
 }
 

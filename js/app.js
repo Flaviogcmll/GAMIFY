@@ -9,7 +9,7 @@ import { openModal, closeModal, ask, toast, modalOpen, segBar } from './ui.js';
 
 import { px } from './icons.js';
 
-import { embers, confetti, floatXp } from './fx.js';
+import { embers, confetti, floatXp, fireworks } from './fx.js';
 import { sfx, startAmbience, stopAmbience, ambienceOn, prefs, setVol } from './audio.js';
 
 import { viewQuests } from './views/quests.js';
@@ -210,6 +210,8 @@ function welcome() {
 // ───────────────────────── RECOMPENSAS NA TELA ─────────────────────────
 A.onFeedback((fb) => {
   if (fb.xp > 0) { floatXp(`+${fmtN(fb.xp)} XP`, fb.at); sfx(fb.task ? 'check' : 'xp'); setTimeout(checkMilestones, 400); }
+  // 🎆 fogos pra coisa demorada: boss, bloco fechado, mini-boss ⚔, tarefa chata ⭐ ou tarefa que rendeu 60 XP ou mais
+  if (fb.boss || fb.closedBlock || (fb.task && fb.xp > 0 && (fb.xp >= 60 || /⚔|⭐/.test(fb.task.text || '')))) setTimeout(() => { fireworks(); sfx('fireworks'); }, 250);
   if (fb.sent) toast(`✉ Rodada concluída e enviada: <b>${esc(fb.task.text)}</b>. Fica aguardando retorno.`, 'good');
   if (fb.loot) setTimeout(() => { sfx('loot'); toast(`${px('chest', 16)} <b>LOOT!</b> ${esc(fb.loot.label)}${fb.loot.itemId ? ' (foi pra mochila)' : ''}`, 'gold'); }, 350);
   if (fb.closedBlock) { toast(`🏁 BLOCO FECHADO: <b>${esc(fb.closedBlock.title)}</b> · +${fb.closedBlock.xp} XP`, 'good'); confetti(60); }
@@ -324,6 +326,7 @@ function editRitual(id) {
       <div style="width:96px"><label class="lbl" for="r-every">N dias</label><input class="inp" id="r-every" name="every" type="number" min="1" value="${r.every || 7}"></div>
       <div style="width:96px"><label class="lbl" for="r-dom">Dia</label><input class="inp" id="r-dom" name="dom" type="number" min="1" max="28" value="${r.dom || 5}"></div>
       <div class="grow"><label class="lbl" for="r-last">Última vez</label><input class="inp" id="r-last" name="last" type="date" value="${r.last || ''}"></div></div>
+    <label class="lbl" for="r-plan">📅 Vou fazer em (opcional: o dia que você escolheu; aparece na AGENDA)</label><input class="inp" id="r-plan" name="plan" type="date" value="${(id && R.ritualPlan(r)) || ''}" style="width:auto">
     <label class="lbl" for="r-notes">Notas</label><input class="inp" id="r-notes" name="notes" value="${esc(r.notes || '')}">
     <div class="actions">${id ? `<div class="left"><button type="button" class="btn sm danger" data-act="del-ritual" data-id="${id}">APAGAR</button></div>` : ''}<button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">SALVAR</button></div></form>`);
 }
@@ -357,9 +360,9 @@ function editBoss(id) {
 }
 function redemption() {
   const td = today(), done = S.marks.days[td]?.h?.rd === 'x';
-  const opts = ['VER UMA AULA DO RD', '30 MIN DE MEDITAÇÃO', '1H DE CAMINHADA SEM CELULAR', 'BANHO GELADO + 5 SUSPIROS', 'LEITURA FÍSICA 1H'];
-  openModal(`<h2>⚔ missão de redenção</h2><p class="muted">+30 XP e cura ☠ envenenado e 🌫 neblina. Escolha a sua:</p>
-    <div class="list">${opts.map((o) => `<button class="li" style="width:100%;text-align:left;border:0;background:none;cursor:pointer" data-act="rd-do" data-o="${esc(o)}"><span class="lt">⚔ ${esc(o)}</span><span class="chip xp">+30</span></button>`).join('')}</div>
+  const opts = ['1 AULA DE CURSO', 'MEDITAÇÃO'];
+  openModal(`<h2>⚔ missão de redenção</h2><p class="muted">+${R.C.RD_XP} XP e cura ☠ envenenado e 🌫 neblina. Escolha a sua:</p>
+    <div class="list">${opts.map((o) => `<button class="li" style="width:100%;text-align:left;border:0;background:none;cursor:pointer" data-act="rd-do" data-o="${esc(o)}"><span class="lt">⚔ ${esc(o)}</span><span class="chip xp">+${R.C.RD_XP}</span></button>`).join('')}</div>
     <div class="actions">${done ? '<button class="btn danger" data-act="rd-undo">DESFAZER A DE HOJE</button>' : ''}<button class="btn" data-close>FECHAR</button></div>`);
 }
 function tour(step = 0) {
@@ -512,7 +515,7 @@ const ACTIONS = {
   'del-boss': async (d) => { closeModal(); if (await ask('Apagar boss?', 'Essa meta some da lista.', 'APAGAR', true)) A.deleteBoss(d.id); },
   habit: (d, e) => { A.cycleHabit(d.d, d.h, at(e)); sfx('habit'); if (Math.random() < 0.3) primoReact('habito_feito'); },
   redemption: () => redemption(),
-  'rd-do': (d) => { closeModal(); if (S.marks.days[today()]?.h?.rd !== 'x') { A.setHabit(today(), 'rd', 'x'); toast(`⚔ Redenção: ${esc(d.o)}. +30 XP e debuffs curados.`, 'good'); } else toast('A redenção de hoje já foi feita.'); },
+  'rd-do': (d) => { closeModal(); if (S.marks.days[today()]?.h?.rd !== 'x') { A.setHabit(today(), 'rd', 'x'); toast(`⚔ Redenção: ${esc(d.o)}. +${R.C.RD_XP} XP e debuffs curados.`, 'good'); } else toast('A redenção de hoje já foi feita.'); },
   'rd-undo': () => { closeModal(); A.setHabit(today(), 'rd', ''); },
   'rest-day': async () => { if (await ask('Dia de descanso?', 'Doença ou dia puxado: todos os hábitos de HOJE viram folga (–), sem punição. Vai ficar fora mais dias? Use o botão ✈ VIAGEM.', 'DESCANSAR')) A.restDay(today()); },
   hweek: (d) => { ui.hweek = Math.min(0, (ui.hweek || 0) + +d.dir); render(); },
@@ -521,6 +524,16 @@ const ACTIONS = {
   'ritual-done': (d, e) => { A.ritualDone(d.id, at(e)); },
   'ritual-undo': (d) => A.ritualUndo(d.id),
   'edit-ritual': (d) => editRitual(d.id),
+  'ritual-plan': (d) => {
+    const r = S.core.rituals.find((x) => x.id === d.id);
+    if (!r) return;
+    const td = today(), sat = addDays(td, ((6 - weekday(td) + 7) % 7) || 7), sun = addDays(td, ((7 - weekday(td)) % 7) || 7), cur = R.ritualPlan(r) || '';
+    openModal(`<form data-form="ritual-plan" data-id="${r.id}" autocomplete="off"><h2>📅 quando vou fazer</h2><p class="muted">${esc(r.name)} · o aviso automático seria ${fmtDM(R.ritualNext(r, td))}. Marque o dia que você quer; ele aparece na AGENDA e vale até você fazer.</p>
+      <div class="row"><input class="inp" type="date" name="plan" value="${cur}" min="${td}" style="width:auto" autofocus>${[['HOJE', td], ['AMANHÃ', addDays(td, 1)], ['SÁBADO', sat], ['DOMINGO', sun], ['LIMPAR', '']].map(([n, v]) => `<button type="button" class="btn sm ghost" data-act="plan-quick" data-d="${v}">${n}</button>`).join('')}</div>
+      <div class="actions"><button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">MARCAR</button></div></form>`);
+  },
+  'plan-quick': (d, e, el) => { el.closest('form').plan.value = d.d; },
+  'review-block': (d) => { A.reviewBlock(d.id); sfx('tab'); },
   'del-ritual': async (d) => { closeModal(); if (await ask('Apagar ritual?', 'O histórico de XP continua valendo.', 'APAGAR', true)) A.deleteRitual(d.id); },
   'edit-habits': () => editHabits(),
   'hab-row-add': (d, e, el) => { el.closest('form').querySelector('#hab-rows').insertAdjacentHTML('beforeend', '<div class="row hrow" style="margin-bottom:6px" data-id=""><input class="inp" name="icon" value="⭐" style="width:60px;text-align:center" aria-label="Ícone"><input class="inp grow" name="name" placeholder="NOVO HÁBITO" aria-label="Nome"><button type="button" class="icon-btn" data-act="hab-row-del" aria-label="Remover">×</button></div>'); },
@@ -658,7 +671,8 @@ const FORMS = {
     closeModal();
   },
   boss: (f) => { const patch = { text: f.text.value.trim(), xp: +f.xp.value || 200, block: f.block.value || undefined }; if (f.st.value !== 'done') patch.st = f.st.value; A.updateBoss(f.dataset.id, patch); closeModal(); },
-  ritual: (f) => { A.saveRitual({ id: f.dataset.id, type: f.type.value, name: f.name.value, mode: f.mode.value, every: f.every.value, dom: f.dom.value, last: f.last.value, notes: f.notes.value }); closeModal(); },
+  ritual: (f) => { A.saveRitual({ id: f.dataset.id, type: f.type.value, name: f.name.value, mode: f.mode.value, every: f.every.value, dom: f.dom.value, last: f.last.value, plan: f.plan.value, notes: f.notes.value }); closeModal(); },
+  'ritual-plan': (f) => { A.planRitual(f.dataset.id, f.plan.value || null); closeModal(); sfx('tab'); },
   item: (f) => {
     const k = f.dataset.kind;
     A.saveShopItem(k, k === 'taverna' ? { id: f.dataset.id, name: f.name.value, xp: f.xp.value, icon: f.icon.value, min: f.min.value } : { id: f.dataset.id, name: f.name.value, cat: f.cat.value.trim().toUpperCase() || 'EU', nv: f.nv.value, repeat: f.repeat.checked, icon: f.icon.value });

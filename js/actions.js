@@ -184,6 +184,13 @@ export function startup() {
     for (const [cat, name, nv, icon, repeat] of NEW_FERREIRO) { if (!have(S.loja.ferreiro, name)) S.loja.ferreiro.push({ id: uid('f'), name, cat, nv, icon, repeat: !!repeat }); if (!S.loja.cats.includes(cat)) S.loja.cats.push(cat); }
     S.core.migrations.push('shop4'); S._lojaChanged = true; changedCore = true;
   }
+  if (!S.core.migrations.includes('shop5')) { // v5.6: itens pedidos pelo dono (preços provisórios até a análise da economia)
+    const has = (l, re) => l.some((x) => re.test(x.name.toUpperCase()));
+    if (!has(S.loja.taverna, /ACORDAR TARDE/)) S.loja.taverna.push({ id: uid('v'), name: 'ACORDAR TARDE (1H A MAIS)', xp: 90, icon: '😴' });
+    if (!has(S.loja.ferreiro, /STEAM/)) S.loja.ferreiro.push({ id: uid('f'), name: 'JOGO NA STEAM', cat: 'JOGOS', nv: 2, icon: '🎮', repeat: true });
+    if (!S.loja.cats.includes('JOGOS')) S.loja.cats.push('JOGOS');
+    S.core.migrations.push('shop5'); S._lojaChanged = true; changedCore = true;
+  }
   if (!S.core.migrations.includes('bosses4')) { // v4: cada boss ganha o seu bloco (grupo BOSSES) e sai do BREAKDOWN
     for (const boss of q.bosses) {
       let blk = boss.block ? B(boss.block) : R.bossBlock(S, boss);
@@ -674,6 +681,7 @@ export function ritualDone(rid, at) {
     if (r.last === td) return { msg: 'Já marcado hoje.' };
     S.core.ritualLog.push({ id: uid('rl'), rid, date: td, xp: R.ritualXp(r), prevLast: r.last || null });
     r.last = td;
+    delete r.plan; // feito: o dia marcado já cumpriu o papel
   }, { at });
 }
 export function ritualUndo(rid) {
@@ -692,9 +700,21 @@ export function saveRitual(data) {
     if (data.mode === 'dom') { clean.dom = +data.dom || 1; } else { clean.every = Math.max(1, +data.every || 7); }
     if (!clean.name) return;
     const r = data.id && S.core.rituals.find((x) => x.id === data.id);
-    if (r) { delete r.every; delete r.dom; Object.assign(r, clean); if (data.last !== undefined) r.last = data.last || null; }
-    else S.core.rituals.push({ id: uid('r'), ...clean, last: data.last || null });
+    if (r) { delete r.every; delete r.dom; Object.assign(r, clean); if (data.last !== undefined) r.last = data.last || null; if (data.plan !== undefined) { if (data.plan) r.plan = data.plan; else delete r.plan; } }
+    else S.core.rituals.push({ id: uid('r'), ...clean, last: data.last || null, ...(data.plan ? { plan: data.plan } : {}) });
   });
+}
+/** marca (ou limpa) o dia em que você vai fazer o ritual */
+export function planRitual(id, date) {
+  const r = S.core.rituals.find((x) => x.id === id);
+  if (!r) return;
+  return commit(['core'], () => { if (date) r.plan = date; else delete r.plan; return { msg: date ? `📅 ${r.name}: marcado.` : `${r.name}: dia desmarcado.` }; });
+}
+/** REVISADO: você olhou o bloco e está tudo em ordem. Vale 24 h (é só um selo: não dá XP). */
+export function reviewBlock(id) {
+  const b = B(id);
+  if (!b) return;
+  return commit(['quests'], () => { if (R.reviewed(b)) delete b.rev; else b.rev = Date.now(); });
 }
 export function deleteRitual(id) {
   commit(['core'], () => { S.core.rituals = S.core.rituals.filter((r) => r.id !== id); });

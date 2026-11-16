@@ -1,5 +1,6 @@
 // AGENDA — controle de prazos, linha do tempo de 6 semanas (◄ ► troca a semana), fila com filtro e compromissos.
 import { S } from '../store.js';
+import { ritualRow } from './survival.js';
 
 import * as R from '../rules.js';
 import { esc, today, fmtDM, DOW, addDays, range, weekday, weekStart, holidayName } from '../util.js';
@@ -10,7 +11,7 @@ function timelineCard(ui) {
   const td = today();
   const start = addDays(weekStart(td), (ui.tlWeek || 0) * 7);
   const days = range(start, 42);
-  const tl = R.timeline(S, start, 42);
+  const tl = R.timeline(S, start, 42), rit = R.ritualDates(S, start, 42);
   const head1 = [0, 1, 2, 3, 4, 5].map((w) => `<th class="wk" colspan="7">SEM ${fmtDM(days[w * 7])}</th>`).join('');
   const head2 = days.map((d) => `<th class="${d === td ? 'today' : ''}" title="${holidayName(d) || ''}">${DOW[weekday(d)][0]}<br>${d.slice(8)}</th>`).join('');
   const cell = (d, n, extra = '') => {
@@ -29,7 +30,7 @@ function timelineCard(ui) {
   }).join('');
   return `<div class="card c12"><header><h2>Linha do tempo · 6 semanas</h2>
       <div class="row"><button class="btn sm" data-act="tl-week" data-dir="-1" aria-label="Semana anterior">◄</button><button class="btn sm" data-act="tl-week" data-dir="0">HOJE</button><button class="btn sm" data-act="tl-week" data-dir="1" aria-label="Próxima semana">►</button></div></header>
-    <div class="tl"><table><thead><tr><th></th>${head1}</tr><tr><th></th>${head2}</tr></thead><tbody>${rows}${load}
+    <div class="tl"><table><thead><tr><th></th>${head1}</tr><tr><th></th>${head2}</tr></thead><tbody>${rows}${load}<tr class="rowc-5"><td class="name"><b>🔁 RITUAIS</b></td>${days.map((d) => { const l = rit[d] || []; return `<td class="${d === td ? 'today' : ''} ${l.length ? 'n' : ''}" title="${esc(l.map((r) => r.name).join(', '))}">${l.length || ''}</td>`; }).join('')}</tr>
       <tr><td class="name px" style="font-size:7px;background:var(--ink);color:var(--bg)">BLOCOS</td><td colspan="42" style="background:var(--ink)"></td></tr>${blocks}</tbody></table></div></div>`;
 }
 
@@ -79,15 +80,17 @@ export function viewAgenda(ui) {
             <div class="row" style="margin-top:6px"><select class="inp grow" name="type" aria-label="Tipo"><option>PESSOAL</option><option>CLIENTE</option><option>PREFEITURA</option><option>REUNIÃO</option><option>SAÚDE</option></select><button class="btn pri">+ ADICIONAR</button></div></form>
           <div class="list" style="margin-top:8px">${upcoming.map((c) => comRow(c, false)).join('') || '<div class="empty">nenhum compromisso pela frente.</div>'}${past.map((c) => comRow(c, true)).join('')}</div>
           ${hol.length ? `<p class="meta" style="margin:8px 0 0">feriados: ${hol.map((d) => `${fmtDM(d)} ${esc(holidayName(d))}`).join(' · ')}</p>` : ''}</div>
+        <div class="card"><header><h2>🔁 Rituais · próximos 14 dias</h2><a class="meta" href="#survival">todos →</a></header>
+          <div class="list">${(S.core.rituals || []).map((r) => ({ r, s: R.ritualStatus(r, td) })).filter((x) => x.s.left != null && x.s.left <= 14).sort((a, b) => a.s.left - b.s.left).map((x) => ritualRow(x.r, td)).join('') || '<div class="empty">nenhum ritual nos próximos 14 dias.</div>'}</div></div>
       </div></div>`;
 }
 
 /** faixa de dias (como na v1): rola pra esquerda/direita, cor = carga do dia */
 function dayStrip() {
-  const td = today(), load = R.loadByDay(S);
+  const td = today(), load = R.loadByDay(S), rit = R.ritualDates(S, addDays(td, -3), 45);
   return `<div class="card" style="margin-bottom:16px"><header><h2>📊 Carga do dia · 6 semanas</h2><span class="meta">arraste uma tarefa da fila até o dia</span></header>
     <div class="daystrip">${range(addDays(td, -3), 45).map((d) => {
       const n = load[d] || 0, hol = holidayName(d), we = weekday(d) === 0 || weekday(d) === 6;
-      return `<div class="day ${d === td ? 'today' : ''} ${we || hol ? 'off' : ''}" data-act="ag-day" data-d="${d}"><small>${DOW[weekday(d)]} ${fmtDM(d)}</small><div class="n ${n >= 6 ? 'l6' : n >= 4 ? 'l4' : n ? 'l1' : ''}">${n || '·'}</div><small>${hol ? esc(hol.split(' ')[0]) : we ? 'fim de sem.' : d < td ? 'passou' : ''}</small></div>`;
+      return `<div class="day ${d === td ? 'today' : ''} ${we || hol ? 'off' : ''}" data-act="ag-day" data-d="${d}"><small>${DOW[weekday(d)]} ${fmtDM(d)}</small><div class="n ${n >= 6 ? 'l6' : n >= 4 ? 'l4' : n ? 'l1' : ''}">${n || '·'}</div><small>${rit[d] ? `<span title="${esc(rit[d].map((r) => r.name).join(', '))}">🔁${rit[d].length}</span> ` : ''}${hol ? esc(hol.split(' ')[0]) : we ? 'fim de sem.' : d < td ? 'passou' : ''}</small></div>`;
     }).join('')}</div></div>`;
 }

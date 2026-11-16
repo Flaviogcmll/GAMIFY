@@ -11,7 +11,7 @@ const RAR_ICON = { comum: 113, raro: 116, epico: 115, lendario: 114 };
 const kTav = (it, m) => (/ANT[IÍ]DOTO/i.test(it.name) ? kspr(114) : kspr(RAR_ICON[m.rarity.key] || 113));
 const CAT_ICON = { EU: [101, 'dungeon'], PC: [130, 'dungeon'], MERCADO: [107, 'town'], CASA: [85, 'town'], ARQUITETURA: [117, 'dungeon'] };
 const kFer = (it) => { const [i, sh] = CAT_ICON[it.cat] || [102, 'dungeon']; return kspr(i, sh); };
-const TABS = [['taverna', 'TAVERNA'], ['mochila', 'MOCHILA'], ['ferreiro', 'FERREIRO'], ['ouro', 'BAÚ DE OURO'], ['hist', 'REGISTRO']];
+const TABS = [['taverna', 'TAVERNA'], ['mochila', 'MOCHILA'], ['ferreiro', 'FERREIRO'], ['forjados', 'FORJADOS'], ['ouro', 'BAÚ DE OURO'], ['hist', 'REGISTRO']];
 const mmss = (ms) => { const s = Math.max(0, Math.round(ms / 1000)); return `${String((s / 60) | 0).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
 
 function taverna(tot, shop) {
@@ -87,6 +87,14 @@ function ouro() {
       <div class="list">${list.map((g) => `<div class="li"><div class="lt">${fmtDM(g.date)} · ${esc(g.from || '—')}</div><div class="row" style="flex-wrap:nowrap"><b class="gold num" style="font-size:9px">+${fmtN(g.amount)}</b><button class="icon-btn" data-act="del-gold" data-id="${g.id}" aria-label="Apagar">×</button></div></div>`).join('') || '<div class="empty">nenhuma entrada ainda.</div>'}</div></div></div>`;
 }
 
+/** arquivo de tudo que já foi forjado (conquistas de verdade, compradas com XP + gold) */
+function forjados() {
+  const list = S.loja.purchases.filter((p) => p.kind === 'ferreiro').sort((a, b) => (a.date < b.date ? 1 : -1));
+  const xp = list.reduce((a, p) => a + (p.xp || 0), 0), gold = list.reduce((a, p) => a + (p.gold || 0), 0);
+  const catOf = (p) => S.loja.ferreiro.find((f) => f.id === p.itemId)?.cat || '';
+  return `<div class="card" style="max-width:860px"><header><h2>⚒ Tudo que você já forjou</h2><span class="meta">${list.length} ${list.length === 1 ? 'item' : 'itens'} · ${fmtN(xp)} XP · ${fmtN(gold)} gold</span></header>
+    <div class="list">${list.map((p) => `<div class="li"><div class="lt">⚒ ${esc(p.item)}<small>${fmtDM(p.date)}${catOf(p) ? ' · ' + esc(catOf(p)) : ''} · ${fmtN(p.xp || 0)} XP${p.gold ? ` · ${fmtN(p.gold)} gold` : ''}</small></div><span class="chip soon">FORJADO</span></div>`).join('') || '<div class="empty">nada forjado ainda. Vá ao FERREIRO: cada item daqui é uma conquista da vida real.</div>'}</div></div>`;
+}
 function hist() {
   const list = [...S.loja.purchases].sort((a, b) => (a.date < b.date ? 1 : -1));
   return `<div class="card" style="max-width:860px"><header><h2>Registro de compras</h2><span class="meta">${list.length} compras</span></header>
@@ -98,7 +106,7 @@ export function viewShop(ui) {
   const tot = R.totals(S), shop = R.shopState(S), tab = ui.ltab || 'taverna';
   const goalIt = S.loja.taverna.find((i) => i.id === S.loja.goal);
   const nb = R.bag(S).length;
-  const body = tab === 'mochila' ? mochila() : tab === 'ferreiro' ? ferreiro(tot, shop, ui) : tab === 'ouro' ? ouro() : tab === 'hist' ? hist() : taverna(tot, shop);
+  const body = tab === 'mochila' ? mochila() : tab === 'ferreiro' ? ferreiro(tot, shop, ui) : tab === 'forjados' ? forjados() : tab === 'ouro' ? ouro() : tab === 'hist' ? hist() : taverna(tot, shop);
   const fx = shop.mult === 1 ? 'x1' : 'x' + shop.mult.toFixed(2).replace('.', ',');
   return `<div class="page-title"><div><h1><em>shop</em>.</h1><p>${shop.locked ? '🔒 LOJA TRANCADA' : '🟢 LOJA ABERTA'} · NV ${tot.level}</p></div></div>
     ${shop.locked ? `<div class="banner bad">⏰ ATOLADO: ${shop.overdue} tarefas atrasadas. A loja abre quando você zerar as atrasadas (concluir ou remarcar). <a href="#agenda">ver prazos →</a></div>` : ''}

@@ -25,7 +25,7 @@ function grid(ui) {
       return `${i === 7 ? '<td class="sep"></td>' : ''}<td class="c ${cls}" ${future ? '' : `data-act="habit" data-d="${d}" data-h="${h.id}"`} title="${tip}">${v === 'x' ? '✓' : v === '-' ? '–' : cls.includes('forg') ? '🛡' : ''}</td>`;
     }).join('');
     let info = '';
-    if (h.id === 'rd') info = `total: ${R.totalX(S, 'rd')} · +30 cada`;
+    if (h.id === 'rd') info = `total: ${R.totalX(S, 'rd')} · +${R.C.RD_XP} cada`;
     else {
       const sk = R.streak(S, h.id, td);
       info = `🔥${sk.streak} ${sk.mult > 1 ? `x${String(sk.mult).replace('.', ',')}` : ''} · <span title="recorde: maior sequência que você já fez">🏆${R.bestStreak(S, h.id, td)}</span> · ⚒ ${sk.forged ? 'FORJADO' : `${sk.total}/66`}`;
@@ -69,11 +69,18 @@ function weekCard(td, ui) {
       ${pbar('🔥 Dias batendo a meta (' + g.goal + ' XP)', hit, 5)}${pbar('📌 Missões da semana', wm.done, 3)}</div></div>`;
 }
 
+const RIT_ICON = { pessoa: '👥', rotina: '🔁', trabalho: '💼' };
+/** uma linha de ritual: nome, quando, selo, 📅 marcar o dia e ✓ FIZ */
+export function ritualRow(r, td = today()) {
+  const s = R.ritualStatus(r, td);
+  return `<div class="li"><div class="lt" data-act="edit-ritual" data-id="${r.id}" style="cursor:pointer">${RIT_ICON[r.type] || '🔁'} ${esc(r.name)}<small>${s.next ? DOW[weekday(s.next)] + ' ' + fmtDM(s.next) : '—'}${s.plan ? ' · dia marcado por você' : r.every ? ` · a cada ${r.every} dias` : r.dom ? ` · todo dia ${r.dom}` : ''}</small></div>
+      <div class="row" style="flex-wrap:nowrap;gap:6px"><span class="chip ${s.tone === 'bad' ? 'late' : s.tone === 'warn' ? 'today' : 'soon'}">${esc(s.label)}</span><button class="btn sm ghost" data-act="ritual-plan" data-id="${r.id}" title="Marcar o dia em que vou fazer">📅</button>${r.last === td ? `<button class="btn sm ghost" data-act="ritual-undo" data-id="${r.id}" title="Desfazer">↺</button>` : `<button class="btn sm" data-act="ritual-done" data-id="${r.id}">✓ FIZ</button>`}</div></div>`;
+}
 function ritualsMini(td) {
-  const icon = { pessoa: '👥', rotina: '🔁', trabalho: '💼' };
-  const list = [...S.core.rituals].map((r) => ({ r, s: R.ritualStatus(r, td) })).sort((a, b) => (a.s.left ?? 99) - (b.s.left ?? 99));
+  const list = [...S.core.rituals].sort((a, b) => (R.ritualStatus(a, td).left ?? 99) - (R.ritualStatus(b, td).left ?? 99));
   return `<div class="card c12"><header><h2>🔁 Rituais</h2><button class="btn sm" data-act="edit-ritual">+ RITUAL</button></header>
-    <div class="list">${list.map(({ r, s }) => `<div class="li"><div class="lt" data-act="edit-ritual" data-id="${r.id}" style="cursor:pointer">${icon[r.type] || '🔁'} ${esc(r.name)}<small>${s.next ? DOW[weekday(s.next)] + ' ' + fmtDM(s.next) : '—'}</small></div>
-      <div class="row" style="flex-wrap:nowrap;gap:6px"><span class="chip ${s.tone === 'bad' ? 'late' : s.tone === 'warn' ? 'today' : 'soon'}">${esc(s.label)}</span>${r.last === td ? `<button class="btn sm ghost" data-act="ritual-undo" data-id="${r.id}" title="Desfazer">↺</button>` : `<button class="btn sm" data-act="ritual-done" data-id="${r.id}">✓ FIZ</button>`}</div></div>`).join('') || '<div class="empty">nenhum ritual.</div>'}</div>
+    <div class="list">${list.map((r) => ritualRow(r, td)).join('') || '<div class="empty">nenhum ritual.</div>'}</div>
+    <p class="meta" style="margin:8px 0 0">📅 marca o dia em que você vai fazer (ele aparece na AGENDA). O aviso automático continua valendo depois.</p>
 </div>`;
 }
+

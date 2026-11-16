@@ -52,6 +52,32 @@ export function confetti(n = 120) {
   })();
 }
 
+// ───── fogos de artifício (pequenos, em pixel): 3 estouros no alto da tela ─────
+export function fireworks(bursts = 3) {
+  if (reduced()) return;
+  const c = document.createElement('canvas');
+  c.className = 'fxlayer';
+  document.body.appendChild(c);
+  const s = 3, ctx = c.getContext('2d');
+  c.width = Math.ceil(innerWidth / s); c.height = Math.ceil(innerHeight / s);
+  const pal = [['#f5c84c', '#fff3c4'], ['#e8793a', '#ffd0a8'], ['#e2557a', '#ffc2d4'], ['#5aa9e6', '#cfe8ff'], ['#69c27f', '#d4f5dc']];
+  const shots = Array.from({ length: bursts }, (_, i) => ({ t0: i * 16, x: c.width * (0.25 + 0.5 * Math.random()), y: c.height * (0.18 + 0.2 * Math.random()), col: pal[(Math.random() * pal.length) | 0], ps: null, ry: c.height }));
+  let f = 0;
+  (function fr() {
+    ctx.clearRect(0, 0, c.width, c.height);
+    for (const sh of shots) {
+      const t = f - sh.t0;
+      if (t < 0) continue;
+      if (t < 14) { sh.ry = c.height - (c.height - sh.y) * (t / 14); ctx.fillStyle = sh.col[1]; ctx.fillRect(sh.x | 0, sh.ry | 0, 1, 3); continue; } // o rojão subindo
+      sh.ps ||= Array.from({ length: 34 }, (_, k) => { const a = (k / 34) * Math.PI * 2, v = 1.1 + Math.random() * 1.5; return { x: sh.x, y: sh.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v }; });
+      const life = (t - 14) / 46;
+      if (life > 1) continue;
+      for (const p of sh.ps) { p.vy += 0.035; p.vx *= 0.97; p.vy *= 0.97; p.x += p.vx; p.y += p.vy; ctx.fillStyle = sh.col[life < 0.35 ? 1 : 0]; if (life < 0.75 || (f + (p.x | 0)) % 2) ctx.fillRect(p.x | 0, p.y | 0, 2, 2); }
+    }
+    if (++f < bursts * 16 + 62) requestAnimationFrame(fr); else c.remove();
+  })();
+}
+
 export function floatXp(text, at) {
   const el = document.createElement('div');
   el.className = 'float-xp';

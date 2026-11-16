@@ -162,6 +162,12 @@ label.lbl { display: block; font: 7.5px/1.4 var(--f-pixel); color: var(--dim); m
 .band { --band: var(--ink); display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; background: var(--band); color: var(--bg); font: 9px/1 var(--f-pixel); }
 :root[data-mode="night"] .band { background: #2b241d; color: var(--ink); border: 2px solid var(--edge); }
 /* barra das janelas do QUESTS fica presa abaixo do topo (só em tela grande: no celular o topo já ocupa muito) */
+/* REVISADO: selo de 24 h no bloco */
+.rev-btn { display: block; margin: 8px 0 0 auto; padding: 4px 8px; font: 11px/1.2 var(--f-mono); color: var(--dim); background: none; border: 1px dashed var(--line); border-radius: 6px; cursor: pointer; }
+.rev-btn:hover, .rev-btn.on { color: var(--good); border-color: var(--good); }
+.chip.rev { background: var(--good-soft); border-color: var(--good); color: var(--good); }
+article.block.reviewed { outline: 2px solid var(--good); outline-offset: -2px; }
+article.block.reviewed .bh { opacity: .82; }
 /* entrevista do dia / revisão de retorno */
 .rv-opt { width: 100%; text-align: left; border: 0; background: none; cursor: pointer; color: inherit; font: inherit; }
 .rv-opt:hover, .rv-opt.on { background: var(--accent-soft); }
