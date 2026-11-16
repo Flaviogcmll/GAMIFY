@@ -120,10 +120,10 @@ export function legendHtml() {
       <tr><td>🛡</td><td>casa/família: vale 50</td></tr>
       <tr><td>💰</td><td>dinheiro: x1,5 (TRABALHO e CAPTAÇÃO já têm). No título do bloco, 3000💰 = valor do projeto: quando fecha, o app pergunta se a sua metade (1500) entrou no baú de ouro. "1900💰 / MES (DIA 05)" = recorrente: todo dia 5 ele pergunta</td></tr>
       <tr><td>(60XP)</td><td>no texto: define o valor da tarefa</td></tr>
-      <tr><td>⚔ ↳</td><td>⚔ mini-boss = a vitória · ↳ passo (escreva > no começo) = 3 XP; todos os ↳ feitos marcam o ⚔ sozinho</td></tr>
+      <tr><td>⚔ ↳</td><td>⚔ mini-boss = a vitória · ↳ passo (escreva > no começo) = ${R.C.XP_STEP} XP; todos os ↳ feitos marcam o ⚔ sozinho</td></tr>
       <tr><td>📅 🐦</td><td>no prazo x1,5 · 2+ dias antes x2 · atrasou = sem bônus</td></tr>
       <tr><td>🟥🟨🟩🟧⬛</td><td>cor do bloco: urgente · andamento · pessoal · gestão · parado</td></tr>
-      <tr><td>LISTA</td><td>subtarefa 5 · lista 10 · fechar bloco: breakdown 100 · 🎯 meta 200 · captação 150 · trabalho 300</td></tr>
+      <tr><td>LISTA</td><td>subtarefa ${R.C.XP_SUB} · lista ${R.C.XP_LIST} · fechar bloco: breakdown 100 · 🎯 meta 200 · captação 150 · trabalho 300</td></tr>
     </table>`;
 }
 

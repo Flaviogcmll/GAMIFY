@@ -433,12 +433,12 @@ export function setStatus(id, st) {
   });
 }
 
-/** custo de EMPURRAR o prazo de uma tarefa: 1ª vez RESCHED XP, depois dobra (até 16x). Antecipar ou dar prazo novo não custa. */
+/** custo de EMPURRAR o prazo de uma tarefa: 1ª vez RESCHED XP, depois dobra (até RESCHED_CAP vezes). Antecipar ou dar prazo novo não custa. */
 /** tarefa da lista ligada a um bloco do BREAKDOWN: o prazo é um só (a tarefa manda, o bloco acompanha) */
 function syncLink(t) { const lb = t?.link && B(t.link); if (lb) lb.due = t.due || null; }
 export function reschedBase(t, newDue) {
   if (!t || !t.due || !newDue || newDue <= t.due) return 0;
-  return Math.min(R.C.RESCHED * 2 ** (t.rs || 0), R.C.RESCHED * 16);
+  return Math.min(R.C.RESCHED * 2 ** (t.rs || 0), R.C.RESCHED * R.RESCHED_CAP);
 }
 /** 1 remarcação grátis por semana (vale a primeira que você fizer) */
 export const freeResched = () => !S.core.freeResched?.[weekStart(today())];
@@ -1031,14 +1031,14 @@ export function finishItem(pid) {
   if (!p || p.status !== 'using') return;
   return commit(['loja'], () => { p.status = 'used'; p.endedAt = Date.now(); });
 }
-/** "fiz sem comprar": paga a recompensa depois, com multa x2 */
+/** "fiz sem comprar": paga a recompensa depois, com multa (R.DEBT_MULT) */
 export function confessItem(itemId) {
   const it = S.loja.taverna.find((x) => x.id === itemId);
   if (!it) return;
-  const price = R.tavernaPrice(S, it) * 2;
+  const price = Math.round((R.tavernaPrice(S, it) * R.DEBT_MULT) / 5) * 5;
   return commit(['loja'], () => {
     S.loja.purchases.push({ id: uid('p'), date: today(), item: it.name, itemId, kind: 'taverna', qty: 1, xp: price, gold: 0, tickets: 0, status: 'used', usedAt: today(), debt: true });
-    return { msg: `🧾 Dívida paga: ${it.name} por ${price} XP (x2). Da próxima vez, compre antes!` };
+    return { msg: `🧾 Dívida paga: ${it.name} por ${price} XP (x${String(R.DEBT_MULT).replace('.', ',')}). Da próxima vez, compre antes!` };
   });
 }
 export function setShopGoal(itemId) {

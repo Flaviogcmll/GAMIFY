@@ -4,7 +4,7 @@ import { addDays, diffDays, weekday, weekStart, range, hash, today, isWorkday, h
 
 // ───────────────────────── CONSTANTES (as mesmas da planilha) ─────────────────────────
 export const C = {
-  XP_LIST: 10, XP_SUB: 5, XP_STEP: 3, XP_HOME: 50, XP_MINI: 30,
+  XP_LIST: 15, XP_SUB: 8, XP_STEP: 4, XP_HOME: 50, XP_MINI: 40, // v5.8: tarefas valem mais (o trabalho de verdade pagava pouco perto dos preços)
   XP_BLOCK: { bd: 100, tr: 300, cap: 150, gs: 100, bs: 0 }, XP_GOAL: 200, XP_BOSS: 200,
   M_STAR: 2, M_ONTIME: 1.5, M_EARLY: 2, M_MONEY: 1.5,
   HABIT_XP: 5, RD_XP: 40, FORGE: 66,
@@ -707,6 +707,10 @@ export function tavernaPrice(s, item, d = today()) {
   if (offer && offer.id === item.id) m *= 1 - C.OFFER;
   return Math.max(1, Math.round(((lockedPrice(item.name) ?? item.xp) * m * econIndex(s, d)) / 5) * 5);
 }
+/** "fiz sem comprar": quanto a mais se paga (v5.8: era o dobro) */
+export const DEBT_MULT = 1.5;
+/** remarcar: o custo dobra a cada vez até este teto, em múltiplos do custo-base (v5.8: era 16x) */
+export const RESCHED_CAP = 8;
 export const ferreiroXp = (item) => C.FERREIRO_XP * item.nv;
 export const timesBought = (s, itemId) =>
   (s.loja?.purchases || []).filter((p) => p.itemId === itemId).reduce((a, p) => a + (p.qty || 1), 0);
@@ -875,14 +879,17 @@ export function lootRoll(s, t, d, closedBlock = false) {
 
 // ───────────────────────── v3: PREÇOS TRAVADOS (só mudam aqui, no código) ─────────────────────────
 // Calibração: sua média real é ~100 XP/dia. Pequeno prazer ≈ meio dia de esforço · médio ≈ 1–2 dias · grande ≈ 4 dias · folga ≈ 1 semana.
-/** índice da economia: segue a sua média de XP dos últimos 14 dias (base 100/dia).
- *  Semana forte → preços sobem (a recompensa continua valendo). Semana difícil → preços caem (cozy, sem burnout). Limites 0,8–1,4. */
+/** índice da economia: compara a sua média de XP dos últimos 14 dias com a META DO DIA.
+ *  Na meta = preço normal. Semana forte → sobe só um pouco; semana difícil → cai um pouco. Limites 0,9–1,15. */
 export function econIndex(s, d = today()) {
   const start = s.core?.startDate || d, xp = idx(s).xpByDay;
   const days = range(addDays(d, -14), 14).filter((x) => x >= start);
   if (days.length < 5) return 1;
   const avg = days.reduce((a, x) => a + (xp[x] || 0), 0) / days.length;
-  return Math.min(1.4, Math.max(0.8, Math.round((avg / 100) * 20) / 20));
+  // v5.8: o preço é NORMAL quando a sua média bate a meta do dia, e varia pouco (−10% a +15%).
+  // Antes ia até +40% com 140 XP/dia: render mais deixava tudo mais caro.
+  const goal = s.core?.settings?.dailyGoal || C.DAILY_GOAL || 150;
+  return Math.min(1.15, Math.max(0.9, Math.round((avg / goal) * 20) / 20));
 }
 /** v4: preços não são mais travados no código; valem os da loja (editáveis em PERKS AND RULES) */
 export const lockedPrice = () => null;

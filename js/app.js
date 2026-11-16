@@ -370,7 +370,7 @@ function tour(step = 0) {
     ['bem-vindo ao gamify v2.', 'Igual à planilha, com as mesmas abas: QUESTS é a casa e o painel. De dia ele é papel; à noite vira acampamento com fogueira. O ♪ liga o lo-fi.'],
     ['quests.', 'Listas e BOSS em cima; BREAKDOWN, TRABALHO e CAPTAÇÕES embaixo. Toque no quadradinho pra concluir, no texto pra editar (prazo, cor, ! prioridade, 🔁 vai e volta). No PC dá pra arrastar tarefas.'],
     ['o primo.', 'O PRIMO é o centro do jogo: ele reage ao que você faz, pede uma missão por dia, sai em expedição, tem armário e um mascote que cresce. Toque no botão PRIMO pra falar com ele.'],
-    ['shop.', 'Compre ANTES de aproveitar: vai pra MOCHILA; na hora, USAR liga o cronômetro. Fez sem comprar? Paga x2. Gold é a sua metade: o app pergunta quando entra.'],
+    ['shop.', 'Compre ANTES de aproveitar: vai pra MOCHILA; na hora, USAR liga o cronômetro. Fez sem comprar? Paga 50% a mais. Gold é a sua metade: o app pergunta quando entra.'],
     ['travou?', 'O botão SOS guia uma respiração de 1 minuto, escolhe o menor passo e acende 10 minutos de fogueira. Vale +5 XP de coragem.'],
   ];
   const [t, d] = steps[step];
@@ -568,7 +568,7 @@ const ACTIONS = {
   },
   buy: (d, e) => { const r = A.buyTaverna(d.id, false, at(e)); if (r?.error) { sfx('error'); toast(esc(r.error), 'bad'); } },
   'buy-ticket': (d, e) => { const r = A.buyTaverna(d.id, true, at(e)); if (r?.error) { sfx('error'); toast(esc(r.error), 'bad'); } },
-  confess: async (d) => { const it = S.loja.taverna.find((x) => x.id === d.id); if (await ask('Fiz sem comprar…', `${it.name} sai por ${R.tavernaPrice(S, it) * 2} XP (x2). Da próxima vez, compre antes.`, 'PAGAR A DÍVIDA', true)) A.confessItem(d.id); },
+  confess: async (d) => { const it = S.loja.taverna.find((x) => x.id === d.id); if (await ask('Fiz sem comprar…', `${it.name} sai por ${Math.round((R.tavernaPrice(S, it) * R.DEBT_MULT) / 5) * 5} XP (x${String(R.DEBT_MULT).replace('.', ',')}). Da próxima vez, compre antes.`, 'PAGAR A DÍVIDA', true)) A.confessItem(d.id); },
   'shop-goal': (d) => A.setShopGoal(d.id),
   'use-item': (d) => A.useItem(d.id),
   'finish-item': (d) => A.finishItem(d.id),
