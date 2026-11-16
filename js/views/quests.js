@@ -79,12 +79,13 @@ function blockCard(b, ui) {
   </article>`;
 }
 
-function group(g, ui) {
-  const blocks = S.quests.blocks.filter((b) => b.group === g).sort(sortOrd);
+/** `g` = tipo-base (bd, tr, cap, gs). `win` = janela criada pelo dono (só os blocos guardados nela) */
+function group(g, ui, win = null) {
+  const blocks = S.quests.blocks.filter((b) => (win ? b.win === win.id : b.group === g && !R.winOf(S, b))).sort(sortOrd);
   const active = blocks.filter(stalledOff(ui));
-  return `<div class="group ${isCollapsed('g:' + g) ? 'collapsed' : ''}" data-group="${g}"><div class="band" data-act="collapse" data-k="g:${g}"><span><span class="chev">${isCollapsed('g:' + g) ? '▸' : '▾'}</span> ${R.GROUPS[g].name}</span><span class="meta">${blocks.filter((b) => b.st !== 'done').length} blocos</span></div>
-    <form class="row" data-form="add-block" data-group="${g}" autocomplete="off"><input class="inp grow" name="title" placeholder="+ novo bloco${g === 'bd' ? ' (🎯 meta)' : ' (3000💰 · / MES DIA 05)'}" aria-label="Novo bloco"></form>
-    ${g === 'bd' ? `<button class="btn sm" data-act="ai-breakdown">🤖 QUEBRAR META COM IA</button>` : ''}
+  return `<div class="group ${isCollapsed('g:' + g) ? 'collapsed' : ''}" data-group="${g}"><div class="band" data-act="collapse" data-k="g:${g}"><span><span class="chev">${isCollapsed('g:' + g) ? '▸' : '▾'}</span> ${win ? esc(win.name) : R.GROUPS[g].name}</span><span class="meta">${blocks.filter((b) => b.st !== 'done').length} blocos${win ? ` · funciona como ${esc(R.GROUPS[g].short)} <button class="btn sm ghost" data-act="win-edit" data-id="${win.id}" title="Renomear, mudar o tipo ou apagar esta janela">✎</button>` : ''}</span></div>
+    <form class="row" data-form="add-block" data-group="${g}" ${win ? `data-win="${win.id}"` : ''} autocomplete="off"><input class="inp grow" name="title" placeholder="+ novo bloco${g === 'bd' ? ' (🎯 meta)' : ' (3000💰 · / MES DIA 05)'}" aria-label="Novo bloco"></form>
+    ${g === 'bd' && !win ? `<button class="btn sm" data-act="ai-breakdown">🤖 QUEBRAR META COM IA</button>` : ''}
     ${active.map((b) => blockCard(b, ui)).join('') || '<div class="empty">nenhum bloco.</div>'}
     ${blocks.length > active.length ? `<button class="more" data-act="toggle-stalled">⬛ ${blocks.length - active.length} parado(s) · mostrar</button>` : ''}</div>`;
 }
@@ -161,33 +162,33 @@ export function sidePanel(ui) {
   </aside>`;
 }
 
-const QT_ALL = [['listas', 'LISTAS'], ['boss', 'BOSSES'], ['bd', 'BREAKDOWN'], ['tr', 'TRABALHO'], ['cap', 'CAPTAÇÕES'], ['gs', 'GESTÃO']];
-/** a ordem das janelas é sua: arraste um nome de janela sobre outro (PC) */
+/** janelas do QUESTS: LISTAS é a janela mãe; depois as fixas e, por fim, as que você criou (chave "w:<id>") */
+const qtAll = () => [['listas', R.TAB_NAMES.listas], ['boss', R.TAB_NAMES.boss], ['bd', R.GROUPS.bd.short], ['tr', R.GROUPS.tr.short], ['cap', R.GROUPS.cap.short], ['gs', R.GROUPS.gs.short], ...R.windows(S).map((w) => ['w:' + w.id, w.name])];
+/** a ordem das janelas é sua: arraste um nome de janela sobre outro (PC). LISTAS fica sempre na frente: é dela que tudo deriva. */
 function qtabs() {
   let saved = [];
   try { saved = JSON.parse(localStorage.getItem('gamify-ui:qtabs')) || []; } catch { /* */ }
-  const ids = QT_ALL.map((x) => x[0]), order = [...saved.filter((i) => ids.includes(i)), ...ids.filter((i) => !saved.includes(i))];
-  return order.map((id) => QT_ALL.find((x) => x[0] === id));
+  const all = qtAll(), ids = all.map((x) => x[0]), order = [...saved.filter((i) => ids.includes(i)), ...ids.filter((i) => !saved.includes(i))];
+  return ['listas', ...order.filter((i) => i !== 'listas')].map((id) => all.find((x) => x[0] === id));
 }
 export function viewQuests(ui) {
   const QTABS = qtabs();
   const tab = QTABS.some(([k]) => k === ui.qtab) ? ui.qtab : 'listas';
-  const n = {
-    listas: S.quests.tasks.filter((t) => !t.block && R.isOpen(t)).length,
-    bd: S.quests.blocks.filter((b) => b.group === 'bd' && b.st !== 'done').length, tr: S.quests.blocks.filter((b) => b.group === 'tr' && b.st !== 'done').length,
-    cap: S.quests.blocks.filter((b) => b.group === 'cap' && b.st !== 'done').length, gs: S.quests.blocks.filter((b) => b.group === 'gs' && b.st !== 'done').length, boss: S.quests.bosses.filter((b) => b.st !== 'done').length,
-  };
+  const win = tab.startsWith('w:') ? R.windows(S).find((w) => 'w:' + w.id === tab) : null;
+  const openIn = (g) => S.quests.blocks.filter((b) => b.group === g && !R.winOf(S, b) && b.st !== 'done').length;
+  const n = { listas: S.quests.tasks.filter((t) => !t.block && R.isOpen(t)).length, bd: openIn('bd'), tr: openIn('tr'), cap: openIn('cap'), gs: openIn('gs'), boss: S.quests.bosses.filter((b) => b.st !== 'done').length };
+  for (const w of R.windows(S)) n['w:' + w.id] = S.quests.blocks.filter((b) => b.win === w.id && b.st !== 'done').length;
   // RECOLHER TUDO: vale para o que está na janela aberta (listas, blocos ou bosses)
   const ckeys = tab === 'listas' ? R.AREA_KEYS.map((a) => 'l:' + a)
     : tab === 'boss' ? S.quests.bosses.map((b) => 'b:' + (b.block || b.id))
-    : S.quests.blocks.filter((b) => b.group === tab).filter(stalledOff(ui)).map((b) => 'b:' + b.id);
+    : S.quests.blocks.filter((b) => (win ? b.win === win.id : b.group === tab && !R.winOf(S, b))).filter(stalledOff(ui)).map((b) => 'b:' + b.id);
   const allCol = ckeys.length > 0 && ckeys.every(isCollapsed);
   const lists = arrange('lists', R.AREA_KEYS.map((a) => [a, R.AREAS[a], listCard(a, ui)]), { button: false });
   const body = tab === 'listas' ? `<div class="lists six">${lists}</div>`
     : tab === 'boss' ? bossPanel(ui)
-    : group(tab, ui).replace('class="group ', 'class="group wide ');
+    : group(win ? win.base : tab, ui, win).replace('class="group ', 'class="group wide ');
   return `<div class="quests"><div class="board">
-      <div class="band qbar"><div class="seg">${QTABS.map(([k, t]) => `<button class="${tab === k ? 'on' : ''}" data-act="qtab" data-tab="${k}" draggable="true" title="arraste pra mudar a ordem">${t}${n[k] != null ? ' · ' + n[k] : ''}</button>`).join('')}</div>
+      <div class="band qbar"><div class="seg">${QTABS.map(([k, t]) => `<button class="${tab === k ? 'on' : ''} ${k === 'listas' ? 'mae' : 'filha'}" data-act="qtab" data-tab="${k}" ${k === 'listas' ? 'title="Janela mãe: tudo passa por aqui"' : 'draggable="true" title="arraste pra mudar a ordem"'}>${k === 'listas' ? '◆ ' : ''}${esc(t)}${n[k] != null ? ' · ' + n[k] : ''}</button>`).join('')}<button class="qadd" data-act="win-new" title="Criar uma janela nova">＋</button></div>
         <span class="row" style="gap:6px"><button class="btn sm ghost" data-act="collapse-all" title="Recolhe ou abre tudo desta janela de uma vez">${allCol ? '▾ ABRIR TUDO' : '▸ RECOLHER TUDO'}</button><button class="btn sm" data-act="distribute">📅 DISTRIBUIR</button>
           <details class="qmenu"><summary class="btn sm ghost" title="Escolha o que aparece nesta tela">MOSTRAR${ui.showDone || ui.showStalled ? ' · ' + (!!ui.showDone + !!ui.showStalled) : ''} ▾</summary><div class="qpop">
             <button class="btn sm ${ui.showDone ? 'pri' : 'ghost'}" data-act="toggle-done">${ui.showDone ? '☑' : '☐'} FEITAS</button>

@@ -1,6 +1,6 @@
 # BRIEFING — GAMIFY (leia tudo antes de mexer em qualquer coisa)
 
-Atualizado em 15/11/2026: repositório real conferido (v5.1) e quatro rodadas feitas (v5.2 proteção dos dados, v5.3 bugs e praticidade, v5.4 limpeza + viagem + PRIMO, v5.5 listas automáticas + AGUARDANDO).
+Atualizado em 16/11/2026: repositório real conferido (v5.1) e cinco rodadas feitas (v5.2 proteção dos dados, v5.3 bugs e praticidade, v5.4 limpeza + viagem + PRIMO, v5.5 listas automáticas + AGUARDANDO, v5.6 retorno + rituais + loja + janelas).
 Este arquivo substitui o briefing antigo. O que mudou em relação a ele está na seção "CONFERIDO EM 15/11/2026".
 
 ## PASSO 0: ALINHAR ANTES DE TUDO
@@ -62,6 +62,7 @@ FEED e notícias; A VILA inteira; BUJO; janela TUDO; CRÔNICA; Google Agenda; ab
 - `actions.js`: tudo que MUDA dados, sempre via `commit(docs, fn, opts)` (desfazer/refazer 40 passos); migrações no `startup()`.
 - `store.js`: carrega/salva (banco do claude.ai ou `localStorage`); `S` = estado global.
 - `backup.js`: proteção dos dados no aparelho (cópia automática diária, lembrete de backup, restaurar). Toda troca geral de dados passa por `restoreDocs()`.
+- `review.js`: entrevista do dia e revisão de retorno com o PRIMO.
 - `trip.js`: modo VIAGEM/VISITAS (telas e botões). Regras em `rules.js` (`tripNow`, `tripDay`) e dados em `actions.js` (`startTrip`, `endTrip`).
 - `drive.js`: sync com Google Drive (OAuth GIS, escopo `drive.appdata`, arquivo `gamify-backup.json`). O dono usa no dia a dia para ter os dados no celular e no PC. O Claude não consegue testar o login real: só com um Google simulado.
 - `primo.js`, `pdraw.js`, `pacc.js`, `pstate.js`, `falas.js`, `saber.js`, `claude.js`: o PRIMO.
@@ -76,6 +77,7 @@ FEED e notícias; A VILA inteira; BUJO; janela TUDO; CRÔNICA; Google Agenda; ab
 - Os dados ficam POR ENDEREÇO e POR APARELHO: mudar de endereço, limpar os dados do navegador ou trocar de celular = app vazio. Proteção: BAIXAR/IMPORTAR backup (manual, com lembrete a cada 7 dias) + cópias automáticas no próprio navegador. O Drive ainda não foi testado.
 - Cópias automáticas (`backup.js`): `gamify-bak:AAAA-MM-DD` (uma por dia, tirada ao abrir o app antes das migrações; ficam as 3 últimas) e `gamify-bak:pre` (estado anterior à última importação/restauração/download do Drive). Elas NÃO protegem de limpar os dados do navegador. Se faltar espaço, `store.js` apaga as cópias para salvar os dados de verdade. Preferências: `gamify-ui:lastBackup`, `gamify-ui:bakSnooze`, `gamify-ui:bakPreAt`.
 - No claude.ai: banco do artifact, coleção `gamify` (máx. 256 KB por documento).
+- Campos do `core` desta fase: `lastOpen` (última visita), `windows[]` (janelas do dono), `labels{}` (nomes personalizados); nos blocos: `win` (janela) e `rev` (revisado); nos rituais: `plan` (dia marcado); nas tarefas: `who` e `dep` (aguardando).
 - Campos do `core`: `trip` (viagem em andamento: `{ from, until }`), `trips[]` (viagens encerradas: `{ from, to }`), `primo`, `weights`, `rests`, `settings.rules`, `bonus[]`, `migrations[]`, `savings[]` (o que foi guardado para o BOSS DO CAPÍTULO, botão GUARDEI), `cofre` (lido em `rules.js` para NO AZUL/VAZANDO; a aba foi removida e os dados atuais do dono não têm esse campo), `inbox`, `claude`.
 - Migrações já aplicadas nos dados do dono: `gestao`, `bosses4`, `shop4`, `vila-off`, `v5-clean`.
 - ARMADILHA QUE JÁ QUEBROU O QUESTS: ao REMOVER um tipo de dado salvo, o dado antigo continua lá e o código novo quebra. Sempre trate valores legados e crie migração idempotente.
@@ -141,13 +143,22 @@ O dono usa muito mais o PC. Pedidos atendidos:
 - **DISTRIBUIR** novo: escolha entre "só as que já tinham prazo", "só dar data às sem prazo dos blocos" e "todas". Capacidade de cada dia = 80% do ritmo real do dono naquele dia da semana (`R.weekdayPace`, `R.dayCapacity`), limitado pelo máximo dos AJUSTES; ordem: prioridade, ⭐, mais atrasada primeiro.
 - NÃO feito nesta rodada (parou por limite de uso): tudo que está em PRÓXIMAS RODADAS abaixo.
 
-## PRÓXIMAS RODADAS (combinado com o dono em 15/11/2026)
-Princípio dele: qualidade de vida e praticidade; tudo integrado como um ecossistema; simples no fim das contas (o app não pode tomar o tempo das tarefas). Ele aceita sugestões melhores que o pedido.
-- **Janela mãe e personalização.** LISTAS com cor própria e as outras janelas derivando dela; botão ＋ para criar/renomear janelas; botão REVISADO no fim do bloco (vale 24 h, com selo visual); personalizar textos fixos (nomes das listas e janelas) sem quebrar as mecânicas. As listas automáticas e o AGUARDANDO já foram feitos na rodada 4a.
-- **Rituais, loja e fogos.** Ritual com data marcada (ex.: SPA num dia específico, mesmo com aviso a cada 15 dias) aparecendo na AGENDA e no cronograma; item ACORDAR TARDE na loja; JOGO STEAM na forja; aba no SHOP com o histórico do que já foi forjado; REDENÇÃO vira só "aula de curso (40 XP)" ou "meditação"; fogos de artifício (som + animação pequena) ao concluir algo demorado. (O DISTRIBUIR novo já foi feito na rodada 4a.)
-- **Voltar ao jogo (o dono escolheu: 3 dias sem abrir dispara a revisão; entrevista toda primeira abertura do dia, 3 passos, com PULAR).** Entrevista do dia com o PRIMO na primeira abertura; detectar que ficou muito tempo sem preencher e oferecer revisão rápida de retorno (pode reaproveitar a janela de volta da VIAGEM, já feita na rodada 3a).
-- **PRIMO novo com IA de imagem.** O dono vai gerar no Higgsfield seguindo o `GUIA_SPRITES_IA.md`. Quando ele mandar os arquivos: recortar fundo, montar as folhas de animação e as âncoras, trocar o desenho do porquinho, os acessórios e o fundo da cena; manter o sprite atual como reserva até ele aprovar.
-- **Por último — economia.** Analisar toda a economia e propor valores (o dono citou um PDF de referência que não está no repositório; pedir de novo). Só mudar valores depois de ele aprovar a análise.
+## RODADA 5 — v5.6 (16/11/2026): retorno, rituais, loja, REVISADO, fogos, janelas e nomes
+- **Entrevista do dia / revisão de retorno** (`js/review.js`): na 1ª abertura do dia o PRIMO conduz 3 passos (hábitos de ontem em branco, atrasadas com ✓ / ⏳ / ✕, escolher a primeira de hoje → ▶ FAZENDO). Com 3+ dias sem abrir (`core.lastOpen`, calculado no `startup()` em `S._gap`) vira REVISÃO DE RETORNO, com o atalho "foi viagem" (liga o modo VIAGEM desde o dia seguinte à última visita). Botão REVISAR O DIA em COMANDOS. A caixinha "não mostrar" (`gamify-ui:brief-off`) desliga só a diária; o retorno continua. Ela substitui a antiga "abertura do dia" automática (que segue acessível em PERKS).
+- **Rituais com dia marcado**: `r.plan` ("vou fazer em"), pelo botão 📅 na linha do ritual ou na janela dele. `R.ritualPlan`, `R.ritualDates`. Enquanto houver dia marcado, ele vale no lugar do aviso automático; ✓ FIZ limpa. Na AGENDA: linha RITUAIS na linha do tempo, 🔁 na faixa de dias e cartão "Rituais · próximos 14 dias".
+- **Loja**: migração `shop5` adiciona ACORDAR TARDE (taverna, 90 XP, provisório) e JOGO NA STEAM (forja, JOGOS, nível 2, repetível). Nova aba FORJADOS com tudo que já foi forjado.
+- **REDENÇÃO**: só "1 AULA DE CURSO" ou "MEDITAÇÃO"; padrão `RD_XP` passou de 30 para 40 (pedido do dono).
+- **REVISADO**: botão no fim do bloco, `b.rev` = hora da marcação, vale 24 h (`R.reviewed`). É só um selo, não dá XP.
+- **Fogos de artifício** (`fx.fireworks` + som `fireworks`): boss, bloco fechado, tarefa ⚔ ou ⭐, ou tarefa que rendeu 60 XP ou mais.
+- **Janela mãe**: LISTAS fica sempre em primeiro, com cor própria. Botão ＋ cria **janelas do dono** (`core.windows = [{ id, name, base }]`). Uma janela é uma gaveta: o bloco guarda `b.win` e continua com `b.group` = tipo-base (bd, tr, cap, gs), então nenhuma regra de XP muda. Apagar a janela devolve os blocos ao tipo-base. Chave da aba: `w:<id>`.
+- **Nomes personalizáveis** (`core.labels`, editor em PERKS → "Nomes das listas e janelas"): `R.applyLabels` troca só o texto de `R.AREAS`, `R.GROUPS` e `R.TAB_NAMES`; as chaves internas não mudam.
+
+## PRÓXIMAS RODADAS
+Princípio do dono: qualidade de vida e praticidade; tudo integrado como um ecossistema; simples no fim das contas (o app não pode tomar o tempo das tarefas). Ele aceita sugestões melhores que o pedido.
+- **Economia (o dono deixou por último).** Analisar toda a economia e propor valores; ele citou um PDF de referência que não está no repositório (pedir de novo). Só mudar valores depois de ele aprovar a análise. Os preços de ACORDAR TARDE e JOGO NA STEAM e o XP da REDENÇÃO são provisórios até lá.
+- **PRIMO novo com IA de imagem.** O dono assinou o Higgsfield e vai gerar as artes seguindo `PROMPTS_HIGGSFIELD.txt` (82 prompts completos) e `GUIA_SPRITES_IA.md`. Quando ele mandar os arquivos: recortar fundo, montar as folhas de animação e as âncoras, trocar o desenho do porquinho, os rostos, os acessórios e o fundo da cena; manter o sprite atual como reserva até ele aprovar.
+- **Mecânicas sugeridas e ainda não escolhidas por ele:** "o que eu faço agora?" (PRIMO escolhe uma tarefa), fechamento do dia às 18h, combo de foco, dia mínimo.
+- **Ajustes prováveis depois do uso:** a lista AGUARDANDO fica longa com os dados dele (tarefas em espera dentro dos blocos); personalizar a lista de tarefas de volta da viagem; mais textos personalizáveis além de listas e janelas.
 
 ## LIÇÕES TÉCNICAS
 - Playwright (Chromium) já vem instalado: `require('playwright')`. Servidor local: `python3 -m http.server 8080`.

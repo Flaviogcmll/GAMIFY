@@ -162,6 +162,16 @@ label.lbl { display: block; font: 7.5px/1.4 var(--f-pixel); color: var(--dim); m
 .band { --band: var(--ink); display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; background: var(--band); color: var(--bg); font: 9px/1 var(--f-pixel); }
 :root[data-mode="night"] .band { background: #2b241d; color: var(--ink); border: 2px solid var(--edge); }
 /* barra das janelas do QUESTS fica presa abaixo do topo (só em tela grande: no celular o topo já ocupa muito) */
+/* JANELA MÃE: LISTAS tem cor própria; as outras derivam dela */
+.qbar .seg button.mae { background: var(--accent-2); color: #fff7ef; border-color: #f0b48a; font-size: 9px; padding-left: 12px; padding-right: 12px; margin-right: 10px; position: relative; }
+.qbar .seg button.mae.on { background: #f3e2c9; color: #7a2f10; border-color: #f3e2c9; box-shadow: 0 0 0 2px var(--accent-2); }
+.qbar .seg button.mae::after { content: ''; position: absolute; right: -9px; top: 50%; width: 7px; height: 2px; background: #6a6a76; }
+.qbar .seg button.filha { font-size: 7.5px; }
+.qbar .seg .qadd { background: transparent; color: #b3aca0; border: 2px dashed #5a5a66; font: 12px/1 var(--f-mono); padding: 0 10px; cursor: pointer; border-radius: var(--rad); }
+.qbar .seg .qadd:hover { color: #fff; border-color: #b3aca0; }
+.namegrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+.namegrid label { display: flex; flex-direction: column; gap: 4px; }
+.namegrid .px { font-size: 7px; color: var(--dim); }
 /* REVISADO: selo de 24 h no bloco */
 .rev-btn { display: block; margin: 8px 0 0 auto; padding: 4px 8px; font: 11px/1.2 var(--f-mono); color: var(--dim); background: none; border: 1px dashed var(--line); border-radius: 6px; cursor: pointer; }
 .rev-btn:hover, .rev-btn.on { color: var(--good); border-color: var(--good); }

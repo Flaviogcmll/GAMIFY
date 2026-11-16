@@ -516,6 +516,7 @@ export function addBlock(group, title, extra = {}) {
   if (!title) return null;
   return commit(['quests'], () => {
     const b = { id: uid('k'), group, title, color: extra.color || (group === 'tr' ? 'yellow' : 'green'), st: '', due: extra.due || null, created: today(), ord: maxOrd() + 1 };
+    if (extra.win) b.win = extra.win; // bloco criado dentro de uma janela sua
     S.quests.blocks.push(b);
     return { block: b };
   });
@@ -703,6 +704,35 @@ export function saveRitual(data) {
     if (r) { delete r.every; delete r.dom; Object.assign(r, clean); if (data.last !== undefined) r.last = data.last || null; if (data.plan !== undefined) { if (data.plan) r.plan = data.plan; else delete r.plan; } }
     else S.core.rituals.push({ id: uid('r'), ...clean, last: data.last || null, ...(data.plan ? { plan: data.plan } : {}) });
   });
+}
+/** troca o nome de uma lista ou janela (vazio = volta ao padrão) */
+export function setLabel(key, value) {
+  return commit(['core'], () => {
+    S.core.labels ||= {};
+    const v = String(value || '').trim().toUpperCase().slice(0, 24);
+    if (v) S.core.labels[key] = v; else delete S.core.labels[key];
+    R.applyLabels(S);
+  }, { label: 'nome personalizado' });
+}
+/** cria ou edita uma janela sua (uma gaveta de blocos com um tipo-base) */
+export function saveWindow({ id, name, base }) {
+  name = String(name || '').trim().toUpperCase().slice(0, 18);
+  if (!name) return { error: 'Dê um nome pra janela.' };
+  return commit(['core', 'quests'], () => {
+    S.core.windows ||= [];
+    base = R.WINDOW_BASES.includes(base) ? base : 'bd';
+    let w = id && S.core.windows.find((x) => x.id === id);
+    if (w) { w.name = name; if (w.base !== base) { w.base = base; for (const b of S.quests.blocks) if (b.win === w.id) b.group = base; } }
+    else { w = { id: uid('w'), name, base }; S.core.windows.push(w); }
+    return { window: w };
+  }, { label: 'janela' });
+}
+/** apaga a janela: os blocos dela NÃO são apagados, voltam pra janela do tipo-base */
+export function deleteWindow(id) {
+  return commit(['core', 'quests'], () => {
+    S.core.windows = (S.core.windows || []).filter((w) => w.id !== id);
+    for (const b of S.quests.blocks) if (b.win === id) delete b.win;
+  }, { label: 'janela apagada' });
 }
 /** marca (ou limpa) o dia em que você vai fazer o ritual */
 export function planRitual(id, date) {
