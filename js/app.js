@@ -9,7 +9,7 @@ import { openModal, closeModal, ask, toast, modalOpen, segBar } from './ui.js';
 
 import { px } from './icons.js';
 
-import { embers, confetti, floatXp } from './fx.js';
+import { embers, confetti, floatXp, fireworks } from './fx.js';
 import { sfx, startAmbience, stopAmbience, ambienceOn, prefs, setVol } from './audio.js';
 
 import { viewQuests } from './views/quests.js';
@@ -36,6 +36,7 @@ import { extendPrimo, openPrimoHub, primoFeedback, primoReact } from './primo.js
 import { extendDrive } from './drive.js';
 import { autoSnapshot, backupBanner, extendBackup, markBackup, restoreDocs } from './backup.js';
 import { tripBanner, tripCheck, extendTrip } from './trip.js';
+import { maybeReview, extendReview } from './review.js';
 
 
 // abas na mesma ordem da planilha
@@ -131,6 +132,7 @@ function render() {
   scrollTo(0, y);
   try { mountScenes(); } catch (err) { console.error(err); }
   deaccent(document.body);
+  try { maybeReview(); } catch (err) { console.error(err); }
   try { afterRender(cur); } catch (err) { console.error(err); }
   try { afterRender4(cur); } catch (err) { console.error(err); }
   refocus();
@@ -153,7 +155,7 @@ addEventListener('scroll', stickSoon, { passive: true });
 // 1) o que está digitado nas linhas "+ adicionar" sobrevive quando a tela é redesenhada;
 // 2) sair do campo com texto (sem dar Enter) já adiciona; 3) na janela da tarefa/bloco/boss o texto salva ao sair do campo.
 const ADD_SEL = 'form[data-form="add-task"], form[data-form="add-block"], form[data-form="add-boss"]';
-const addKey = (f) => `form[data-form="${f.dataset.form}"]` + (f.dataset.block ? `[data-block="${f.dataset.block}"]` : f.dataset.area ? `[data-area="${f.dataset.area}"]` : f.dataset.group ? `[data-group="${f.dataset.group}"]` : '');
+const addKey = (f) => `form[data-form="${f.dataset.form}"]` + (f.dataset.block ? `[data-block="${f.dataset.block}"]` : f.dataset.area ? `[data-area="${f.dataset.area}"]` : f.dataset.win ? `[data-win="${f.dataset.win}"]` : f.dataset.group ? `[data-group="${f.dataset.group}"]` : '');
 function captureDrafts() {
   const act = document.activeElement, list = [];
   for (const f of $main.querySelectorAll(ADD_SEL)) { const i = f.querySelector('input'); if (i && (i.value || i === act)) list.push([addKey(f), i.value, i === act]); }
@@ -208,6 +210,8 @@ function welcome() {
 // ───────────────────────── RECOMPENSAS NA TELA ─────────────────────────
 A.onFeedback((fb) => {
   if (fb.xp > 0) { floatXp(`+${fmtN(fb.xp)} XP`, fb.at); sfx(fb.task ? 'check' : 'xp'); setTimeout(checkMilestones, 400); }
+  // 🎆 fogos pra coisa demorada: boss, bloco fechado, mini-boss ⚔, tarefa chata ⭐ ou tarefa que rendeu 60 XP ou mais
+  if (fb.boss || fb.closedBlock || (fb.task && fb.xp > 0 && (fb.xp >= 60 || /⚔|⭐/.test(fb.task.text || '')))) setTimeout(() => { fireworks(); sfx('fireworks'); }, 250);
   if (fb.sent) toast(`✉ Rodada concluída e enviada: <b>${esc(fb.task.text)}</b>. Fica aguardando retorno.`, 'good');
   if (fb.loot) setTimeout(() => { sfx('loot'); toast(`${px('chest', 16)} <b>LOOT!</b> ${esc(fb.loot.label)}${fb.loot.itemId ? ' (foi pra mochila)' : ''}`, 'gold'); }, 350);
   if (fb.closedBlock) { toast(`🏁 BLOCO FECHADO: <b>${esc(fb.closedBlock.title)}</b> · +${fb.closedBlock.xp} XP`, 'good'); confetti(60); }
@@ -285,7 +289,7 @@ function editBlock(id) {
     <label class="lbl" for="b-title">Título (🎯 meta · 3000💰 · 1900💰 / MES (DIA 05) · (500XP))</label><input class="inp" id="b-title" name="title" value="${esc(b.title)}" autofocus>
     <label class="lbl">Cor</label><div class="row" style="font-size:12.5px">${COLORS.slice(1).map(([k, n]) => `<label><input type="radio" name="color" value="${k}" ${b.color === k ? 'checked' : ''}> ${n}</label>`).join('')}</div>
     <div class="row"><div class="grow"><label class="lbl" for="b-due">◆ Prazo final</label><input class="inp" type="date" id="b-due" name="due" value="${b.due || ''}"></div>
-      <div class="grow"><label class="lbl" for="b-group">Área</label><select class="inp" id="b-group" name="group">${Object.entries(R.GROUPS).map(([g, i]) => `<option value="${g}" ${b.group === g ? 'selected' : ''}>${i.name}</option>`).join('')}</select></div>
+      <div class="grow"><label class="lbl" for="b-group">Área</label><select class="inp" id="b-group" name="group">${Object.entries(R.GROUPS).map(([g, i]) => `<option value="${g}" ${b.group === g && !R.winOf(S, b) ? 'selected' : ''}>${i.name}</option>`).join('')}${R.windows(S).map((w) => `<option value="win:${w.id}" ${b.win === w.id ? 'selected' : ''}>▣ ${esc(w.name)}</option>`).join('')}</select></div>
       <div class="grow"><label class="lbl" for="b-st">Situação</label><select class="inp" id="b-st" name="st"><option value="">ATIVO</option><option value="wait" ${b.st === 'wait' ? 'selected' : ''}>… SÓ AGUARDANDO</option>${b.st === 'done' ? '<option value="done" selected>FECHADO</option>' : ''}</select></div></div>
     <div class="actions"><div class="left"><button type="button" class="btn sm danger" data-act="del-block" data-id="${id}">APAGAR BLOCO</button></div>
       <button type="button" class="btn" data-close>FECHAR</button><button class="btn pri">SALVAR</button></div></form>`);
@@ -322,6 +326,7 @@ function editRitual(id) {
       <div style="width:96px"><label class="lbl" for="r-every">N dias</label><input class="inp" id="r-every" name="every" type="number" min="1" value="${r.every || 7}"></div>
       <div style="width:96px"><label class="lbl" for="r-dom">Dia</label><input class="inp" id="r-dom" name="dom" type="number" min="1" max="28" value="${r.dom || 5}"></div>
       <div class="grow"><label class="lbl" for="r-last">Última vez</label><input class="inp" id="r-last" name="last" type="date" value="${r.last || ''}"></div></div>
+    <label class="lbl" for="r-plan">📅 Vou fazer em (opcional: o dia que você escolheu; aparece na AGENDA)</label><input class="inp" id="r-plan" name="plan" type="date" value="${(id && R.ritualPlan(r)) || ''}" style="width:auto">
     <label class="lbl" for="r-notes">Notas</label><input class="inp" id="r-notes" name="notes" value="${esc(r.notes || '')}">
     <div class="actions">${id ? `<div class="left"><button type="button" class="btn sm danger" data-act="del-ritual" data-id="${id}">APAGAR</button></div>` : ''}<button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">SALVAR</button></div></form>`);
 }
@@ -355,9 +360,9 @@ function editBoss(id) {
 }
 function redemption() {
   const td = today(), done = S.marks.days[td]?.h?.rd === 'x';
-  const opts = ['VER UMA AULA DO RD', '30 MIN DE MEDITAÇÃO', '1H DE CAMINHADA SEM CELULAR', 'BANHO GELADO + 5 SUSPIROS', 'LEITURA FÍSICA 1H'];
-  openModal(`<h2>⚔ missão de redenção</h2><p class="muted">+30 XP e cura ☠ envenenado e 🌫 neblina. Escolha a sua:</p>
-    <div class="list">${opts.map((o) => `<button class="li" style="width:100%;text-align:left;border:0;background:none;cursor:pointer" data-act="rd-do" data-o="${esc(o)}"><span class="lt">⚔ ${esc(o)}</span><span class="chip xp">+30</span></button>`).join('')}</div>
+  const opts = ['1 AULA DE CURSO', 'MEDITAÇÃO'];
+  openModal(`<h2>⚔ missão de redenção</h2><p class="muted">+${R.C.RD_XP} XP e cura ☠ envenenado e 🌫 neblina. Escolha a sua:</p>
+    <div class="list">${opts.map((o) => `<button class="li" style="width:100%;text-align:left;border:0;background:none;cursor:pointer" data-act="rd-do" data-o="${esc(o)}"><span class="lt">⚔ ${esc(o)}</span><span class="chip xp">+${R.C.RD_XP}</span></button>`).join('')}</div>
     <div class="actions">${done ? '<button class="btn danger" data-act="rd-undo">DESFAZER A DE HOJE</button>' : ''}<button class="btn" data-close>FECHAR</button></div>`);
 }
 function tour(step = 0) {
@@ -481,7 +486,7 @@ function jump(id) {
   if (!t) return;
   if (!R.isOpen(t) || (t.block && R.findBlock(S, t.block)?.color === 'black')) ui.showDone = true;
   closeModal();
-  ui.qtab = t.block ? (R.findBlock(S, t.block)?.group === 'bs' ? 'boss' : R.findBlock(S, t.block)?.group || 'listas') : 'listas';
+  ui.qtab = t.block ? tabOfBlock(R.findBlock(S, t.block)) : 'listas';
   if (route() !== 'quests') location.hash = '#quests'; else render();
   setTimeout(() => { const el = document.querySelector(`.board li.task[data-id="${id}"]`); if (el) { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.classList.add('flash'); } }, 80);
 }
@@ -500,7 +505,7 @@ const ACTIONS = {
   prio: (d) => { const t = S.quests.tasks.find((x) => x.id === d.id); A.updateTask(d.id, { prio: !t.prio }); },
   sort: (d) => { A.sortContainer({ area: d.area, block: d.block }); sfx('tab'); },
   jump: (d) => jump(d.id),
-  'jump-block': (d) => { const b = S.quests.blocks.find((x) => x.id === d.id); if (!b) return; ui.qtab = b.group === 'bs' ? 'boss' : b.group; closeModal(); if (route() !== 'quests') location.hash = '#quests'; else render(); setTimeout(() => { const el = document.querySelector(`[data-drop-block="${d.id}"]`); el?.scrollIntoView({ block: 'center' }); el?.classList.add('flash'); }, 80); },
+  'jump-block': (d) => { const b = S.quests.blocks.find((x) => x.id === d.id); if (!b) return; ui.qtab = tabOfBlock(b); closeModal(); if (route() !== 'quests') location.hash = '#quests'; else render(); setTimeout(() => { const el = document.querySelector(`[data-drop-block="${d.id}"]`); el?.scrollIntoView({ block: 'center' }); el?.classList.add('flash'); }, 80); },
   'goto-agenda': () => { location.hash = '#agenda'; },
   'edit-block': (d) => editBlock(d.id),
   'move-block': (d) => A.moveBlock(d.id, +d.dir),
@@ -510,7 +515,7 @@ const ACTIONS = {
   'del-boss': async (d) => { closeModal(); if (await ask('Apagar boss?', 'Essa meta some da lista.', 'APAGAR', true)) A.deleteBoss(d.id); },
   habit: (d, e) => { A.cycleHabit(d.d, d.h, at(e)); sfx('habit'); if (Math.random() < 0.3) primoReact('habito_feito'); },
   redemption: () => redemption(),
-  'rd-do': (d) => { closeModal(); if (S.marks.days[today()]?.h?.rd !== 'x') { A.setHabit(today(), 'rd', 'x'); toast(`⚔ Redenção: ${esc(d.o)}. +30 XP e debuffs curados.`, 'good'); } else toast('A redenção de hoje já foi feita.'); },
+  'rd-do': (d) => { closeModal(); if (S.marks.days[today()]?.h?.rd !== 'x') { A.setHabit(today(), 'rd', 'x'); toast(`⚔ Redenção: ${esc(d.o)}. +${R.C.RD_XP} XP e debuffs curados.`, 'good'); } else toast('A redenção de hoje já foi feita.'); },
   'rd-undo': () => { closeModal(); A.setHabit(today(), 'rd', ''); },
   'rest-day': async () => { if (await ask('Dia de descanso?', 'Doença ou dia puxado: todos os hábitos de HOJE viram folga (–), sem punição. Vai ficar fora mais dias? Use o botão ✈ VIAGEM.', 'DESCANSAR')) A.restDay(today()); },
   hweek: (d) => { ui.hweek = Math.min(0, (ui.hweek || 0) + +d.dir); render(); },
@@ -519,6 +524,19 @@ const ACTIONS = {
   'ritual-done': (d, e) => { A.ritualDone(d.id, at(e)); },
   'ritual-undo': (d) => A.ritualUndo(d.id),
   'edit-ritual': (d) => editRitual(d.id),
+  'ritual-plan': (d) => {
+    const r = S.core.rituals.find((x) => x.id === d.id);
+    if (!r) return;
+    const td = today(), sat = addDays(td, ((6 - weekday(td) + 7) % 7) || 7), sun = addDays(td, ((7 - weekday(td)) % 7) || 7), cur = R.ritualPlan(r) || '';
+    openModal(`<form data-form="ritual-plan" data-id="${r.id}" autocomplete="off"><h2>📅 quando vou fazer</h2><p class="muted">${esc(r.name)} · o aviso automático seria ${fmtDM(R.ritualNext(r, td))}. Marque o dia que você quer; ele aparece na AGENDA e vale até você fazer.</p>
+      <div class="row"><input class="inp" type="date" name="plan" value="${cur}" min="${td}" style="width:auto" autofocus>${[['HOJE', td], ['AMANHÃ', addDays(td, 1)], ['SÁBADO', sat], ['DOMINGO', sun], ['LIMPAR', '']].map(([n, v]) => `<button type="button" class="btn sm ghost" data-act="plan-quick" data-d="${v}">${n}</button>`).join('')}</div>
+      <div class="actions"><button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">MARCAR</button></div></form>`);
+  },
+  'plan-quick': (d, e, el) => { el.closest('form').plan.value = d.d; },
+  'review-block': (d) => { A.reviewBlock(d.id); sfx('tab'); },
+  'win-new': () => windowModal(),
+  'win-edit': (d) => windowModal(d.id),
+  'win-del': async (d) => { const w = R.windows(S).find((x) => x.id === d.id); closeModal(); if (w && await ask(`Apagar a janela ${w.name}?`, `Os blocos dela não são apagados: voltam pra ${R.GROUPS[w.base].short}.`, 'APAGAR', true)) { A.deleteWindow(d.id); ui.qtab = w.base; render(); } },
   'del-ritual': async (d) => { closeModal(); if (await ask('Apagar ritual?', 'O histórico de XP continua valendo.', 'APAGAR', true)) A.deleteRitual(d.id); },
   'edit-habits': () => editHabits(),
   'hab-row-add': (d, e, el) => { el.closest('form').querySelector('#hab-rows').insertAdjacentHTML('beforeend', '<div class="row hrow" style="margin-bottom:6px" data-id=""><input class="inp" name="icon" value="⭐" style="width:60px;text-align:center" aria-label="Ícone"><input class="inp grow" name="name" placeholder="NOVO HÁBITO" aria-label="Nome"><button type="button" class="icon-btn" data-act="hab-row-del" aria-label="Remover">×</button></div>'); },
@@ -599,7 +617,20 @@ extendPrimo(ACTIONS);
 extendDrive(ACTIONS, () => render());
 extendBackup(ACTIONS, () => render());
 extendTrip(ACTIONS);
+extendReview(ACTIONS);
 window.__ui = ui;
+/** em qual janela do QUESTS um bloco aparece */
+function tabOfBlock(b) { return !b ? 'listas' : b.group === 'bs' ? 'boss' : R.winOf(S, b) ? 'w:' + b.win : b.group; }
+function windowModal(id) {
+  const w = id ? R.windows(S).find((x) => x.id === id) : null;
+  const n = w ? S.quests.blocks.filter((b) => b.win === w.id).length : 0;
+  openModal(`<form data-form="window" data-id="${w?.id || ''}" autocomplete="off"><h2>${w ? 'janela' : 'nova janela'}</h2>
+    <p class="muted">Uma janela é uma gaveta de blocos, ao lado de BREAKDOWN, TRABALHO e as outras. Ela precisa de um tipo, que define quanto vale fechar um bloco: as regras do jogo continuam as mesmas.</p>
+    <label class="lbl" for="w-name">Nome</label><input class="inp" id="w-name" name="name" value="${esc(w?.name || '')}" maxlength="18" required autofocus placeholder="ex.: ESTUDOS, CASA, CLIENTE X">
+    <label class="lbl" for="w-base">Funciona como</label><select class="inp" id="w-base" name="base">${R.WINDOW_BASES.map((g) => `<option value="${g}" ${(w?.base || 'bd') === g ? 'selected' : ''}>${esc(R.GROUPS[g].short)} · fechar bloco vale ${R.C.XP_BLOCK[g] ?? 100} XP${g === 'tr' || g === 'cap' ? ' · tarefas contam como 💰' : ''}</option>`).join('')}</select>
+    <div class="actions">${w ? `<div class="left"><button type="button" class="btn sm danger" data-act="win-del" data-id="${w.id}">APAGAR JANELA</button></div>` : ''}<button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">${w ? 'SALVAR' : 'CRIAR'}</button></div>
+    ${w ? `<p class="meta" style="margin:8px 0 0">${n} bloco(s) aqui. Apagar a janela não apaga os blocos: eles voltam pra ${esc(R.GROUPS[w.base].short)}.</p>` : ''}</form>`);
+}
 function stepPrompt(t) {
   openModal(`<form data-form="step" data-id="${t.id}" autocomplete="off"><h2>+ ↳ passo</h2><p class="meta" style="margin:0">dentro de: ${esc(t.text)}</p><label class="lbl" for="st-text">Passo (até 2h)</label><input class="inp" id="st-text" name="text" required autofocus><div class="actions"><button type="button" class="btn" data-close>FECHAR</button><button class="btn pri">ADICIONAR</button></div></form>`);
 }
@@ -624,7 +655,8 @@ const FORMS = {
     sfx('tab');
     if (!blur) requestAnimationFrame(() => document.querySelector(`form[data-form="add-task"][data-${f.dataset.block ? 'block' : 'area'}="${f.dataset.block || f.dataset.area}"] input`)?.focus());
   },
-  'add-block': (f) => { const v = f.title.value.trim(); f.title.value = ''; if (v) A.addBlock(f.dataset.group, v); },
+  'add-block': (f) => { const v = f.title.value.trim(); f.title.value = ''; if (v) A.addBlock(f.dataset.group, v, f.dataset.win ? { win: f.dataset.win } : {}); },
+  window: (f) => { const r = A.saveWindow({ id: f.dataset.id, name: f.name.value, base: f.base.value }); if (r?.error) { toast(esc(r.error), 'bad'); return; } ui.qtab = 'w:' + r.window.id; closeModal(); sfx('tab'); render(); },
   'add-boss': (f) => { const v = f.text.value.trim(); f.text.value = ''; if (!v) return; const m = /([\d.]+)\s*XP/i.exec(v); A.addBoss(v, m ? +m[1].replace(/\./g, '') : 500); },
   task: async (f) => {
     const t = S.quests.tasks.find((x) => x.id === f.dataset.id);
@@ -643,7 +675,8 @@ const FORMS = {
   },
   block: async (f) => {
     const b = S.quests.blocks.find((x) => x.id === f.dataset.id);
-    const patch = { title: f.title.value.trim() || b.title, color: f.querySelector('[name=color]:checked')?.value || b.color, due: f.due.value || null, group: f.group.value };
+    const gv = f.group.value, gw = gv.startsWith('win:') ? R.windows(S).find((w) => 'win:' + w.id === gv) : null;
+    const patch = { title: f.title.value.trim() || b.title, color: f.querySelector('[name=color]:checked')?.value || b.color, due: f.due.value || null, group: gw ? gw.base : gv, win: gw ? gw.id : undefined };
     if (f.st.value !== 'done') patch.st = f.st.value;
     const lt = b.src && S.quests.tasks.find((x) => x.id === b.src);
     if (lt && (lt.due || null) !== patch.due) {
@@ -655,7 +688,8 @@ const FORMS = {
     closeModal();
   },
   boss: (f) => { const patch = { text: f.text.value.trim(), xp: +f.xp.value || 200, block: f.block.value || undefined }; if (f.st.value !== 'done') patch.st = f.st.value; A.updateBoss(f.dataset.id, patch); closeModal(); },
-  ritual: (f) => { A.saveRitual({ id: f.dataset.id, type: f.type.value, name: f.name.value, mode: f.mode.value, every: f.every.value, dom: f.dom.value, last: f.last.value, notes: f.notes.value }); closeModal(); },
+  ritual: (f) => { A.saveRitual({ id: f.dataset.id, type: f.type.value, name: f.name.value, mode: f.mode.value, every: f.every.value, dom: f.dom.value, last: f.last.value, plan: f.plan.value, notes: f.notes.value }); closeModal(); },
+  'ritual-plan': (f) => { A.planRitual(f.dataset.id, f.plan.value || null); closeModal(); sfx('tab'); },
   item: (f) => {
     const k = f.dataset.kind;
     A.saveShopItem(k, k === 'taverna' ? { id: f.dataset.id, name: f.name.value, xp: f.xp.value, icon: f.icon.value, min: f.min.value } : { id: f.dataset.id, name: f.name.value, cat: f.cat.value.trim().toUpperCase() || 'EU', nv: f.nv.value, repeat: f.repeat.checked, icon: f.icon.value });
@@ -697,6 +731,7 @@ document.addEventListener('change', (e) => {
   if (!el) return;
   const k = el.dataset.k, c = el.dataset.change;
   if (c === 'setting') A.setSetting(k, +el.value);
+  if (c === 'label') A.setLabel(k, el.value);
   if (c === 'milestones') A.updateMilestones(el.value.split(',').map((s) => s.trim().toUpperCase()));
   if (c === 'mode') setMode(el.value);
   if (c === 'vol') setVol(k, +el.value);

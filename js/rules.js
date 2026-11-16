@@ -7,7 +7,7 @@ export const C = {
   XP_LIST: 10, XP_SUB: 5, XP_STEP: 3, XP_HOME: 50, XP_MINI: 30,
   XP_BLOCK: { bd: 100, tr: 300, cap: 150, gs: 100, bs: 0 }, XP_GOAL: 200, XP_BOSS: 200,
   M_STAR: 2, M_ONTIME: 1.5, M_EARLY: 2, M_MONEY: 1.5,
-  HABIT_XP: 5, RD_XP: 30, FORGE: 66,
+  HABIT_XP: 5, RD_XP: 40, FORGE: 66,
   LVL_BASE: 500, LVL_CURVE: 150,
   RIT_PESSOA: 15, RIT_OUTRO: 20,
   BAU_BASE: 50, BAU_NOTE: 10,
@@ -33,6 +33,7 @@ export const ruleDefault = (k) => getPath(DEFAULT_C, k);
 /** põe os valores que você editou em cima dos padrões (chamar ao abrir o app e ao editar) */
 export function applyRules(s) {
   for (const [k] of RULE_FIELDS.flatMap((g) => g[1])) setPath(C, k, getPath(DEFAULT_C, k));
+  applyLabels(s);
   for (const [k, v] of Object.entries(s?.core?.settings?.rules || {})) { try { if (typeof v === 'number' && isFinite(v) && getPath(DEFAULT_C, k) !== undefined) setPath(C, k, v); } catch { /* chave velha */ } }
 }
 
@@ -53,6 +54,31 @@ export const AREAS = {
   hoje: 'HOJE', amanha: 'AMANHÃ', semana: 'ESTA SEMANA', depois: 'DEPOIS', sem: 'SEM PRAZO', wait: 'AGUARDANDO',
 };
 export const AREA_KEYS = ['hoje', 'amanha', 'semana', 'depois', 'sem', 'wait'];
+// ───── NOMES PERSONALIZÁVEIS: só o texto muda; as chaves (hoje, bd, tr…) e as regras continuam as mesmas ─────
+const NAMES_DEFAULT = { 'tab:listas': 'LISTAS', 'tab:boss': 'BOSSES' };
+export const TAB_NAMES = { listas: 'LISTAS', boss: 'BOSSES' };
+/** tudo que dá pra renomear: [chave, nome padrão] */
+export function labelFields() {
+  return [['tab:listas', NAMES_DEFAULT['tab:listas']], ...AREA_KEYS.map((k) => ['area:' + k, NAMES_DEFAULT['area:' + k]]), ['tab:boss', NAMES_DEFAULT['tab:boss']], ...['bd', 'tr', 'cap', 'gs'].map((g) => ['group:' + g, NAMES_DEFAULT['group:' + g]])];
+}
+/** aplica os nomes escolhidos pelo dono (core.labels) por cima dos padrões. Roda ao abrir e quando ele edita. */
+export function applyLabels(s) {
+  if (!NAMES_DEFAULT['area:hoje']) { // guarda os padrões na primeira vez
+    for (const k of AREA_KEYS) NAMES_DEFAULT['area:' + k] = AREAS[k];
+    for (const g of Object.keys(GROUPS)) { NAMES_DEFAULT['group:' + g] = GROUPS[g].short; NAMES_DEFAULT['groupname:' + g] = GROUPS[g].name; }
+  }
+  const L = s?.core?.labels || {}, val = (k) => String(L[k] || '').trim().toUpperCase().slice(0, 24);
+  for (const k of AREA_KEYS) AREAS[k] = val('area:' + k) || NAMES_DEFAULT['area:' + k];
+  for (const g of Object.keys(GROUPS)) { const v = val('group:' + g); GROUPS[g].short = v || NAMES_DEFAULT['group:' + g]; GROUPS[g].name = v || NAMES_DEFAULT['groupname:' + g]; }
+  TAB_NAMES.listas = val('tab:listas') || NAMES_DEFAULT['tab:listas'];
+  TAB_NAMES.boss = val('tab:boss') || NAMES_DEFAULT['tab:boss'];
+}
+// ───── JANELAS CRIADAS PELO DONO: uma janela nova é só uma "gaveta" de blocos. Cada bloco continua tendo um tipo-base
+// (bd, tr, cap ou gs), então XP, 💰 e conquistas funcionam igual: nada das regras muda. ─────
+export const WINDOW_BASES = ['bd', 'tr', 'cap', 'gs'];
+export const windows = (s) => (s.core?.windows || []).filter((w) => w && w.id && w.name);
+/** a janela própria de um bloco (ou null se ele está na janela do tipo dele) */
+export const winOf = (s, b) => (b?.win && windows(s).find((w) => w.id === b.win)) || null;
 /** nomes das listas antigas (só para mostrar tarefas já arquivadas) e conversão ao criar tarefa com nome antigo */
 const AREAS_OLD = { imed: 'IMEDIATOS', curto: 'CURTO PRAZO', longo: 'LONGO PRAZO' };
 export const AREA_FROM_OLD = { imed: 'hoje', curto: 'semana', longo: 'depois' };
@@ -774,15 +800,35 @@ export function ritualNext(r, td = today()) {
   }
   return null;
 }
+/** dia que VOCÊ marcou pra fazer o ritual (ex.: SPA no sábado). Vale no lugar do aviso automático até você fazer. */
+export const ritualPlan = (r) => (r.plan && (!r.last || r.plan > r.last) ? r.plan : null);
+/** rituais por dia numa janela (pra AGENDA e linha do tempo): o dia marcado ou o próximo aviso, mais as repetições seguintes. Atrasado aparece em hoje. */
+export function ritualDates(s, from, n, td = today()) {
+  const end = addDays(from, n - 1), out = {};
+  for (const r of s.core?.rituals || []) {
+    let d = ritualPlan(r) || ritualNext(r, td);
+    if (!d) continue;
+    if (d < td) d = td;
+    for (let guard = 0; d <= end && guard < 60; guard++) {
+      if (d >= from) (out[d] ||= []).push(r);
+      d = r.every ? addDays(d, r.every) : ritualNext({ ...r, last: d }, d);
+      if (!d) break;
+    }
+  }
+  return out;
+}
 export function ritualStatus(r, td = today()) {
-  const next = ritualNext(r, td);
+  const plan = ritualPlan(r), next = plan || ritualNext(r, td);
   if (!next) return { next: null, left: null, label: 'SEM FREQUÊNCIA', tone: 'muted' };
   const left = diffDays(td, next);
+  if (plan && left > 0) return { next, left, plan, label: left === 1 ? '📅 AMANHÃ' : `📅 EM ${left}d`, tone: 'good' };
   if (left < 0) return { next, left, label: `⚠ ATRASADO ${-left}d`, tone: 'bad' };
   if (left === 0) return { next, left, label: 'HOJE', tone: 'warn' };
   if (left <= 2) return { next, left, label: `⏳ EM ${left}d`, tone: 'warn' };
   return { next, left, label: '✔ EM DIA', tone: 'good' };
 }
+/** bloco marcado como REVISADO nas últimas 24 h */
+export const reviewed = (b, now = Date.now()) => !!b?.rev && now - b.rev < 864e5;
 export const ritualXp = (r) => (r.type === 'pessoa' ? C.RIT_PESSOA : C.RIT_OUTRO);
 
 // ───────────────────────── ALERTAS ─────────────────────────

@@ -37,6 +37,7 @@ O backup do dono NUNCA entra no repositório.
 - `actions.js` — tudo que MUDA dados, sempre via `commit()` (desfazer/refazer). Migrações rodam no `startup()`.
 - `store.js` — carrega/salva. `S` = estado global. No GitHub Pages os dados ficam no `localStorage` do aparelho.
 - `backup.js` — proteção dos dados no aparelho: cópia automática diária (`gamify-bak:*`), lembrete de backup, restaurar.
+- `review.js` — entrevista do dia e revisão de retorno (o PRIMO conduz, na 1ª abertura do dia).
 - `trip.js` — modo VIAGEM/VISITAS (congela o jogo; na volta empurra prazos e cria as tarefas de chegada).
 - `drive.js` — sincronização com Google Drive. O dono usa no dia a dia (celular e PC); o Claude não consegue testar o login real, só com um Google simulado (rotas do Playwright).
 - `primo.js`, `pdraw.js`, `pacc.js`, `pstate.js`, `falas.js`, `saber.js`, `claude.js` — o mascote PRIMO.
@@ -47,6 +48,9 @@ O backup do dono NUNCA entra no repositório.
 - Ao REMOVER um tipo de dado salvo, o dado antigo do dono continua existindo: trate valores legados e crie migração idempotente (registrada em `core.migrations`).
 - Trocar TODOS os dados de uma vez (importar, restaurar, Drive): use `restoreDocs()` de `backup.js`, nunca `replaceAll()` direto. Ele guarda antes uma cópia do estado atual.
 - As LISTAS do QUESTS são automáticas: a data decide a lista (`R.listOf`). Não grave `t.area` na mão: `syncLists()` (em `actions.js`, dentro do `commit()`) recalcula. Para pôr uma tarefa numa lista, mude a data (`R.dueForList`).
+- Janelas criadas pelo dono são gavetas: o bloco guarda `b.win`, mas `b.group` continua sendo o tipo-base (bd, tr, cap, gs). Nunca invente um `group` novo: as regras de XP dependem desses quatro. Para saber a aba de um bloco, use `R.winOf`.
+- Nomes de listas e janelas são personalizáveis (`core.labels` → `R.applyLabels`). Em código, compare sempre pela CHAVE (`hoje`, `bd`…), nunca pelo texto.
+- Os testes do Claude congelam a data (15/11/2026, a do backup de teste): sem isso, tarefas viram atrasadas, a loja tranca (ATOLADO) e os testes falham por motivo errado.
 - O cache de totais depende de `S._epoch++`.
 - O topo (`.top` + `.tabs`) só fica preso na primeira tela de rolagem (o `body` tem altura fixa). A variável CSS `--stick`, atualizada em `app.js`, diz onde ele termina; a barra das janelas do QUESTS e o painel da direita usam essa variável.
 - Qualquer redesenho (`render()`) recria a tela: o que estiver digitado nas linhas "+ adicionar" e a rolagem do painel da direita são guardados e devolvidos por `render()`. Campo novo desse tipo precisa entrar em `ADD_SEL`.

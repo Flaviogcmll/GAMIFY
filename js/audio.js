@@ -55,6 +55,8 @@ function noise(t, dur, { vol = 0.2, type = 'bandpass', freq = 1800, q = 1, out =
 
 // ───── efeitos ─────
 const SFX = {
+  // fogos: assobio do rojão subindo + estouro com chiado, três vezes
+  fireworks: (t) => { for (let i = 0; i < 3; i++) { const u = t + i * 0.27; tone(700, u, 0.2, { slide: 2.4, type: 'sine', vol: 0.05 }); noise(u + 0.22, 0.34, { freq: 900, vol: 0.3, q: 0.6 }); noise(u + 0.24, 0.6, { freq: 5200, vol: 0.1, q: 0.8 }); } },
   check: (t) => { tone(mtof(76), t, 0.07); tone(mtof(83), t + 0.07, 0.12); },
   xp: (t) => [84, 88, 91].forEach((m, i) => tone(mtof(m), t + i * 0.05, 0.12, { type: 'triangle', vol: 0.18 })),
   coin: (t) => { tone(mtof(83), t, 0.08); tone(mtof(88), t + 0.08, 0.3); },

@@ -121,6 +121,9 @@ export function viewRegras() {
   return `<div class="page-title"><div><h1><em>perks and rules</em>.</h1></div></div>
     <div class="grid">
       ${settingsV35()}
+      <div class="card c12" data-gk="nomes"><header><h2>✏ Nomes das listas e janelas</h2><span class="meta">só o texto muda; as regras continuam as mesmas</span></header>
+        <div class="namegrid">${R.labelFields().map(([k, def]) => `<label><span class="px">${esc(def)}</span><input class="inp" data-change="label" data-k="${k}" value="${esc(S.core.labels?.[k] || '')}" placeholder="${esc(def)}" maxlength="24" aria-label="Nome para ${esc(def)}"></label>`).join('')}</div>
+        <p class="meta" style="margin:8px 0 0">Deixe em branco pra voltar ao nome padrão. Para criar uma janela nova, use o ＋ na barra das janelas do QUESTS.</p></div>
       ${rulesEditor()}
       ${shopEditor()}
       ${metaCard()}

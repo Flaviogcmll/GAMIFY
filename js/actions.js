@@ -159,6 +159,13 @@ export function startup() {
   for (const t of oldList) toArq(end(t).slice(0, 7), 'tasks', t);
   const drop = new Set(oldList.map((t) => t.id));
   let changedQ = false, changedCore = false, changedCoreV4 = false;
+  // última vez que o app foi aberto (vai junto nos dados, então vale entre celular e PC): a revisão de retorno usa a distância até hoje
+  if (S.core.lastOpen !== td) {
+    const lastMark = Object.keys(S.marks.days || {}).filter((d) => d < td && Object.keys(S.marks.days[d].h || {}).length).sort().at(-1);
+    S._prevOpen = S.core.lastOpen && S.core.lastOpen < td ? S.core.lastOpen : lastMark || td;
+    S._gap = Math.max(0, diffDays(S._prevOpen, td));
+    S.core.lastOpen = td; changedCore = true;
+  }
   if (closedBlocks.length || oldList.length) {
     q.tasks = q.tasks.filter((t) => !drop.has(t.id) && !closedIds.has(t.block));
     q.blocks = q.blocks.filter((b) => !closedIds.has(b.id));
@@ -176,6 +183,13 @@ export function startup() {
     for (const [name, xp, icon, min] of NEW_TAVERNA) if (!have(S.loja.taverna, name)) S.loja.taverna.push({ id: uid('v'), name, xp, icon, ...(min ? { min } : {}) });
     for (const [cat, name, nv, icon, repeat] of NEW_FERREIRO) { if (!have(S.loja.ferreiro, name)) S.loja.ferreiro.push({ id: uid('f'), name, cat, nv, icon, repeat: !!repeat }); if (!S.loja.cats.includes(cat)) S.loja.cats.push(cat); }
     S.core.migrations.push('shop4'); S._lojaChanged = true; changedCore = true;
+  }
+  if (!S.core.migrations.includes('shop5')) { // v5.6: itens pedidos pelo dono (preços provisórios até a análise da economia)
+    const has = (l, re) => l.some((x) => re.test(x.name.toUpperCase()));
+    if (!has(S.loja.taverna, /ACORDAR TARDE/)) S.loja.taverna.push({ id: uid('v'), name: 'ACORDAR TARDE (1H A MAIS)', xp: 90, icon: '😴' });
+    if (!has(S.loja.ferreiro, /STEAM/)) S.loja.ferreiro.push({ id: uid('f'), name: 'JOGO NA STEAM', cat: 'JOGOS', nv: 2, icon: '🎮', repeat: true });
+    if (!S.loja.cats.includes('JOGOS')) S.loja.cats.push('JOGOS');
+    S.core.migrations.push('shop5'); S._lojaChanged = true; changedCore = true;
   }
   if (!S.core.migrations.includes('bosses4')) { // v4: cada boss ganha o seu bloco (grupo BOSSES) e sai do BREAKDOWN
     for (const boss of q.bosses) {
@@ -502,6 +516,7 @@ export function addBlock(group, title, extra = {}) {
   if (!title) return null;
   return commit(['quests'], () => {
     const b = { id: uid('k'), group, title, color: extra.color || (group === 'tr' ? 'yellow' : 'green'), st: '', due: extra.due || null, created: today(), ord: maxOrd() + 1 };
+    if (extra.win) b.win = extra.win; // bloco criado dentro de uma janela sua
     S.quests.blocks.push(b);
     return { block: b };
   });
@@ -667,6 +682,7 @@ export function ritualDone(rid, at) {
     if (r.last === td) return { msg: 'Já marcado hoje.' };
     S.core.ritualLog.push({ id: uid('rl'), rid, date: td, xp: R.ritualXp(r), prevLast: r.last || null });
     r.last = td;
+    delete r.plan; // feito: o dia marcado já cumpriu o papel
   }, { at });
 }
 export function ritualUndo(rid) {
@@ -685,9 +701,50 @@ export function saveRitual(data) {
     if (data.mode === 'dom') { clean.dom = +data.dom || 1; } else { clean.every = Math.max(1, +data.every || 7); }
     if (!clean.name) return;
     const r = data.id && S.core.rituals.find((x) => x.id === data.id);
-    if (r) { delete r.every; delete r.dom; Object.assign(r, clean); if (data.last !== undefined) r.last = data.last || null; }
-    else S.core.rituals.push({ id: uid('r'), ...clean, last: data.last || null });
+    if (r) { delete r.every; delete r.dom; Object.assign(r, clean); if (data.last !== undefined) r.last = data.last || null; if (data.plan !== undefined) { if (data.plan) r.plan = data.plan; else delete r.plan; } }
+    else S.core.rituals.push({ id: uid('r'), ...clean, last: data.last || null, ...(data.plan ? { plan: data.plan } : {}) });
   });
+}
+/** troca o nome de uma lista ou janela (vazio = volta ao padrão) */
+export function setLabel(key, value) {
+  return commit(['core'], () => {
+    S.core.labels ||= {};
+    const v = String(value || '').trim().toUpperCase().slice(0, 24);
+    if (v) S.core.labels[key] = v; else delete S.core.labels[key];
+    R.applyLabels(S);
+  }, { label: 'nome personalizado' });
+}
+/** cria ou edita uma janela sua (uma gaveta de blocos com um tipo-base) */
+export function saveWindow({ id, name, base }) {
+  name = String(name || '').trim().toUpperCase().slice(0, 18);
+  if (!name) return { error: 'Dê um nome pra janela.' };
+  return commit(['core', 'quests'], () => {
+    S.core.windows ||= [];
+    base = R.WINDOW_BASES.includes(base) ? base : 'bd';
+    let w = id && S.core.windows.find((x) => x.id === id);
+    if (w) { w.name = name; if (w.base !== base) { w.base = base; for (const b of S.quests.blocks) if (b.win === w.id) b.group = base; } }
+    else { w = { id: uid('w'), name, base }; S.core.windows.push(w); }
+    return { window: w };
+  }, { label: 'janela' });
+}
+/** apaga a janela: os blocos dela NÃO são apagados, voltam pra janela do tipo-base */
+export function deleteWindow(id) {
+  return commit(['core', 'quests'], () => {
+    S.core.windows = (S.core.windows || []).filter((w) => w.id !== id);
+    for (const b of S.quests.blocks) if (b.win === id) delete b.win;
+  }, { label: 'janela apagada' });
+}
+/** marca (ou limpa) o dia em que você vai fazer o ritual */
+export function planRitual(id, date) {
+  const r = S.core.rituals.find((x) => x.id === id);
+  if (!r) return;
+  return commit(['core'], () => { if (date) r.plan = date; else delete r.plan; return { msg: date ? `📅 ${r.name}: marcado.` : `${r.name}: dia desmarcado.` }; });
+}
+/** REVISADO: você olhou o bloco e está tudo em ordem. Vale 24 h (é só um selo: não dá XP). */
+export function reviewBlock(id) {
+  const b = B(id);
+  if (!b) return;
+  return commit(['quests'], () => { if (R.reviewed(b)) delete b.rev; else b.rev = Date.now(); });
 }
 export function deleteRitual(id) {
   commit(['core'], () => { S.core.rituals = S.core.rituals.filter((r) => r.id !== id); });
