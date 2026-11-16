@@ -159,6 +159,13 @@ export function startup() {
   for (const t of oldList) toArq(end(t).slice(0, 7), 'tasks', t);
   const drop = new Set(oldList.map((t) => t.id));
   let changedQ = false, changedCore = false, changedCoreV4 = false;
+  // última vez que o app foi aberto (vai junto nos dados, então vale entre celular e PC): a revisão de retorno usa a distância até hoje
+  if (S.core.lastOpen !== td) {
+    const lastMark = Object.keys(S.marks.days || {}).filter((d) => d < td && Object.keys(S.marks.days[d].h || {}).length).sort().at(-1);
+    S._prevOpen = S.core.lastOpen && S.core.lastOpen < td ? S.core.lastOpen : lastMark || td;
+    S._gap = Math.max(0, diffDays(S._prevOpen, td));
+    S.core.lastOpen = td; changedCore = true;
+  }
   if (closedBlocks.length || oldList.length) {
     q.tasks = q.tasks.filter((t) => !drop.has(t.id) && !closedIds.has(t.block));
     q.blocks = q.blocks.filter((b) => !closedIds.has(b.id));

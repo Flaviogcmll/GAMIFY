@@ -36,6 +36,7 @@ import { extendPrimo, openPrimoHub, primoFeedback, primoReact } from './primo.js
 import { extendDrive } from './drive.js';
 import { autoSnapshot, backupBanner, extendBackup, markBackup, restoreDocs } from './backup.js';
 import { tripBanner, tripCheck, extendTrip } from './trip.js';
+import { maybeReview, extendReview } from './review.js';
 
 
 // abas na mesma ordem da planilha
@@ -131,6 +132,7 @@ function render() {
   scrollTo(0, y);
   try { mountScenes(); } catch (err) { console.error(err); }
   deaccent(document.body);
+  try { maybeReview(); } catch (err) { console.error(err); }
   try { afterRender(cur); } catch (err) { console.error(err); }
   try { afterRender4(cur); } catch (err) { console.error(err); }
   refocus();
@@ -599,6 +601,7 @@ extendPrimo(ACTIONS);
 extendDrive(ACTIONS, () => render());
 extendBackup(ACTIONS, () => render());
 extendTrip(ACTIONS);
+extendReview(ACTIONS);
 window.__ui = ui;
 function stepPrompt(t) {
   openModal(`<form data-form="step" data-id="${t.id}" autocomplete="off"><h2>+ ↳ passo</h2><p class="meta" style="margin:0">dentro de: ${esc(t.text)}</p><label class="lbl" for="st-text">Passo (até 2h)</label><input class="inp" id="st-text" name="text" required autofocus><div class="actions"><button type="button" class="btn" data-close>FECHAR</button><button class="btn pri">ADICIONAR</button></div></form>`);

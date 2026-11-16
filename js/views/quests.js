@@ -151,7 +151,8 @@ export function sidePanel(ui) {
       <button class="btn" data-act="rest-day" title="Doença ou dia puxado: os hábitos de hoje viram folga">🏕<span>DESCANSO</span></button>
       <button class="btn" data-act="redemption">${px('sword', 14)}<span>REDENÇÃO</span></button>
       <button class="btn" data-act="sos">${px('sos', 14)}<span>SOS TRAVEI</span></button>
-      <button class="btn" data-act="backup-download" title="Baixa um arquivo com todos os seus dados">⬇<span>BACKUP</span></button></div></div>`],
+      <button class="btn" data-act="backup-download" title="Baixa um arquivo com todos os seus dados">⬇<span>BACKUP</span></button>
+      <button class="btn" data-act="review" title="O PRIMO revisa o dia com você: hábitos de ontem, atrasadas e a primeira de hoje" style="grid-column:1 / -1">☀<span>REVISAR O DIA COM O PRIMO</span></button></div></div>`],
     ['fila', '⏰ Fila de prazos', filaCard(td)],
   ])}
     <p class="meta" style="text-align:center">${weekday(td) === 5 ? '⚠ sexta-feira: o dia em que mais se quebra sequência. marque os hábitos!' : ''}</p>
