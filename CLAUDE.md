@@ -1,6 +1,7 @@
 # GAMIFY — guia rápido para quem for mexer no código
 
-Manual completo: `BRIEFING_NOVO_CHAT.md` (leia antes de qualquer mudança).
+Manual completo: `BRIEFING_NOVO_CHAT.md`. Ele é PRIVADO (não fica no repositório, assim como os prompts de arte): o dono anexa no chat.
+Se não veio, peça antes de qualquer mudança. No fim da rodada, entregue a versão atualizada a ele. O `.gitignore` bloqueia esses arquivos.
 
 ## O que é
 Metas, tarefas e hábitos viram um jogo. HTML + CSS + JavaScript puro (módulos ES). Sem build, sem dependências, sem servidor.
@@ -16,7 +17,7 @@ Publicado pelo GitHub Pages a partir da branch `main` (repositório público). *
 7. No fim de cada resposta: o que mudou, o que NÃO foi testado, próximos passos.
 8. Arte: só original, CC0 ou CC-BY com crédito. Nada com direitos autorais.
 9. Arquivo novo usado pelo app → adicionar na lista do `sw.js` e trocar a versão `V` do cache.
-10. O repositório é público: não escrever dados pessoais do dono em arquivos novos.
+10. O repositório é público: não escrever dados pessoais do dono nem as ideias/planos dele em arquivos novos (briefing, prompts e planos vão só para ele). Os PDFs das aulas têm marca d'água com dados pessoais: nunca copie trechos deles para o repositório.
 
 ## Rodar e testar
 ```bash

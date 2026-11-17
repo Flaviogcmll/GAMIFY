@@ -1,0 +1,8 @@
+# Arquivos de ideias do dono: ficam só com ele (pedido de 17/11/2026). Nunca voltam para o repositório público.
+BRIEFING_NOVO_CHAT.md
+PROMPTS_HIGGSFIELD*.txt
+GUIA_SPRITES_IA.md
+# Backups, dados e materiais do dono nunca entram
+gamify-backup-*.json
+*.backup.json
+*.pdf
