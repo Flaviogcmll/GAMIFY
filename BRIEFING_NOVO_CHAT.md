@@ -229,6 +229,20 @@ Pedido do dono: "as cores têm que ter justificativa; a mesma cor = a mesma cate
   - Dopamina sob controle: tarefa fácil (< 20 XP, sem ⭐ ⚔) não solta o "+XP" voando; fogos continuam só para o que custou.
   - Escada do esforço: 7 dias seguidos na meta → `core.ladder` ganha a data e a meta sobe 5% (máx. 10 degraus). Cada dia é medido com a meta que valia nele (`goalAt`), então a sequência e as conquistas não quebram.
 
+## PRÓXIMA RODADA — JÁ ESCOLHIDA PELO DONO (17/11/2026)
+Lembrete dele: "o app tem que ser PRÁTICO e não comer meu tempo; preciso de tempo para as tarefas". Cada recurso: no máximo 1 toque a mais, nada de tela obrigatória, tudo desligável em PERKS → 🧠.
+Ideias do livro do Bullet Journal (Ryder Carroll), das anotações do dono. Ele escolheu A, C, E, F, G, H:
+- **A) Migração do mês**: no começo do mês, o PRIMO passa uma a uma pelas tarefas paradas, sem prazo ou antigas: ✓ ainda vale (ganha data) ou ✕ cancela. "Se não vale reescrever, não vale fazer." Deve ser rápido (2 botões por tarefa, dá pra parar no meio).
+- **C) 5 porquês no BOSS**: ao criar/editar um boss, dois campos opcionais: "por que isso importa?" e "o que acontece se eu NÃO fizer?" (medo como motivador, da masterclass). O PRIMO lembra quando o boss fica parado.
+- **E) Time boxing**: tarefa remarcada 3 vezes (`t.rs`) trava: o PRIMO pede um horário + duração, ou cancelar.
+- **F) Atenção residual**: se HOJE passar do limite de tarefas por dia (`settings.maxPerDay`), aviso curto e sugestão de empurrar as menos importantes.
+- **G) Pato de borracha** no SOS TRAVEI: explicar ao PRIMO o que travou (o que tentou, o que funcionou, o que não).
+- **H) Pausa de meta**: pausar um boss por até 2 semanas, com data de volta automática (não confundir com abandonar).
+Não escolhidas: B (metas 5-4-3-2-1) e D (sprint de 2 semanas).
+- **Material de neurociência**: o dono tem uma lista grande de aulas (Eslen Delanogare). Pedir a ele, pelo TÍTULO, as aulas sobre: sono e ciclo circadiano; dopamina e recompensa; hábitos e automatização; estresse e cortisol; atenção e foco; exercício/BDNF e alimentação. Usar para calibrar o relógio do corpo, a loja e os hábitos (v5.14). Os PDFs NÃO entram no repositório.
+- **Qualidade de vida** sugerida pelo Claude: ver a resposta da rodada 13 e as letras que o dono escolher.
+- **Dados do dono**: o novo chat não tem os arquivos deste. Pedir um backup novo (PERKS → BAIXAR BACKUP). O link da pasta do Drive com as artes originais o dono manda de novo, se precisar (não escrever no repositório).
+
 ## PRÓXIMAS RODADAS
 Princípio do dono: qualidade de vida e praticidade; tudo integrado como um ecossistema; simples no fim das contas (o app não pode tomar o tempo das tarefas). Ele aceita sugestões melhores que o pedido. **Sem mecânicas novas por enquanto** (pedido dele em 16/11).
 - Mais regras da masterclass que podem virar recurso (o dono tem mais material do mesmo autor): ver a lista na resposta da rodada 13.
