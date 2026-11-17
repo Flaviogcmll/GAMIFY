@@ -122,33 +122,14 @@ export function petSync() {
   return null;
 }
 
-// ───────────────────────── ARMÁRIO ─────────────────────────
-export const SLOTS = [['hat', 'CABEÇA'], ['eyes', 'ÓCULOS'], ['neck', 'PESCOÇO'], ['back', 'COSTAS']];
-export const WARDROBE = [
-  { id: 'bone', slot: 'hat', name: 'Boné vermelho', need: { lv: 1 } }, { id: 'palha', slot: 'hat', name: 'Chapéu de palha', need: { lv: 2 } },
-  { id: 'gorro', slot: 'hat', name: 'Gorro de lã', need: { lv: 3 } }, { id: 'bandana', slot: 'hat', name: 'Bandana', need: { lv: 6 } },
-  { id: 'capacete', slot: 'hat', name: 'Capacete de obra', need: { exp: 3 } }, { id: 'fone', slot: 'hat', name: 'Fones de ouvido', need: { lv: 5 } },
-  { id: 'cartola', slot: 'hat', name: 'Cartola', need: { lv: 8 } }, { id: 'mago', slot: 'hat', name: 'Chapéu de mago', need: { lv: 15 } }, { id: 'coroa', slot: 'hat', name: 'Coroa', need: { lv: 20 } },
-  { id: 'oculos', slot: 'eyes', name: 'Óculos redondos', need: { lv: 1 } }, { id: 'sol', slot: 'eyes', name: 'Óculos escuros', need: { lv: 4 } }, { id: 'monoculo', slot: 'eyes', name: 'Monóculo', need: { lv: 12 } },
-  { id: 'cachecol', slot: 'neck', name: 'Cachecol', need: { lv: 1 } }, { id: 'gravata', slot: 'neck', name: 'Gravata borboleta', need: { lv: 7 } }, { id: 'medalha', slot: 'neck', name: 'Medalha dourada', need: { ach: 'elite' } },
-  { id: 'mochila', slot: 'back', name: 'Mochila de aventura', need: { lv: 2 } }, { id: 'capa', slot: 'back', name: 'Capa vermelha', need: { lv: 10 } }, { id: 'capaazul', slot: 'back', name: 'Capa de herói', need: { boss: 3 } },
-  // v5.8: peças que só existem na arte nova do PRIMO
-  { id: 'cozinheiro', slot: 'hat', name: 'Chapéu de cozinheiro', need: { lv: 4 }, novo: true }, { id: 'lanterna', slot: 'hat', name: 'Capacete de mineiro', need: { exp: 6 }, novo: true },
-  { id: 'junina', slot: 'neck', name: 'Lenço de festa junina', need: { lv: 3 }, novo: true }, { id: 'trevo', slot: 'neck', name: 'Trevo da sorte', need: { lv: 9 }, novo: true },
-  { id: 'chuva', slot: 'back', name: 'Capa de chuva', need: { lv: 5 }, novo: true }, { id: 'violao', slot: 'back', name: 'Violão', need: { lv: 6 }, novo: true },
-];
-export function wardrobeOk(it, s = S) {
-  const n = it.need || {}, tot = R.totals(s), st = R.stats(s);
-  if (n.lv) return { ok: tot.level >= n.lv, hint: `nível ${n.lv}` };
-  if (n.exp) return { ok: (s.core?.primo?.expN || 0) >= n.exp, hint: `${n.exp} expedições` };
-  if (n.boss) return { ok: (st.bossDone || 0) >= n.boss, hint: `${n.boss} bosses` };
-  if (n.ach) return { ok: !!s.core?.achievements?.[n.ach], hint: 'conquista PONTUALIDADE DE ELITE' };
-  return { ok: true, hint: '' };
-}
-export const wearing = () => ({ hat: null, eyes: null, neck: null, back: null, ...(P().wear || {}) });
-export function setWear(slot, id) {
-  if (id) { const it = WARDROBE.find((x) => x.id === id); if (!it || it.slot !== slot || !wardrobeOk(it).ok) return { error: 'Ainda não liberou esse item.' }; }
-  return commit(['core'], () => { const p = ensure(); p.wear = { ...(p.wear || {}), [slot]: id || null }; });
+// ───────────────────────── CHAPÉU DE PALHA ─────────────────────────
+// O único acessório do PRIMO: é a identidade caipira dele. O dono tira e põe (o padrão é COM chapéu).
+// Os outros acessórios foram removidos em 17/11/2026 (não encaixavam bem na arte nova).
+export const hatOn = () => P().wear?.hat !== null; // sem registro (undefined) = com chapéu; qualquer chapéu antigo vira o de palha
+export const wearing = () => ({ hat: hatOn() ? 'palha' : null });
+export function toggleHat() {
+  const on = !hatOn();
+  return commit(['core'], () => { ensure().wear = { hat: on ? 'palha' : null }; return { msg: on ? '🤠 Chapéu de palha de volta, sô.' : 'Chapéu tirado. Cabeça fresca, uai.' }; }, { label: 'chapéu' });
 }
 
 // ───────────────────────── DIÁRIO DO PRIMO (um resumo por semana que terminou) ─────────────────────────

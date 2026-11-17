@@ -25,7 +25,7 @@ export function toggleCollapse(k) { collapsed.has(k) ? collapsed.delete(k) : col
 
 // ───────────── cenário no topo de cada aba ─────────────
 const TITLES = {
-  survival: ['survival.', 'campo de treino · hábitos e rituais'], agenda: ['agenda.', 'a mesa do mapa · prazos e compromissos'], shop: ['taverna.', 'compre antes de aproveitar'],
+  survival: ['survival.', 'campo de treino · hábitos e rituais'], agenda: ['agenda.', 'a mesa do mapa · prazos e rituais'], shop: ['taverna.', 'compre antes de aproveitar'],
   ferreiro: ['ferreiro.', 'upgrades permanentes · XP + gold'], domingo: ['reflexão.', 'o baú da semana · peso · notas'], conquistas: ['conquistas.', 'salão dos troféus'],
   filtro: ['filtro.', 'tudo em aberto, numa tabela'], rotina: ['rotina.', 'a torre do relógio · semana-tipo'], regras: ['perks and rules.', 'o livro de regras'], arquivo: ['arquivo.', 'a biblioteca do que já foi'],
 };
@@ -176,13 +176,12 @@ export function viewArquivo3(ui) {
   all = all.filter((t) => (!f.q || (t.text + ' ' + (t.blockTitle || '')).toLowerCase().includes(f.q.toLowerCase())) && (!f.m || (t.doneAt || t.cancelAt || '').startsWith(f.m)) && (!f.a || (f.a === 'block' ? t.block || t.blockTitle : t.area === f.a)))
     .sort((a, b) => ((b.doneAt || b.cancelAt || '') > (a.doneAt || a.cancelAt || '') ? 1 : -1));
   const lim = ui.arqLimit || 80;
-  const old = Object.keys(S.arq).filter((m) => m < addDays(today(), -31).slice(0, 7));
   const L = S.core.legacy;
   return `${historyCard()}<div class="card" style="margin-bottom:14px"><div class="row">
       <input class="inp grow" data-input="arqF.q" value="${esc(f.q)}" placeholder="🔍 buscar no arquivo" aria-label="Buscar">
       <select class="inp" style="width:auto" data-v3change="arqF.m" aria-label="Mês"><option value="">TODOS OS MESES</option>${months.map((m) => `<option ${f.m === m ? 'selected' : ''} value="${m}">${m.slice(5)}/${m.slice(0, 4)}</option>`).join('')}</select>
       <select class="inp" style="width:auto" data-v3change="arqF.a" aria-label="Área"><option value="">TODAS</option>${[...Object.entries(R.AREAS), ['block', 'BLOCOS']].map(([k, n]) => `<option ${f.a === k ? 'selected' : ''} value="${k}">${n}</option>`).join('')}</select>
-      <button class="btn" data-act="archive-now">🔄 ATUALIZAR</button><button class="btn danger" data-act="arq-empty" ${old.length ? '' : 'disabled'} title="Apaga meses com mais de 30 dias; XP e medalhas ficam">🗑 ESVAZIAR ANTIGOS (${old.length})</button></div>
+      <button class="btn" data-act="archive-now">🔄 ATUALIZAR</button><button class="btn danger" data-act="arq-empty" ${Object.keys(S.arq).length ? '' : 'disabled'} title="Escolha os meses; XP e medalhas ficam">🗑 ESVAZIAR…</button></div>
       ${L ? `<p class="meta" style="margin:8px 0 0">saldo histórico guardado: ${fmtN(L.done || 0)} concluídas · ${fmtN(L.onTime || 0)} no prazo</p>` : ''}</div>
     <div class="card" style="max-width:920px"><div class="list">${all.slice(0, lim).map((t) => {
       const ctx = t.blockTitle || (t.block ? R.findBlock(S, t.block)?.title : R.areaName(t.area)) || '';
@@ -219,7 +218,13 @@ export function extend(ACTIONS, render) {
       if (f.phase === 'break' || (f.pomo && f.round > 1 && f.end - Date.now() > 24 * 60000)) { clearInterval(f.timer); focus = null; closeModal(); toast('🍅 Ciclo encerrado. Bom trabalho!', 'good'); return; }
       if (await ask('Desistir do foco?', 'A fogueira apaga e não conta XP desta rodada.', 'DESISTIR', true)) { const g = focus; if (g) { clearInterval(g.timer); focus = null; A.focusDone(g.min, false, g.taskId); } }
     },
-    'arq-empty': async () => { if (await ask('Esvaziar o arquivo antigo?', 'Apaga as tarefas arquivadas há mais de 30 dias. O XP, o nível e as medalhas continuam (ficam num saldo histórico). Dica: COPIAR BACKUP antes.', 'ESVAZIAR', true)) { const r = A.emptyArchive(addDays(today(), -31).slice(0, 7)); if (r?.error) toast(esc(r.error), 'bad'); } },
+    'arq-empty': () => {
+      const ms = Object.keys(S.arq).sort();
+      if (!ms.length) { toast('O arquivo já está vazio.'); return; }
+      openModal(`<form data-v3form="arq-empty"><h2>🗑 esvaziar o arquivo</h2><p class="muted">Escolha os meses. As tarefas desses meses somem da lista do ARQUIVO, mas o XP, o nível, as medalhas, a meta do dia e as sequências continuam iguais (ficam guardados dia a dia). Baixe um backup antes, se quiser guardar a lista.</p>
+        <div class="list">${ms.map((m) => `<label class="li" style="cursor:pointer"><span class="lt"><input type="checkbox" name="m" value="${m}" checked> ${m.slice(5)}/${m.slice(0, 4)}<small>${(S.arq[m].tasks || []).length} tarefa(s)</small></span></label>`).join('')}</div>
+        <div class="actions"><button type="button" class="btn" data-close>CANCELAR</button><button class="btn danger">ESVAZIAR</button></div></form>`);
+    },
   });
   document.addEventListener('submit', async (e) => {
     const f = e.target.closest('form[data-v3form]');
@@ -227,6 +232,7 @@ export function extend(ACTIONS, render) {
     e.preventDefault();
     if (f.dataset.v3form === 'rename') { A.renameCompanion(f.n.value); closeModal(); }
     if (f.dataset.v3form === 'weekly') { const ids = [...f.querySelectorAll('[name=w]:checked')].map((x) => x.value); if (ids.length > 3) { toast('Só 3. Foco é escolher o que fica de fora.', 'bad'); return; } A.setWeekly(ids, R.weeklyMissions(S, f.dataset.target).ws); closeModal(); }
+    if (f.dataset.v3form === 'arq-empty') { const ms = [...f.querySelectorAll('[name=m]:checked')].map((x) => x.value); closeModal(); if (!ms.length) return; const r = A.emptyArchive(ms); if (r?.error) toast(esc(r.error), 'bad'); else sfx('swish'); }
     if (f.dataset.v3form === 'save') { A.addSaving(f.v.value, f.n.value); closeModal(); sfx('coin'); }
     if (f.dataset.v3form === 'take') { const r = A.withdrawSaving(f.v.value, f.n.value); if (r?.error) { sfx('error'); toast(esc(r.error), 'bad'); return; } closeModal(); sfx('coin'); }
     if (f.dataset.v3form === 'chat') {

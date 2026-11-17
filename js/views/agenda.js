@@ -1,4 +1,4 @@
-// AGENDA — controle de prazos, linha do tempo de 6 semanas (◄ ► troca a semana), fila com filtro e compromissos.
+// AGENDA — controle de prazos, linha do tempo de 6 semanas (◄ ► troca a semana), fila com filtro.
 import { S } from '../store.js';
 import { ritualRow } from './survival.js';
 
@@ -19,7 +19,6 @@ function timelineCard(ui) {
     return `<td class="${d === td ? 'today' : we ? 'we' : ''} ${n ? 'n' : ''} ${n && d < td ? 'late' : ''} ${extra}">${n || ''}</td>`;
   };
   const rows = tl.rows.map((r, i) => `<tr class="rowc-${i >= 4 ? i + 1 : i}"><td class="name">${esc(r.name)}</td>${days.map((d) => cell(d, r.counts[d])).join('')}</tr>`).join('');
-  const load = `<tr class="rowc-6"><td class="name"><b>📊 CARGA DO DIA</b></td>${days.map((d) => { const n = tl.load[d] || 0; return `<td class="${d === td ? 'today' : ''} n ${n >= 6 ? 'load-6' : n >= 4 ? 'load-4' : 'load-1'}">${n || ''}</td>`; }).join('')}</tr>`;
   const blocks = tl.blocks.map((b) => {
     const dues = Object.keys(b.counts).sort();
     const endD = b.due || dues[dues.length - 1];
@@ -30,7 +29,7 @@ function timelineCard(ui) {
   }).join('');
   return `<div class="card c12"><header><h2>Linha do tempo · 6 semanas</h2>
       <div class="row"><button class="btn sm" data-act="tl-week" data-dir="-1" aria-label="Semana anterior">◄</button><button class="btn sm" data-act="tl-week" data-dir="0">HOJE</button><button class="btn sm" data-act="tl-week" data-dir="1" aria-label="Próxima semana">►</button></div></header>
-    <div class="tl"><table><thead><tr><th></th>${head1}</tr><tr><th></th>${head2}</tr></thead><tbody>${rows}${load}<tr class="rowc-5"><td class="name"><b>🔁 RITUAIS</b></td>${days.map((d) => { const l = rit[d] || []; return `<td class="${d === td ? 'today' : ''} ${l.length ? 'n' : ''}" title="${esc(l.map((r) => r.name).join(', '))}">${l.length || ''}</td>`; }).join('')}</tr>
+    <div class="tl"><table><thead><tr><th></th>${head1}</tr><tr><th></th>${head2}</tr></thead><tbody>${rows}<tr class="rowc-5"><td class="name"><b>🔁 RITUAIS</b></td>${days.map((d) => { const l = rit[d] || []; return `<td class="${d === td ? 'today' : ''} ${l.length ? 'n' : ''}" title="${esc(l.map((r) => r.name).join(', '))}">${l.length || ''}</td>`; }).join('')}</tr>
       <tr><td class="name px" style="font-size:7px;background:var(--ink);color:var(--bg)">BLOCOS</td><td colspan="42" style="background:var(--ink)"></td></tr>${blocks}</tbody></table></div></div>`;
 }
 
@@ -53,11 +52,8 @@ export function viewAgenda(ui) {
   if (fb === 'late') queue = queue.filter((t) => t.due && t.due < td);
   if (fb === 'today') queue = queue.filter((t) => t.due === td);
   if (fb === 'week') queue = queue.filter((t) => t.due && t.due >= td && t.due <= addDays(td, 7));
-  const coms = [...(S.core.commitments || [])].sort((a, b) => ((a.date + a.start) < (b.date + b.start) ? -1 : 1));
-  const upcoming = coms.filter((c) => c.date >= td), past = coms.filter((c) => c.date < td).slice(-4);
-  const comRow = (c, isPast) => `<div class="li" style="${isPast ? 'opacity:.5' : ''}"><div class="lt">📌 ${esc(c.text)}<small>${DOW[weekday(c.date)]} ${fmtDM(c.date)}${c.start ? ` · ${esc(c.start)}${c.end ? '–' + esc(c.end) : ''}` : ' · dia todo'} · ${esc(c.type || '')}</small></div>
-    <div class="row" style="flex-wrap:nowrap">${c.date === td ? '<span class="chip today">HOJE</span>' : ''}<button class="icon-btn" data-act="del-commit" data-id="${c.id}" aria-label="Apagar">×</button></div></div>`;
   const hol = range(td, 30).filter(holidayName).slice(0, 3);
+  const blow = R.blowState(S), blowPct = Math.round((R.BLOW_MULT - 1) * 100);
   return `<div class="page-title"><div><h1><em>agenda</em>.</h1></div>
       <button class="btn pri" data-act="distribute">📅 DISTRIBUIR PRAZOS</button></div>
     <div class="stats">
@@ -66,6 +62,7 @@ export function viewAgenda(ui) {
       <div class="stat"><small>Próx. 7 dias</small><b>${next7.length}</b></div>
       <div class="stat"><small>Pontualidade 30d</small><b>${punct == null ? '—' : punct + '%'}</b></div>
       <div class="stat"><small>🎯 No prazo seguidas</small><b>${seq}</b><span>${seq >= 5 ? '⏰ RELÓGIO SUÍÇO' : '5 = relógio suíço'}</span></div>
+      <div class="stat"><small>💥 Estourados</small><b class="${blow.active ? 'bad' : ''}">${blow.n % R.BLOW_EVERY}/${R.BLOW_EVERY}</b><span>${blow.active ? `CASTIGO: loja +${blowPct}%` : `${R.BLOW_EVERY} = loja +${blowPct}% por ${R.BLOW_DAYS} dias`}</span></div>
     </div>
     ${dayStrip()}
     <div class="grid">${timelineCard(ui)}
@@ -74,14 +71,9 @@ export function viewAgenda(ui) {
         <div class="list">${queue.slice(0, 80).map((t) => `<div class="li" draggable="true" data-tid="${t.id}" title="Arraste até um dia da faixa pra mudar o prazo"><div class="lt" data-act="jump" data-id="${t.id}" style="cursor:pointer">${t.st === 'doing' ? '▶ ' : ''}${t.prio ? '<b class="bad">!</b> ' : ''}${esc(t.text)}<small>${esc(where(t))}</small></div>
           <div class="row" style="flex-wrap:nowrap;gap:6px">${dueChip(t.due, false, true)}<button class="icon-btn" data-act="prio" data-id="${t.id}" title="Prioridade">${t.prio ? '★' : '☆'}</button></div></div>`).join('') || '<div class="empty">nada encontrado.</div>'}</div></div>
       <div class="c5" style="display:flex;flex-direction:column;gap:16px">
-        <div class="card"><header><h2>📆 Compromissos</h2></header>
-          <form data-form="commit" autocomplete="off"><input class="inp" name="text" placeholder="compromisso / com quem / onde" aria-label="Compromisso" required>
-            <div class="row" style="margin-top:6px"><input class="inp grow" type="date" name="date" value="${td}" required aria-label="Data"><input class="inp" type="time" name="start" style="width:auto" aria-label="Início"><input class="inp" type="time" name="end" style="width:auto" aria-label="Fim"></div>
-            <div class="row" style="margin-top:6px"><select class="inp grow" name="type" aria-label="Tipo"><option>PESSOAL</option><option>CLIENTE</option><option>PREFEITURA</option><option>REUNIÃO</option><option>SAÚDE</option></select><button class="btn pri">+ ADICIONAR</button></div></form>
-          <div class="list" style="margin-top:8px">${upcoming.map((c) => comRow(c, false)).join('') || '<div class="empty">nenhum compromisso pela frente.</div>'}${past.map((c) => comRow(c, true)).join('')}</div>
-          ${hol.length ? `<p class="meta" style="margin:8px 0 0">feriados: ${hol.map((d) => `${fmtDM(d)} ${esc(holidayName(d))}`).join(' · ')}</p>` : ''}</div>
         <div class="card"><header><h2>🔁 Rituais · próximos 14 dias</h2><a class="meta" href="#survival">todos →</a></header>
-          <div class="list">${(S.core.rituals || []).map((r) => ({ r, s: R.ritualStatus(r, td) })).filter((x) => x.s.left != null && x.s.left <= 14).sort((a, b) => a.s.left - b.s.left).map((x) => ritualRow(x.r, td)).join('') || '<div class="empty">nenhum ritual nos próximos 14 dias.</div>'}</div></div>
+          <div class="list">${(S.core.rituals || []).map((r) => ({ r, s: R.ritualStatus(r, td) })).filter((x) => x.s.left != null && x.s.left <= 14).sort((a, b) => a.s.left - b.s.left).map((x) => ritualRow(x.r, td)).join('') || '<div class="empty">nenhum ritual nos próximos 14 dias.</div>'}</div>
+          ${hol.length ? `<p class="meta" style="margin:8px 0 0">feriados: ${hol.map((d) => `${fmtDM(d)} ${esc(holidayName(d))}`).join(' · ')}</p>` : ''}</div>
       </div></div>`;
 }
 

@@ -3,7 +3,7 @@
 import { S, save, deleteDocs } from './store.js';
 
 import * as R from './rules.js';
-import { uid, today, addDays, diffDays, weekStart, weekday } from './util.js';
+import { uid, today, addDays, diffDays, weekStart, weekday, fmtDM } from './util.js';
 
 let feedbackFn = () => {};
 export const onFeedback = (fn) => { feedbackFn = fn; };
@@ -15,7 +15,7 @@ const UNDO_LABEL = {
   toggleDone: 'tarefa', cycleBack: 'tarefa', cycleApprove: 'tarefa', setStatus: 'status da tarefa', addTask: 'nova tarefa', updateTask: 'edição da tarefa', deleteTask: 'tarefa apagada', moveTask: 'ordem', dropTask: 'tarefa movida',
   addBlock: 'novo bloco', updateBlock: 'edição do bloco', deleteBlock: 'bloco apagado', dropBlock: 'bloco movido', addBoss: 'novo boss', toggleBoss: 'boss', deleteBoss: 'boss apagado',
   cycleHabit: 'hábito', setHabit: 'hábito', updateHabits: 'hábitos', buyTaverna: 'compra', buyMystery: 'baú', buyFerreiro: 'forja', undoPurchase: 'compra desfeita', useItem: 'uso do item', confessItem: 'compra tardia',
-  addGold: 'ouro', deleteGold: 'ouro apagado', saveShopItem: 'item da loja', deleteShopItem: 'item apagado', openSunday: 'baú de domingo', addCommitment: 'compromisso', deleteCommitment: 'compromisso apagado',
+  addGold: 'ouro', deleteGold: 'ouro apagado', saveShopItem: 'item da loja', deleteShopItem: 'item apagado', openSunday: 'baú de domingo',
   answerQuestion: 'diário', deleteJournal: 'página do diário', editJournal: 'página do diário', deleteBonus: 'bônus apagado', deleteSunday: 'baú apagado', setRule: 'regra', resetRules: 'regras', addSaving: 'guardei',
   setWeekly: 'missões da semana', claudeApprove: 'sugestão do Claude', claudeReject: 'sugestão recusada', toBreakdown: 'enviar pro breakdown', unlinkTask: 'desvincular', addBoss: 'novo boss', deleteBoss: 'boss apagado', setVcat: 'custo da vila', resetVcat: 'vila', buildStart: 'obra', buildFinish: 'obra acelerada', buildMove: 'prédio movido', ensureVillage: 'vila', restDay: 'descanso', focusDone: 'foco', sosDone: 'SOS', ritualDone: 'ritual',
 };
@@ -184,6 +184,14 @@ export function startup() {
     for (const [cat, name, nv, icon, repeat] of NEW_FERREIRO) { if (!have(S.loja.ferreiro, name)) S.loja.ferreiro.push({ id: uid('f'), name, cat, nv, icon, repeat: !!repeat }); if (!S.loja.cats.includes(cat)) S.loja.cats.push(cat); }
     S.core.migrations.push('shop4'); S._lojaChanged = true; changedCore = true;
   }
+  if (!S.core.migrations.includes('chapeu5')) { // v5.10: o chapéu de palha é a identidade do PRIMO: volta pra cabeça uma vez (dá pra tirar no botão 🤠)
+    (S.core.primo ||= {}).wear = { hat: 'palha' };
+    S.core.migrations.push('chapeu5'); changedCore = true;
+  }
+  if (!S.core.migrations.includes('cores5')) { // v5.9: cores dos blocos = URGENTE, FAZENDO, ESTÁVEL, PARADO (o laranja saiu)
+    for (const b of S.quests.blocks) if (b.color === 'orange') { b.color = 'green'; changedQ = true; }
+    S.core.migrations.push('cores5'); changedCore = true;
+  }
   if (!S.core.migrations.includes('shop5')) { // v5.6: itens pedidos pelo dono (preços provisórios até a análise da economia)
     const has = (l, re) => l.some((x) => re.test(x.name.toUpperCase()));
     if (!has(S.loja.taverna, /ACORDAR TARDE/)) S.loja.taverna.push({ id: uid('v'), name: 'ACORDAR TARDE (1H A MAIS)', xp: 90, icon: '😴' });
@@ -230,11 +238,22 @@ export function startup() {
   // as listas são pela data: ao abrir (e na virada do dia) cada tarefa vai pra lista certa
   if (syncLists().changed) changedQ = true;
   S._epoch++;
-  const auto = R.distributePlan(S, { onlyNew: true, today: td });
-  for (const p of auto) { const t = T(p.id); if (t) { t.due = p.to; syncLink(t); changedQ = true; } }
   // prazos ligados (lista ↔ BREAKDOWN) que estavam diferentes: vale o da tarefa; se ela não tem, herda o do bloco
   for (const t of q.tasks) { const lb = t.link && B(t.link); if (!lb || (lb.due || null) === (t.due || null)) continue; if (t.due) lb.due = t.due; else t.due = lb.due; changedQ = true; }
-  S._autoDue = auto.length;
+  // 💥 prazos estourados: conta cada tarefa aberta que passou do prazo (uma vez por prazo; viagem não conta)
+  S._blowNew = 0; S._blowHit = false;
+  if (!S.core.migrations.includes('estouro5')) { // o que já estava atrasado antes desta regra não conta
+    for (const t of q.tasks) if (R.isOpen(t) && t.due && t.due < td) t.lateSeen = t.due;
+    S.core.migrations.push('estouro5'); changedQ = changedCore = true;
+  } else if (!R.tripNow(S)) {
+    for (const t of q.tasks) {
+      if (!R.isOpen(t) || t.st === 'wait' || !t.due || t.due >= td || t.lateSeen === t.due) continue;
+      t.lateSeen = t.due; const b = (S.core.blow ||= { n: 0, hits: [] });
+      b.n++; S._blowNew++;
+      if (b.n % R.BLOW_EVERY === 0) { b.hits = [...(b.hits || []), td].slice(-10); S._blowHit = true; }
+      changedQ = changedCore = true;
+    }
+  }
   S._epoch++;
   const extra = sync();
   const docs = [...moved];
@@ -453,6 +472,9 @@ function chargeResched(t, cost) {
 export function updateTask(id, patch) {
   const t = T(id);
   if (!t) return;
+  // subtarefa não pode passar do prazo final do bloco
+  const bk = B(patch.block !== undefined ? patch.block : t.block), cap = R.dueCap(bk);
+  if ('due' in patch && patch.due && cap && patch.due > cap) return { error: `O bloco "${bk.title}" termina em ${fmtDM(cap)}: a subtarefa não pode passar disso. Mude antes o prazo do bloco.` };
   const base = 'due' in patch ? reschedBase(t, patch.due || null) : 0, free = base > 0 && freeResched(), cost = free ? 0 : base;
   if (cost && R.totals(S).balance < cost) return { error: `Faltam ${cost - R.totals(S).balance} XP pra remarcar (custa ${cost} XP). Conclua algo ou mantenha o prazo.` };
   return commit(cost ? ['quests', 'loja'] : free ? ['quests', 'core'] : ['quests'], () => {
@@ -741,6 +763,10 @@ export function planRitual(id, date) {
   if (!r) return;
   return commit(['core'], () => { if (date) r.plan = date; else delete r.plan; return { msg: date ? `📅 ${r.name}: marcado.` : `${r.name}: dia desmarcado.` }; });
 }
+/** REVISADO de uma lista do QUESTS (selo de 24 h) */
+export function reviewList(k) {
+  return commit(['core'], () => { S.core.rev ||= {}; if (R.listReviewed(S, k)) delete S.core.rev[k]; else S.core.rev[k] = Date.now(); });
+}
 /** REVISADO: você olhou o bloco e está tudo em ordem. Vale 24 h (é só um selo: não dá XP). */
 export function reviewBlock(id) {
   const b = B(id);
@@ -840,13 +866,6 @@ export function openSunday({ notes, rit, text }) {
 }
 
 // ───────────────────────── AGENDA / CAPÍTULO / AJUSTES ─────────────────────────
-export function addCommitment(c) {
-  if (!c.text?.trim() || !c.date) return;
-  commit(['core'], () => { S.core.commitments.push({ id: uid('c'), text: c.text.trim(), date: c.date, start: c.start || '', end: c.end || '', type: c.type || 'PESSOAL' }); });
-}
-export function deleteCommitment(id) {
-  commit(['core'], () => { S.core.commitments = S.core.commitments.filter((c) => c.id !== id); });
-}
 export function planCost(plan) {
   let free = freeResched();
   return plan.reduce((a, p) => { const t = T(p.id); const b = t ? reschedBase({ ...t, due: p.from ?? t.due }, p.to) : 0; if (b && free) { free = false; return a; } return a + b; }, 0);
@@ -932,7 +951,7 @@ export function newGameDocs() {
         { id: 'casa', icon: '🧹', name: 'CASA' },
       ],
       milestones: ['RELACIONAMENTO', 'FAMÍLIA', 'AMIGOS', 'NETWORK', 'CONHECIMENTO', 'PRÁTICA', 'VÍCIOS', 'DINHEIRO', 'REDES SOCIAIS'],
-      rituals: [], ritualLog: [], commitments: [], achievements: {}, weeks: {}, sundays: [], missions: {}, adjust: [], archiveMonths: [], settings: {},
+      rituals: [], ritualLog: [], achievements: {}, weeks: {}, sundays: [], missions: {}, adjust: [], archiveMonths: [], settings: {},
     },
     quests: { v: 1, tasks: [], blocks: [], bosses: [] },
     marks: { v: 1, days: {} },
@@ -1191,25 +1210,25 @@ export function focusDone(min, ok, taskId) {
 
 // ───────────────────────── v3: ARQUIVO ─────────────────────────
 /** esvazia meses antigos do arquivo guardando XP e contagens num saldo histórico (nível e medalhas não caem) */
-export function emptyArchive(beforeMonth) {
-  const months = Object.keys(S.arq).filter((m) => m < beforeMonth);
-  if (!months.length) return { error: 'Nada antigo pra esvaziar.' };
+/** esvazia os meses escolhidos do arquivo (lista 'AAAA-MM') */
+export function emptyArchive(list) {
+  const months = list.filter((m) => S.arq[m]);
+  if (!months.length) return { error: 'Nada pra esvaziar.' };
   return commit(['core'], () => {
     const L = (S.core.legacy ||= {});
-    let xp = 0;
+    L.days ||= {}; // o XP de cada dia fica guardado (meta do dia, sequência, preços e gráficos continuam iguais)
     for (const m of months) {
       const d = S.arq[m];
       for (const t of d.tasks || []) {
         const cs = R.completions(t);
-        xp += cs.reduce((a, c) => a + (c.xp || 0), 0) + (t.bonusXp || 0);
+        for (const c of cs) { const k = c.doneAt; if (!k) continue; const x = (L.days[k] ||= [0, 0]); x[0] += c.xp || 0; x[1] += 1; }
+        if (t.approved && t.bonusXp && t.doneAt) { const x = (L.days[t.doneAt] ||= [0, 0]); x[0] += t.bonusXp; }
         const p = R.parse(t.text);
         L.done = (L.done || 0) + cs.length; L.onTime = (L.onTime || 0) + cs.filter((c) => c.onTime).length; L.early = (L.early || 0) + cs.filter((c) => c.early).length;
         L.star = (L.star || 0) + (p.star ? cs.length : 0); L.home = (L.home || 0) + (p.home ? cs.length : 0); L.archived = (L.archived || 0) + 1;
       }
-      for (const b of d.blocks || []) { xp += b.xp || 0; if (b.group === 'bd') L.bdClosed = (L.bdClosed || 0) + 1; if (b.group === 'tr') L.trClosed = (L.trClosed || 0) + 1; }
+      for (const b of d.blocks || []) { if (b.st === 'done' && b.doneAt) { const x = (L.days[b.doneAt] ||= [0, 0]); x[0] += b.xp || 0; } if (b.group === 'bd') L.bdClosed = (L.bdClosed || 0) + 1; if (b.group === 'tr') L.trClosed = (L.trClosed || 0) + 1; }
     }
-    S.core.adjust ||= [];
-    S.core.adjust.push({ id: uid('adj'), date: today(), xp, label: `arquivo esvaziado (${months.join(', ')})` });
     for (const m of months) { delete S.arq[m]; deleteDocs('arq-' + m); }
     S.core.archiveMonths = (S.core.archiveMonths || []).filter((m) => !months.includes(m));
     return { msg: `🗑 ${months.length} mês(es) esvaziado(s). XP e medalhas mantidos.` };

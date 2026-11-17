@@ -12,7 +12,7 @@ import { px } from './icons.js';
 import { embers, confetti, floatXp, fireworks } from './fx.js';
 import { sfx, startAmbience, stopAmbience, ambienceOn, prefs, setVol } from './audio.js';
 
-import { viewQuests } from './views/quests.js';
+import { viewQuests, togglePin } from './views/quests.js';
 
 import { viewSurvival } from './views/survival.js';
 
@@ -92,11 +92,10 @@ function header() {
     <div class="row" style="gap:6px;flex-wrap:nowrap">
       <div class="wallet"><div class="coin"><small>XP</small><b class="acc">${fmtN(tot.balance)}</b></div><div class="coin"><small>GOLD</small><b class="gold">${fmtN(tot.gold)}</b></div><div class="coin" style="min-width:52px"><small>🎟</small><b class="tk">${tot.tickets}</b></div></div>
       <div class="tools">${using.map((p) => `<button class="timer-chip" data-act="goto-bag" title="${esc(p.item)}" data-countdown="${p.endsAt}">${mmss(p.endsAt - Date.now())}</button>`).join('')}
-        <button class="btn sm" data-act="undo" data-undo-btn ${A.undoState().undo ? '' : 'disabled'} title="Desfazer (Ctrl+Z)" aria-label="Desfazer">↩</button><button class="btn sm" data-act="redo" data-redo-btn ${A.undoState().redo ? '' : 'hidden'} title="Refazer" aria-label="Refazer">↪</button>
+        <button class="btn sm" data-act="undo" data-undo-btn ${A.undoState().undo ? '' : 'disabled'} title="Desfazer (Ctrl+Z)" aria-label="Desfazer">↩</button><button class="btn sm" data-act="redo" data-redo-btn ${A.undoState().redo ? '' : 'disabled'} title="Refazer (Ctrl+Y)" aria-label="Refazer">↪</button>
         <button class="btn sm" data-act="mode" title="Dia/noite (N)">${px(night ? 'moon' : 'sun', 12)}</button>
         <button class="btn sm ${ambienceOn() ? 'pri' : ''}" data-act="music" title="Lo-fi da fogueira">${px('music', 12)}</button>
-        <button class="btn sm" data-act="focus" title="Fogueira de foco">🔥</button>
-        <button class="btn sm" data-act="sos" title="SOS travei">${px('sos', 12)}</button></div></div>`;
+        <button class="btn sm" data-act="fullscreen" title="Tela cheia (F11)" aria-label="Tela cheia">⛶</button></div></div>`;
 }
 function render() {
   if (!status.loaded) return;
@@ -107,7 +106,8 @@ function render() {
     started = true;
     autoSnapshot(); // cópia de segurança do dia, antes de o app ajustar qualquer coisa sozinho
     A.startup();
-    if (S._autoDue) toast(`📅 ${S._autoDue} tarefa(s) nova(s) do IMEDIATOS/CURTO ganharam prazo sozinhas.`);
+    if (S._blowHit) toast(`💥 <b>${R.BLOW_EVERY} prazos estourados</b>: a loja fica ${Math.round((R.BLOW_MULT - 1) * 100)}% mais cara por ${R.BLOW_DAYS} dias.`, 'bad');
+    else if (S._blowNew) toast(`💥 ${S._blowNew} prazo(s) estourou(aram). Faltam ${R.blowState(S).left} pro castigo.`);
     try { if (!localStorage.getItem('gamify-ui:tour')) setTimeout(tour, 600); else tripCheck(); } catch { /* */ }
   }
   document.getElementById('top').innerHTML = header();
@@ -189,6 +189,18 @@ function saveModalText(el) {
   else { const b = S.quests.bosses.find((x) => x.id === id); if (b && v !== b.text) A.updateBoss(id, { text: v }); }
 }
 document.addEventListener('change', (e) => saveModalText(e.target));
+// botão direito no quadradinho (ou segurar o dedo, no celular) = CANCELAR a tarefa; de novo = reabrir. O ↩ desfaz.
+document.addEventListener('contextmenu', (e) => {
+  const c = e.target.closest?.('.check[data-act="toggle"]');
+  if (!c) return;
+  e.preventDefault();
+  const t = S.quests.tasks.find((x) => x.id === c.dataset.id);
+  if (!t) return;
+  const back = t.st === 'cancel';
+  A.setStatus(t.id, back ? '' : 'cancel');
+  sfx(back ? 'tab' : 'undo');
+  toast(back ? '↺ Tarefa reaberta.' : '✕ Cancelada (sem XP e sem punição). ↩ desfaz.');
+});
 document.addEventListener('change', async (e) => { // arquivo de backup escolhido: o conteúdo vai pra caixa de texto
   const el = e.target;
   if (!el.matches?.('[data-import-file]') || !el.files?.[0]) return;
@@ -251,13 +263,14 @@ function whereOptions(t) {
   const groups = Object.entries(R.GROUPS).map(([g, info]) => { const bl = S.quests.blocks.filter((b) => b.group === g).sort((a, b) => a.ord - b.ord); return bl.length ? `<optgroup label="${info.name}">${bl.map((b) => `<option value="block:${b.id}" ${t.block === b.id ? 'selected' : ''}>${esc(b.title)}</option>`).join('')}</optgroup>` : ''; }).join('');
   return `<optgroup label="LISTAS">${lists}</optgroup>${groups}`;
 }
-const COLORS = [['', 'sem cor'], ['red', '🟥 urgente'], ['yellow', '🟨 andamento'], ['green', '🟩 pessoal'], ['orange', '🟧 gestão'], ['black', '⬛ parado']];
+const COLORS = [['', 'sem cor'], ['red', '🟥 URGENTE'], ['yellow', '🟨 FAZENDO'], ['green', '🟩 ESTÁVEL'], ['black', '⬛ PARADO']];
 function editTask(id) {
   const t = S.quests.tasks.find((x) => x.id === id);
   if (!t) return;
   const p = R.parse(t.text), now = R.taskXp(S, t), td = today();
+  const cap = R.dueCap(t.block && R.findBlock(S, t.block), td); // subtarefa: o prazo vai até o do bloco
   const nextMon = addDays(td, ((8 - weekday(td)) % 7) || 7);
-  const sts = [['', '○ ABERTA'], ['doing', '▶ FAZENDO'], ['wait', '… AGUARDANDO'], ['done', '✓ FEITA'], ['cancel', '✕ CANCELADA']];
+  const sts = [['wait', '… AGUARDANDO'], ['done', '✓ FEITA'], ['cancel', '✕ CANCELADA']]; // ABERTA e FAZENDO saíram (redundantes: o quadradinho e o ↩ resolvem)
   const suggestCycle = t.cycle === undefined && /PREFEITURA|APROVA|AN[AÁ]LISE|PROTOCOLO/i.test(t.text);
   openModal(`<form data-form="task" data-id="${id}" autocomplete="off">
     <h2>${p.mini ? '⚔ mini-boss' : p.step ? '↳ passo' : 'tarefa'}</h2>
@@ -268,7 +281,7 @@ function editTask(id) {
       <input class="inp grow" id="t-who" name="who" value="${esc(t.who || '')}" list="who-list" placeholder="pessoa ou motivo: PREFEITURA, CLIENTE, FULANO…" autocomplete="off"><datalist id="who-list">${R.people(S).map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
       <select class="inp" name="dep" aria-label="Depende de outra tarefa" style="flex:1 1 220px;min-width:0"><option value="">— não depende de outra tarefa —</option>${R.openTasks(S).filter((x) => x.id !== t.id && x.dep !== t.id).sort((x, y) => (x.block === t.block ? 0 : 1) - (y.block === t.block ? 0 : 1) || x.text.localeCompare(y.text)).map((x) => `<option value="${x.id}" ${t.dep === x.id ? 'selected' : ''}>🔗 ${esc(x.text.replace(/\s*\(\d+\s*XP\)/i, '').slice(0, 60))}</option>`).join('')}</select></div>
     <p class="meta" style="margin:4px 0 0">Preencher manda a tarefa pra lista AGUARDANDO. Se depender de outra tarefa, ela volta sozinha quando a outra for concluída.</p>
-    <label class="lbl" for="t-due">Prazo</label><div class="row"><input class="inp" type="date" id="t-due" name="due" value="${t.due || ''}" style="width:auto">
+    <label class="lbl" for="t-due">Prazo</label><div class="row"><input class="inp" type="date" id="t-due" name="due" value="${t.due || ''}" ${cap ? `max="${cap}" title="Até o prazo do bloco"` : ''} style="width:auto">
       ${[['HOJE', td], ['AMANHÃ', addDays(td, 1)], ['+3', addDays(td, 3)], ['PRÓX. SEG', nextMon], ['SEM', '']].map(([n, d]) => `<button type="button" class="btn sm ghost" data-act="due-quick" data-d="${d}">${n}</button>`).join('')}</div>
     ${t.due ? `<p class="meta" style="margin:4px 0 0">${t.due < td ? `⏰ Atrasada: concluir agora paga só ${Math.round(Math.max(R.C.LATE_MIN, 1 - R.C.LATE_DAY * diffDays(t.due, td)) * 100)}% do XP. ` : ''}Empurrar o prazo custa <b>${A.reschedBase({ ...t, due: '0' }, '9')}</b> XP${A.freeResched() ? ' (mas a 1ª remarcação da semana é grátis)' : ''}${t.rs ? ` · já remarcada ${t.rs}x` : ''}; antecipar é de graça.</p>` : ''}
     <label class="lbl">Marcadores</label><div class="row" style="gap:14px;font-size:12.5px">
@@ -369,7 +382,7 @@ function tour(step = 0) {
   const steps = [
     ['bem-vindo ao gamify v2.', 'Igual à planilha, com as mesmas abas: QUESTS é a casa e o painel. De dia ele é papel; à noite vira acampamento com fogueira. O ♪ liga o lo-fi.'],
     ['quests.', 'Listas e BOSS em cima; BREAKDOWN, TRABALHO e CAPTAÇÕES embaixo. Toque no quadradinho pra concluir, no texto pra editar (prazo, cor, ! prioridade, 🔁 vai e volta). No PC dá pra arrastar tarefas.'],
-    ['o primo.', 'O PRIMO é o centro do jogo: ele reage ao que você faz, pede uma missão por dia, sai em expedição, tem armário e um mascote que cresce. Toque no botão PRIMO pra falar com ele.'],
+    ['o primo.', 'O PRIMO é o centro do jogo: ele reage ao que você faz, pede uma missão por dia, sai em expedição e tem um mascote que cresce. Toque no botão PRIMO pra falar com ele.'],
     ['shop.', 'Compre ANTES de aproveitar: vai pra MOCHILA; na hora, USAR liga o cronômetro. Fez sem comprar? Paga 50% a mais. Gold é a sua metade: o app pergunta quando entra.'],
     ['travou?', 'O botão SOS guia uma respiração de 1 minuto, escolhe o menor passo e acende 10 minutos de fogueira. Vale +5 XP de coragem.'],
   ];
@@ -506,7 +519,6 @@ const ACTIONS = {
   sort: (d) => { A.sortContainer({ area: d.area, block: d.block }); sfx('tab'); },
   jump: (d) => jump(d.id),
   'jump-block': (d) => { const b = S.quests.blocks.find((x) => x.id === d.id); if (!b) return; ui.qtab = tabOfBlock(b); closeModal(); if (route() !== 'quests') location.hash = '#quests'; else render(); setTimeout(() => { const el = document.querySelector(`[data-drop-block="${d.id}"]`); el?.scrollIntoView({ block: 'center' }); el?.classList.add('flash'); }, 80); },
-  'goto-agenda': () => { location.hash = '#agenda'; },
   'edit-block': (d) => editBlock(d.id),
   'move-block': (d) => A.moveBlock(d.id, +d.dir),
   'del-block': async (d) => { closeModal(); if (await ask('Apagar bloco inteiro?', 'O bloco e todas as subtarefas somem de vez.', 'APAGAR', true)) A.deleteBlock(d.id); },
@@ -534,6 +546,9 @@ const ACTIONS = {
   },
   'plan-quick': (d, e, el) => { el.closest('form').plan.value = d.d; },
   'review-block': (d) => { A.reviewBlock(d.id); sfx('tab'); },
+  'review-list': (d) => { A.reviewList(d.k); sfx('tab'); },
+  'pin-block': (d) => { toast(togglePin(d.id) ? '📌 Bloco fixado no painel da direita.' : '📌 Bloco tirado do painel.'); render(); sfx('tab'); },
+  fullscreen: () => { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); } catch { toast('Este navegador não deixou abrir em tela cheia.', 'bad'); } },
   'win-new': () => windowModal(),
   'win-edit': (d) => windowModal(d.id),
   'win-del': async (d) => { const w = R.windows(S).find((x) => x.id === d.id); closeModal(); if (w && await ask(`Apagar a janela ${w.name}?`, `Os blocos dela não são apagados: voltam pra ${R.GROUPS[w.base].short}.`, 'APAGAR', true)) { A.deleteWindow(d.id); ui.qtab = w.base; render(); } },
@@ -584,7 +599,6 @@ const ACTIONS = {
   'gold-edit': (d) => { const p = goldByKey(d.key); if (p) openModal(`<form data-form="gold-edit" data-key="${esc(p.key)}"><h2>💰 ${esc(p.title)}</h2><label class="lbl" for="ge-v">Quanto entrou (sua parte)</label><input class="inp" id="ge-v" name="v" type="number" min="1" value="${p.amount}" autofocus><div class="actions"><button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">GUARDAR</button></div></form>`); },
   'gold-later': (d) => { const p = goldByKey(d.key); if (p) A.snoozeGold(p); },
   'gold-never': (d) => { const p = goldByKey(d.key); if (p) A.snoozeGold(p, true); },
-  'del-commit': (d) => A.deleteCommitment(d.id),
   'rot-plan': (d) => { ui.rplan = +d.i; render(); },
   'rot-active': (d) => A.setRoutinePlan(+d.i),
   'rot-cell': (d) => {
@@ -698,7 +712,6 @@ const FORMS = {
   forge: (f) => { const r = A.buyFerreiro(f.dataset.id, f.gold.value); closeModal(); if (r?.error) { sfx('error'); toast(esc(r.error), 'bad'); } },
   gold: (f) => { A.addGold({ date: f.date.value, from: f.from.value, amount: f.amount.value }); sfx('coin'); },
   'gold-edit': (f) => { const p = goldByKey(f.dataset.key); if (p) A.confirmGold(p, +f.v.value); closeModal(); sfx('coin'); },
-  commit: (f) => A.addCommitment({ text: f.text.value, date: f.date.value, start: f.start.value, end: f.end.value, type: f.type.value }),
   sunday: (f) => {
     const notes = {};
     (S.core.milestones || []).forEach((m, i) => { const v = +f['n' + i].value; if (v) notes[m] = Math.min(10, Math.max(1, v)); });

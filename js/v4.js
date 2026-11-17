@@ -47,7 +47,7 @@ document.addEventListener('click', (e) => {
 let renderFn = () => {};
 function pillUpdate(st = A.undoState()) {
   document.querySelectorAll('[data-undo-btn]').forEach((b) => { b.disabled = !st.undo; b.title = st.undo ? `Desfazer: ${st.next} (Ctrl+Z)` : 'nada a desfazer'; });
-  document.querySelectorAll('[data-redo-btn]').forEach((b) => { b.hidden = !st.redo; b.title = st.redo ? `Refazer: ${st.nextRedo}` : ''; });
+  document.querySelectorAll('[data-redo-btn]').forEach((b) => { b.disabled = !st.redo; b.title = st.redo ? `Refazer: ${st.nextRedo} (Ctrl+Y)` : 'nada a refazer'; });
 }
 function doUndo() {
   const l = A.undo();
