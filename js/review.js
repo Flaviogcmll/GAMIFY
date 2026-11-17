@@ -14,6 +14,8 @@ import { say } from './v35.js';
 const ls = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* */ } } };
 const GAP_DAYS = 3; // a partir de quantos dias sem abrir vira "revisão de retorno"
 const clean = (t) => String(t || '').replace(/\s*\(\d+\s*XP\)/i, '');
+/** subtarefa: o dia novo vai até o prazo do bloco */
+const maxAttr = (t) => { const cap = t.block && R.dueCap(S.quests.blocks.find((b) => b.id === t.block)); return cap ? `max="${cap}"` : ''; };
 const where = (t) => (t.block ? R.findBlock(S, t.block)?.title : R.areaName(t.area)) || '';
 
 let st = null; // { steps, i, gap }
@@ -62,7 +64,7 @@ const VIEW = {
       line: l.length ? `Tem ${l.length} atrasada${l.length > 1 ? 's' : ''}, uai. Olha uma por uma: fez, tá esperando alguém ou não vale mais?` : 'Uai, zerou as atrasadas! Trem bão demais, sô.',
       body: l.length ? `<p class="muted">📅 escolhe o dia novo · ✓ já fiz · ⏳ esperando alguém · ✕ não vale mais. O que você não mexer continua na lista HOJE.</p>
         <div class="list" style="max-height:44vh;overflow:auto">${show.map((t) => `<div class="li"><div class="lt">${esc(clean(t.text))}<small>${esc(where(t))} · venceu ${fmtDM(t.due)}</small></div>
-          <span class="row" style="gap:4px;flex-wrap:nowrap"><input type="date" class="inp rv-date" data-rv-date data-id="${t.id}" min="${today()}" ${t.block && R.findBlock(S, t.block)?.due >= today() ? `max="${R.findBlock(S, t.block).due}"` : ''} title="Escolher o novo dia (remarcar custa ${A.reschedCost(t, addDays(today(), 1)) || 0} XP; a 1ª da semana é grátis)" aria-label="Novo prazo"><button class="btn sm good" data-rv="done" data-id="${t.id}" title="Já fiz">✓</button><button class="btn sm" data-rv="wait" data-id="${t.id}" title="Está aguardando alguém">⏳</button><button class="btn sm ghost" data-rv="cancel" data-id="${t.id}" title="Não vale mais: cancelar">✕</button></span></div>`).join('')}</div>
+          <span class="row" style="gap:4px;flex-wrap:nowrap"><input type="date" class="inp rv-date" data-rv-date data-id="${t.id}" min="${today()}" ${maxAttr(t)} title="Escolher o novo dia (remarcar custa ${A.reschedCost(t, addDays(today(), 1)) || 0} XP; a 1ª da semana é grátis)" aria-label="Novo prazo"><button class="btn sm good" data-rv="done" data-id="${t.id}" title="Já fiz">✓</button><button class="btn sm" data-rv="wait" data-id="${t.id}" title="Está aguardando alguém">⏳</button><button class="btn sm ghost" data-rv="cancel" data-id="${t.id}" title="Não vale mais: cancelar">✕</button></span></div>`).join('')}</div>
         ${l.length > show.length ? `<p class="meta">e mais ${l.length - show.length}.</p>` : ''}
         <p class="meta" style="margin:8px 0 0">Muita coisa? <a href="#" data-rv="dist">📅 DISTRIBUIR</a> remarca tudo de uma vez pelo seu ritmo.</p>` : '<div class="empty">nada atrasado. 👏</div>',
     };

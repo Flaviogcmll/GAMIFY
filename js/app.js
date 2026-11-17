@@ -12,7 +12,7 @@ import { px } from './icons.js';
 import { embers, confetti, floatXp, fireworks } from './fx.js';
 import { sfx, startAmbience, stopAmbience, ambienceOn, prefs, setVol } from './audio.js';
 
-import { viewQuests } from './views/quests.js';
+import { viewQuests, togglePin } from './views/quests.js';
 
 import { viewSurvival } from './views/survival.js';
 
@@ -106,7 +106,8 @@ function render() {
     started = true;
     autoSnapshot(); // cópia de segurança do dia, antes de o app ajustar qualquer coisa sozinho
     A.startup();
-    if (S._autoDue) toast(`📅 ${S._autoDue} tarefa(s) nova(s) do IMEDIATOS/CURTO ganharam prazo sozinhas.`);
+    if (S._blowHit) toast(`💥 <b>${R.BLOW_EVERY} prazos estourados</b>: a loja fica ${Math.round((R.BLOW_MULT - 1) * 100)}% mais cara por ${R.BLOW_DAYS} dias.`, 'bad');
+    else if (S._blowNew) toast(`💥 ${S._blowNew} prazo(s) estourou(aram). Faltam ${R.blowState(S).left} pro castigo.`);
     try { if (!localStorage.getItem('gamify-ui:tour')) setTimeout(tour, 600); else tripCheck(); } catch { /* */ }
   }
   document.getElementById('top').innerHTML = header();
@@ -267,8 +268,9 @@ function editTask(id) {
   const t = S.quests.tasks.find((x) => x.id === id);
   if (!t) return;
   const p = R.parse(t.text), now = R.taskXp(S, t), td = today();
+  const cap = R.dueCap(t.block && R.findBlock(S, t.block), td); // subtarefa: o prazo vai até o do bloco
   const nextMon = addDays(td, ((8 - weekday(td)) % 7) || 7);
-  const sts = [['', '○ ABERTA'], ['doing', '▶ FAZENDO'], ['wait', '… AGUARDANDO'], ['done', '✓ FEITA'], ['cancel', '✕ CANCELADA']];
+  const sts = [['wait', '… AGUARDANDO'], ['done', '✓ FEITA'], ['cancel', '✕ CANCELADA']]; // ABERTA e FAZENDO saíram (redundantes: o quadradinho e o ↩ resolvem)
   const suggestCycle = t.cycle === undefined && /PREFEITURA|APROVA|AN[AÁ]LISE|PROTOCOLO/i.test(t.text);
   openModal(`<form data-form="task" data-id="${id}" autocomplete="off">
     <h2>${p.mini ? '⚔ mini-boss' : p.step ? '↳ passo' : 'tarefa'}</h2>
@@ -279,7 +281,7 @@ function editTask(id) {
       <input class="inp grow" id="t-who" name="who" value="${esc(t.who || '')}" list="who-list" placeholder="pessoa ou motivo: PREFEITURA, CLIENTE, FULANO…" autocomplete="off"><datalist id="who-list">${R.people(S).map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
       <select class="inp" name="dep" aria-label="Depende de outra tarefa" style="flex:1 1 220px;min-width:0"><option value="">— não depende de outra tarefa —</option>${R.openTasks(S).filter((x) => x.id !== t.id && x.dep !== t.id).sort((x, y) => (x.block === t.block ? 0 : 1) - (y.block === t.block ? 0 : 1) || x.text.localeCompare(y.text)).map((x) => `<option value="${x.id}" ${t.dep === x.id ? 'selected' : ''}>🔗 ${esc(x.text.replace(/\s*\(\d+\s*XP\)/i, '').slice(0, 60))}</option>`).join('')}</select></div>
     <p class="meta" style="margin:4px 0 0">Preencher manda a tarefa pra lista AGUARDANDO. Se depender de outra tarefa, ela volta sozinha quando a outra for concluída.</p>
-    <label class="lbl" for="t-due">Prazo</label><div class="row"><input class="inp" type="date" id="t-due" name="due" value="${t.due || ''}" ${t.block && R.findBlock(S, t.block)?.due ? `max="${R.findBlock(S, t.block).due}" title="Até o prazo do bloco"` : ''} style="width:auto">
+    <label class="lbl" for="t-due">Prazo</label><div class="row"><input class="inp" type="date" id="t-due" name="due" value="${t.due || ''}" ${cap ? `max="${cap}" title="Até o prazo do bloco"` : ''} style="width:auto">
       ${[['HOJE', td], ['AMANHÃ', addDays(td, 1)], ['+3', addDays(td, 3)], ['PRÓX. SEG', nextMon], ['SEM', '']].map(([n, d]) => `<button type="button" class="btn sm ghost" data-act="due-quick" data-d="${d}">${n}</button>`).join('')}</div>
     ${t.due ? `<p class="meta" style="margin:4px 0 0">${t.due < td ? `⏰ Atrasada: concluir agora paga só ${Math.round(Math.max(R.C.LATE_MIN, 1 - R.C.LATE_DAY * diffDays(t.due, td)) * 100)}% do XP. ` : ''}Empurrar o prazo custa <b>${A.reschedBase({ ...t, due: '0' }, '9')}</b> XP${A.freeResched() ? ' (mas a 1ª remarcação da semana é grátis)' : ''}${t.rs ? ` · já remarcada ${t.rs}x` : ''}; antecipar é de graça.</p>` : ''}
     <label class="lbl">Marcadores</label><div class="row" style="gap:14px;font-size:12.5px">
@@ -517,7 +519,6 @@ const ACTIONS = {
   sort: (d) => { A.sortContainer({ area: d.area, block: d.block }); sfx('tab'); },
   jump: (d) => jump(d.id),
   'jump-block': (d) => { const b = S.quests.blocks.find((x) => x.id === d.id); if (!b) return; ui.qtab = tabOfBlock(b); closeModal(); if (route() !== 'quests') location.hash = '#quests'; else render(); setTimeout(() => { const el = document.querySelector(`[data-drop-block="${d.id}"]`); el?.scrollIntoView({ block: 'center' }); el?.classList.add('flash'); }, 80); },
-  'goto-agenda': () => { location.hash = '#agenda'; },
   'edit-block': (d) => editBlock(d.id),
   'move-block': (d) => A.moveBlock(d.id, +d.dir),
   'del-block': async (d) => { closeModal(); if (await ask('Apagar bloco inteiro?', 'O bloco e todas as subtarefas somem de vez.', 'APAGAR', true)) A.deleteBlock(d.id); },
@@ -546,7 +547,7 @@ const ACTIONS = {
   'plan-quick': (d, e, el) => { el.closest('form').plan.value = d.d; },
   'review-block': (d) => { A.reviewBlock(d.id); sfx('tab'); },
   'review-list': (d) => { A.reviewList(d.k); sfx('tab'); },
-  'pin-block': (d) => { let cur = null; try { cur = localStorage.getItem('gamify-ui:pinblock'); if (cur === d.id) localStorage.removeItem('gamify-ui:pinblock'); else localStorage.setItem('gamify-ui:pinblock', d.id); } catch { /* */ } toast(cur === d.id ? '📌 Bloco tirado do painel.' : '📌 Bloco fixado no painel da direita.'); render(); sfx('tab'); },
+  'pin-block': (d) => { toast(togglePin(d.id) ? '📌 Bloco fixado no painel da direita.' : '📌 Bloco tirado do painel.'); render(); sfx('tab'); },
   fullscreen: () => { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); } catch { toast('Este navegador não deixou abrir em tela cheia.', 'bad'); } },
   'win-new': () => windowModal(),
   'win-edit': (d) => windowModal(d.id),
@@ -598,7 +599,6 @@ const ACTIONS = {
   'gold-edit': (d) => { const p = goldByKey(d.key); if (p) openModal(`<form data-form="gold-edit" data-key="${esc(p.key)}"><h2>💰 ${esc(p.title)}</h2><label class="lbl" for="ge-v">Quanto entrou (sua parte)</label><input class="inp" id="ge-v" name="v" type="number" min="1" value="${p.amount}" autofocus><div class="actions"><button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">GUARDAR</button></div></form>`); },
   'gold-later': (d) => { const p = goldByKey(d.key); if (p) A.snoozeGold(p); },
   'gold-never': (d) => { const p = goldByKey(d.key); if (p) A.snoozeGold(p, true); },
-  'del-commit': (d) => A.deleteCommitment(d.id),
   'rot-plan': (d) => { ui.rplan = +d.i; render(); },
   'rot-active': (d) => A.setRoutinePlan(+d.i),
   'rot-cell': (d) => {
@@ -712,7 +712,6 @@ const FORMS = {
   forge: (f) => { const r = A.buyFerreiro(f.dataset.id, f.gold.value); closeModal(); if (r?.error) { sfx('error'); toast(esc(r.error), 'bad'); } },
   gold: (f) => { A.addGold({ date: f.date.value, from: f.from.value, amount: f.amount.value }); sfx('coin'); },
   'gold-edit': (f) => { const p = goldByKey(f.dataset.key); if (p) A.confirmGold(p, +f.v.value); closeModal(); sfx('coin'); },
-  commit: (f) => A.addCommitment({ text: f.text.value, date: f.date.value, start: f.start.value, end: f.end.value, type: f.type.value }),
   sunday: (f) => {
     const notes = {};
     (S.core.milestones || []).forEach((m, i) => { const v = +f['n' + i].value; if (v) notes[m] = Math.min(10, Math.max(1, v)); });

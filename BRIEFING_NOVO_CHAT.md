@@ -1,6 +1,6 @@
 # BRIEFING — GAMIFY (leia tudo antes de mexer em qualquer coisa)
 
-Atualizado em 17/11/2026: repositório real conferido (v5.1) e nove rodadas feitas (v5.2 a v5.10; a última: pedidos do bloco APP do backup de 17/11).
+Atualizado em 17/11/2026: repositório real conferido (v5.1) e dez rodadas feitas (v5.2 a v5.11; a última: chapéu de palha, limpeza, castigo por prazos e dados reorganizados).
 Este arquivo substitui o briefing antigo. O que mudou em relação a ele está na seção "CONFERIDO EM 15/11/2026".
 
 ## PASSO 0: ALINHAR ANTES DE TUDO
@@ -194,6 +194,14 @@ Feitos:
 - Entrevista do dia: bronca do PRIMO pelos hábitos que ficaram em branco ontem; nas atrasadas, um campo de data para escolher o dia de remarcar (segue a regra de custo).
 - AGENDA: saiu a linha CARGA DO DIA da linha do tempo.
 Pendentes (precisam de decisão do dono; perguntar com alternativas): remover redundâncias (botões de status etc.); punição acumulada por prazos perdidos; repensar a loja (ele quase não compra; usa mais para organizar); IA para reorganizar metas, redistribuir o bloco GESTÃO e planejar (a IA do app só existe no claude.ai; o Claude da sessão pode fazer pelo backup, mas o dono precisaria importar e não mexer no app no meio); imagens e prints nas tarefas (onde guardar: o localStorage tem ~5 MB); repaginar a janela BOSSES; repaginada visual (modo noturno com as cores do claro, menus, menos texto, mais visual, botões e espaços); sprites no topo de cada aba; previsão do tempo (localização + serviço grátis); mais conquistas; novos sprites. Mecânica de COMPROMISSOS da AGENDA: explicada ao dono; ele nunca usou (candidata a remover).
+
+## RODADA 10 — v5.11 (17/11/2026): chapéu, limpeza, castigo e dados reorganizados
+- PRIMO: só o **chapéu de palha** (identidade caipira dele), com o botão 🤠 CHAPÉU para tirar e pôr (`PS.hatOn`, `PS.toggleHat`; dado `core.primo.wear.hat` = 'palha' ou null). Armário e os outros acessórios foram APAGADOS do código e dos arquivos (só `assets/primo/acc/palha-*.webp` ficou). Migração `chapeu5` põe o chapéu de volta uma vez.
+- Removidos a pedido: COMPROMISSOS da AGENDA (`core.commitments` não é mais lido) e os botões ABERTA/FAZENDO da janela da tarefa (o status `doing` continua existindo internamente: entrevista e SOS usam). A Fila de prazos ficou.
+- **Castigo por prazos estourados** (opção A do dono): cada tarefa aberta que passa do prazo conta 1, ao abrir o app (`t.lateSeen` evita contar duas vezes; viagem não conta). A cada `R.BLOW_EVERY` (5), a loja fica `R.BLOW_MULT` (1,2) mais cara por `R.BLOW_DAYS` (3) dias: status 💥 CASTIGO. Dados: `core.blow = { n, hits[] }`. Migração `estouro5`: o que já estava atrasado antes não contou. Contador na AGENDA.
+- Revisão e simplificação do código (4 revisores): regra única do prazo máximo da subtarefa (`R.dueCap`), abas do QUESTS por `R.tabBlocks` / `R.tabReviewed`, bloco fixado via `togglePin` (quests.js), sem restos da CARGA DO DIA, do armário e do "prazo automático ao abrir". Corrigido o botão OUTRA ▶ das curiosidades (tinha sido apagado junto com o armário).
+- **Dados do dono reorganizados** (ele pediu e esperou sem mexer no app): feito com o próprio app sobre o backup de 17/11, entregue como arquivo para IMPORTAR (não entra no repositório). 23 itens do bloco APP concluídos; GESTÃO dividido em REDES SOCIAIS, PRESENÇA ONLINE, FINANCEIRO E CONTRATOS e ORGANIZAÇÃO E ARQUIVOS; duplicadas canceladas (APP na lista, GOOGLE MEU NEGÓCIO na gestão); ligações lista↔bloco (CODAR E AJUSTES APP ↔ APP, ORGANIZAR PAPÉIS ↔ ORGANIZAÇÃO E ARQUIVOS); dependências para testar (ORGANIZAR CASA espera ⚔ DECIDIDO; ⚔ MUDANÇA FEITA espera ⚔ APÊ ESCOLHIDO); mini-bosses nas metas vazias (90 KG, 600 SEGUIDORES, PROJETO INDICAÇÃO, MORAR SOZINHO); PADRÕES com prazo novo; DISTRIBUIR deu data a 24 próximas ações.
+- Loja (opção B: recompensa automática ao bater a meta): o dono gostou, mas quer pensar melhor antes. NÃO implementado.
 
 ## PRÓXIMAS RODADAS
 Princípio do dono: qualidade de vida e praticidade; tudo integrado como um ecossistema; simples no fim das contas (o app não pode tomar o tempo das tarefas). Ele aceita sugestões melhores que o pedido. **Sem mecânicas novas por enquanto** (pedido dele em 16/11).

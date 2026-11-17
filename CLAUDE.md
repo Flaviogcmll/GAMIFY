@@ -40,7 +40,7 @@ O backup do dono NUNCA entra no repositório.
 - `review.js` — entrevista do dia e revisão de retorno (o PRIMO conduz, na 1ª abertura do dia).
 - `trip.js` — modo VIAGEM/VISITAS (congela o jogo; na volta empurra prazos e cria as tarefas de chegada).
 - `drive.js` — sincronização com Google Drive. O dono usa no dia a dia (celular e PC); o Claude não consegue testar o login real, só com um Google simulado (rotas do Playwright).
-- `primo.js` (telas e animação), `pnew.js` (desenho novo, com as artes de `assets/primo/`), `pdraw.js` + `pacc.js` (porquinho clássico em pixel, reserva), `pstate.js`, `falas.js`, `saber.js`, `claude.js` — o mascote PRIMO.
+- `primo.js` (telas e animação), `pnew.js` (desenho novo, com as artes de `assets/primo/`), `pdraw.js` + `pacc.js` (porquinho clássico em pixel, reserva; `pacc.js` só desenha o chapéu de palha), `pstate.js`, `falas.js`, `saber.js`, `claude.js` — o mascote PRIMO.
 - `tools/primo_artes.py` — não é do app: prepara as artes do PRIMO (recorta fundo, corta quadros dos vídeos, reduz) quando o dono gera imagens novas.
 - `v3.js`, `v35.js`, `v4.js` — recursos adicionados por versão (legado; têm imports circulares, cuidado).
 - `views/*.js` — uma tela por arquivo. `css/app.css` — todo o visual. `sw.js` — modo offline.
@@ -54,6 +54,7 @@ O backup do dono NUNCA entra no repositório.
 - Os testes do Claude congelam a data (15/11/2026, a do backup de teste): sem isso, tarefas viram atrasadas, a loja tranca (ATOLADO) e os testes falham por motivo errado.
 - Os pedidos do dono ficam no bloco APP (janela BREAKDOWN) do próprio app: para ler, peça um backup novo (PERKS → BAIXAR BACKUP).
 - Meses esvaziados do ARQUIVO viram `core.legacy.days`, somados em `R.idx`: ao mexer no histórico de XP por dia, lembre deles.
+- Reorganizar os dados do dono: faça rodando o PRÓPRIO app (Playwright + `actions.js`) sobre um backup dele e entregue um arquivo para IMPORTAR; nunca edite o JSON à mão. Ele não pode mexer no app entre o backup e a importação.
 - O cache de totais depende de `S._epoch++`.
 - O topo (`.top` + `.tabs`) só fica preso na primeira tela de rolagem (o `body` tem altura fixa). A variável CSS `--stick`, atualizada em `app.js`, diz onde ele termina; a barra das janelas do QUESTS e o painel da direita usam essa variável.
 - Qualquer redesenho (`render()`) recria a tela: o que estiver digitado nas linhas "+ adicionar" e a rolagem do painel da direita são guardados e devolvidos por `render()`. Campo novo desse tipo precisa entrar em `ADD_SEL`.

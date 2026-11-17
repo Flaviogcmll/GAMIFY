@@ -1,4 +1,4 @@
-// FILTRO — tudo em aberto + compromissos numa tabela pra filtrar e ordenar. Clique na linha = abre a tarefa.
+// FILTRO — tudo em aberto numa tabela pra filtrar e ordenar. Clique na linha = abre a tarefa.
 import { S } from '../store.js';
 import * as R from '../rules.js';
 import { esc, fmtDM, today } from '../util.js';
@@ -19,8 +19,7 @@ export function viewFiltro(ui) {
     return (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y))) * f.dir;
   });
   const uniq = (key) => [...new Set(all.map((r) => r[key]).filter(Boolean))].sort();
-  const nTasks = all.filter((r) => r.kind === 'task').length, nCom = all.length - nTasks;
-  return `<div class="page-title"><div><h1><em>filtro</em>.</h1><p>${nTasks} tarefas abertas · ${nCom} compromissos. Clique no cabeçalho pra ordenar; clique na linha pra abrir. Aqui é só pra ver: editar é no QUESTS ou na AGENDA.</p></div></div>
+  return `<div class="page-title"><div><h1><em>filtro</em>.</h1><p>${all.length} tarefas abertas. Clique no cabeçalho pra ordenar; clique na linha pra abrir. Aqui é só pra ver: editar é no QUESTS ou na AGENDA.</p></div></div>
     <div class="card" style="margin-bottom:14px"><div class="row">
       <input class="inp grow" data-input="filtro.q" value="${esc(f.q)}" placeholder="🔍 buscar" aria-label="Buscar">
       <label class="row" style="gap:4px"><span class="px" style="font-size:7px">CATEGORIA</span><select class="inp" style="width:auto" data-change="filtro" data-k="cat">${opt(uniq('cat'), f.cat)}</select></label>
@@ -30,7 +29,7 @@ export function viewFiltro(ui) {
       <label class="row" style="gap:4px"><span class="px" style="font-size:7px">PESSOA</span><select class="inp" style="width:auto" data-change="filtro" data-k="who">${opt(uniq('who'), f.who || '')}</select></label>
       <span class="meta">${rows.length} linha(s)</span></div></div>
     <div class="card ftab" style="padding:0"><table><thead><tr>${COLS.map(([key, n]) => `<th data-act="fsort" data-k="${key}">${n}${f.sort === key ? (f.dir > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('')}</tr></thead>
-      <tbody>${rows.map((r) => `<tr data-act="${r.kind === 'task' ? 'jump' : 'goto-agenda'}" data-id="${r.id}">
+      <tbody>${rows.map((r) => `<tr data-act="jump" data-id="${r.id}">
         <td>${esc(r.text)}</td><td>${esc(r.where)}</td><td>${esc(r.cat)}</td><td>${r.date ? fmtDM(r.date) : ''}</td><td>${esc(r.time)}</td>
         <td class="${r.left != null && r.left < 0 ? 'bad' : ''}">${r.left ?? ''}</td><td>${esc(r.bucket)}</td><td>${esc(r.status)}</td><td>${esc(r.who || '')}</td><td>${esc(r.type)}</td><td>${SQ[r.color] || ''}</td><td>${r.marks}</td><td class="acc">${r.xp || ''}</td></tr>`).join('')}</tbody></table></div>`;
 }

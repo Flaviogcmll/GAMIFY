@@ -55,7 +55,7 @@ function fx(c, kind, f, tier) {
 }
 
 // ───────────────────────── O PORQUINHO (sprite "Free Pets Pack", de Frakassets, CC BY 4.0) ─────────────────────────
-import { drawBack, drawFront } from './pacc.js';
+import { drawFront } from './pacc.js';
 const PIG = new Image(); PIG.src = 'assets/pets/piglet.png';
 let PIGJ = null;
 fetch('assets/pets/piglet.json').then((r) => r.json()).then((j) => { PIGJ = j; }).catch(() => { /* sem sprite: fica só o cenário */ });
@@ -87,11 +87,8 @@ export function drawPortrait(c, o = {}) {
   c.fillStyle = 'rgba(0,0,0,.22)'; c.beginPath(); c.ellipse(36 + off, 90, 22, 4, 0, 0, 7); c.fill();
   if (PIGJ && PIG.complete && PIG.naturalWidth) {
     const fr = PIGJ.tags[tag] ? tag : 'Idle_South', list = PIGJ.tags[fr], i = (tired ? f >> 1 : f) % list.length, k = list[i], an = PIGJ.an[fr][i], t = TMP.getContext('2d');
-    const behind = (wear.back === 'capa' || wear.back === 'capaazul') && !fr.endsWith('North');
     t.clearRect(0, 0, 32, 32);
-    if (behind) drawBack(t, wear, fr, an);
     t.drawImage(PIG, k[0], k[1], 32, 32, 0, 0, 32, 32);
-    if (!behind) drawBack(t, wear, fr, an);
     drawFront(t, wear, fr, an);
     t.globalCompositeOperation = 'source-atop';
     if (mood === 'poison' || ex.fx === 'green') { t.fillStyle = 'rgba(124,195,90,.5)'; t.fillRect(0, 0, 32, 32); }

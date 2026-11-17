@@ -25,7 +25,7 @@ export function toggleCollapse(k) { collapsed.has(k) ? collapsed.delete(k) : col
 
 // ───────────── cenário no topo de cada aba ─────────────
 const TITLES = {
-  survival: ['survival.', 'campo de treino · hábitos e rituais'], agenda: ['agenda.', 'a mesa do mapa · prazos e compromissos'], shop: ['taverna.', 'compre antes de aproveitar'],
+  survival: ['survival.', 'campo de treino · hábitos e rituais'], agenda: ['agenda.', 'a mesa do mapa · prazos e rituais'], shop: ['taverna.', 'compre antes de aproveitar'],
   ferreiro: ['ferreiro.', 'upgrades permanentes · XP + gold'], domingo: ['reflexão.', 'o baú da semana · peso · notas'], conquistas: ['conquistas.', 'salão dos troféus'],
   filtro: ['filtro.', 'tudo em aberto, numa tabela'], rotina: ['rotina.', 'a torre do relógio · semana-tipo'], regras: ['perks and rules.', 'o livro de regras'], arquivo: ['arquivo.', 'a biblioteca do que já foi'],
 };

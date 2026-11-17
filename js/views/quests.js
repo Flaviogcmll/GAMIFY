@@ -24,15 +24,14 @@ function listCard(area, ui) {
   // as tarefas andam pelas listas com o tempo: dentro de cada lista, a ordem é a da data (a mais próxima em cima)
   const every = [...own].sort(area === 'wait' || area === 'sem' ? sortOrd : (a, b) => (a.due || '9').localeCompare(b.due || '9') || sortOrd(a, b));
   const all = every.filter(stalledOff(ui)), stalled = every.length - all.length;
-  const open = all.filter((t) => R.isOpen(t) || t.st === 'sent'), hidden = all.filter((t) => !visible(t));
-  const show = ui.showDone ? all : all.filter(visible);
+  const open = all.filter(visible), show = ui.showDone ? all : open, nHidden = all.length - open.length;
   const late = area === 'hoje' ? open.filter((t) => t.due && t.due < td).length : 0;
   const sub = (t) => (wait ? [R.waitingOn(S, t).label && '⏳ ' + R.waitingOn(S, t).label, t.link && R.findBlock(S, t.link)?.st === 'wait' && 'o bloco dela está aguardando'].filter(Boolean).join(' · ') : '');
   const rv = R.listReviewed(S, area);
   return `<section class="list-card ${isCollapsed('l:' + area) ? 'collapsed' : ''} ${rv ? 'reviewed' : ''}" data-list="${area}" data-drop-area="${area}"><header><h2 data-act="collapse" data-k="l:${area}" style="cursor:pointer"><span class="chev">${isCollapsed('l:' + area) ? '▸' : '▾'}</span> ${R.AREAS[area]}</h2>
       <span class="row" style="gap:4px"><span class="meta">${open.length}${late ? ` · <span class="bad">${late} atrasada${late > 1 ? 's' : ''}</span>` : ''}</span><button class="icon-btn" data-act="sort" data-area="${area}" title="Organizar por data">⇅</button></span></header>
     <ul class="tasks">${show.map((t) => taskRow(t, { list: true, sub: sub(t) })).join('')}${show.length ? '' : `<div class="empty">${wait ? 'ninguém te segurando. 👏' : 'vazio.'}</div>`}</ul>
-    ${!ui.showDone && hidden.length ? `<button class="more" data-act="toggle-done">✓ ${hidden.length} feitas · mostrar</button>` : ''}
+    ${!ui.showDone && nHidden ? `<button class="more" data-act="toggle-done">✓ ${nHidden} feitas · mostrar</button>` : ''}
     ${stalled ? `<button class="more" data-act="toggle-stalled">⬛ ${stalled} parada(s) · mostrar</button>` : ''}
     <form class="addline" data-form="add-task" data-area="${area}" autocomplete="off"><input class="inp" name="text" placeholder="+ adicionar ${LIST_HINT[area]}" aria-label="Adicionar em ${R.AREAS[area]}"></form>
     ${revBtn('review-list', `data-k="${area}"`, rv)}
@@ -85,7 +84,7 @@ function blockCard(b, ui, opts = {}) {
 
 /** `g` = tipo-base (bd, tr, cap, gs). `win` = janela criada pelo dono (só os blocos guardados nela) */
 function group(g, ui, win = null) {
-  const blocks = S.quests.blocks.filter((b) => (win ? b.win === win.id : b.group === g && !R.winOf(S, b))).sort(sortOrd);
+  const blocks = R.tabBlocks(S, win ? 'w:' + win.id : g).sort(sortOrd);
   const active = blocks.filter(stalledOff(ui));
   return `<div class="group ${isCollapsed('g:' + g) ? 'collapsed' : ''}" data-group="${g}"><div class="band" data-act="collapse" data-k="g:${g}"><span><span class="chev">${isCollapsed('g:' + g) ? '▸' : '▾'}</span> ${win ? esc(win.name) : R.GROUPS[g].name}</span><span class="meta">${blocks.filter((b) => b.st !== 'done').length} blocos${win ? ` · funciona como ${esc(R.GROUPS[g].short)} <button class="btn sm ghost" data-act="win-edit" data-id="${win.id}" title="Renomear, mudar o tipo ou apagar esta janela">✎</button>` : ''}</span></div>
     <form class="row" data-form="add-block" data-group="${g}" ${win ? `data-win="${win.id}"` : ''} autocomplete="off"><input class="inp grow" name="title" placeholder="+ novo bloco${g === 'bd' ? ' (🎯 meta)' : ' (3000💰 · / MES DIA 05)'}" aria-label="Novo bloco"></form>
@@ -140,6 +139,15 @@ function goldCard(td) {
     <div class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn sm pri" data-act="gold-yes" data-key="${esc(p.key)}">RECEBI ${fmtN(p.amount)}</button><button class="btn sm" data-act="gold-later" data-key="${esc(p.key)}">AINDA NÃO</button></div></div>`).join('')}</div>`;
 }
 
+// ───── bloco fixado no painel da direita (preferência deste aparelho) ─────
+const PIN_KEY = 'gamify-ui:pinblock';
+let pinnedId = (() => { try { return localStorage.getItem(PIN_KEY); } catch { return null; } })();
+/** fixa o bloco no painel (ou tira, se já estava); devolve true se ficou fixado */
+export function togglePin(id) {
+  pinnedId = pinnedId === id ? null : id;
+  try { if (pinnedId) localStorage.setItem(PIN_KEY, pinnedId); else localStorage.removeItem(PIN_KEY); } catch { /* */ }
+  return !!pinnedId;
+}
 export function sidePanel(ui) {
   const td = today(), tot = R.totals(S), st = R.dayStatus(S, td), al = R.alerts(S, td), ch = S.core.chapter || {};
   const open = R.openTasks(S), over = open.filter((t) => t.due && t.due < td).length, hoje = open.filter((t) => t.due === td).length;
@@ -148,8 +156,7 @@ export function sidePanel(ui) {
   const night = document.documentElement.dataset.mode === 'night';
   // v3.5: cada cartão do painel pode ser recolhido (toque no título), arrastado (alça ⠿) e escondido (⚙ PERSONALIZAR)
   // um bloco fixado (📌) fica sempre no topo do painel, à mão enquanto você mexe no resto
-  let pinId = null; try { pinId = localStorage.getItem('gamify-ui:pinblock'); } catch { /* */ }
-  const pinB = pinId && S.quests.blocks.find((x) => x.id === pinId && x.st !== 'done');
+  const pinB = pinnedId && S.quests.blocks.find((x) => x.id === pinnedId && x.st !== 'done');
   return `<aside class="side">${pinB ? `<div class="pinned">${blockCard(pinB, ui, { pinned: true })}</div>` : ''}${arrange('side', [
     ['status', '🎭 Status do dia', `<div class="card"><header><h2>🎭 Status do dia</h2><span class="meta">toque pra ver o que é</span></header><div class="status-line">${statusChips(st, al) || '<span class="meta">nenhum buff nem debuff hoje.</span>'}</div></div>`],
     ['primo', '🔥 PRIMO', companionCard()],
@@ -182,27 +189,19 @@ export function viewQuests(ui) {
   const QTABS = qtabs();
   const tab = QTABS.some(([k]) => k === ui.qtab) ? ui.qtab : 'listas';
   const win = tab.startsWith('w:') ? R.windows(S).find((w) => 'w:' + w.id === tab) : null;
-  const openIn = (g) => S.quests.blocks.filter((b) => b.group === g && !R.winOf(S, b) && b.st !== 'done').length;
-  const n = { listas: S.quests.tasks.filter((t) => !t.block && R.isOpen(t)).length, bd: openIn('bd'), tr: openIn('tr'), cap: openIn('cap'), gs: openIn('gs'), boss: S.quests.bosses.filter((b) => b.st !== 'done').length };
-  for (const w of R.windows(S)) n['w:' + w.id] = S.quests.blocks.filter((b) => b.win === w.id && b.st !== 'done').length;
+  const n = { listas: S.quests.tasks.filter((t) => !t.block && R.isOpen(t)).length, boss: S.quests.bosses.filter((b) => b.st !== 'done').length };
+  for (const [k] of QTABS) if (!(k in n)) n[k] = R.tabBlocks(S, k).filter((b) => b.st !== 'done').length;
   // RECOLHER TUDO: vale para o que está na janela aberta (listas, blocos ou bosses)
   const ckeys = tab === 'listas' ? R.AREA_KEYS.map((a) => 'l:' + a)
     : tab === 'boss' ? S.quests.bosses.map((b) => 'b:' + (b.block || b.id))
-    : S.quests.blocks.filter((b) => (win ? b.win === win.id : b.group === tab && !R.winOf(S, b))).filter(stalledOff(ui)).map((b) => 'b:' + b.id);
+    : R.tabBlocks(S, tab).filter(stalledOff(ui)).map((b) => 'b:' + b.id);
   const allCol = ckeys.length > 0 && ckeys.every(isCollapsed);
-  // janela toda revisada (todas as listas com tarefa, ou todos os blocos ativos) fica verdinha na barra
-  const blocksOf = (k) => S.quests.blocks.filter((b) => b.st !== 'done' && b.color !== 'black' && (k.startsWith('w:') ? b.win === k.slice(2) : b.group === k && !R.winOf(S, b)));
-  const allRev = (k) => {
-    if (k === 'listas') { const ks = R.AREA_KEYS.filter((a) => S.quests.tasks.some((t) => !t.block && t.area === a && R.isOpen(t))); return ks.length > 0 && ks.every((a) => R.listReviewed(S, a)); }
-    if (k === 'boss') return false;
-    const bl = blocksOf(k); return bl.length > 0 && bl.every((b) => R.reviewed(b));
-  };
   const lists = arrange('lists', R.AREA_KEYS.map((a) => [a, R.AREAS[a], listCard(a, ui)]), { button: false });
   const body = tab === 'listas' ? `<div class="lists six">${lists}</div>`
     : tab === 'boss' ? bossPanel(ui)
     : group(win ? win.base : tab, ui, win).replace('class="group ', 'class="group wide ');
   return `<div class="quests"><div class="board">
-      <div class="band qbar"><div class="seg">${QTABS.map(([k, t]) => `<button class="${tab === k ? 'on' : ''} ${k === 'listas' ? 'mae' : 'filha'} ${allRev(k) ? 'allrev' : ''}" data-act="qtab" data-tab="${k}" ${k === 'listas' ? 'title="Janela mãe: tudo passa por aqui"' : 'draggable="true" title="arraste pra mudar a ordem"'}>${k === 'listas' ? '◆ ' : ''}${esc(t)}${n[k] != null ? ' · ' + n[k] : ''}</button>`).join('')}<button class="qadd" data-act="win-new" title="Criar uma janela nova">＋</button></div>
+      <div class="band qbar"><div class="seg">${QTABS.map(([k, t]) => `<button class="${tab === k ? 'on' : ''} ${k === 'listas' ? 'mae' : 'filha'} ${R.tabReviewed(S, k) ? 'allrev' : ''}" data-act="qtab" data-tab="${k}" ${k === 'listas' ? 'title="Janela mãe: tudo passa por aqui"' : 'draggable="true" title="arraste pra mudar a ordem"'}>${k === 'listas' ? '◆ ' : ''}${esc(t)}${n[k] != null ? ' · ' + n[k] : ''}</button>`).join('')}<button class="qadd" data-act="win-new" title="Criar uma janela nova">＋</button></div>
         <span class="row" style="gap:6px"><button class="btn sm ghost" data-act="collapse-all" title="Recolhe ou abre tudo desta janela de uma vez">${allCol ? '▾ ABRIR TUDO' : '▸ RECOLHER TUDO'}</button><button class="btn sm" data-act="distribute">📅 DISTRIBUIR</button>
           <details class="qmenu"><summary class="btn sm ghost" title="Escolha o que aparece nesta tela">MOSTRAR${ui.showDone || ui.showStalled ? ' · ' + (!!ui.showDone + !!ui.showStalled) : ''} ▾</summary><div class="qpop">
             <button class="btn sm ${ui.showDone ? 'pri' : 'ghost'}" data-act="toggle-done">${ui.showDone ? '☑' : '☐'} FEITAS</button>

@@ -1,5 +1,5 @@
 // O PRIMO NOVO — desenho em alta definição feito a partir das artes geradas pelo dono (IA de imagem, com direção dele).
-// Aqui só se DESENHA: animações do porquinho, rostos (expressões), acessórios encaixados por posição, FAÍSCA e o arquivo do cenário.
+// Aqui só se DESENHA: animações do porquinho, rostos (expressões), o chapéu de palha, a FAÍSCA e o arquivo do cenário.
 // O porquinho clássico em pixel (pdraw.js) continua existindo como reserva: se estas artes não carregarem, é ele que aparece.
 // As artes ficam em assets/primo/ e são preparadas fora do app (recorte de fundo, quadros dos vídeos, redução).
 const BASE = 'assets/primo/';
@@ -20,40 +20,10 @@ export const artWanted = () => { try { return localStorage.getItem('gamify-ui:pr
 export const artReady = () => !failed && !!META && ok(img('parado'));
 export const artOn = () => artWanted() && artReady();
 
-// ───────────────────────── ACESSÓRIOS ─────────────────────────
-// Cada peça tem duas vistas: f = frente 3/4 (porco parado, feliz, comendo) · s = lado (porco andando).
+// ───────────────────────── CHAPÉU DE PALHA ─────────────────────────
+// O único acessório (a identidade caipira do PRIMO). Duas vistas: f = frente 3/4 (parado, feliz, comendo) · s = lado (andando).
 // [largura, centro x, centro y] em pontos do quadro (0 a 224), medidos no primeiro quadro de cada vista.
-// `under: true` = desenhada ATRÁS do porco (capas).
-export const ACC = {
-  // cabeça
-  bone: { slot: 'hat', f: [112, 142, 60], s: [84, 174, 60] },
-  palha: { slot: 'hat', f: [138, 140, 58], s: [100, 172, 58] },
-  gorro: { slot: 'hat', f: [106, 140, 52], s: [80, 174, 54] },
-  bandana: { slot: 'hat', f: [112, 138, 66], s: [82, 172, 66] },
-  capacete: { slot: 'hat', f: [112, 140, 56], s: [86, 176, 58] },
-  fone: { slot: 'hat', f: [132, 140, 88], s: [44, 162, 92] },
-  cartola: { slot: 'hat', f: [92, 140, 44], s: [70, 174, 44] },
-  mago: { slot: 'hat', f: [122, 140, 40], s: [92, 172, 42] },
-  coroa: { slot: 'hat', f: [72, 140, 50], s: [54, 174, 50] },
-  cozinheiro: { slot: 'hat', f: [92, 140, 38], s: [70, 174, 40] },
-  lanterna: { slot: 'hat', f: [114, 140, 56], s: [88, 176, 58] },
-  // olhos
-  oculos: { slot: 'eyes', f: [102, 157, 106], s: [52, 186, 104] },
-  sol: { slot: 'eyes', f: [106, 157, 106], s: [54, 186, 104] },
-  monoculo: { slot: 'eyes', f: [44, 186, 114], s: [20, 198, 108] },
-  // pescoço
-  cachecol: { slot: 'neck', f: [96, 142, 152], s: [46, 160, 146] },
-  gravata: { slot: 'neck', f: [58, 152, 150], s: [26, 174, 142] },
-  medalha: { slot: 'neck', f: [52, 150, 160], s: [26, 170, 152] },
-  junina: { slot: 'neck', f: [86, 146, 152], s: [50, 164, 144] },
-  trevo: { slot: 'neck', f: [46, 152, 152], s: [28, 170, 144] },
-  // costas
-  mochila: { slot: 'back', f: [76, 70, 116], s: [60, 96, 98] },
-  capa: { slot: 'back', f: [104, 78, 126], s: [88, 104, 122] },
-  capaazul: { slot: 'back', f: [104, 78, 126], s: [88, 104, 122] },
-  chuva: { slot: 'back', f: [96, 76, 118], s: [84, 100, 108] },
-  violao: { slot: 'back', f: [56, 62, 110], s: [44, 92, 92] },
-};
+const HAT = { f: [138, 140, 58], s: [100, 172, 58] };
 // quanto a CABEÇA desce em cada quadro do "comendo" (o centro do corpo quase não muda, então é marcado à mão)
 const EAT_HEAD = [0, 0, 3, 10, 15, 16, 16, 16, 16, 16, 16, 15, 10, 0, 0, 0];
 
@@ -73,12 +43,11 @@ function pose(expr, f, tired) {
 }
 const TMP = typeof document !== 'undefined' ? document.createElement('canvas') : null;
 
-function drawAcc(t, id, view, dx, dy, FR) {
-  const a = ACC[id], p = a?.[view], m = META.acc[id]?.[view], im = img('acc/' + id + '-' + view);
-  if (!p || !m || !ok(im)) return;
+function drawHat(t, view, dx, dy) {
+  const p = HAT[view], m = META.acc?.palha?.[view], im = img('acc/palha-' + view);
+  if (!m || !ok(im)) return;
   const w = p[0], h = (w * m[1]) / m[0];
   t.drawImage(im, p[1] - w / 2 + dx, p[2] - h / 2 + dy, w, h);
-  void FR;
 }
 
 /** desenha o PRIMO novo no mesmo espaço lógico do clássico (72 x 96): o = { expr, wear, talk, f, mood } */
@@ -96,13 +65,10 @@ export function drawPortraitNew(c, o = {}) {
   TMP.width = FR; TMP.height = FR;
   const t = TMP.getContext('2d');
   t.clearRect(0, 0, FR, FR);
-  // os acessórios acompanham o corpo: usam o deslocamento do centro do bicho em relação ao 1º quadro
-  const cen = A.cen, dx = cen[i][0] - cen[0][0], dyB = cen[i][1] - cen[0][1], dyH = ps.anim === 'comendo' ? EAT_HEAD[i] || 0 : dyB;
-  const view = ps.anim === 'andando' ? 's' : 'f', showAcc = ps.anim !== 'dormindo'; // dormindo ele tira tudo
-  const items = showAcc ? ['back', 'neck', 'eyes', 'hat'].map((s) => wear[s]).filter((id) => id && ACC[id]) : [];
-  for (const id of items) if (ACC[id].under) drawAcc(t, id, view, dx, dyB, FR);
+  // o chapéu acompanha o corpo: usam o deslocamento do centro do bicho em relação ao 1º quadro
+  const cen = A.cen, dx = cen[i][0] - cen[0][0], dyH = ps.anim === 'comendo' ? EAT_HEAD[i] || 0 : cen[i][1] - cen[0][1];
   t.drawImage(sheet, i * FR, 0, FR, FR, 0, 0, FR, FR);
-  for (const id of items) if (!ACC[id].under) drawAcc(t, id, view, dx, ACC[id].slot === 'back' || ACC[id].slot === 'neck' ? dyB : dyH, FR);
+  if (wear.hat && ps.anim !== 'dormindo') drawHat(t, ps.anim === 'andando' ? 's' : 'f', dx, dyH); // dormindo, o chapéu fica de lado
   // estado do dia: envenenado esverdeia, cansado azula, em chama esquenta
   t.globalCompositeOperation = 'source-atop';
   if (mood === 'poison' || o.expr === 'enjoado') { t.fillStyle = 'rgba(124,195,90,.42)'; t.fillRect(0, 0, FR, FR); }

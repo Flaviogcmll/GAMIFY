@@ -47,7 +47,7 @@ function baseExpr() {
 }
 
 // ───────────────────────── expressão e fala atuais ─────────────────────────
-let rx = null, amb = null, talkUntil = 0, previewWear = null;
+let rx = null, amb = null, talkUntil = 0;
 const curExpr = () => {
   const now = Date.now();
   if (rx && now < rx.until) return rx.expr;
@@ -135,7 +135,7 @@ function paint(cv) {
   const kind = cv.dataset.portrait, ctx = cv.getContext('2d'), NEW = artOn();
   ctx.setTransform(K, 0, 0, K, 0, 0);
   if (cv.dataset.mascot != null) { const ps = PS.petState(), happy = R.dailyGoal(S).today >= R.dailyGoal(S).goal; if (NEW) drawMascotNew(ctx, ps.stage, frame, happy); else { ctx.imageSmoothingEnabled = false; drawMascot(ctx, ps.stage, frame, happy); } return; }
-  const o = { tier: R.companion(S).tier, mood: statusMood(), expr: curExpr(), wear: kind === 'closet' && previewWear ? previewWear : PS.wearing(), talk: Date.now() < talkUntil, f: frame };
+  const o = { tier: R.companion(S).tier, mood: statusMood(), expr: curExpr(), wear: PS.wearing(), talk: Date.now() < talkUntil, f: frame };
   if (kind === 'mini') {
     if (NEW) { drawFace(ctx, o.expr, 44, o.mood); return; }
     const oc = OFF.getContext('2d'); oc.setTransform(K, 0, 0, K, 0, 0); drawPortrait(oc, o);
@@ -199,7 +199,7 @@ function body(big) {
     <div class="pcol"><div class="speech" id="comp-speech" data-pspeech="ambient" data-act="comp-poke" title="toque pra ouvir outra"></div>
       <div class="meta pstat">${status}${st.left ? ` · <span data-countdown="${Date.now() + st.left}">${mmss(st.left)}</span>` : ''}</div>
       ${askHtml()}${expHtml(big)}
-      <div class="row prow">${big ? '' : '<button class="btn sm" data-act="primo-hub">🎒 EXPEDIÇÃO</button>'}<button class="btn sm" data-act="comp-talk">💬 CONVERSAR</button><button class="btn sm" data-act="focus">🔥 FOCO</button><button class="btn sm pri" data-act="saber" data-g="all">📚 ME CONTA UMA</button><button class="btn sm" data-act="primo-prosa" title="Piada, ditado ou causo da roça">😂 PROSA</button>${PS.WARDROBE_ON ? '<button class="btn sm" data-act="closet">👕 ARMÁRIO</button>' : ''}<button class="btn sm" data-act="diary">📖 DIÁRIO</button>${n ? `<button class="btn sm pri" data-act="claude">✨ ${n}</button>` : ''}</div></div></div>`;
+      <div class="row prow">${big ? '' : '<button class="btn sm" data-act="primo-hub">🎒 EXPEDIÇÃO</button>'}<button class="btn sm" data-act="comp-talk">💬 CONVERSAR</button><button class="btn sm" data-act="focus">🔥 FOCO</button><button class="btn sm pri" data-act="saber" data-g="all">📚 ME CONTA UMA</button><button class="btn sm" data-act="primo-prosa" title="Piada, ditado ou causo da roça">😂 PROSA</button><button class="btn sm ${PS.hatOn() ? '' : 'ghost'}" data-act="hat" title="Pôr ou tirar o chapéu de palha">🤠 CHAPÉU</button><button class="btn sm" data-act="diary">📖 DIÁRIO</button>${n ? `<button class="btn sm pri" data-act="claude">✨ ${n}</button>` : ''}</div></div></div>`;
 }
 /** cartão da aba QUESTS */
 export function primoCard() {
@@ -217,17 +217,6 @@ export function openPrimoHub() {
 const rehub = () => { closeModal(); setTimeout(openPrimoHub, 40); };
 
 // ───────────────────────── armário e diário ─────────────────────────
-let closetSlot = 'hat';
-function openCloset(slot) {
-  if (slot) closetSlot = slot;
-  const wear = PS.wearing(), items = PS.WARDROBE.filter((x) => x.slot === closetSlot && (!x.novo || artOn())); // peças novas só existem na arte nova
-  previewWear = wear;
-  const m = openModal(`<h2>👕 armário do PRIMO</h2><div class="closet"><canvas class="pcv" data-portrait="closet" aria-label="PRIMO"></canvas>
-    <div class="cl-col"><div class="chips">${PS.SLOTS.map(([k, n]) => `<button class="btn sm ${k === closetSlot ? 'pri' : 'ghost'}" data-act="closet-slot" data-slot="${k}">${n}</button>`).join('')}</div>
-    <div class="cl-grid">${`<button class="cl-it ${wear[closetSlot] ? '' : 'on'}" data-act="wear" data-slot="${closetSlot}" data-id="">nada</button>`}${items.map((it) => { const ok = PS.wardrobeOk(it); return `<button class="cl-it ${wear[closetSlot] === it.id ? 'on' : ''} ${ok.ok ? '' : 'lock'}" data-act="wear" data-slot="${it.slot}" data-id="${it.id}" ${ok.ok ? '' : 'disabled'}>${ok.ok ? '' : '🔒 '}${esc(it.name)}${ok.ok ? '' : `<small>${esc(ok.hint)}</small>`}</button>`; }).join('')}</div></div></div>
-    <div class="actions"><button class="btn pri" data-close>PRONTO</button></div>`, { wide: true });
-  mountPortraits(m);
-}
 /** central das curiosidades: escolha o tema e o PRIMO conta uma (sem repetir até acabar) */
 function openSaber(g = 'all') {
   const chips = [['all', '🎲 TUDO'], ...Object.entries(GROUPS).map(([k, v]) => [k, v[0]])].map(([k, n]) => `<button class="btn sm ${k === g ? 'pri' : 'ghost'}" data-act="saber-go" data-g="${k}">${n}</button>`).join('');
@@ -250,10 +239,8 @@ export function extendPrimo(ACTIONS) {
     'claude-no': (d) => { A.claudeReject(d.id); closeModal(); setTimeout(openClaude, 60); },
     'primo-prosa': () => { const r = Math.random(); primoReact(r < 0.6 ? 'piada' : r < 0.82 ? 'ditado' : 'causo'); sfx('tab'); },
     saber: (d) => { primoReact('saber', { group: d.g || 'all' }); if (!document.querySelector('.modal')) openSaber(d.g || 'all'); },
-    closet: () => { if (PS.WARDROBE_ON) openCloset(); else toast('O armário está guardado por enquanto: os acessórios voltam quando encaixarem direito no PRIMO novo.'); },
+    hat: () => { PS.toggleHat(); sfx('buy'); primoReact('armario'); },
     'saber-go': (d) => { closeModal(); setTimeout(() => { openSaber(d.g); }, 30); },
-    'closet-slot': (d) => { closeModal(); setTimeout(() => openCloset(d.slot), 30); },
-    wear: (d) => { const r = PS.setWear(d.slot, d.id || null); if (r?.error) { toast(esc(r.error), 'bad'); return; } sfx('buy'); primoReact('armario'); closeModal(); setTimeout(() => openCloset(d.slot), 30); },
     diary: () => openDiary(),
     'mascot-info': () => { const p = PS.petState(); toast(`🔥 FAÍSCA · <b>${esc(p.name)}</b> · ${p.days} dia(s) na meta${p.next ? ` · faltam ${p.left} pra evoluir` : ''}`, 'gold'); primoReact('mascote'); },
     'exp-send': (d) => { const r = PS.sendExp(d.id); if (r?.error) { sfx('error'); toast(esc(r.error), 'bad'); return; } sfx('xp'); primoReact('exp_ida'); if (document.querySelector('.modal')) rehub(); },

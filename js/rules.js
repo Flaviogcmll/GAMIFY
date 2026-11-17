@@ -340,6 +340,9 @@ export function lastSunday(s, d) {
   return { ...sun, avg: vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null };
 }
 
+/** 💥 PRAZOS ESTOURADOS: cada tarefa que passa do prazo aberta conta 1 (contado ao abrir o app, core.blow = { n, hits }).
+ *  A cada BLOW_EVERY, a loja fica BLOW_MULT mais cara por BLOW_DAYS dias. Viagem não conta. */
+export const BLOW_EVERY = 5, BLOW_DAYS = 3, BLOW_MULT = 1.2;
 export const STATUS_INFO = {
   envenenado: { icon: '☠', name: 'ENVENENADO', kind: 'debuff', desc: 'Falhou o NO PH: taverna x2 por 48h.', cure: '⚔ Redenção ou ANTÍDOTO.' },
   neblina: { icon: '🌫', name: 'NEBLINA', kind: 'debuff', desc: '2 dias sem treino: hábitos -50%.', cure: 'Treinar hoje, ⚔ redenção ou ANTÍDOTO.' },
@@ -364,6 +367,7 @@ export const STATUS_INFO = {
   emchama: { icon: '🔥', name: 'EM CHAMA', kind: 'buff', desc: '3+ dias seguidos batendo a meta diária: tarefas +10% XP.' },
   noazul: { icon: '💙', name: 'NO AZUL', kind: 'buff', desc: 'O último mês fechou com sobra (planilha de gastos): taverna -10%.' },
   disperso: { icon: '🌀', name: 'DISPERSO', kind: 'debuff', desc: '4+ tarefas ▶ FAZENDO ao mesmo tempo: tarefas -10% XP.', cure: 'Conclua ou pause até sobrarem 3.' },
+  estourado: { icon: '💥', name: 'CASTIGO', kind: 'debuff', desc: `${BLOW_EVERY} prazos estourados: loja ${Math.round((BLOW_MULT - 1) * 100)}% mais cara por ${BLOW_DAYS} dias.`, cure: 'Passa sozinho. Pra não voltar: prazo realista e DISTRIBUIR.' },
   devendo: { icon: '💸', name: 'DEVENDO', kind: 'debuff', desc: '2+ compras "fiz sem comprar" na semana: taverna x1,25.', cure: 'Compre ANTES de aproveitar por 7 dias.' },
   vazando: { icon: '🕳', name: 'VAZANDO', kind: 'debuff', desc: 'Mês passado: besteira acima de 40% ou crédito acima de 70% do gasto (planilha): taverna x1,15.', cure: 'Passa quando o mês virar com números melhores.' },
 };
@@ -415,6 +419,7 @@ export function dayStatus(s, d) {
   if (dailyGoal(s, d).streak >= 3) add('emchama', { task: 10 });
   if (openTasks(s).filter((t) => t.st === 'doing').length >= 4) add('disperso', { task: -10 });
   if ((s.loja?.purchases || []).filter((p) => p.debt && p.date >= addDays(d, -6) && p.date <= d).length >= 2) add('devendo', { shop: 1.25 });
+  if (blowState(s, d).active) add('estourado', { shop: BLOW_MULT });
   const closed = (s.core?.cofre?.months || []).filter((m) => m.m < d.slice(0, 7)).at(-1);
   if (closed && closed.gua > 0 && !(closed.bes > 0.4 || closed.cred > 0.7)) add('noazul', { shop: 0.9 });
   if (closed && (closed.bes > 0.4 || closed.cred > 0.7)) add('vazando', { shop: 1.15 });
@@ -712,6 +717,10 @@ export function tavernaPrice(s, item, d = today()) {
 export const DEBT_MULT = 1.5;
 /** remarcar: o custo dobra a cada vez até este teto, em múltiplos do custo-base (v5.8: era 16x) */
 export const RESCHED_CAP = 8;
+export function blowState(s, d = today()) {
+  const b = s.core?.blow || {}, n = b.n || 0, hit = (b.hits || []).filter((h) => h <= d).sort().at(-1);
+  return { n, left: BLOW_EVERY - (n % BLOW_EVERY), active: !!hit && diffDays(hit, d) < BLOW_DAYS };
+}
 export const ferreiroXp = (item) => C.FERREIRO_XP * item.nv;
 export const timesBought = (s, itemId) =>
   (s.loja?.purchases || []).filter((p) => p.itemId === itemId).reduce((a, p) => a + (p.qty || 1), 0);
@@ -727,7 +736,6 @@ export const overdueTasks = (s, d = today()) => openTasks(s).filter((t) => t.due
 export function loadByDay(s) {
   const load = {};
   for (const t of openTasks(s)) if (t.due) load[t.due] = (load[t.due] || 0) + 1;
-  for (const c of s.core?.commitments || []) if (c.date) load[c.date] = (load[c.date] || 0) + 1;
   return load;
 }
 /** próxima ação de um bloco = 1º item em aberto (na ordem) */
@@ -770,7 +778,7 @@ export function distributePlan(s, opts = {}) {
     for (let i = 0; i < 400; i++, d = addDays(d, 1)) if ((load[d] || 0) < dayCapacity(s, d, pace, max)) return d;
     return from;
   };
-  const capOf = (t) => { const b = t.block && (s.quests?.blocks || []).find((x) => x.id === t.block); return b?.due && b.due >= td ? b.due : null; };
+  const blocksById = new Map((s.quests?.blocks || []).map((b) => [b.id, b])), capOf = (t) => dueCap(t.block && blocksById.get(t.block), td);
   const push = (t, from, why) => {
     if (t.due && t.due >= td) return;
     if (t.due) load[t.due] = Math.max(0, (load[t.due] || 0) - 1);
@@ -837,7 +845,18 @@ export function ritualStatus(r, td = today()) {
 /** bloco marcado como REVISADO nas últimas 24 h */
 export const reviewed = (b, now = Date.now()) => !!b?.rev && now - b.rev < 864e5;
 /** lista do QUESTS marcada como revisada nas últimas 24 h (core.rev = { hoje: hora, amanha: hora… }) */
-export const listReviewed = (s, k, now = Date.now()) => { const t = s.core?.rev?.[k]; return !!t && now - t < 864e5; };
+export const listReviewed = (s, k, now = Date.now()) => reviewed({ rev: s.core?.rev?.[k] }, now);
+/** prazo máximo de uma subtarefa = o prazo final do bloco dela. Bloco já vencido não limita (mude o prazo do bloco). */
+export const dueCap = (b, td = today()) => (b?.due && b.due >= td ? b.due : null);
+/** os blocos de uma aba do QUESTS: 'bd', 'tr', 'cap', 'gs' (sem os guardados em janelas do dono) ou 'w:<id>' (janela do dono) */
+export const tabBlocks = (s, k) => { const ws = new Set(windows(s).map((w) => w.id)); return (s.quests?.blocks || []).filter((b) => (k.startsWith('w:') ? b.win === k.slice(2) : b.group === k && !ws.has(b.win))); };
+/** aba toda revisada: todas as listas com tarefa aberta, ou todos os blocos ativos (não fechados nem parados) */
+export function tabReviewed(s, k) {
+  if (k === 'boss') return false;
+  if (k === 'listas') { const ks = AREA_KEYS.filter((a) => (s.quests?.tasks || []).some((t) => !t.block && t.area === a && isOpen(t))); return ks.length > 0 && ks.every((a) => listReviewed(s, a)); }
+  const bl = tabBlocks(s, k).filter((b) => b.st !== 'done' && b.color !== 'black');
+  return bl.length > 0 && bl.every((b) => reviewed(b));
+}
 export const ritualXp = (r) => (r.type === 'pessoa' ? C.RIT_PESSOA : C.RIT_OUTRO);
 
 // ───────────────────────── ALERTAS ─────────────────────────
@@ -1010,10 +1029,6 @@ export function filterRows(s, td = today()) {
       xp: taskXp(s, t, td).xp,
     });
   }
-  for (const c of s.core?.commitments || []) {
-    if (c.date < td) continue;
-    rows.push({ id: c.id, kind: 'commit', text: c.text, where: c.type || 'PESSOAL', cat: 'COMPROMISSO', date: c.date, time: c.start || '', left: diffDays(td, c.date), bucket: bucket(c.date), status: '📌 MARCADO', type: 'COMPROMISSO', color: '', marks: '', xp: 0 });
-  }
   return rows;
 }
 
@@ -1023,16 +1038,11 @@ export function timeline(s, start, days = 42) {
   const inRange = (d) => d && d >= start && d <= end;
   const count = (list) => { const m = {}; for (const t of list) if (inRange(t.due)) m[t.due] = (m[t.due] || 0) + 1; return m; };
   const rows = Object.entries(AREAS).map(([k, n]) => ({ name: n, counts: count(open.filter((t) => !t.block && t.area === k)) }));
-  // v4: rituais saíram da agenda
-  const com = {};
-  for (const c of s.core?.commitments || []) if (inRange(c.date)) com[c.date] = (com[c.date] || 0) + 1;
-  rows.push({ name: '📌 COMPROMISSOS', counts: com });
   const blocks = (s.quests?.blocks || []).filter((b) => b.st !== 'done' && b.color !== 'black').sort((a, b) => a.ord - b.ord).map((b) => ({
     name: b.title, color: b.color, block: b.id, due: b.due || null, created: b.created || null,
     counts: count(open.filter((t) => t.block === b.id)),
   }));
-  const load = loadByDay(s);
-  return { start, end, rows, blocks, load };
+  return { start, end, rows, blocks };
 }
 export { holidayName };
 
