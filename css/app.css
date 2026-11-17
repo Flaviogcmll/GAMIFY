@@ -985,3 +985,8 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 .nchk { display: block; font-size: 12.5px; padding: 8px 10px; background: var(--panel-2); border-radius: 8px; }
 .nchk .meta { display: block; margin-top: 3px; font-size: 11.5px; line-height: 1.45; }
 @media (max-width: 700px) { .neurogrid { grid-template-columns: 1fr; } }
+/* prazo além de 7 dias = DEPOIS (azul); na fila de prazos, cada linha leva a cor da lista onde a tarefa está */
+.chip.later { background: color-mix(in srgb, var(--c-calma) 14%, transparent); border-color: var(--c-calma); color: var(--c-calma); }
+.li[data-list] { border-left: 4px solid var(--lc, var(--line)); padding-left: 8px; }
+.li[data-list="hoje"] { --lc: var(--c-urg); } .li[data-list="amanha"] { --lc: var(--c-quase); } .li[data-list="semana"] { --lc: var(--c-atencao); }
+.li[data-list="depois"] { --lc: var(--c-calma); } .li[data-list="sem"] { --lc: var(--c-neutro); } .li[data-list="wait"] { --lc: var(--c-espera); }

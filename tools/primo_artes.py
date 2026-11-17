@@ -1,7 +1,7 @@
 # Prepara as artes do PRIMO novo para o app: recorta o fundo, corta os quadros dos vídeos, reduz e empacota.
 # Não é usado pelo app: roda-se à mão quando o dono gera artes novas. Precisa de Python com Pillow e numpy, e do ffmpeg.
 # Uso: python3 tools/primo_artes.py <pasta com os originais> <pasta de saída> <pasta temporária para os quadros>
-# Depois copie a saída (menos os icon-*.png) para assets/primo/ e os ícones para assets/.
+# Depois copie a saída (menos os icon-*.png) para assets/primo/ e os ícones para assets/. Ícone trocado? Mude o nome (icon-192-v3.png…) em manifest.json, index.html e sw.js: só assim o app instalado no computador/celular atualiza o ícone.
 import sys, os, glob, json, subprocess
 import numpy as np
 from PIL import Image

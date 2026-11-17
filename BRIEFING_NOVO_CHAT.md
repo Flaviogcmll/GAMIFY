@@ -229,6 +229,10 @@ Pedido do dono: "as cores têm que ter justificativa; a mesma cor = a mesma cate
   - Dopamina sob controle: tarefa fácil (< 20 XP, sem ⭐ ⚔) não solta o "+XP" voando; fogos continuam só para o que custou.
   - Escada do esforço: 7 dias seguidos na meta → `core.ladder` ganha a data e a meta sobe 5% (máx. 10 degraus). Cada dia é medido com a meta que valia nele (`goalAt`), então a sequência e as conquistas não quebram.
 
+## AJUSTE v5.15 (17/11/2026)
+- Fila de prazos (QUESTS e AGENDA): cada linha e cada prazo usam a cor da lista onde a tarefa cai (HOJE vermelho, AMANHÃ laranja, SEMANA amarelo, DEPOIS azul, AGUARDANDO roxo). Saíram as cores "por data" (arco-íris), que não tinham significado. `dueChip` ganhou a classe `later` (> 7 dias).
+- Ícone: o atalho instalado na área de trabalho do dono não atualizou. Os arquivos viraram `assets/icon-*-v2.png` (nome novo = o navegador baixa de novo). Se trocar o ícone outra vez, mude o nome de novo.
+
 ## PRÓXIMA RODADA — JÁ ESCOLHIDA PELO DONO (17/11/2026)
 Lembrete dele: "o app tem que ser PRÁTICO e não comer meu tempo; preciso de tempo para as tarefas". Cada recurso: no máximo 1 toque a mais, nada de tela obrigatória, tudo desligável em PERKS → 🧠.
 Ideias do livro do Bullet Journal (Ryder Carroll), das anotações do dono. Ele escolheu A, C, E, F, G, H:

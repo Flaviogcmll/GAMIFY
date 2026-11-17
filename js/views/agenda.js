@@ -67,7 +67,7 @@ export function viewAgenda(ui) {
     <div class="grid">${timelineCard(ui)}
       <div class="card c7"><header><h2>⏰ Fila de prazos</h2></header>
         <div class="row" style="margin-bottom:8px"><input class="inp grow" data-input="agQ" value="${esc(ui.agQ || '')}" placeholder="🔍 filtrar por nome, projeto…" aria-label="Filtrar"><div class="seg">${[['', 'TUDO'], ['late', 'ATRASADAS'], ['today', 'HOJE'], ['week', '7 DIAS']].map(([k, n]) => `<button class="fb-${k || 'all'} ${fb === k ? 'on' : ''}" data-act="ag-filter" data-b="${k}">${n}</button>`).join('')}</div></div>
-        <div class="list">${queue.slice(0, 80).map((t) => `<div class="li"><div class="lt" data-act="jump" data-id="${t.id}" style="cursor:pointer">${t.st === 'doing' ? '▶ ' : ''}${t.prio ? '<b class="bad">!</b> ' : ''}${esc(t.text)}<small>${esc(where(t))}</small></div>
+        <div class="list">${queue.slice(0, 80).map((t) => `<div class="li" data-list="${R.listOf(t)}"><div class="lt" data-act="jump" data-id="${t.id}" style="cursor:pointer">${t.st === 'doing' ? '▶ ' : ''}${t.prio ? '<b class="bad">!</b> ' : ''}${esc(t.text)}<small>${esc(where(t))}</small></div>
           <div class="row" style="flex-wrap:nowrap;gap:6px">${dueChip(t.due, false, true)}<button class="icon-btn" data-act="prio" data-id="${t.id}" title="Prioridade">${t.prio ? '★' : '☆'}</button></div></div>`).join('') || '<div class="empty">nada encontrado.</div>'}</div></div>
       <div class="c5" style="display:flex;flex-direction:column;gap:16px">
         <div class="card"><header><h2>🔁 Rituais · próximos 14 dias</h2><a class="meta" href="#survival">todos →</a></header>

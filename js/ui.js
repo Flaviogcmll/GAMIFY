@@ -63,10 +63,11 @@ export function dueChip(due, done = false, colored = false) {
     else if (d === 1) { cls = 'tomorrow'; label = 'AMANHÃ'; }
     else if (d <= 3) cls = 'near';
     else if (d <= 7) cls = 'week';
+    else cls = 'later';
   }
-  // mesma data = mesma cor (as urgentes seguem vermelho/laranja)
-  const h = (Number(due.replace(/-/g, '')) * 47) % 360, st = colored && !done && d > 1 ? ` style="background:hsl(${h} 55% 42% / .25);border-color:hsl(${h} 55% 52%);color:hsl(${h} 70% 70%)"` : '';
-  return `<span class="chip ${cls}"${st}>${label}</span>`;
+  // v5.14: a cor do prazo é a mesma da lista onde a tarefa cai (HOJE vermelho, AMANHÃ laranja, SEMANA amarelo, DEPOIS azul)
+  void colored;
+  return `<span class="chip ${cls}">${label}</span>`;
 }
 const CHECK = { done: '✓', doing: '▶', wait: '…', sent: '✉', cancel: '✕' };
 
