@@ -24,6 +24,7 @@ const ICONS = {
   chest: ['.cccccccc.', 'cnnnnnnnnc', 'cnngggnnnc', 'cccccccccc', 'cnnnggnnnc', 'cnnnnnnnnc', 'cnnnnnnnnc', 'cccccccccc', '..........', '..........'],
   potion: ['...cccc...', '....cc....', '...cwwc...', '..cwwwwc..', '.cGGGGGGc.', '.cGwGGGGc.', '.cGGGGGGc.', '..cGGGGc..', '...cccc...', '..........'],
   bag: ['...cccc...', '..c....c..', '.cnnnnnnc.', 'cnnnnnnnnc', 'cnnnggnnnc', 'cnnnggnnnc', 'cnnnnnnnnc', 'cnnnnnnnnc', '.cccccccc.', '..........'],
+  lock: ['...cccc...', '..c....c..', '..c....c..', '..c....c..', '.cccccccc.', '.cwwwwwwc.', '.cwwccwwc.', '.cwwccwwc.', '.cwwwwwwc.', '.cccccccc.'],
   hammer: ['.ccccc....', 'cwwwwwc...', 'cwwwwwc...', '.ccccnc...', '....cnc...', '....cnc...', '....cnc...', '....cnc...', '....cnc...', '....ccc...'],
 };
 const cache = {};
@@ -33,13 +34,20 @@ export function px(name, size = 20, title = '') {
   if (cache[key]) return cache[key];
   const rows = ICONS[name];
   if (!rows) return '';
-  let rects = '';
+  // v5.16: um <path> por cor (antes: um <rect> por pixel, ~60 elementos por ícone; CONQUISTAS tinha 7.700 elementos)
+  const byFill = {};
   rows.forEach((row, y) => {
-    [...row.padEnd(10, '.').slice(0, 10)].forEach((ch, x) => {
-      if (ch === '.' || ch === ' ') return;
+    const r = row.padEnd(10, '.').slice(0, 10);
+    for (let x = 0; x < 10;) {
+      const ch = r[x];
+      if (ch === '.' || ch === ' ') { x++; continue; }
+      let w = 1;
+      while (x + w < 10 && r[x + w] === ch) w++;
       const fill = ch === 'c' ? 'currentColor' : PAL[ch] || 'currentColor';
-      rects += `<rect x="${x}" y="${y}" width="1.02" height="1.02" fill="${fill}"/>`;
-    });
+      byFill[fill] = (byFill[fill] || '') + `M${x} ${y}h${w + 0.02}v1.02h-${w + 0.02}z`;
+      x += w;
+    }
   });
+  const rects = Object.entries(byFill).map(([f, d]) => `<path fill="${f}" d="${d}"/>`).join('');
   return (cache[key] = `<svg class="pxi" width="${size}" height="${size}" viewBox="0 0 10 10" aria-hidden="${title ? 'false' : 'true'}"${title ? ` role="img"><title>${title}</title>` : '>'}${rects}</svg>`);
 }

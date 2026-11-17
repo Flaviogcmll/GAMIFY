@@ -42,14 +42,46 @@ export function ask(title, text, okLabel = 'CONFIRMAR', danger = false) {
 }
 
 // ───── avisos ─────
-let toastBox = null;
-export function toast(html, kind = '') {
-  if (!toastBox) { toastBox = document.createElement('div'); toastBox.className = 'toasts'; document.body.appendChild(toastBox); }
+// v5.16 (Q3): um aviso por vez. Os iguais se juntam (×2, ×3…), os outros esperam na fila e, se a fila crescer,
+// os avisos simples saem primeiro (conquista, loot e erro nunca se perdem). Tocar no aviso fecha.
+let toastBox = null, cur = null, curT = 0, curEnd = 0;
+const queue = [], MAX_QUEUE = 3;
+const lifeOf = (kind) => (kind ? 3600 : 2600);
+function showNext() {
+  cur = null;
+  const n = queue.shift();
+  if (!n) return;
+  if (!toastBox) { toastBox = document.createElement('div'); toastBox.className = 'toasts'; toastBox.setAttribute('aria-live', 'polite'); document.body.appendChild(toastBox); }
   const t = document.createElement('div');
-  t.className = 'toast ' + kind;
-  t.innerHTML = html;
+  t.className = 'toast ' + n.kind;
+  t.innerHTML = n.html + (n.n > 1 ? ` <b class="tx">×${n.n}</b>` : '');
+  t.addEventListener('click', () => hide(t));
   toastBox.appendChild(t);
-  setTimeout(() => { t.style.transition = 'opacity .4s'; t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 3800);
+  cur = { el: t, html: n.html, kind: n.kind, n: n.n };
+  arm(queue.length ? 1600 : lifeOf(n.kind));
+}
+function arm(ms, onlySooner = false) {
+  if (onlySooner && Date.now() + ms >= curEnd) return;
+  clearTimeout(curT); curEnd = Date.now() + ms;
+  const el = cur?.el; curT = setTimeout(() => hide(el), ms);
+}
+function hide(el) {
+  if (!el || el !== cur?.el) return;
+  clearTimeout(curT);
+  el.style.transition = 'opacity .25s'; el.style.opacity = '0';
+  setTimeout(() => { el.remove(); showNext(); }, 250);
+}
+export function toast(html, kind = '') {
+  if (cur && cur.html === html) { // igual ao que está na tela: só conta
+    cur.n++; let b = cur.el.querySelector('.tx');
+    if (!b) { b = document.createElement('b'); b.className = 'tx'; cur.el.append(' ', b); }
+    b.textContent = '×' + cur.n; arm(lifeOf(kind)); return;
+  }
+  const same = queue.find((q) => q.html === html);
+  if (same) { same.n++; return; }
+  queue.push({ html, kind, n: 1 });
+  while (queue.length > MAX_QUEUE) { const i = queue.findIndex((q) => !q.kind); queue.splice(i >= 0 ? i : 0, 1); }
+  if (!cur) showNext(); else arm(1200, true); // tem fila: o atual sai mais cedo
 }
 
 // ───── pedaços de HTML ─────
@@ -83,10 +115,11 @@ export function taskRow(t, opts = {}) {
   // tarefa da lista que virou bloco em outra janela: mostra o NOME e a COR da janela onde o bloco está
   const lb = t.link ? R.findBlock(S, t.link) : null, lw = lb ? R.winOf(S, lb) : null;
   const wname = lb ? (lw ? lw.name : lb.group === 'bs' ? R.TAB_NAMES.boss : R.GROUPS[lb.group]?.short || '') : '';
-  return `<li class="${cls}" data-id="${t.id}" ${t.color ? `data-color="${t.color}"` : ''}><span class="handle" data-handle="task" data-id="${t.id}" title="Segure e arraste">⠿</span>
+  const col = t.st === 'wait' ? 'purple' : t.color; // v5.16: AGUARDANDO = roxo (a mesma cor da lista)
+  return `<li class="${cls}" data-id="${t.id}" ${col ? `data-color="${col}"` : ''}><span class="handle" data-handle="task" data-id="${t.id}" title="Segure e arraste">⠿</span>
     <button class="check" data-act="toggle" data-id="${t.id}" aria-label="Concluir ${esc(t.text)}">${CHECK[t.st] || ''}</button>
-    <div class="txt" data-act="edit-task" data-id="${t.id}">${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}${sub}${sent}</div>
-    <div class="info">${t.link ? `<button class="lnk-dot" data-g="${lb?.group || 'bd'}" data-act="jump-block" data-id="${t.link}" title="Tem um bloco na janela ${esc(wname || 'BREAKDOWN')}. Toque pra ir lá." aria-label="Ir pro bloco em ${esc(wname || 'BREAKDOWN')}"></button>` : opts.list && !p.step && R.isOpen(t) ? `<button class="icon-btn mini" data-act="to-breakdown" data-id="${t.id}" title="Mandar pro BREAKDOWN MACHINE (fica ligada)" aria-label="Mandar pro breakdown">⤴</button>` : ''}${t.who || t.dep ? `<span class="chip wait" title="aguardando: ${esc(R.waitingOn(S, t).label)}">⏳ ${esc((t.who || '🔗').slice(0, 14))}</span>` : ''}${t.prio ? '<span class="chip prio">!</span>' : ''}${t.cycle ? `<span class="chip cyc" title="vai e volta">🔁${rounds ? ' ' + rounds : ''}</span>` : ''}${t.imgs?.length ? `<span class="chip" title="${t.imgs.length} imagem(ns): abra a tarefa pra ver">🖼${t.imgs.length > 1 ? ' ' + t.imgs.length : ''}</span>` : ''}${t.pin && opts.showPin ? '<span class="chip">↗</span>' : ''}${opts.list && (t.due === today() || t.due === addDays(today(), 1)) && R.isOpen(t) ? '' : dueChip(t.due, !R.isOpen(t))}${xp ? `<span class="chip xp">${xp}</span>` : ''}</div>
+    <div class="txt" data-act="${opts.go ? 'jump' : 'edit-task'}" data-id="${t.id}" ${opts.go ? 'title="Toque pra ir até a tarefa"' : ''}>${t.link ? `<button class="lnk-dot" data-g="${lb?.group === 'bs' ? 'bs' : lw ? 'win' : lb?.group || 'bd'}" data-act="jump-block" data-id="${t.link}" title="Está na janela ${esc(wname || 'BREAKDOWN')}. Toque pra ir lá." aria-label="Ir pro bloco em ${esc(wname || 'BREAKDOWN')}"></button>` : ''}${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}${sub}${sent}</div>
+    <div class="info">${!t.link && opts.list && !p.step && R.isOpen(t) ? `<button class="icon-btn mini" data-act="to-breakdown" data-id="${t.id}" title="Mandar pra uma janela (BREAKDOWN, TRABALHO, GESTÃO…)" aria-label="Mandar pra uma janela">⤴</button>` : ''}${t.who || t.dep ? `<span class="chip wait" title="aguardando: ${esc(R.waitingOn(S, t).label)}">⏳ ${esc((t.who || '🔗').slice(0, 14))}</span>` : ''}${t.prio ? '<span class="chip prio">!</span>' : ''}${t.box && R.isOpen(t) ? `<span class="chip box" title="time box: horário e duração combinados">⏰ ${esc(t.box.at || '')}${t.box.min ? ' · ' + t.box.min + 'min' : ''}</span>` : ''}${t.cycle ? `<span class="chip cyc" title="vai e volta">🔁${rounds ? ' ' + rounds : ''}</span>` : ''}${t.imgs?.length ? `<span class="chip" title="${t.imgs.length} imagem(ns): abra a tarefa pra ver">🖼${t.imgs.length > 1 ? ' ' + t.imgs.length : ''}</span>` : ''}${t.pin && opts.showPin ? '<span class="chip">↗</span>' : ''}${opts.list && (t.due === today() || t.due === addDays(today(), 1)) && R.isOpen(t) ? '' : dueChip(t.due, !R.isOpen(t))}${xp ? `<span class="chip xp">${xp}</span>` : ''}</div>
   </li>`;
 }
 

@@ -38,6 +38,9 @@ import { extendImgs, imgSection, fillImgs } from './imgs.js';
 import { autoSnapshot, backupBanner, extendBackup, markBackup, restoreDocs } from './backup.js';
 import { tripBanner, tripCheck, extendTrip } from './trip.js';
 import { maybeReview, extendReview } from './review.js';
+import { extendBujo, afterRenderBujo } from './bujo.js';
+import { perksNav, perksGo } from './telas.js';
+import { extendMapa } from './mapa.js';
 
 
 // abas na mesma ordem da planilha
@@ -87,7 +90,9 @@ function header() {
   const tot = R.totals(S), ch = S.core.chapter || {};
   const using = S.loja.purchases.filter((p) => p.status === 'using');
   const night = document.documentElement.dataset.mode === 'night';
-  return `<a class="logo" href="#quests">${px('fire', 20)}<span>GAMIFY<small>${status.mode === 'local' ? '💻 só neste navegador' : status.error ? '⚠ erro ao salvar' : status.saving ? 'salvando…' : '☁ salvo'}</small></span></a>
+  // v5.16: GAMIFY como logo; onde os dados estão vira um iconezinho com legenda (sem textinho)
+  const where = status.mode === 'local' ? ['💻', 'Seus dados estão só neste aparelho. Conecte o Google Drive em PERKS pra sincronizar.'] : status.error ? ['⚠', 'Erro ao salvar: ' + status.error] : status.saving ? ['⏳', 'Salvando…'] : ['☁', 'Salvo no Google Drive'];
+  return `<span class="brand"><span class="savewhere ${status.error ? 'bad' : ''}" title="${esc(where[1])}" aria-label="${esc(where[1])}">${where[0]}</span><a class="logo" href="#quests" title="GAMIFY"><span class="lgo">GAMIFY</span></a></span>
     <div class="hero"><div class="lv"><span>NV</span><b>${tot.level}</b></div>
       <div class="who"><div class="t">⚔ ${esc(tot.title)}</div>${segBar(tot.pct, 'sm')}<div class="x">${fmtN(tot.into)}/${fmtN(tot.need)} XP · CAP. ${esc(ch.n)} ${esc(ch.title)}</div></div></div>
     <div class="row" style="gap:6px;flex-wrap:nowrap">
@@ -108,7 +113,8 @@ function render() {
     autoSnapshot(); // cópia de segurança do dia, antes de o app ajustar qualquer coisa sozinho
     A.startup();
     if (S._ladderUp) toast(`🪜 <b>7 dias seguidos na meta!</b> Ela subiu um degrau: agora é ${R.dailyGoal(S).goal} XP. O difícil está virando fácil.`, 'good');
-    if (S._blowHit) toast(`💥 <b>${R.BLOW_EVERY} prazos estourados</b>: a loja fica ${Math.round((R.BLOW_MULT - 1) * 100)}% mais cara por ${R.BLOW_DAYS} dias.`, 'bad');
+    if (S._ladderDown) toast(`🪜 Semana mais fraca: a meta desceu um degrau (${R.dailyGoal(S).goal} XP). Sem culpa: ela volta a subir com 7 dias bons.`, 'good');
+    if (S._blowHit && R.blowState(S).mode !== 'nenhum') toast(`💥 <b>${R.BLOW_EVERY} prazos estourados</b>: a loja fica ${Math.round((R.BLOW_MULT - 1) * 100)}% mais cara por ${R.BLOW_DAYS} dias.`, 'bad');
     else if (S._blowNew) toast(`💥 ${S._blowNew} prazo(s) estourou(aram). Faltam ${R.blowState(S).left} pro castigo.`);
     try { if (!localStorage.getItem('gamify-ui:tour')) setTimeout(tour, 600); else tripCheck(); } catch { /* */ }
   }
@@ -137,6 +143,8 @@ function render() {
   try { maybeReview(); } catch (err) { console.error(err); }
   try { afterRender(cur); } catch (err) { console.error(err); }
   try { afterRender4(cur); } catch (err) { console.error(err); }
+  try { afterRenderBujo(); } catch (err) { console.error(err); }
+  if (cur === 'regras') try { perksNav($main); } catch (err) { console.error(err); }
   refocus();
   redraft();
   const side = $main.querySelector('.side'); // o painel da direita tem rolagem própria: volta pra onde estava
@@ -215,6 +223,10 @@ function deaccent(root) {
     const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
     for (let n = w.nextNode(); n; n = w.nextNode()) if (/[\u00C0-\u017F]/.test(n.nodeValue)) n.nodeValue = plain(n.nodeValue);
   }
+  // v5.16: dinheiro aparece como "$" no app todo (o 💰 continua guardado nos dados, é o marcador)
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (n.nodeValue.includes('💰') ? 1 : 3) });
+  const list = []; for (let n = w.nextNode(); n; n = w.nextNode()) list.push(n);
+  for (const n of list) n.nodeValue = n.nodeValue.replace(/\s?💰/g, '$');
 }
 function welcome() {
   return `<div style="max-width:560px;margin:10vh auto;text-align:center"><h1 class="acc" style="font-size:26px">GAMIFY</h1><p class="muted">Metas, tarefas e hábitos como um jogo de verdade.</p>
@@ -228,6 +240,8 @@ A.onFeedback((fb) => {
   if (fb.xp > 0) { if (!easy) floatXp(`+${fmtN(fb.xp)} XP`, fb.at); sfx(fb.task ? 'check' : 'xp'); setTimeout(checkMilestones, 400); }
   // 🎆 fogos pra coisa demorada: boss, bloco fechado, mini-boss ⚔, tarefa chata ⭐ ou tarefa que rendeu 60 XP ou mais
   if (fb.boss || fb.closedBlock || (fb.task && fb.xp > 0 && (fb.xp >= 60 || /⚔|⭐/.test(fb.task.text || '')))) setTimeout(() => { fireworks(); sfx('fireworks'); }, 250);
+  // 🧠 recompensa do processo (aulas 021 e 153): cada passo feito num boss mostra o dano, a recompensa longe fica perto
+  if (fb.task && fb.xp > 0 && !fb.boss && R.neuroOn(S, 'proc')) { const bk = fb.task.block && S.quests.blocks.find((x) => x.id === fb.task.block), bo = bk?.group === 'bs' && S.quests.bosses.find((x) => x.block === bk.id), hp = bo && R.bossHp(S, bo); if (hp?.total && hp.left > 0) toast(`👹 Dano no boss <b>${esc(bo.text.replace(/:\s*[\d.]+\s*XP.*$/i, '').slice(0, 40))}</b>: faltam ${Math.round(hp.pct * 100)}% da vida.`, 'good'); }
   if (fb.sent) toast(`✉ Rodada concluída e enviada: <b>${esc(fb.task.text)}</b>. Fica aguardando retorno.`, 'good');
   if (fb.loot) setTimeout(() => { sfx('loot'); toast(`${px('chest', 16)} <b>LOOT!</b> ${esc(fb.loot.label)}${fb.loot.itemId ? ' (foi pra mochila)' : ''}`, 'gold'); }, 350);
   if (fb.closedBlock) { toast(`🏁 BLOCO FECHADO: <b>${esc(fb.closedBlock.title)}</b> · +${fb.closedBlock.xp} XP`, 'good'); confetti(60); }
@@ -253,7 +267,7 @@ function levelUp(t) {
 // ───────────────────────── JANELAS ─────────────────────────
 const MARK_RE = { star: /⭐\s*/g, home: /🛡\s*/g, money: /\s*💰/g, xp: /\s*\(\d+\s*XP\)/gi };
 function rebuildText(text, { star, home, money, xp, kind }) {
-  let t = text.replace(MARK_RE.star, '').replace(MARK_RE.home, '').replace(MARK_RE.xp, '').trim();
+  let t = A.normalizeMoney(text).replace(MARK_RE.star, '').replace(MARK_RE.home, '').replace(MARK_RE.xp, '').trim();
   const hadMoney = /💰/.test(t);
   if (!money) t = t.replace(MARK_RE.money, '').trim();
   if (kind != null) t = (kind === 'mini' ? '⚔ ' : kind === 'step' ? '↳ ' : '') + t.replace(/^(⚔|↳|>)\s*/, ''); // tipo escolhido nos marcadores
@@ -268,50 +282,62 @@ function whereOptions(t) {
   const groups = Object.entries(R.GROUPS).map(([g, info]) => { const bl = S.quests.blocks.filter((b) => b.group === g).sort((a, b) => a.ord - b.ord); return bl.length ? `<optgroup label="${info.name}">${bl.map((b) => `<option value="block:${b.id}" ${t.block === b.id ? 'selected' : ''}>${esc(b.title)}</option>`).join('')}</optgroup>` : ''; }).join('');
   return `<optgroup label="LISTAS">${lists}</optgroup>${groups}`;
 }
-const COLORS = [['', 'sem cor'], ['red', '🟥 URGENTE'], ['yellow', '🟨 FAZENDO'], ['green', '🟩 ESTÁVEL'], ['black', '⬛ PARADO']];
+const COLORS = [['', 'sem cor'], ['red', '🟥 URGENTE'], ['yellow', '🟨 EM ANDAMENTO'], ['green', '🟩 ESTÁVEL'], ['black', '⬛ PARADO']];
+// v5.16: as mesmas bolinhas de cor em toda janela; AGUARDANDO (roxo) virou uma das cores (por baixo continua o estado "aguardando")
+const SWATCH = [['red', 'URGENTE', 'urg', 'Prazo perto ou atrasado: faça primeiro'], ['yellow', 'EM ANDAMENTO', 'atencao', 'Você está mexendo nisso agora'], ['green', 'ESTÁVEL', 'ok', 'Tudo em ordem, sem pressa'],
+  ['black', 'PARADO', 'neutro', 'Parado de propósito: some das listas até você mostrar'], ['wait', 'AGUARDANDO', 'espera', 'Depende de outra pessoa ou de outra coisa']];
+const swatches = (cur, withNone = false) => `<div class="swatches">${[...(withNone ? [['', 'SEM COR', 'none', 'Sem cor']] : []), ...SWATCH].map(([k, n, tone, tip]) => `<label class="csw" title="${tip}"><input type="radio" name="color" value="${k}" ${cur === k ? 'checked' : ''}><i data-tone="${tone}"></i><span>${n}</span></label>`).join('')}</div>`;
+/** marcador redondo (checkbox ou radio) com legenda ao passar o mouse */
+const pill = (type, name, value, on, label, tip) => `<label class="pill" title="${tip}"><input type="${type}" name="${name}" ${value != null ? `value="${value}"` : ''} ${on ? 'checked' : ''}><span>${label}</span></label>`;
 function editTask(id) {
   const t = S.quests.tasks.find((x) => x.id === id);
   if (!t) return;
   const p = R.parse(t.text), now = R.taskXp(S, t), td = today();
   const cap = R.dueCap(t.block && R.findBlock(S, t.block), td); // subtarefa: o prazo vai até o do bloco
   const nextMon = addDays(td, ((8 - weekday(td)) % 7) || 7);
-  const sts = [['wait', '… AGUARDANDO'], ['done', '✓ FEITA'], ['cancel', '✕ CANCELADA']]; // ABERTA e FAZENDO saíram (redundantes: o quadradinho e o ↩ resolvem)
+  const st = t.st === 'done' || t.st === 'cancel' ? t.st : '';
+  const color = t.st === 'wait' ? 'wait' : t.color || '';
   const suggestCycle = t.cycle === undefined && /PREFEITURA|APROVA|AN[AÁ]LISE|PROTOCOLO/i.test(t.text);
-  openModal(`<form data-form="task" data-id="${id}" autocomplete="off">
-    <h2>${p.mini ? '⚔ mini-boss' : p.step ? '↳ passo' : 'tarefa'}</h2>
-    <p class="meta" style="margin:0">${t.block ? esc(R.findBlock(S, t.block)?.title || '') : R.areaName(t.area)} · ${t.st === 'done' ? `feita ${fmtDM(t.doneAt)} · +${t.xp} XP` : `vale <b class="acc">${now.xp} XP</b>${now.parts.length ? ' (' + esc(now.parts.join(' · ')) + ')' : ''}`}${(t.rounds || []).length ? ` · 🔁 ${t.rounds.length} rodada(s)` : ''}</p>
-    <label class="lbl" for="t-text">Texto</label><textarea class="inp" id="t-text" name="text" rows="2" autofocus>${esc(t.text.replace(MARK_RE.star, '').replace(MARK_RE.home, '').replace(MARK_RE.xp, '').replace(/^(⚔|↳|>)\s*/, '').trim())}</textarea>
-    <label class="lbl">Status</label><div class="statusbtns">${sts.map(([k, n]) => `<button type="button" class="btn sm ${(t.st || '') === k ? 'on' : ''}" data-act="set-status" data-id="${id}" data-st="${k}">${n}</button>`).join('')}</div>
-    <label class="lbl" for="t-who">⏳ Aguardando quem ou o quê (opcional)</label><div class="row">
-      <input class="inp grow" id="t-who" name="who" value="${esc(t.who || '')}" list="who-list" placeholder="pessoa ou motivo: PREFEITURA, CLIENTE, FULANO…" autocomplete="off"><datalist id="who-list">${R.people(S).map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
-      <select class="inp" name="dep" aria-label="Depende de outra tarefa" style="flex:1 1 220px;min-width:0"><option value="">— não depende de outra tarefa —</option>${R.openTasks(S).filter((x) => x.id !== t.id && x.dep !== t.id).sort((x, y) => (x.block === t.block ? 0 : 1) - (y.block === t.block ? 0 : 1) || x.text.localeCompare(y.text)).map((x) => `<option value="${x.id}" ${t.dep === x.id ? 'selected' : ''}>🔗 ${esc(x.text.replace(/\s*\(\d+\s*XP\)/i, '').slice(0, 60))}</option>`).join('')}</select></div>
-    <p class="meta" style="margin:4px 0 0">Preencher manda a tarefa pra lista AGUARDANDO. Se depender de outra tarefa, ela volta sozinha quando a outra for concluída.</p>
+  const where = t.block ? R.findBlock(S, t.block)?.title || '' : R.areaName(t.area);
+  openModal(`<form data-form="task" data-id="${id}" autocomplete="off" class="mform">
+    <div class="mhead"><span class="mtype">${p.mini ? '⚔ mini-boss' : p.step ? '↳ passo' : 'tarefa'}</span><span class="mwhere">${esc(where)}</span>
+      <span class="chip xp" title="${now.parts.length ? esc(now.parts.join(' · ')) : 'XP desta tarefa'}">${t.st === 'done' ? `+${t.xp}` : now.xp} XP</span></div>
+    <textarea class="inp mtitle" id="t-text" name="text" rows="2" aria-label="Texto" autofocus>${esc(t.text.replace(MARK_RE.star, '').replace(MARK_RE.home, '').replace(MARK_RE.xp, '').replace(/💰/g, '$').replace(/^(⚔|↳|>)\s*/, '').trim())}</textarea>
+    <div class="msplit">
+      <div><label class="lbl">Status</label><div class="pills">${[['', '○ ABERTA', 'Ainda por fazer'], ['done', '✓ FEITA', 'Concluída (ganha o XP)'], ['cancel', '✕ CANCELADA', 'Não vale mais: sem XP e sem punição']].map(([k, n, tip]) => `<button type="button" class="pill ${st === k ? 'on' : ''}" data-act="set-status" data-id="${id}" data-st="${k}" title="${tip}"><span>${n}</span></button>`).join('')}</div></div>
+      <div><label class="lbl">Cor</label>${swatches(color, true)}</div></div>
+    <div class="waitbox"><label class="lbl" for="t-who">⏳ Aguardando quem ou o quê</label><div class="row">
+      <input class="inp grow" id="t-who" name="who" value="${esc(t.who || '')}" list="who-list" placeholder="PREFEITURA, CLIENTE, FULANO…" autocomplete="off"><datalist id="who-list">${R.people(S).map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
+      <select class="inp" name="dep" aria-label="Depende de outra tarefa" style="flex:1 1 220px;min-width:0"><option value="">— não depende de outra tarefa —</option>${R.openTasks(S).filter((x) => x.id !== t.id && x.dep !== t.id).sort((x, y) => (x.block === t.block ? 0 : 1) - (y.block === t.block ? 0 : 1) || x.text.localeCompare(y.text)).map((x) => `<option value="${x.id}" ${t.dep === x.id ? 'selected' : ''}>🔗 ${esc(x.text.replace(/\s*\(\d+\s*XP\)/i, '').slice(0, 60))}</option>`).join('')}</select></div></div>
     <label class="lbl" for="t-due">Prazo</label><div class="row"><input class="inp" type="date" id="t-due" name="due" value="${t.due || ''}" ${cap ? `max="${cap}" title="Até o prazo do bloco"` : ''} style="width:auto">
-      ${[['HOJE', td], ['AMANHÃ', addDays(td, 1)], ['+3', addDays(td, 3)], ['PRÓX. SEG', nextMon], ['SEM', '']].map(([n, d]) => `<button type="button" class="btn sm ghost" data-act="due-quick" data-d="${d}">${n}</button>`).join('')}</div>
-    ${t.due ? `<p class="meta" style="margin:4px 0 0">${t.due < td ? `⏰ Atrasada: concluir agora paga só ${Math.round(Math.max(R.C.LATE_MIN, 1 - R.C.LATE_DAY * diffDays(t.due, td)) * 100)}% do XP. ` : ''}Empurrar o prazo custa <b>${A.reschedBase({ ...t, due: '0' }, '9')}</b> XP${A.freeResched() ? ' (mas a 1ª remarcação da semana é grátis)' : ''}${t.rs ? ` · já remarcada ${t.rs}x` : ''}; antecipar é de graça.</p>` : ''}
-    <label class="lbl">Marcadores</label><div class="row" style="gap:14px;font-size:12.5px">
-      ${[['', '• tarefa'], ['mini', '⚔ mini-boss'], ['step', '↳ passo']].map(([k, n]) => `<label title="${k === 'mini' ? 'Vitória no meio do caminho: vale mais XP e solta fogos' : k === 'step' ? 'Ação pequena embaixo de outra' : 'Tarefa comum'}"><input type="radio" name="kind" value="${k}" ${(p.mini ? 'mini' : p.step ? 'step' : '') === k ? 'checked' : ''}> ${n}</label>`).join('')}
-      <label><input type="checkbox" name="star" ${p.star ? 'checked' : ''}> ⭐ chata x2</label><label><input type="checkbox" name="home" ${p.home ? 'checked' : ''}> 🛡 casa/família</label>
-      <label><input type="checkbox" name="money" ${p.money ? 'checked' : ''}> 💰 dinheiro</label><label><input type="checkbox" name="prio" ${t.prio ? 'checked' : ''}> ! prioridade</label>
-      <label title="Prefeitura, aprovação, cliente revisando"><input type="checkbox" name="cycle" ${t.cycle || suggestCycle ? 'checked' : ''}> 🔁 vai e volta${suggestCycle ? ' <span class="warn">(sugerido)</span>' : ''}</label>
-      <span class="xpset">XP ${[['', 'AUTO'], [5, '5'], [10, '10'], [30, '30'], [60, '60'], [100, '100']].map(([v, n]) => `<button type="button" class="btn sm ghost ${String(p.xpFix ?? '') === String(v) ? 'on' : ''}" data-act="xp-preset" data-v="${v}">${n}</button>`).join('')}<input class="inp" type="number" min="1" name="xp" value="${p.xpFix ?? ''}" placeholder="auto" aria-label="XP fixo" style="width:70px;min-height:28px;display:inline-block"></span></div>
-    <div class="row"><div class="grow"><label class="lbl" for="t-where">Onde</label><select class="inp" id="t-where" name="where">${whereOptions(t)}</select></div>
-      </div>
+      ${[['HOJE', td], ['AMANHÃ', addDays(td, 1)], ['+3', addDays(td, 3)], ['PRÓX. SEG', nextMon], ['SEM', '']].map(([n, d]) => `<button type="button" class="pill" data-act="due-quick" data-d="${d}"><span>${n}</span></button>`).join('')}
+      ${t.due ? `<span class="minfo" title="${t.due < td ? `Atrasada: concluir agora paga ${Math.round(Math.max(R.C.LATE_MIN, 1 - R.C.LATE_DAY * diffDays(t.due, td)) * 100)}% do XP. ` : ''}Empurrar o prazo custa ${A.reschedBase({ ...t, due: '0' }, '9')} XP${A.freeResched() ? ' (a 1ª da semana é grátis)' : ''}. Antecipar é de graça.">${t.due < td ? '⏰' : 'ⓘ'}${t.rs ? ` remarcada ${t.rs}x` : ''}</span>` : ''}</div>
+    ${R.reschedLocked(S, t) && R.isOpen(t) ? `<div class="boxlock"><b>🔒 Já remarcada ${t.rs}x.</b> Pra empurrar de novo, marque um horário e quanto tempo (time box). Ou cancele: se não vale fazer, tudo bem.
+      <div class="row" style="margin-top:6px"><label>⏰ às <input class="inp" type="time" name="box_at" value="${esc(t.box?.at || '')}" style="width:auto;display:inline-block"></label>
+      <label>por <select class="inp" name="box_min" style="width:auto;display:inline-block">${[15, 25, 50, 90].map((m) => `<option value="${m}" ${(t.box?.min || 25) === m ? 'selected' : ''}>${m} min</option>`).join('')}</select></label></div></div>` : t.box ? `<p class="meta" style="margin:4px 0 0">⏰ time box: ${esc(t.box.at)} · ${t.box.min} min</p>` : ''}
+    <label class="lbl">Marcadores</label><div class="pills">
+      ${pill('radio', 'kind', '', !p.mini && !p.step, '• tarefa', 'Tarefa comum')}${pill('radio', 'kind', 'mini', p.mini, '⚔ mini-boss', 'Uma vitória no meio do caminho: vale mais XP e solta fogos')}${pill('radio', 'kind', 'step', p.step, '↳ passo', 'Ação pequena embaixo de outra')}
+      ${pill('checkbox', 'star', null, p.star, '⭐ chata', 'Tarefa que você vive adiando: vale x2')}${pill('checkbox', 'home', null, p.home, '🛡 casa', 'Casa e família: vale mais')}${pill('checkbox', 'money', null, p.money, '$ dinheiro', 'Traz dinheiro: vale x1,5')}
+      ${pill('checkbox', 'prio', null, t.prio, '! prioridade', 'Sobe pro topo da fila')}${pill('checkbox', 'cycle', null, t.cycle || suggestCycle, `🔁 vai e volta${suggestCycle ? ' ✨' : ''}`, 'Prefeitura, aprovação, cliente revisando: cada rodada dá XP')}</div>
+    <label class="lbl">XP</label><div class="pills xpset">${[['', 'AUTO'], [5, '5'], [10, '10'], [30, '30'], [60, '60'], [100, '100']].map(([v, n]) => `<button type="button" class="pill ${String(p.xpFix ?? '') === String(v) ? 'on' : ''}" data-act="xp-preset" data-v="${v}"><span>${n}</span></button>`).join('')}<input class="inp" type="number" min="1" name="xp" value="${p.xpFix ?? ''}" placeholder="outro" aria-label="XP fixo" style="width:76px"></div>
+    ${(t.duck || []).length ? `<p class="meta" style="margin:8px 0 0">🦆 ${esc([t.duck.at(-1).tried, t.duck.at(-1).nok].filter(Boolean).join(' · ').slice(0, 140))} <a href="#" data-act="duck" data-id="${id}">explicar de novo</a></p>` : ''}
     ${imgSection(t)}
     <div class="actions"><div class="left">
-      ${t.block && !p.step ? `<button type="button" class="btn sm" data-act="add-step" data-id="${id}">+ ↳ PASSO</button>` : ''}<button type="button" class="btn sm" data-act="sos" data-id="${id}">${px('sos', 10)} TRAVEI</button>${t.link ? `<button type="button" class="btn sm" data-act="unlink" data-id="${id}">↯ DESVINCULAR</button>` : ''}<button type="button" class="btn sm danger" data-act="del-task" data-id="${id}">APAGAR</button></div>
+      ${t.block && !p.step ? `<button type="button" class="btn sm" data-act="add-step" data-id="${id}">+ ↳ PASSO</button>` : ''}<button type="button" class="btn sm" data-act="sos" data-id="${id}">${px('sos', 10)} TRAVEI</button>${t.link ? `<button type="button" class="btn sm" data-act="unlink" data-id="${id}" title="Separa a tarefa do bloco ligado a ela">↯ DESVINCULAR</button>` : ''}<button type="button" class="btn sm danger" data-act="del-task" data-id="${id}">APAGAR</button></div>
       <button type="button" class="btn" data-close>FECHAR</button><button class="btn pri">SALVAR</button></div></form>`, { wide: true });
   fillImgs();
 }
 function editBlock(id) {
   const b = S.quests.blocks.find((x) => x.id === id);
   if (!b) return;
-  openModal(`<form data-form="block" data-id="${id}" autocomplete="off"><h2>bloco</h2><p class="meta" style="margin:0">Fechar vale <b class="acc">${R.blockXp(b)} XP</b>${R.projectValue(b.title) ? ` · projeto de ${fmtN(R.projectValue(b.title))}: sua metade ${fmtN(R.projectValue(b.title) / 2)} gold` : ''}</p>
-    <label class="lbl" for="b-title">Título (🎯 meta · 3000💰 · 1900💰 / MES (DIA 05) · (500XP))</label><input class="inp" id="b-title" name="title" value="${esc(b.title)}" autofocus>
-    <label class="lbl">Cor</label><div class="row" style="font-size:12.5px">${COLORS.slice(1).map(([k, n]) => `<label><input type="radio" name="color" value="${k}" ${b.color === k ? 'checked' : ''}> ${n}</label>`).join('')}</div>
+  const color = b.st === 'wait' ? 'wait' : b.color;
+  openModal(`<form data-form="block" data-id="${id}" autocomplete="off" class="mform">
+    <div class="mhead"><span class="mtype">bloco</span><span class="mwhere">${esc(R.winOf(S, b)?.name || R.GROUPS[b.group]?.name || '')}</span>
+      <span class="chip xp" title="Fechar o bloco vale isso${R.projectValue(b.title) ? ` · projeto de ${fmtN(R.projectValue(b.title))}: sua metade ${fmtN(R.projectValue(b.title) / 2)} gold` : ''}">${R.blockXp(b)} XP</span></div>
+    <input class="inp mtitle" id="b-title" name="title" value="${esc(b.title.replace(/💰/g, '$'))}" aria-label="Título" title="Dicas: 🎯 no começo = meta · 3000$ = projeto que vale dinheiro · (500XP) fixa o XP" autofocus>
+    <label class="lbl">Cor</label>${swatches(color)}
     <div class="row"><div class="grow"><label class="lbl" for="b-due">◆ Prazo final</label><input class="inp" type="date" id="b-due" name="due" value="${b.due || ''}"></div>
-      <div class="grow"><label class="lbl" for="b-group">Área</label><select class="inp" id="b-group" name="group">${Object.entries(R.GROUPS).map(([g, i]) => `<option value="${g}" ${b.group === g && !R.winOf(S, b) ? 'selected' : ''}>${i.name}</option>`).join('')}${R.windows(S).map((w) => `<option value="win:${w.id}" ${b.win === w.id ? 'selected' : ''}>▣ ${esc(w.name)}</option>`).join('')}</select></div>
-      <div class="grow"><label class="lbl" for="b-st">Situação</label><select class="inp" id="b-st" name="st"><option value="">ATIVO</option><option value="wait" ${b.st === 'wait' ? 'selected' : ''}>… SÓ AGUARDANDO</option>${b.st === 'done' ? '<option value="done" selected>FECHADO</option>' : ''}</select></div></div>
+      <div class="grow"><label class="lbl" for="b-group">Janela</label><select class="inp" id="b-group" name="group">${Object.entries(R.GROUPS).map(([g, i]) => `<option value="${g}" ${b.group === g && !R.winOf(S, b) ? 'selected' : ''}>${i.name}</option>`).join('')}${R.windows(S).map((w) => `<option value="win:${w.id}" ${b.win === w.id ? 'selected' : ''}>▣ ${esc(w.name)}</option>`).join('')}</select></div></div>
     <div class="actions"><div class="left"><button type="button" class="btn sm danger" data-act="del-block" data-id="${id}">APAGAR BLOCO</button></div>
       <button type="button" class="btn" data-close>FECHAR</button><button class="btn pri">SALVAR</button></div></form>`);
 }
@@ -369,13 +395,20 @@ function editHabits() {
     <div class="actions"><button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">SALVAR</button></div></form>`);
 }
 function editBoss(id) {
-  const b = S.quests.bosses.find((x) => x.id === id);
+  const b = S.quests.bosses.find((x) => x.id === id), td = today(), paused = R.bossPaused(b);
   if (!b) return;
-  openModal(`<form data-form="boss" data-id="${id}" autocomplete="off"><h2>👹 boss</h2><p class="meta" style="margin:0">A vida (HP) é o que falta no próprio boss: cada subtarefa feita tira vida. Zerou, ele cai.</p>
-    <label class="lbl" for="bo-text">Meta</label><input class="inp" id="bo-text" name="text" value="${esc(b.text)}" autofocus>
-    <div class="row"><div style="width:130px"><label class="lbl" for="bo-xp">XP</label><input class="inp" id="bo-xp" name="xp" type="number" min="1" value="${b.xp}"></div>
-      <div><label class="lbl" for="bo-st">Situação</label><select class="inp" id="bo-st" name="st"><option value="">EM ABERTO</option><option value="wait" ${b.st === 'wait' ? 'selected' : ''}>… AGUARDANDO</option>${b.st === 'done' ? '<option value="done" selected>DERROTADO</option>' : ''}</select></div></div>
-    <div class="actions"><div class="left"><button type="button" class="btn sm danger" data-act="del-boss" data-id="${id}">APAGAR</button></div><button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">SALVAR</button></div></form>`);
+  const hp = R.bossHp(S, b), st = paused ? 'pause' : b.st === 'wait' ? 'wait' : b.st === 'done' ? 'done' : '';
+  openModal(`<form data-form="boss" data-id="${id}" autocomplete="off" class="mform">
+    <div class="mhead"><span class="mtype">👹 boss</span><span class="mwhere" title="A vida (HP) é o que falta fazer no boss: cada subtarefa feita tira vida. Zerou, ele cai.">${hp?.total ? `HP ${fmtN(hp.left)}/${fmtN(hp.total)}` : 'quebre em subtarefas'}</span>
+      <span class="chip xp" title="Derrotar o boss vale isso + 1 ticket">${fmtN(b.xp)} XP</span></div>
+    <input class="inp mtitle" id="bo-text" name="text" value="${esc(b.text)}" aria-label="Meta" autofocus>
+    <div class="msplit">
+      <div><label class="lbl">Situação</label><div class="pills">${b.st === 'done' ? pill('radio', 'st', 'done', true, '✓ DERROTADO', 'Já caiu') : ''}${pill('radio', 'st', '', st === '', '○ EM ABERTO', 'Na luta')}${pill('radio', 'st', 'wait', st === 'wait', '⏳ AGUARDANDO', 'Depende de outra pessoa')}${b.st !== 'done' ? pill('radio', 'st', 'pause', st === 'pause', '⏸ PAUSADO', `Pausa de até ${R.BOSS_PAUSE_MAX} dias: os prazos andam junto, sem custo, e ele volta sozinho`) : ''}</div></div>
+      <div><label class="lbl" for="bo-xp">XP</label><input class="inp" id="bo-xp" name="xp" type="number" min="1" value="${b.xp}" style="width:120px"></div></div>
+    ${b.st !== 'done' ? `<div class="pausef"><label class="lbl" for="bo-pause">⏸ volta em</label><input class="inp" type="date" id="bo-pause" name="pause" value="${paused ? b.pause : addDays(td, 7)}" min="${addDays(td, 1)}" max="${addDays(td, R.BOSS_PAUSE_MAX)}" style="width:auto"></div>` : ''}
+    ${R.neuroOn(S, 'why') ? `<label class="lbl" for="bo-why">💡 Por que isso importa pra mim?</label><textarea class="inp" id="bo-why" name="why" rows="2" maxlength="300" placeholder="opcional">${esc(b.why || '')}</textarea>
+    <label class="lbl" for="bo-fear" title="Quando o boss ficar ${R.BOSS_IDLE_DAYS} dias parado, o PRIMO te lembra destas respostas">⚠ O que acontece se eu NÃO fizer?</label><textarea class="inp" id="bo-fear" name="fear" rows="2" maxlength="300" placeholder="opcional">${esc(b.fear || '')}</textarea>` : ''}
+    <div class="actions"><div class="left"><button type="button" class="btn sm danger" data-act="del-boss" data-id="${id}">APAGAR</button></div><button type="button" class="btn" data-close>FECHAR</button><button class="btn pri">SALVAR</button></div></form>`);
 }
 function redemption() {
   const td = today(), done = S.marks.days[td]?.h?.rd === 'x';
@@ -413,6 +446,7 @@ function sos(taskId) {
     clearInterval(sosTimer);
     m.innerHTML = `<h2>o menor passo.</h2><p class="muted">Escolha UMA coisa e combine só 10 minutos. Não precisa terminar.</p>
       <div class="list">${(t ? [t] : smallest).map((x) => `<button class="li" style="width:100%;text-align:left;border:0;background:none;cursor:pointer" data-act="sos-pick" data-id="${x.id}"><span class="lt">${esc(x.text)}<small>${esc(x.block ? R.findBlock(S, x.block)?.title : R.AREAS[x.area])}</small></span><span class="chip">10 MIN</span></button>`).join('')}</div>
+      ${R.neuroOn(S, 'pato') ? `<p class="meta" style="margin:10px 0 0">Nem sabe por onde começar? <a href="#" data-act="duck" data-id="${t?.id || ''}">🦆 explique pro PRIMO</a>: o que tentou, o que funcionou, o que não.</p>` : ''}
       <form data-form="sos-tiny" class="row" style="margin-top:10px"><input class="inp grow" name="text" placeholder="ou escreva um micro-passo (ex.: abrir o arquivo)" aria-label="Micro-passo"><button class="btn">OK</button></form>
       <div class="actions"><button class="btn" data-close>FECHAR</button></div>`;
   };
@@ -500,18 +534,42 @@ function mystery(ticket) {
 // ───────────────────────── CLIQUES ─────────────────────────
 const at = (e) => ({ x: e.clientX || innerWidth / 2, y: e.clientY || innerHeight / 2 });
 const goldByKey = (k) => [...R.goldPrompts(S)].find((p) => p.key === k);
+/** v5.16: abre o que estiver recolhido (janela, bloco, lista) pra o item aparecer */
+function openUp(keys) { for (const k of keys) if (k && isCollapsed(k)) toggleCollapse(k); }
+/** rola até o elemento e faz ele brilhar (com a cor do que ele é: urgente, aguardando…) */
+function glow(sel) {
+  setTimeout(() => { const el = [].concat(sel).map((x) => document.querySelector(x)).find(Boolean); if (!el) return; el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.classList.remove('glow'); void el.offsetWidth; el.classList.add('glow'); setTimeout(() => el.classList.remove('glow'), 3200); }, 90);
+}
 function jump(id) {
   const t = S.quests.tasks.find((x) => x.id === id);
   if (!t) return;
-  if (!R.isOpen(t) || (t.block && R.findBlock(S, t.block)?.color === 'black')) ui.showDone = true;
+  const b = t.block && R.findBlock(S, t.block);
+  if (!R.isOpen(t) || b?.color === 'black') ui.showDone = true;
   closeModal();
-  ui.qtab = t.block ? tabOfBlock(R.findBlock(S, t.block)) : 'listas';
+  openUp(b ? ['b:' + b.id, 'g:' + b.group, 'g:bs'] : ['l:' + t.area]);
+  ui.qtab = b ? tabOfBlock(b) : 'listas';
   if (route() !== 'quests') location.hash = '#quests'; else render();
-  setTimeout(() => { const el = document.querySelector(`.board li.task[data-id="${id}"]`); if (el) { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.classList.add('flash'); } }, 80);
+  glow([`.board :is(.list-card, .block) li.task[data-id="${id}"]`, `.board li.task[data-id="${id}"]`]);
+}
+function jumpBlock(bid) {
+  const b = S.quests.blocks.find((x) => x.id === bid);
+  if (!b) return;
+  closeModal();
+  openUp(['b:' + b.id, 'g:' + b.group, 'g:bs']);
+  ui.qtab = tabOfBlock(b);
+  if (route() !== 'quests') location.hash = '#quests'; else render();
+  glow(`[data-drop-block="${bid}"]`);
 }
 const ACTIONS = {
   toggle: (d, e) => { const r = A.toggleDone(d.id, at(e)); if (r?.error) { sfx('error'); toast(esc(r.error), 'bad'); } },
-  'to-breakdown': (d) => { const r = A.toBreakdown(d.id); if (r?.error) { sfx('error'); toast(esc(r.error), 'bad'); } else sfx('upgrade'); },
+  // v5.16: a setinha ⤴ pergunta pra qual janela a tarefa vai (vira um bloco lá)
+  'to-breakdown': (d) => {
+    const wins = [['bd', R.GROUPS.bd.short, '🧩'], ['tr', R.GROUPS.tr.short, '📐'], ['cap', R.GROUPS.cap.short, '🧲'], ['gs', R.GROUPS.gs.short, '🗂'], ...R.windows(S).map((w) => ['w:' + w.id, w.name, '▣'])];
+    openModal(`<h2>⤴ mandar pra qual janela?</h2><p class="muted">A tarefa vira um bloco lá e continua aqui nas LISTAS, ligada a ele.</p>
+      <div class="pickgrid">${wins.map(([k, n, ic]) => `<button class="pick" data-act="send-to" data-id="${d.id}" data-to="${k}"><span class="pi">${ic}</span>${esc(n)}</button>`).join('')}</div>
+      <div class="actions"><button class="btn" data-close>CANCELAR</button></div>`);
+  },
+  'send-to': (d) => { closeModal(); const r = A.toBreakdown(d.id, d.to); if (r?.error) { sfx('error'); toast(esc(r.error), 'bad'); return; } sfx('upgrade'); if (r?.block) jumpBlock(r.block.id); },
   unlink: (d) => { A.unlinkTask(d.id); closeModal(); },
   'edit-task': (d) => editTask(d.id),
   'set-status': (d) => { A.setStatus(d.id, d.st); closeModal(); },
@@ -524,7 +582,7 @@ const ACTIONS = {
   prio: (d) => { const t = S.quests.tasks.find((x) => x.id === d.id); A.updateTask(d.id, { prio: !t.prio }); },
   sort: (d) => { A.sortContainer({ area: d.area, block: d.block }); sfx('tab'); },
   jump: (d) => jump(d.id),
-  'jump-block': (d) => { const b = S.quests.blocks.find((x) => x.id === d.id); if (!b) return; ui.qtab = tabOfBlock(b); closeModal(); if (route() !== 'quests') location.hash = '#quests'; else render(); setTimeout(() => { const el = document.querySelector(`[data-drop-block="${d.id}"]`); el?.scrollIntoView({ block: 'center' }); el?.classList.add('flash'); }, 80); },
+  'jump-block': (d) => jumpBlock(d.id),
   'edit-block': (d) => editBlock(d.id),
   'move-block': (d) => A.moveBlock(d.id, +d.dir),
   'del-block': async (d) => { closeModal(); if (await ask('Apagar bloco inteiro?', 'O bloco e todas as subtarefas somem de vez.', 'APAGAR', true)) A.deleteBlock(d.id); },
@@ -535,7 +593,7 @@ const ACTIONS = {
   redemption: () => redemption(),
   'rd-do': (d) => { closeModal(); if (S.marks.days[today()]?.h?.rd !== 'x') { A.setHabit(today(), 'rd', 'x'); toast(`⚔ Redenção: ${esc(d.o)}. +${R.C.RD_XP} XP e debuffs curados.`, 'good'); } else toast('A redenção de hoje já foi feita.'); },
   'rd-undo': () => { closeModal(); A.setHabit(today(), 'rd', ''); },
-  'rest-day': async () => { if (await ask('Dia de descanso?', 'Doença ou dia puxado: todos os hábitos de HOJE viram folga (–), sem punição. Vai ficar fora mais dias? Use o botão ✈ VIAGEM.', 'DESCANSAR')) A.restDay(today()); },
+  'rest-day': async () => { if (await ask('Dia de descanso?', 'Doença ou dia ruim: todos os hábitos de HOJE viram folga (–), sem punição. Dia ruim passa: hoje só o essencial, nada de decisão grande, longe de notícias e álcool; um treino leve ou um chá ajudam, e dormir cedo resolve muito. Vai ficar fora mais dias? Use o botão ✈ VIAGEM.', 'DESCANSAR')) A.restDay(today()); },
   hweek: (d) => { ui.hweek = Math.min(0, (ui.hweek || 0) + +d.dir); render(); },
   'tl-week': (d) => { ui.tlWeek = +d.dir === 0 ? 0 : (ui.tlWeek || 0) + +d.dir; render(); },
   'ag-filter': (d) => { ui.agB = d.b; render(); },
@@ -566,6 +624,26 @@ const ACTIONS = {
   ltab: (d) => { ui.ltab = d.tab; render(); sfx('tab'); },
   fcat: (d) => { ui.fcat = d.cat; render(); },
   fsort: (d) => { const f = ui.filtro; if (f.sort === d.k) f.dir *= -1; else { f.sort = d.k; f.dir = 1; } render(); },
+  fpick: (d) => { const f = ui.filtro; f[d.k] = f[d.k] === d.v ? '' : d.v; sfx('tab'); render(); }, // v5.16: quadrinho do FILTRO liga/desliga o filtro
+  fclear: () => { Object.assign(ui.filtro, { q: '', cat: '', bucket: '', status: '', type: '', who: '' }); sfx('tab'); render(); },
+  cq: (d) => { ui.cq = d.v; sfx('tab'); render(); }, // v5.16: filtro das CONQUISTAS
+  'perks-go': (d) => perksGo(d.i),
+  'new-chapter': () => {
+    const ch = S.core.chapter || {};
+    openModal(`<form data-form="new-chapter" autocomplete="off" class="mform"><div class="mhead"><span class="mtype">🌅 novo capítulo</span><span class="mwhere">capítulo ${(+ch.n || 1) + 1}</span></div>
+      <p class="muted">Recomeçar numa data marcante funciona (é o "efeito do recomeço"). O capítulo atual vira uma carta guardada, com tudo o que você fez.</p>
+      <label class="lbl" for="nc-t">Título do capítulo</label><input class="inp mtitle" id="nc-t" name="title" required autofocus placeholder="ex.: FAZENDO DIREITO">
+      <label class="lbl" for="nc-m">A missão (uma só)</label><input class="inp" id="nc-m" name="mission" value="${esc(ch.mission || '')}">
+      <label class="pill" style="margin-top:14px" title="Gold, compras da loja, conquistas e histórico ficam"><input type="checkbox" name="reset" checked><span>↺ recomeçar XP, nível e tickets do zero</span></label>
+      <div class="actions"><button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">COMEÇAR</button></div></form>`);
+  },
+  // v5.16 (2E) FOCO AGORA: concluir, pular pra outra sugestão, ir até a tarefa
+  'focus-skip': (d) => { (ui.focusSkip ||= []).push(d.id); sfx('tab'); render(); },
+  'focus-reset': () => { ui.focusSkip = []; sfx('tab'); render(); },
+  'rot-chip-del': (d) => { const l = [...(S.core.routine?.[d.k] || [])]; l.splice(+d.i, 1); A.setRoutineList(d.k, l); sfx('tab'); },
+  credits: () => openModal(`<h2>ⓘ créditos</h2><p class="muted">PRIMO, rostos, acessórios, FAÍSCA, cenários e ícone: arte gerada por IA com direção do autor do app.</p>
+    <p class="muted">Porquinho clássico em pixel: "Free Pets Pack" por <a href="https://frakassets.itch.io/free-pets-pack" target="_blank" rel="noopener">Frakassets</a> (CC BY 4.0). Ícones da loja: Kenney (CC0). Fogueira: "Fireplace sound loop" (CC0). Lo-fi: gerado no aparelho. Fontes: Press Start 2P e Roboto Mono (licença aberta).</p>
+    <div class="actions"><button class="btn" data-close>FECHAR</button></div>`),
   'toggle-done': () => { ui.showDone = !ui.showDone; render(); },
   'toggle-stalled': () => { ui.showStalled = !ui.showStalled; try { localStorage.setItem('gamify-ui:stalled', ui.showStalled ? '1' : '0'); } catch { /* */ } render(); sfx('tab'); },
   'collapse-all': () => {
@@ -574,7 +652,8 @@ const ACTIONS = {
     for (const k of keys) if (isCollapsed(k) !== close) toggleCollapse(k);
     render(); sfx('swish');
   },
-  'arq-more': () => { ui.arqLimit += 100; render(); },
+  'arq-more': () => { ui.arqLimit = (ui.arqLimit || 80) + 100; render(); },
+  'arq-st': (d) => { ui.arqF.st = ui.arqF.st === d.v ? '' : d.v; sfx('tab'); render(); },
   'archive-now': async () => { if (await ask('Atualizar o quadro?', 'Arquiva agora tudo que está ✓ ou ✕ (e blocos fechados). O XP continua valendo.', 'ATUALIZAR')) A.archiveNow(); },
   distribute: () => distribute(),
   'undo-plan': () => A.undoPlan(),
@@ -683,12 +762,14 @@ const FORMS = {
   task: async (f) => {
     const t = S.quests.tasks.find((x) => x.id === f.dataset.id);
     const text = rebuildText(f.text.value, { star: f.star.checked, home: f.home.checked, money: f.money.checked, xp: +f.xp.value || null, kind: f.kind.value });
-    const [kind, val] = f.where.value.split(':');
     const patch = { text, due: f.due.value || null, prio: f.prio.checked || undefined, cycle: f.cycle.checked, who: f.who.value.trim().toUpperCase() || undefined, dep: f.dep.value || undefined };
-    if ((patch.who || patch.dep) && (!t.st || t.st === 'doing')) patch.st = 'wait'; // disse quem segura: vai pra AGUARDANDO
-    if (!patch.who && !patch.dep && (t.who || t.dep) && t.st === 'wait') patch.st = ''; // limpou: volta pra fila
+    if (f.box_at?.value && patch.due && t.due && patch.due > t.due) patch.box = { at: f.box_at.value, min: +f.box_min.value || 25 }; // v5.16 E) time box destrava a remarcação
+    const col = f.querySelector('[name=color]:checked')?.value ?? (t.color || '');
+    const open = !t.st || t.st === 'doing' || t.st === 'wait';
+    if (col === 'wait' || patch.who || patch.dep) { if (open) patch.st = 'wait'; } // roxo (ou disse quem segura): vai pra AGUARDANDO
+    else { patch.color = col || undefined; if (t.st === 'wait') { patch.st = ''; patch.who = undefined; patch.dep = undefined; } } // outra cor: sai do AGUARDANDO
     if (f.pin) patch.pin = f.pin.value || undefined;
-    if (f.where.value !== (t.block ? `block:${t.block}` : 'area:auto')) { if (kind === 'block') patch.block = val; else { patch.block = null; patch.area = 'sem'; } } // fora de bloco, a data escolhe a lista
+    if (patch.due && t.due && patch.due > t.due && R.reschedLocked(S, t) && !patch.box) { sfx('error'); toast('🔒 Marque o horário (⏰) do time box pra empurrar de novo, ou cancele a tarefa.', 'bad'); f.box_at?.focus(); return; }
     if (!(await confirmResched(t, patch.due))) return;
     const cost = A.reschedCost(t, patch.due || null), r = A.updateTask(t.id, patch);
     if (r?.error) { toast(esc(r.error), 'bad'); return; }
@@ -698,8 +779,9 @@ const FORMS = {
   block: async (f) => {
     const b = S.quests.blocks.find((x) => x.id === f.dataset.id);
     const gv = f.group.value, gw = gv.startsWith('win:') ? R.windows(S).find((w) => 'win:' + w.id === gv) : null;
-    const patch = { title: f.title.value.trim() || b.title, color: f.querySelector('[name=color]:checked')?.value || b.color, due: f.due.value || null, group: gw ? gw.base : gv, win: gw ? gw.id : undefined };
-    if (f.st.value !== 'done') patch.st = f.st.value;
+    const col = f.querySelector('[name=color]:checked')?.value || b.color;
+    const patch = { title: A.normalizeMoney(f.title.value.trim()) || b.title, due: f.due.value || null, group: gw ? gw.base : gv, win: gw ? gw.id : undefined };
+    if (b.st !== 'done') { if (col === 'wait') patch.st = 'wait'; else { patch.st = ''; patch.color = col; } }
     const lt = b.src && S.quests.tasks.find((x) => x.id === b.src);
     if (lt && (lt.due || null) !== patch.due) {
       if (!(await confirmResched(lt, patch.due))) return;
@@ -709,7 +791,16 @@ const FORMS = {
     A.updateBlock(b.id, patch);
     closeModal();
   },
-  boss: (f) => { const patch = { text: f.text.value.trim(), xp: +f.xp.value || 200 }; /* a vida vem sempre do próprio bloco do boss */ if (f.st.value !== 'done') patch.st = f.st.value; A.updateBoss(f.dataset.id, patch); closeModal(); },
+  boss: (f) => {
+    const b = S.quests.bosses.find((x) => x.id === f.dataset.id), st = f.st.value;
+    const patch = { text: f.text.value.trim() || b.text, xp: +f.xp.value || 200 }; // a vida vem sempre do próprio bloco do boss
+    if (f.why) { patch.why = f.why.value.trim() || undefined; patch.fear = f.fear.value.trim() || undefined; }
+    if (st !== 'done') patch.st = st === 'pause' ? '' : st;
+    A.updateBoss(b.id, patch);
+    if (st === 'pause' && f.pause?.value && f.pause.value !== b.pause) A.pauseBoss(b.id, f.pause.value);
+    else if (st !== 'pause' && R.bossPaused(b)) A.resumeBoss(b.id);
+    closeModal();
+  },
   ritual: (f) => { A.saveRitual({ id: f.dataset.id, type: f.type.value, name: f.name.value, mode: f.mode.value, every: f.every.value, dom: f.dom.value, last: f.last.value, plan: f.plan.value, notes: f.notes.value }); closeModal(); },
   'ritual-plan': (f) => { A.planRitual(f.dataset.id, f.plan.value || null); closeModal(); sfx('tab'); },
   item: (f) => {
@@ -745,13 +836,17 @@ const FORMS = {
     if (status.empty || await ask('Substituir tudo?', 'Os dados atuais serão trocados pelos do backup.', 'SUBSTITUIR', true)) { restoreDocs(docs); render(); toast('Backup importado', 'good'); }
   },
 };
+FORMS['rot-chip-add'] = (f) => { const v = f.v.value.trim().toUpperCase(); if (!v) return; A.setRoutineList(f.dataset.k, [...(S.core.routine?.[f.dataset.k] || []), v]); sfx('tab'); requestAnimationFrame(() => document.querySelector(`form[data-form="rot-chip-add"][data-k="${f.dataset.k}"] input`)?.focus()); };
+FORMS['new-chapter'] = (f) => { const ch = S.core.chapter || {}; closeModal(); A.updateChapter({ n: (+ch.n || 1) + 1, title: f.title.value.trim().toUpperCase(), mission: f.mission.value.trim(), reset: f.reset.checked }); sfx('level'); };
+extendBujo(ACTIONS, FORMS);
+extendMapa(ACTIONS, FORMS);
 document.addEventListener('submit', (e) => { const f = e.target.closest('form[data-form]'); if (!f) return; e.preventDefault(); FORMS[f.dataset.form]?.(f); });
 document.addEventListener('click', () => flushAdd()); // depois do clique tratado: adiciona o texto que ficou numa linha "+ adicionar"
 document.addEventListener('change', (e) => {
   const el = e.target.closest('[data-change]');
   if (!el) return;
   const k = el.dataset.k, c = el.dataset.change;
-  if (c === 'setting') A.setSetting(k, +el.value);
+  if (c === 'setting') A.setSetting(k, el.tagName === 'SELECT' && isNaN(+el.value) ? el.value : +el.value);
   if (c === 'neuro') A.setNeuro(k, el.type === 'checkbox' ? el.checked : k === 'meals' ? el.value.split(/[\s,;]+/).filter((x) => /^\d{1,2}:\d{2}$/.test(x)) : el.value);
   if (c === 'label') A.setLabel(k, el.value);
   if (c === 'primo-art') { try { localStorage.setItem('gamify-ui:primo-art', el.value); } catch { /* */ } render(); }
@@ -759,6 +854,7 @@ document.addEventListener('change', (e) => {
   if (c === 'mode') setMode(el.value);
   if (c === 'vol') setVol(k, +el.value);
   if (c === 'filtro') { ui.filtro[k] = el.value; render(); }
+  if (c === 'mapa') A.setMapa(el.value);
   if (c === 'routine-list') A.setRoutineList(k, el.value.split('\n'));
 });
 let inputT = null;

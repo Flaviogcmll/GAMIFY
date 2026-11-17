@@ -10,7 +10,7 @@ export function embers(on) {
   c.className = 'embers';
   document.body.prepend(c);
   const ctx = c.getContext('2d');
-  const scale = 4;
+  const scale = 2; // v5.16: brasinhas menores
   const resize = () => { c.width = Math.ceil(innerWidth / scale); c.height = Math.ceil(innerHeight / scale); };
   resize(); addEventListener('resize', resize);
   const ps = [];
@@ -20,15 +20,16 @@ export function embers(on) {
     requestAnimationFrame(loop);
     if (document.hidden || ts - last < 60) return;
     last = ts;
-    if (ps.length < 26 && Math.random() < 0.3) ps.push({ x: Math.random() * c.width, y: c.height + 2, vy: -0.25 - Math.random() * 0.35, ph: Math.random() * 6, life: 0 });
+    // v5.16: poucas, sutis e saindo de perto da fogueira (embaixo, no meio da tela); somem antes de chegar no meio
+    if (ps.length < 9 && Math.random() < 0.18) ps.push({ x: c.width * (0.5 + (Math.random() - 0.5) * 0.22), y: c.height + 2, vy: -0.22 - Math.random() * 0.25, ph: Math.random() * 6, life: 0 });
     ctx.clearRect(0, 0, c.width, c.height);
     for (let i = ps.length - 1; i >= 0; i--) {
       const p = ps[i];
       p.life++; p.y += p.vy; p.x += Math.sin(p.life / 12 + p.ph) * 0.2;
       ctx.fillStyle = p.life % 20 < 14 ? '#e8793a' : '#ffd27a';
-      ctx.globalAlpha = Math.max(0, 1 - p.life / 260);
+      ctx.globalAlpha = Math.max(0, 0.75 - p.life / 220);
       ctx.fillRect(p.x | 0, p.y | 0, 1, 1);
-      if (p.y < -2 || p.life > 260) ps.splice(i, 1);
+      if (p.y < -2 || p.life > 165) ps.splice(i, 1);
     }
     ctx.globalAlpha = 1;
   })(0);

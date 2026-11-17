@@ -18,6 +18,7 @@ const UNDO_LABEL = {
   addGold: 'ouro', deleteGold: 'ouro apagado', saveShopItem: 'item da loja', deleteShopItem: 'item apagado', openSunday: 'baú de domingo',
   answerQuestion: 'diário', deleteJournal: 'página do diário', editJournal: 'página do diário', deleteBonus: 'bônus apagado', deleteSunday: 'baú apagado', setRule: 'regra', resetRules: 'regras', addSaving: 'guardei',
   setWeekly: 'missões da semana', claudeApprove: 'sugestão do Claude', claudeReject: 'sugestão recusada', toBreakdown: 'enviar pro breakdown', unlinkTask: 'desvincular', addBoss: 'novo boss', deleteBoss: 'boss apagado', setVcat: 'custo da vila', resetVcat: 'vila', buildStart: 'obra', buildFinish: 'obra acelerada', buildMove: 'prédio movido', ensureVillage: 'vila', restDay: 'descanso', focusDone: 'foco', sosDone: 'SOS', ritualDone: 'ritual',
+  migrateKeep: 'migração', pushTomorrow: 'empurrar pra amanhã', pauseBoss: 'pausa do boss', resumeBoss: 'boss de volta', saveDuck: 'pato de borracha',
 };
 const snapNow = () => Object.fromEntries(UDOCS.map((d) => [d, JSON.stringify(S[d])]));
 function labelFromStack() {
@@ -63,10 +64,12 @@ export function commit(docs, fn, opts = {}) {
   docs.push(...touched);
   S._epoch++;
   // 🪜 escada do esforço: 7 dias seguidos na meta → a meta sobe um degrau (uma vez por semana, no máximo R.LADDER_MAX)
-  S._ladderUp = false;
+  // v5.16: corrigido (usava variáveis que não existiam aqui e dava erro na 1ª subida) e agora também DESCE numa semana fraca
+  S._ladderUp = false; S._ladderDown = false;
   if (R.neuroOn(S, 'ladder')) {
-    const lad = S.core.ladder || [], dg = R.dailyGoal(S);
-    if (dg.streak >= 7 && lad.length < R.LADDER_MAX && (!lad.length || diffDays(lad.at(-1), td) >= 7)) { S.core.ladder = [...lad, td]; S._ladderUp = true; changedCore = true; S._epoch++; }
+    const td = today(), lad = S.core.ladder || [], dg = R.dailyGoal(S);
+    if (dg.streak >= 7 && lad.length < R.LADDER_MAX && (!lad.length || diffDays(lad.at(-1), td) >= 7)) { S.core.ladder = [...lad, td]; S._ladderUp = true; docs.push('core'); S._epoch++; }
+    else if (R.ladderShouldDrop(S, td)) { S.core.ladder = lad.slice(0, -1); S.core.ladderDown = td; S._ladderDown = true; docs.push('core'); S._epoch++; }
   }
   const extra = sync();
   if (extra.changed) docs.push('core');
@@ -118,6 +121,13 @@ function sync() {
     S.core.bonus ||= [];
     S.core.bonus.push({ id: uid('wm'), date: td, week: wm.ws, kind: 'missoes', xp: 100, tickets: 1, label: '📌 3 missões da semana' });
     achievements.push({ name: '3 MISSÕES DA SEMANA (+1 🎟)', xp: 100 });
+    changed = true; S._epoch++;
+  }
+  // v5.16 (2A) bônus de volta: bateu a meta hoje depois de um dia abaixo dela (só 1 vez por dia; não vale depois de 2 dias ruins seguidos)
+  if (R.comebackDue(S, td)) {
+    S.core.bonus ||= [];
+    S.core.bonus.push({ id: uid('vol'), date: td, kind: 'volta', xp: R.COMEBACK_XP, label: '🔁 voltou!' });
+    achievements.push({ name: 'VOLTOU! Dia ruim não vira dois', xp: R.COMEBACK_XP });
     changed = true; S._epoch++;
   }
   return { changed, achievements };
@@ -307,8 +317,10 @@ function syncLists() {
 }
 const container = (t) => S.quests.tasks.filter((x) => (t.block ? x.block === t.block : !x.block && x.area === t.area));
 
+/** v5.16: o dono escreve "$" (3000$ ou um $ solto) e o app guarda o marcador de dinheiro 💰; "R$ 300" fica como está */
+export const normalizeMoney = (text) => String(text || '').replace(/(\d)\s*\$/g, '$1💰').replace(/(^|\s)\$(?=\s|$)/g, '$1💰');
 export function normalizeText(text) {
-  let t = String(text || '').trim();
+  let t = normalizeMoney(String(text || '').trim());
   if (t.startsWith('>')) t = '↳ ' + t.slice(1).trim();
   return t;
 }
@@ -345,6 +357,7 @@ export function addTask({ text, area = 'hoje', block = null, due = null, parent 
 }
 
 function completeTask(t, d, auto = false) {
+  if (t.due && t.due < d && !auto) { S.core.rescue = d; touch('core'); } // v5.16: resolveu uma atrasada = resgate (destranca a loja hoje e cancela o castigo)
   const r = R.taskXp(S, t, d);
   if (t.cycle) {
     // 🔁 VAI E VOLTA: a rodada dá XP e a tarefa fica 📨 enviada, aguardando retorno
@@ -493,9 +506,13 @@ export function updateTask(id, patch) {
   // subtarefa não pode passar do prazo final do bloco
   const bk = B(patch.block !== undefined ? patch.block : t.block), cap = R.dueCap(bk);
   if ('due' in patch && patch.due && cap && patch.due > cap) return { error: `O bloco "${bk.title}" termina em ${fmtDM(cap)}: a subtarefa não pode passar disso. Mude antes o prazo do bloco.` };
+  // v5.16 E) time boxing: remarcada 3x, só empurra de novo com horário + duração (patch.box) ou cancelando
+  if ('due' in patch && patch.due && t.due && patch.due > t.due && R.reschedLocked(S, t) && !patch.box) return { error: `"${String(t.text).replace(/\s*\(\d+\s*XP\)/i, '').slice(0, 50)}" já foi remarcada ${t.rs}x. Pra empurrar de novo, abra a tarefa e marque um horário e uma duração (time box), ou cancele.`, locked: true };
   const base = 'due' in patch ? reschedBase(t, patch.due || null) : 0, free = base > 0 && freeResched(), cost = free ? 0 : base;
   if (cost && R.totals(S).balance < cost) return { error: `Faltam ${cost - R.totals(S).balance} XP pra remarcar (custa ${cost} XP). Conclua algo ou mantenha o prazo.` };
-  return commit(cost ? ['quests', 'loja'] : free ? ['quests', 'core'] : ['quests'], () => {
+  const rescue = 'due' in patch && patch.due && t.due && t.due < today() && patch.due >= today(); // remarcou uma atrasada = resgate
+  return commit(cost || rescue ? ['quests', 'loja', 'core'] : free ? ['quests', 'core'] : ['quests'], () => {
+    if (rescue) S.core.rescue = today();
     if (cost) { chargeResched(t, cost); }
     if (free) { useFree(); t.rs = (t.rs || 0) + 1; }
     if ('text' in patch) patch.text = normalizeText(patch.text);
@@ -553,7 +570,7 @@ export function moveTask(id, dir) {
 
 // ───────────────────────── BLOCOS ─────────────────────────
 export function addBlock(group, title, extra = {}) {
-  title = String(title || '').trim();
+  title = normalizeMoney(String(title || '').trim());
   if (!title) return null;
   return commit(['quests'], () => {
     const b = { id: uid('k'), group, title, color: extra.color || (group === 'tr' ? 'yellow' : 'green'), st: '', due: extra.due || null, created: today(), ord: maxOrd() + 1 };
@@ -668,14 +685,16 @@ export function deleteBoss(id) {
   });
 }
 /** 🔗 manda uma tarefa da lista pro BREAKDOWN: vira um bloco ligado; concluir o bloco conclui a tarefa (sem XP em dobro) */
-export function toBreakdown(id) {
+/** v5.16: `dest` = tipo-base (bd, tr, cap, gs) ou 'w:<id>' de uma janela do dono */
+export function toBreakdown(id, dest = 'bd') {
   const t = T(id);
   if (!t || t.block || t.link) return { error: 'Só tarefas das listas que ainda não estão ligadas.' };
+  const win = String(dest).startsWith('w:') ? R.windows(S).find((w) => 'w:' + w.id === dest) : null, group = win ? win.base : R.GROUPS[dest] ? dest : 'bd';
   return commit(['quests'], () => {
-    const blk = { id: uid('k'), group: 'bd', title: t.text.replace(/\s*\(\d+\s*XP\)/i, '').trim(), color: 'green', st: '', due: t.due || null, created: today(), ord: maxOrd() + 1, src: t.id };
+    const blk = { id: uid('k'), group, ...(win ? { win: win.id } : {}), title: t.text.replace(/\s*\(\d+\s*XP\)/i, '').trim(), color: 'green', st: '', due: t.due || null, created: today(), ord: maxOrd() + 1, src: t.id };
     S.quests.blocks.push(blk);
     t.link = blk.id;
-    return { block: blk, msg: '🔗 Foi pro BREAKDOWN. Toque em 🔗 BREAKDOWN pra ir lá.' };
+    return { block: blk, msg: `Foi pra ${win ? win.name : R.GROUPS[group].short}. A bolinha ao lado dela leva até lá.` };
   });
 }
 export function unlinkTask(id) {
@@ -923,7 +942,10 @@ export function updateChapter(ch) {
       closed = { n: old.n, title: old.title, mission: old.mission, why: old.why, start, end: today(), stats: R.chapterStats(S, start, today()) };
       S.core.chapters = [...(S.core.chapters || []), closed];
       ch.start = today();
+      // v5.16 (1A): recomeçar XP, nível e tickets a partir de hoje (gold, compras, conquistas e histórico ficam)
+      if (ch.reset) S.core.season = { from: today(), n, tickets: 0, minus: R.idx(S).xpByDay[today()] || 0, spentMinus: S.loja.purchases.filter((p) => p.date === today()).reduce((a, p) => a + (p.xp || 0), 0) };
     }
+    delete ch.reset;
     S.core.chapter = { ...old, ...ch, n };
     return { feedback: { chapterClosed: closed } };
   });
@@ -1359,4 +1381,84 @@ function cleanOld() {
   if (S.core.bond?.last) { delete S.core.bond.last.journal; delete S.core.bond.last.wins; }
   S.core.migrations.push('v5-clean');
   return true;
+}
+
+// ───────────────────────── v5.16: BULLET JOURNAL ─────────────────────────
+/** A) a migração deste mês já foi oferecida (não pergunta de novo sozinha) */
+export function markMigrated() {
+  if (S.core.migrated === R.ym()) return;
+  commit(['core'], () => { S.core.migrated = R.ym(); }, { noUndo: true });
+}
+/** A) ✓ ainda vale: ganha a data (se não tinha) e não aparece de novo neste mês */
+export function migrateKeep(id, due) {
+  const t = T(id);
+  if (!t) return;
+  return commit(['quests'], () => { t.mig = R.ym(); if (!t.due && due) t.due = due; syncLink(t); });
+}
+/** F) empurra pra amanhã, SEM custo, as tarefas que passaram do limite de HOJE (planejar não é remarcar) */
+export function pushTomorrow(ids) {
+  const td = today(), tm = addDays(td, 1), list = ids.map(T).filter((t) => t && R.isOpen(t) && t.due === td);
+  if (!list.length) return;
+  return commit(['quests'], () => { for (const t of list) { t.due = tm; syncLink(t); } return { feedback: { msg: `📅 ${list.length} tarefa(s) foram pra AMANHÃ, sem custo.` } }; });
+}
+/** H) pausa o boss até `until` (máx. 14 dias): os prazos das subtarefas andam junto, sem custo */
+export function pauseBoss(id, until) {
+  const b = S.quests.bosses.find((x) => x.id === id), td = today();
+  if (!b || !until || until <= td) return;
+  if (diffDays(td, until) > R.BOSS_PAUSE_MAX) until = addDays(td, R.BOSS_PAUSE_MAX);
+  const days = diffDays(b.pause && b.pause > td ? b.pause : td, until), blk = b.block && B(b.block);
+  return commit(['quests'], () => {
+    if (days > 0 && blk) {
+      for (const t of S.quests.tasks) if (t.block === blk.id && R.isOpen(t) && t.due) t.due = addDays(t.due, days);
+      if (blk.due) blk.due = addDays(blk.due, days);
+    }
+    b.pause = until; b.pausedTo = until;
+    return { feedback: { msg: `⏸ Boss pausado até ${fmtDM(until)}. Os prazos dele andaram ${days} dia(s). Ele volta sozinho.` } };
+  });
+}
+export function resumeBoss(id) {
+  const b = S.quests.bosses.find((x) => x.id === id);
+  if (!b?.pause) return;
+  commit(['quests'], () => { delete b.pause; b.pausedTo = today(); });
+}
+/** G) pato de borracha: o que eu tentei, o que funcionou, o que não funcionou (fica na tarefa) */
+export function saveDuck(taskId, note) {
+  const t = taskId && T(taskId), n = { date: today(), tried: String(note.tried || '').slice(0, 400), ok: String(note.ok || '').slice(0, 400), nok: String(note.nok || '').slice(0, 400) };
+  if (!n.tried && !n.ok && !n.nok) return;
+  return commit(t ? ['quests'] : ['core'], () => {
+    if (t) { t.duck = [...(t.duck || []), n].slice(-5); return; }
+    S.core.duck = [...(S.core.duck || []), n].slice(-20);
+  });
+}
+
+// ───────────────────────── v5.16 (3A): REFLEXÃO — rascunho que some e mapa mental ─────────────────────────
+export const SCRATCH_TTL = 48 * 3600e3; // o rascunho some sozinho em 2 dias: é só pra desatolar a cabeça
+export function addScratch(text) {
+  text = String(text || '').trim();
+  if (!text) return;
+  const now = Date.now();
+  commit(['core'], () => { S.core.scratch = [...(S.core.scratch || []).filter((x) => now - x.at < SCRATCH_TTL), { id: uid('n'), at: now, text: text.slice(0, 2000) }]; }, { noUndo: true });
+}
+export function delScratch(id) {
+  commit(['core'], () => { S.core.scratch = (S.core.scratch || []).filter((x) => x.id !== id); });
+}
+export function setMapa(text) {
+  if ((S.core.mapa?.text || '') === text) return;
+  commit(['core'], () => { S.core.mapa = { text: String(text || '').slice(0, 6000), at: today() }; }, { noUndo: true });
+}
+/** o mapa vira trabalho: a raiz vira um bloco no BREAKDOWN, os galhos viram tarefas e os galhos de galho viram passos ↳ */
+export function mapToBlock(tree) {
+  if (!tree?.text) return;
+  return commit(['quests'], () => {
+    const blk = { id: uid('k'), group: 'bd', title: normalizeMoney(tree.text.toUpperCase()), color: 'green', st: '', due: null, created: today(), ord: maxOrd() + 1 };
+    S.quests.blocks.push(blk);
+    let ord = maxOrd() + 1;
+    for (const k of tree.kids || []) {
+      const t = { id: uid('t'), area: 'block', block: blk.id, text: normalizeMoney(k.text.toUpperCase()), st: '', due: null, created: today(), ord: ord++ };
+      S.quests.tasks.push(t);
+      const walk = (n) => { for (const g of n.kids || []) { S.quests.tasks.push({ id: uid('t'), area: 'block', block: blk.id, parent: t.id, text: '↳ ' + normalizeMoney(g.text.toUpperCase()), st: '', due: null, created: today(), ord: ord++ }); walk(g); } };
+      walk(k);
+    }
+    return { block: blk };
+  });
 }

@@ -496,18 +496,22 @@ export function totals(s) {
   const c = cache(s);
   if (c.totals) return c.totals;
   let earned = 0;
-  const ix = idx(s);
-  for (const v of Object.values(ix.xpByDay)) earned += v;
-  for (const a of s.core?.adjust || []) earned += a.xp || 0;
+  const ix = idx(s), from = s.core?.season?.from || '';
+  // v5.16 (1A) NOVO CAPÍTULO: XP, nível e tickets contam a partir do começo do capítulo. Gold, compras, conquistas e histórico ficam.
+  for (const [d, v] of Object.entries(ix.xpByDay)) if (!from || d >= from) earned += v;
+  for (const a of s.core?.adjust || []) if (!from || (a.date || '') >= from) earned += a.xp || 0;
   const buys = s.loja?.purchases || [];
-  const spent = buys.reduce((a, p) => a + (p.xp || 0), 0);
+  const spent = buys.reduce((a, p) => a + (!from || (p.date || '') >= from ? p.xp || 0 : 0), 0) - (s.core?.season?.spentMinus || 0);
+  earned -= s.core?.season?.minus || 0; // o XP do próprio dia, ganho antes de apertar NOVO CAPÍTULO, fica no capítulo velho
   const goldIn = (s.loja?.goldIn || []).reduce((a, g) => a + (+g.amount || 0), 0);
   const goldOut = buys.reduce((a, p) => a + (+p.gold || 0), 0);
   const lv = levelInfo(earned);
   const st = stats(s);
-  const lootTickets = (s.core?.bonus || []).reduce((a, b) => a + (b.tickets || 0), 0);
-  const ticketsEarned = lv.level - 1 + st.bossDone + Math.floor(st.onTime / 10) + lootTickets;
-  const ticketsSpent = buys.reduce((a, p) => a + (p.tickets || 0), 0);
+  const lootTickets = (s.core?.bonus || []).reduce((a, b) => a + (!from || (b.date || '') >= from ? b.tickets || 0 : 0), 0);
+  const bossDone = from ? (s.quests?.bosses || []).filter((b) => b.st === 'done' && (b.doneAt || '') >= from).length : st.bossDone;
+  const onTime = from ? ix.comps.filter((c) => c.onTime && (c.doneAt || '') >= from).length : st.onTime;
+  const ticketsEarned = (s.core?.season?.tickets || 0) + lv.level - 1 + bossDone + Math.floor(onTime / 10) + lootTickets;
+  const ticketsSpent = buys.reduce((a, p) => a + (!from || (p.date || '') >= from ? p.tickets || 0 : 0), 0);
   return (c.totals = {
     earned, spent, balance: earned - spent, goldIn, goldOut, gold: goldIn - goldOut,
     tickets: ticketsEarned - ticketsSpent, ticketsEarned, ...lv,
@@ -722,9 +726,11 @@ export function weekChallenges(s, ws, td = today()) {
 export function shopState(s, d = today()) {
   const st = dayStatus(s, d);
   const overdue = overdueTasks(s, d);
-  const locked = overdue.length >= 3;
+  // v5.16 (2B): com 3+ atrasadas a loja tranca, mas resolver ou remarcar UMA atrasada destranca pelo resto do dia
+  const rescued = s.core?.rescue === d;
+  const locked = overdue.length >= 3 && !rescued;
   const econ = econIndex(s, d);
-  return { mult: st.shopMult * econ, econ, locked, overdue: overdue.length, status: st };
+  return { mult: st.shopMult * econ, econ, locked, rescued: rescued && overdue.length >= 3, overdue: overdue.length, status: st };
 }
 export function tavernaPrice(s, item, d = today()) {
   let m = dayStatus(s, d).shopMult;
@@ -738,7 +744,10 @@ export const DEBT_MULT = 1.5;
 export const RESCHED_CAP = 8;
 export function blowState(s, d = today()) {
   const b = s.core?.blow || {}, n = b.n || 0, hit = (b.hits || []).filter((h) => h <= d).sort().at(-1);
-  return { n, left: BLOW_EVERY - (n % BLOW_EVERY), active: !!hit && diffDays(hit, d) < BLOW_DAYS };
+  // v5.16 (2F): o castigo tem saída (resolver ou remarcar 1 atrasada depois dele cancela) e intensidade escolhida em PERKS
+  const mode = s.core?.settings?.castigo || 'loja', rescued = !!hit && (s.core?.rescue || '') >= hit;
+  const on = !!hit && diffDays(hit, d) < BLOW_DAYS && !rescued;
+  return { n, left: BLOW_EVERY - (n % BLOW_EVERY), active: on && mode === 'loja', warn: on && mode === 'aviso', mode, rescued: !!hit && rescued && diffDays(hit, d) < BLOW_DAYS };
 }
 export const ferreiroXp = (item) => C.FERREIRO_XP * item.nv;
 export const timesBought = (s, itemId) =>
@@ -978,12 +987,15 @@ export function goalAt(s, d = today()) {
   const base = s.core?.settings?.dailyGoal || C.DAILY_GOAL, n = ladderSteps(s).filter((x) => x <= d).length;
   return n ? Math.round((base * (1 + LADDER_STEP) ** n) / 5) * 5 : base;
 }
+/** v5.16 (2C): fração da meta que mantém a chama acesa (sem somar dia) */
+export const FLAME_MIN = 0.5;
 export function dailyGoal(s, d = today()) {
   const goal = goalAt(s, d), xp = idx(s).xpByDay;
   let streak = 0, x = (xp[d] || 0) >= goal ? d : addDays(d, -1), skips = 0;
   for (let i = 0; i < 400; i++, x = addDays(x, -1)) {
     if ((xp[x] || 0) >= goalAt(s, x)) streak++;
     else if (tripDay(s, x)) { /* ✈ viagem: não conta e não quebra a sequência */ }
+    else if (x !== d && (xp[x] || 0) >= goalAt(s, x) * FLAME_MIN) { /* v5.16 (2C): metade da meta segura a chama, mas não soma */ }
     else if ((weekday(x) === 0 || weekday(x) === 6) && skips < 1) skips++; // 1 fim de semana perdoado por vez
     else break;
     if (weekday(x) === 1) skips = 0;
@@ -1166,19 +1178,21 @@ export function chapterStats(s, from, to = today()) {
 // segundo pico no fim da tarde; luz baixa e desaceleração antes de dormir), "sono é inegociável" (7 a 9 h),
 // "coma nos mesmos horários" (comida é sinal para o relógio do corpo) e "não deixe a dopamina mimada".
 // Tudo liga/desliga em PERKS (settings.neuro). Os horários são do dono.
-export const NEURO_DEFAULT = { clock: true, curfew: true, calm: true, ladder: true, wake: '07:00', bed: '23:00', meals: ['08:00', '12:30', '19:30'] };
+export const NEURO_DEFAULT = { clock: true, curfew: true, calm: true, ladder: true, wake: '07:00', bed: '23:00', meals: ['08:00', '12:30', '19:30'],
+  // v5.16: Bullet Journal e praticidade (cada um liga/desliga em PERKS → 🧠)
+  mig: true, why: true, box: true, cheio: true, pato: true, quick: true, swipe: true, proc: true, foco: true };
 export const neuro = (s) => ({ ...NEURO_DEFAULT, ...(s.core?.settings?.neuro || {}) });
 export const neuroOn = (s, k) => neuro(s)[k] !== false;
 export const hm = (x) => { const [h, m] = String(x || '0:0').split(':').map(Number); return ((h || 0) * 60 + (m || 0)) % 1440; };
 const hhmm = (m) => `${String(Math.floor(((m + 1440) % 1440) / 60)).padStart(2, '0')}:${String((m + 1440) % 60).padStart(2, '0')}`;
 export const PHASES = {
-  despertar: { icon: '🌅', name: 'DESPERTAR', tip: 'Luz do sol nos olhos por 10 min, água e nada de celular na cama: é o que acerta o relógio do corpo pro dia todo.' },
+  despertar: { icon: '🌅', name: 'DESPERTAR', tip: 'Luz natural nos olhos por 20 a 30 min (rua ou janela), água e nada de celular na cama: é o que acerta o relógio do corpo pro dia todo.' },
   foco: { icon: '🧠', name: 'PICO DE FOCO', tip: 'As primeiras horas acordado são as de mais alerta. Faça AGORA a tarefa mais pesada do dia.' },
-  vale: { icon: '🍃', name: 'VALE DA TARDE', tip: 'Depois do almoço a energia cai: hora de tarefas leves, mensagens, ligações e reuniões.' },
-  pico2: { icon: '💪', name: 'SEGUNDO PICO', tip: 'Fim de tarde: corpo quente e força alta. Ótimo pra treinar ou fechar pendências.' },
-  desacelerar: { icon: '🌆', name: 'DESACELERAR', tip: 'Luz baixa e telas mais fracas. Jante cedo, sem trabalho pesado: o cérebro precisa descer o ritmo pra dormir bem.' },
+  vale: { icon: '🍃', name: 'VALE DA TARDE', tip: 'Depois do almoço a energia cai: hora de tarefas leves, mensagens, ligações e reuniões. Sem cochilo longo: ele rouba o sono da noite.' },
+  pico2: { icon: '💪', name: 'SEGUNDO PICO', tip: 'Fim de tarde: corpo quente e força alta. Ótimo pra treinar (sempre no mesmo horário, e até 4 h antes de dormir) ou fechar pendências.' },
+  desacelerar: { icon: '🌆', name: 'DESACELERAR', tip: 'Pare de trabalhar e estudar: faltam 3 h pra dormir. Luz laranja e baixa, telas fracas, jantar leve. O cérebro precisa descer o ritmo pra dormir bem.' },
   recolher: { icon: '🌙', name: 'TOQUE DE RECOLHER', tip: 'Falta menos de 1 hora pra dormir. Feche o dia e largue as listas: amanhã elas continuam aqui.' },
-  sono: { icon: '😴', name: 'HORA DE DORMIR', tip: 'Sono é inegociável: 7 a 9 horas. Dormir mal encolhe o hipocampo (memória) e piora o humor do dia seguinte.' },
+  sono: { icon: '😴', name: 'HORA DE DORMIR', tip: 'Sono é inegociável: 7 a 9 horas, no mesmo horário até no fim de semana. Se acordar no meio da noite, não olhe o relógio. Cama é só pra dormir.' },
 };
 /** em que fase do dia o corpo está, pelos horários de acordar e dormir do dono */
 export function bodyClock(s, now = new Date()) {
@@ -1187,11 +1201,102 @@ export function bodyClock(s, now = new Date()) {
   const key = since >= awake ? 'sono' : toBed <= 60 ? 'recolher' : toBed <= 180 ? 'desacelerar' : since < 60 ? 'despertar' : since < 300 ? 'foco' : since < 480 ? 'vale' : 'pico2';
   const meal = (n.meals || []).map(hm).map((m) => ({ at: m, in: (m - t + 1440) % 1440 })).filter((m) => m.in <= 180).sort((a, b) => a.in - b.in)[0];
   return { key, ...PHASES[key], toBed: key === 'sono' ? 0 : toBed, bed: n.bed, wake: n.wake, sleepH: Math.round(((wake - bed + 1440) % 1440) / 6) / 10,
-    meal: meal ? { at: hhmm(meal.at), in: meal.in } : null, coffeeUntil: hhmm(wake + 8 * 60) };
+    meal: meal ? { at: hhmm(meal.at), in: meal.in } : null, coffeeUntil: hhmm(Math.min(wake + 8 * 60, 15 * 60)), trainUntil: hhmm(bed - 4 * 60) };
 }
 /** a tarefa mais pesada que dá pra fazer hoje (pro pico de foco): ! prioridade, ⭐, atrasada, mais XP */
 export function heaviestTask(s, td = today()) {
   const ts = openTasks(s).filter((t) => t.st !== 'wait' && !t.who && !t.dep && (!t.due || t.due <= addDays(td, 7)));
   const score = (t) => (t.prio ? 400 : 0) + (parse(t.text).star ? 200 : 0) + (t.due && t.due < td ? 150 : t.due === td ? 100 : 0) + taskXp(s, t).xp;
   return ts.sort((a, b) => score(b) - score(a))[0] || null;
+}
+
+// ───────────────────────── v5.16: BULLET JOURNAL (Ryder Carroll) ─────────────────────────
+// A) MIGRAÇÃO DO MÊS: "se não vale reescrever, não vale fazer". Candidatas: tarefas das LISTAS abertas, sem prazo
+// ou antigas (criadas há 30+ dias e com prazo a mais de 7 dias). Atrasadas ficam com a revisão de "o que ficou pra trás".
+export const ym = (d = today()) => d.slice(0, 7);
+export function migrationCandidates(s, td = today()) {
+  if (!neuroOn(s, 'mig')) return [];
+  const old = addDays(td, -30), far = addDays(td, 7), m = ym(td);
+  return openTasks(s).filter((t) => !t.block && !t.link && !t.mother && t.st !== 'wait' && !t.who && !t.dep && t.mig !== m
+    && (!t.due || ((t.created || td) <= old && t.due > far))).sort((a, b) => (a.created || '').localeCompare(b.created || ''));
+}
+/** a migração deste mês ainda não foi oferecida e tem o que migrar */
+export const migrationPending = (s, td = today()) => neuroOn(s, 'mig') && s.core?.migrated !== ym(td) && td.slice(8) <= '10' && migrationCandidates(s, td).length > 0;
+
+// H) PAUSA DE META: o boss fica pausado até a data (no máximo 14 dias); passou a data, volta sozinho.
+export const BOSS_PAUSE_MAX = 14;
+export const bossPaused = (b, td = today()) => !!(b?.pause && b.pause > td && b.st !== 'done');
+// C) BOSS PARADO: dias desde a última subtarefa concluída (ou desde que o boss nasceu)
+export function bossIdle(s, boss, td = today()) {
+  const b = bossBlock(s, boss);
+  if (!b || boss.st === 'done' || boss.st === 'wait' || bossPaused(boss, td)) return 0;
+  const last = allTasks(s).filter((t) => t.block === b.id && t.st === 'done' && t.doneAt).map((t) => t.doneAt).sort().at(-1);
+  const from = [last, boss.pausedTo, b.created].filter(Boolean).sort().at(-1);
+  return from ? Math.max(0, diffDays(from, td)) : 0;
+}
+export const BOSS_IDLE_DAYS = 7;
+export const staleBosses = (s, td = today()) => (neuroOn(s, 'why') ? (s.quests?.bosses || []).map((b) => ({ boss: b, days: bossIdle(s, b, td) })).filter((x) => x.days >= BOSS_IDLE_DAYS).sort((a, b) => b.days - a.days) : []);
+
+// E) TIME BOXING: remarcada 3 vezes → para empurrar de novo precisa de horário + duração (ou cancelar)
+export const RESCHED_LOCK = 3;
+export const reschedLocked = (s, t) => neuroOn(s, 'box') && (t?.rs || 0) >= RESCHED_LOCK;
+
+// F) ATENÇÃO RESIDUAL: HOJE com mais tarefas que o limite (AJUSTES → máx. prazos por dia)
+export function hojeOverflow(s, td = today()) {
+  const max = s.core?.settings?.maxPerDay || C.MAX_PER_DAY;
+  const hoje = openTasks(s).filter((t) => !t.block && t.st !== 'wait' && !t.who && !t.dep && t.due && t.due <= td);
+  if (!neuroOn(s, 'cheio') || hoje.length <= max) return null;
+  const score = (t) => (t.prio ? 400 : 0) + (parse(t.text).star ? 200 : 0) + (t.st === 'doing' ? 300 : 0) + taskXp(s, t).xp;
+  const movable = hoje.filter((t) => t.due === td && !t.prio && t.st !== 'doing' && !t.link && !reschedLocked(s, t)).sort((a, b) => score(a) - score(b));
+  return { count: hoje.length, max, suggest: movable.slice(0, hoje.length - max) };
+}
+
+// ───────────────────────── v5.16: RECOMPENSA (aulas 021, 068, 153) ─────────────────────────
+// Habituação: a mesma recompensa repetida perde o efeito. Item da TAVERNA comprado 4+ vezes em 7 dias ganha um aviso pra variar.
+export const HABIT_BUY = 4;
+export function boughtLast7(s, itemId, td = today()) {
+  const from = addDays(td, -6);
+  return (s.loja?.purchases || []).filter((p) => p.itemId === itemId && p.kind === 'taverna' && p.date >= from && p.date <= td).length;
+}
+
+// ───────────────────────── v5.16: MECÂNICAS DO PDF (com contrapesos) ─────────────────────────
+// 2D escada que desce: na última semana (7 dias antes de hoje) menos de 3 dias na meta → cai um degrau. No máximo 1 por semana.
+export function ladderShouldDrop(s, td = today()) {
+  const lad = ladderSteps(s);
+  if (!lad.length || diffDays(lad.at(-1), td) < 7) return false;
+  if (s.core?.ladderDown && diffDays(s.core.ladderDown, td) < 7) return false;
+  const xp = idx(s).xpByDay, days = Array.from({ length: 7 }, (_, i) => addDays(td, -i - 1)).filter((x) => !tripDay(s, x));
+  return days.length >= 5 && days.filter((x) => (xp[x] || 0) >= goalAt(s, x)).length < 3;
+}
+// 2A bônus de volta: hoje bateu a meta, ontem não (e anteontem bateu ou foi folga). +25 XP, 1 vez por dia.
+export const COMEBACK_XP = 25;
+export function comebackDue(s, td = today()) {
+  if ((s.core?.bonus || []).some((b) => b.kind === 'volta' && b.date === td)) return false;
+  const xp = idx(s).xpByDay, y = addDays(td, -1), y2 = addDays(td, -2), hit = (x) => (xp[x] || 0) >= goalAt(s, x);
+  if (!hit(td) || hit(y) || tripDay(s, y) || y < (s.core?.startDate || y)) return false;
+  return hit(y2) || tripDay(s, y2) || weekday(y2) === 0 || weekday(y2) === 6;
+}
+// 2E + 5A FOCO AGORA: uma tarefa só, e o porquê (o "cérebro": junta prazo, boss, missão, horário do corpo e prioridade)
+export function focusNow(s, td = today(), skip = []) {
+  const wm = new Set(weeklyMissions(s, td).ids || []), clock = neuroOn(s, 'clock') ? bodyClock(s).key : '';
+  const bossOf = (t) => (t.block && (s.quests?.bosses || []).find((b) => b.block === t.block)) || null;
+  const cands = openTasks(s).filter((t) => t.st !== 'wait' && !t.who && !t.dep && !t.mother && !skip.includes(t.id) && (!t.block || findBlock(s, t.block)?.color !== 'black'));
+  const why = (t) => {
+    const r = [];
+    if (t.st === 'doing') r.push([900, 'você já começou']);
+    if (t.due && t.due < td) r.push([600 + diffDays(t.due, td) * 10, `atrasada há ${diffDays(t.due, td)} dia(s)`]);
+    else if (t.due === td) r.push([450, 'o prazo é hoje']);
+    if (t.prio) r.push([400, 'marcada como prioridade']);
+    if (wm.has(t.id)) r.push([350, 'é uma missão da semana']);
+    const bo = bossOf(t), idle = bo ? bossIdle(s, bo, td) : 0;
+    if (bo && idle >= BOSS_IDLE_DAYS) r.push([300, `o boss "${bo.text.replace(/:\s*[\d.]+\s*XP.*$/i, '').slice(0, 28)}" está parado há ${idle} dias`]);
+    if (parse(t.text).star) r.push([200, 'é a chata que você vive adiando']);
+    if (clock === 'foco' && taskXp(s, t, td).xp >= 30) r.push([150, 'é pico de foco: hora da pesada']);
+    if (clock === 'vale' && taskXp(s, t, td).xp < 20) r.push([120, 'no vale da tarde, uma leve rende']);
+    if (t.due && t.due > td && diffDays(td, t.due) <= 2) r.push([100, 'o prazo está perto']);
+    return r.sort((a, b) => b[0] - a[0]);
+  };
+  const ranked = cands.map((t) => ({ t, r: why(t) })).filter((x) => x.r.length).sort((a, b) => b.r.reduce((x, y) => x + y[0], 0) - a.r.reduce((x, y) => x + y[0], 0));
+  const top = ranked[0];
+  return top ? { task: top.t, why: top.r.slice(0, 2).map((x) => x[1]).join(' e '), next: ranked.slice(1, 4).map((x) => x.t.id) } : null;
 }

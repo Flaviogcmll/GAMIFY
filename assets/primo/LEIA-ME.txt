@@ -1,6 +1,6 @@
 ARTES DO PRIMO NOVO (GAMIFY)
 
-Origem: geradas por IA de imagem (Higgsfield) com direção do autor do app, a partir dos prompts em PROMPTS_HIGGSFIELD.txt.
+Origem: geradas por IA de imagem (Higgsfield) com direção do autor do app, a partir de prompts escritos para o app (guardados pelo autor).
 Aqui ficam só as versões reduzidas e recortadas que o app usa. Os originais (cerca de 290 MB) não entram no repositório.
 
 parado, feliz, dormindo, andando, comendo .webp  folhas de animação (quadros de 224 px lado a lado)

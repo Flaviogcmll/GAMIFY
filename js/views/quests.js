@@ -6,6 +6,7 @@ import { taskRow, segBar, statusChips, dueChip } from '../ui.js';
 import { px } from '../icons.js';
 import { isCollapsed, companionCard } from '../v3.js';
 import { arrange, inColumns } from '../v35.js';
+import { overflowBar } from '../bujo.js';
 
 const sortOrd = (a, b) => a.ord - b.ord;
 /** blocos em 3 colunas fixas (o bloco i fica sempre na coluna i % 3: abrir um bloco só empurra os de baixo dele) */
@@ -32,7 +33,7 @@ function listCard(area, ui) {
   const rv = R.listReviewed(S, area);
   return `<section class="list-card ${isCollapsed('l:' + area) ? 'collapsed' : ''} ${rv ? 'reviewed' : ''}" data-list="${area}" data-drop-area="${area}"><header><h2 data-act="collapse" data-k="l:${area}" style="cursor:pointer"><span class="chev">${isCollapsed('l:' + area) ? '▸' : '▾'}</span> ${R.AREAS[area]}</h2>
       <span class="row" style="gap:4px"><span class="meta">${open.length}${late ? ` · <span class="bad">${late} atrasada${late > 1 ? 's' : ''}</span>` : ''}</span><button class="icon-btn" data-act="sort" data-area="${area}" title="Organizar por data">⇅</button></span></header>
-    <ul class="tasks">${show.map((t) => taskRow(t, { list: true, sub: sub(t) })).join('')}${show.length ? '' : `<div class="empty">${wait ? 'ninguém te segurando. 👏' : 'vazio.'}</div>`}</ul>
+    ${area === 'hoje' ? overflowBar() : ''}<ul class="tasks">${show.map((t) => taskRow(t, { list: true, sub: sub(t) })).join('')}${show.length ? '' : `<div class="empty">${wait ? 'ninguém te segurando. 👏' : 'vazio.'}</div>`}</ul>
     ${!ui.showDone && nHidden ? `<button class="more" data-act="toggle-done">✓ ${nHidden} feitas · mostrar</button>` : ''}
     ${stalled ? `<button class="more" data-act="toggle-stalled">⬛ ${stalled} parada(s) · mostrar</button>` : ''}
     <form class="addline" data-form="add-task" data-area="${area}" autocomplete="off"><input class="inp" name="text" placeholder="+ adicionar ${LIST_HINT[area]}" aria-label="Adicionar em ${R.AREAS[area]}"></form>
@@ -43,13 +44,14 @@ function listCard(area, ui) {
 function bossPanel(ui) {
   const ordOf = (b) => R.findBlock(S, b.block)?.ord ?? b.ord, list = [...S.quests.bosses].sort((a, z) => ordOf(a) - ordOf(z)).sort((a, z) => (a.st === 'done') - (z.st === 'done'));
   const card = (b) => {
-    const hp = R.bossHp(S, b), blk = hp?.block, done = b.st === 'done';
+    const hp = R.bossHp(S, b), blk = hp?.block, done = b.st === 'done', paused = R.bossPaused(b), idle = R.bossIdle(S, b);
     const items = blk ? S.quests.tasks.filter((t) => t.block === blk.id).sort(sortOrd) : [];
     const show = ui.showDone || done ? items : items.filter(visible);
     const ck = blk?.id || b.id;
-    return `<article class="block boss-b ${done ? 'closed' : ''} ${isCollapsed('b:' + ck) ? 'collapsed' : ''}" data-color="red" ${blk ? `data-drop-block="${blk.id}"` : ''}>
+    return `<article class="block boss-b ${done ? 'closed' : ''} ${paused ? 'paused' : ''} ${isCollapsed('b:' + ck) ? 'collapsed' : ''}" data-color="red" ${blk ? `data-drop-block="${blk.id}"` : ''}>
       <div class="bh"><div class="stripe"></div><div class="bt" data-act="edit-boss" data-id="${b.id}"><h3>👹 ${esc(b.text.replace(/:\s*[\d.]+\s*XP.*$/i, ''))}</h3>
-        <div class="bm"><span class="acc">${fmtN(b.xp)} XP + 1🎟</span>${hp && hp.total ? `<span>HP ${fmtN(hp.left)}/${fmtN(hp.total)}</span>` : '<span>quebre em subtarefas ↓</span>'}${done ? `<span class="good">DERROTADO ${fmtDM(b.doneAt)}</span>` : b.st === 'wait' ? '<span>⏳ aguardando</span>' : ''}</div>
+        <div class="bm"><span class="acc">${fmtN(b.xp)} XP + 1🎟</span>${hp && hp.total ? `<span>HP ${fmtN(hp.left)}/${fmtN(hp.total)}</span>` : '<span>quebre em subtarefas ↓</span>'}${done ? `<span class="good">DERROTADO ${fmtDM(b.doneAt)}</span>` : paused ? `<span class="info">⏸ volta ${fmtDM(b.pause)}</span>` : b.st === 'wait' ? '<span>⏳ aguardando</span>' : idle >= R.BOSS_IDLE_DAYS && R.neuroOn(S, 'why') ? `<span class="warn">💤 ${idle} dias parado</span>` : ''}</div>
+        ${!done && b.why && R.neuroOn(S, 'why') ? `<p class="bwhy">💡 ${esc(b.why)}</p>` : ''}
         ${hp && hp.total && !done ? segBar(hp.pct, 'hp') : ''}</div>
        <div class="bbtns">${blk ? `<span class="handle" data-handle="block" data-id="${blk.id}" title="Segure e arraste">⠿</span>` : ''}<button class="icon-btn" data-act="boss-toggle" data-id="${b.id}" aria-label="${done ? 'Reabrir' : 'Derrotar'} boss" title="${done ? 'Reabrir' : 'Derrotar na hora'}">${done ? '↺' : '⚔'}</button><button class="icon-btn" data-act="collapse" data-k="b:${ck}" aria-label="Recolher boss"><span class="chev">${isCollapsed('b:' + ck) ? '▸' : '▾'}</span></button></div></div>
       <div class="bbody"><ul class="tasks">${show.map((t) => taskRow(t, { showPin: true })).join('') || '<div class="empty">sem subtarefas.</div>'}</ul>
@@ -70,10 +72,10 @@ function blockCard(b, ui, opts = {}) {
   const dues = open.map((t) => t.due).filter(Boolean).sort();
   const xpLeft = open.reduce((a, t) => a + R.taskXp(S, t).xp, 0) + (b.st === 'done' ? 0 : R.blockXp(b));
   const rev = R.reviewed(b);
-  return `<article class="block ${b.st === 'done' ? 'closed' : ''} ${isCollapsed('b:' + b.id) ? 'collapsed' : ''} ${rev ? 'reviewed' : ''}" data-color="${b.color}" data-drop-block="${b.id}">
+  return `<article class="block ${b.st === 'done' ? 'closed' : ''} ${isCollapsed('b:' + b.id) ? 'collapsed' : ''} ${rev ? 'reviewed' : ''}" data-color="${b.st === 'wait' ? 'purple' : b.color}" data-drop-block="${b.id}">
     <div class="bh"><div class="stripe"></div>
       <div class="bt" data-act="edit-block" data-id="${b.id}"><h3>${esc(b.title)}</h3>
-        <div class="bm"><span>${done.length}/${counted.length}</span>${rev ? `<span class="chip rev" title="Revisado: vale até ${new Date(b.rev + 864e5).toLocaleString('pt-BR', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}">👁 REVISADO</span>` : ''}${b.src && S.quests.tasks.find((x) => x.id === b.src) ? `<button class="lnk-dot" data-g="lista" data-act="jump" data-id="${b.src}" title="Esta tarefa também está nas LISTAS. Toque pra ir lá." aria-label="Ir pra tarefa nas listas"></button>` : ''}${b.st === 'done' ? `<span class="good">FECHADO ${fmtDM(b.doneAt)} · +${b.xp}</span>` : `<span>${b.st === 'wait' ? '⏳ aguardando · ' : ''}${b.due ? '◆ ' + fmtDM(b.due) : dues[0] ? 'próx. ' + fmtDM(dues[0]) : 'sem prazo'}</span><span class="acc">${fmtN(xpLeft)} XP</span>`}</div>
+        <div class="bm"><span>${done.length}/${counted.length}</span>${rev ? `<span class="chip rev" title="Revisado: vale até ${new Date(b.rev + 864e5).toLocaleString('pt-BR', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}">👁 REVISADO</span>` : ''}${b.src && S.quests.tasks.find((x) => x.id === b.src) ? `<button class="lnk-dot" data-g="lista" data-act="jump" data-id="${b.src}" title="Esta tarefa também está nas LISTAS. Toque pra ir lá." aria-label="Ir pra tarefa nas listas"></button>` : ''}${b.st === 'done' ? `<span class="good">FECHADO ${fmtDM(b.doneAt)} · +${b.xp}</span>` : `<span>${b.due ? '◆ ' + fmtDM(b.due) : dues[0] ? 'próx. ' + fmtDM(dues[0]) : 'sem prazo'}</span><span class="acc">${fmtN(xpLeft)} XP</span>`}</div>
         ${segBar(counted.length ? done.length / counted.length : 0, 'good sm')}</div>
       <div class="bbtns"><span class="handle" data-handle="block" data-id="${b.id}" title="Segure e arraste">⠿</span><button class="icon-btn" data-act="sort" data-block="${b.id}" title="Organizar por data">⇅</button><button class="icon-btn ${opts.pinned ? 'on' : ''}" data-act="pin-block" data-id="${b.id}" title="${opts.pinned ? 'Tirar do painel da direita' : 'Fixar no painel da direita (fica sempre à mão)'}" aria-label="Fixar bloco">📌</button><button class="icon-btn" data-act="collapse" data-k="b:${b.id}" aria-label="Recolher bloco"><span class="chev">${isCollapsed('b:' + b.id) ? '▸' : '▾'}</span></button></div>
     </div>
@@ -90,8 +92,7 @@ function group(g, ui, win = null) {
   const blocks = R.tabBlocks(S, win ? 'w:' + win.id : g).sort(sortOrd);
   const active = blocks.filter(stalledOff(ui));
   return `<div class="group ${isCollapsed('g:' + g) ? 'collapsed' : ''}" data-group="${g}"><div class="band" data-act="collapse" data-k="g:${g}"><span><span class="chev">${isCollapsed('g:' + g) ? '▸' : '▾'}</span> ${win ? esc(win.name) : R.GROUPS[g].name}</span><span class="meta">${blocks.filter((b) => b.st !== 'done').length} blocos${win ? ` · funciona como ${esc(R.GROUPS[g].short)} <button class="btn sm ghost" data-act="win-edit" data-id="${win.id}" title="Renomear, mudar o tipo ou apagar esta janela">✎</button>` : ''}</span></div>
-    <form class="row" data-form="add-block" data-group="${g}" ${win ? `data-win="${win.id}"` : ''} autocomplete="off"><input class="inp grow" name="title" placeholder="+ novo bloco${g === 'bd' ? ' (🎯 meta)' : ' (3000💰 · / MES DIA 05)'}" aria-label="Novo bloco"></form>
-    ${g === 'bd' && !win ? `<button class="btn sm" data-act="ai-breakdown">🤖 QUEBRAR META COM IA</button>` : ''}
+    <form class="row" data-form="add-block" data-group="${g}" ${win ? `data-win="${win.id}"` : ''} autocomplete="off"><input class="inp grow" name="title" placeholder="+ novo bloco${g === 'bd' ? ' (🎯 meta)' : ' (3000$ · / MES DIA 05)'}" aria-label="Novo bloco"></form>
     ${active.length ? `<div class="mcols">${cols3(active.map((b) => blockCard(b, ui)))}</div>` : '<div class="empty">nenhum bloco.</div>'}
     ${blocks.length > active.length ? `<button class="more" data-act="toggle-stalled">⬛ ${blocks.length - active.length} parado(s) · mostrar</button>` : ''}</div>`;
 }
@@ -201,7 +202,7 @@ function clockCard() {
   return `<div class="card clock" data-phase="${c.key}"><header><h2>${c.icon} ${c.name}</h2><span class="meta" title="seus horários: acordar ${c.wake} · dormir ${c.bed} (PERKS)">${c.key === 'sono' ? `acordar ${c.wake}` : `dormir ${c.bed} · faltam ${h(c.toBed)}`}</span></header>
     <p class="clock-tip">${esc(c.tip)}</p>
     ${heavy ? `<button class="btn sm pri" data-act="jump" data-id="${heavy.id}" title="A mais pesada pra fazer agora">🎯 ${esc(heavy.text.replace(/\s*\(\d+\s*XP\)/i, '').slice(0, 44))}</button>` : ''}
-    <div class="clock-meta">${c.meal ? `<span>🍽 refeição às ${c.meal.at}${c.meal.in ? ` (em ${h(c.meal.in)})` : ' (agora)'}</span>` : ''}${['despertar', 'foco', 'vale'].includes(c.key) ? `<span>☕ último café até ${c.coffeeUntil}</span>` : ''}</div></div>`;
+    <div class="clock-meta">${c.meal ? `<span>🍽 refeição às ${c.meal.at}${c.meal.in ? ` (em ${h(c.meal.in)})` : ' (agora)'}</span>` : ''}${['despertar', 'foco', 'vale'].includes(c.key) ? `<span>☕ último café até ${c.coffeeUntil}</span>` : ''}${['vale', 'pico2'].includes(c.key) ? `<span>🏋 treino até ${c.trainUntil}</span>` : ''}</div></div>`;
 }
 /** depois da hora: no lugar das listas, o fechamento do dia (o que fiz, o que fica pra amanhã, hábitos) */
 function closingView() {
@@ -241,7 +242,7 @@ export function viewQuests(ui) {
           <details class="qmenu"><summary class="btn sm ghost" title="Escolha o que aparece nesta tela">MOSTRAR${ui.showDone || ui.showStalled ? ' · ' + (!!ui.showDone + !!ui.showStalled) : ''} ▾</summary><div class="qpop">
             <button class="btn sm ${ui.showDone ? 'pri' : 'ghost'}" data-act="toggle-done">${ui.showDone ? '☑' : '☐'} FEITAS</button>
             <button class="btn sm ${ui.showStalled ? 'pri' : 'ghost'}" data-act="toggle-stalled" title="⬛ parados: blocos e tarefas com a cor PARADO">${ui.showStalled ? '☑' : '☐'} PARADOS</button></div></details></span></div>
-      ${chapterDue()}${topStrip()}${body}
+      ${chapterDue()}${focusCard(ui)}${topStrip()}${body}
     </div>${sidePanel(ui)}</div>`;
 }
 
@@ -249,11 +250,22 @@ function chapterDue() {
   const ch = S.core.chapter || {}, td = today();
   return ch.until && ch.until < td ? `<div class="banner info" style="margin-bottom:12px">📖 O capítulo <b>${esc(ch.title)}</b> venceu em ${fmtDM(ch.until)}. Em <a href="#regras">PERKS AND RULES</a> troque o número, o título, a missão e a data pra começar o próximo (a carta do capítulo é guardada).</div>` : '';
 }
+/** v5.16 (2E + 5A) FOCO AGORA: uma tarefa só, e o porquê (o app junta prazo, boss parado, missão, horário do corpo e prioridade) */
+function focusCard(ui) {
+  if (!R.neuroOn(S, 'foco')) return '';
+  const f = R.focusNow(S, today(), ui.focusSkip || []);
+  if (!f) return `<div class="focus-now card empty-f"><span class="fn-k">🎯 FOCO AGORA</span><span class="meta">nada urgente: escolha você ${ui.focusSkip?.length ? '<a href="#" data-act="focus-reset">ver de novo as sugestões</a>' : ''}</span></div>`;
+  const t = f.task, b = t.block && R.findBlock(S, t.block);
+  return `<div class="focus-now card"><span class="fn-k" title="O PRIMO escolhe UMA tarefa pra você não perder tempo decidindo">🎯 FOCO AGORA</span>
+    <button class="check" data-act="toggle" data-id="${t.id}" aria-label="Concluir">${t.st === 'doing' ? '▶' : ''}</button>
+    <div class="fn-t" data-act="jump" data-id="${t.id}" title="Toque pra ir até a tarefa"><b>${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}</b><small>${b ? esc(b.title) + ' · ' : ''}porque ${esc(f.why)}</small></div>
+    <span class="chip xp">${R.taskXp(S, t).xp}</span><button class="btn sm ghost" data-act="focus-skip" data-id="${t.id}" title="Agora não: mostra outra sugestão">OUTRA ▸</button></div>`;
+}
 function topStrip() {
   const sunday = new Date().getDay() === 0, wm = R.weeklyMissions(S, sunday ? addDays(today(), 1) : today()), boss = R.chapterBoss(S);
   return `<div class="topstrip">
     <div class="card"><header><h2>📌 Missões da ${sunday ? 'próxima semana' : 'semana'}</h2><span class="meta" title="cada uma vale x1,5 · as 3 feitas = +100 XP e +1 🎟">${wm.done}/3 <button class="btn sm" data-act="weekly-pick">ESCOLHER</button></span></header>
-      ${wm.tasks.length ? `<ul class="tasks">${wm.tasks.map((t) => taskRow(t, { sub: t.block ? R.findBlock(S, t.block)?.title : R.areaName(t.area) })).join('')}</ul>` : '<div class="empty">Escolha as 3 pedras grandes da semana. O resto é backlog, sem culpa.</div>'}</div>
+      ${wm.tasks.length ? `<ul class="tasks">${wm.tasks.map((t) => taskRow(t, { go: true, sub: t.block ? R.findBlock(S, t.block)?.title : R.areaName(t.area) })).join('')}</ul>` : '<div class="empty">Escolha as 3 pedras grandes da semana. O resto é backlog, sem culpa.</div>'}</div>
     ${boss ? `<div class="card boss-r"><header><h2>👹 Boss do capítulo</h2><span class="meta">${esc(boss.label)} <span class="row" style="gap:4px;justify-content:flex-end;margin-top:4px"><button class="btn sm pri" data-act="save-money">💰 GUARDEI</button>${boss.got > 0 ? '<button class="btn sm" data-act="take-money" title="Tirei dinheiro do que estava guardado: o boss recupera vida">↩ RETIREI</button>' : ''}</span></span></header>
       <div class="num" style="font-size:12px">R$ ${fmtN(boss.left)} <span class="meta">de vida</span></div>${segBar(boss.pct, 'hp')}<p class="meta" style="margin:6px 0 0">o que você guarda dá dano · R$ ${fmtN(boss.got)} guardados de R$ ${fmtN(boss.target)}${boss.out ? ` · <span class="bad">R$ ${fmtN(boss.out)} retirados</span>` : ''}${boss.moves.length ? ` · <a href="#" data-act="money-log">histórico (${boss.moves.length})</a>` : ''}</p></div>` : ''}
   </div>`;

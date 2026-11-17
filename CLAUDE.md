@@ -1,6 +1,7 @@
 # GAMIFY — guia rápido para quem for mexer no código
 
-Manual completo: `BRIEFING_NOVO_CHAT.md` (leia antes de qualquer mudança).
+Manual completo: `BRIEFING_NOVO_CHAT.md`. Ele é PRIVADO (não fica no repositório, assim como os prompts de arte): o dono anexa no chat.
+Se não veio, peça antes de qualquer mudança. No fim da rodada, entregue a versão atualizada a ele. O `.gitignore` bloqueia esses arquivos.
 
 ## O que é
 Metas, tarefas e hábitos viram um jogo. HTML + CSS + JavaScript puro (módulos ES). Sem build, sem dependências, sem servidor.
@@ -16,7 +17,7 @@ Publicado pelo GitHub Pages a partir da branch `main` (repositório público). *
 7. No fim de cada resposta: o que mudou, o que NÃO foi testado, próximos passos.
 8. Arte: só original, CC0 ou CC-BY com crédito. Nada com direitos autorais.
 9. Arquivo novo usado pelo app → adicionar na lista do `sw.js` e trocar a versão `V` do cache.
-10. O repositório é público: não escrever dados pessoais do dono em arquivos novos.
+10. O repositório é público: não escrever dados pessoais do dono nem as ideias/planos dele em arquivos novos (briefing, prompts e planos vão só para ele). Os PDFs das aulas têm marca d'água com dados pessoais: nunca copie trechos deles para o repositório.
 
 ## Rodar e testar
 ```bash
@@ -37,7 +38,10 @@ O backup do dono NUNCA entra no repositório.
 - `actions.js` — tudo que MUDA dados, sempre via `commit()` (desfazer/refazer). Migrações rodam no `startup()`.
 - `store.js` — carrega/salva. `S` = estado global. No GitHub Pages os dados ficam no `localStorage` do aparelho.
 - `backup.js` — proteção dos dados no aparelho: cópia automática diária (`gamify-bak:*`), lembrete de backup, restaurar.
-- `review.js` — entrevista do dia e revisão de retorno (o PRIMO conduz, na 1ª abertura do dia).
+- `review.js` — entrevista do dia e revisão de retorno (o PRIMO conduz, na 1ª abertura do dia). Também a migração do mês e o lembrete do boss parado.
+- `bujo.js` — anotar rápido (botão +), arrastar a tarefa no celular, aviso de HOJE cheio e pato de borracha. Liga/desliga em PERKS → 🧠 (`settings.neuro`).
+- `telas.js` — peças da repaginação: `tiles()` (faixa de quadrinhos de resumo, cor pelo significado em `data-tone`, `tip` = legenda) e o índice de PERKS.
+- `mapa.js` — REFLEXÃO: rascunho que some em 2 dias (`core.scratch`) e mapa mental escrito como lista recuada (`core.mapa`): desenha em SVG, baixa PNG, anexa na tarefa e vira bloco.
 - `trip.js` — modo VIAGEM/VISITAS (congela o jogo; na volta empurra prazos e cria as tarefas de chegada).
 - `imgs.js` — imagens e prints nas tarefas: guardadas no aparelho (IndexedDB) e na pasta escondida do app no Drive; na tarefa fica só `t.imgs = [{ k, g }]`.
 - `drive.js` — sincronização com Google Drive. O dono usa no dia a dia (celular e PC); o Claude não consegue testar o login real, só com um Google simulado (rotas do Playwright).
@@ -68,3 +72,12 @@ O backup do dono NUNCA entra no repositório.
 - A IA do PRIMO (`window.claude.use('sample')`) só existe dentro do claude.ai; no GitHub Pages esses botões não têm IA.
 - O PRIMO dorme à noite: para testar acordado, simule o horário (mock de `Date`).
 - O desenho do PRIMO usa um espaço lógico de 72 x 96 numa tela 4× maior (`K` em `primo.js`). Posição de acessório: tabela `ACC` em `pnew.js`, em pontos do quadro de 224. Os originais das artes (centenas de MB) nunca entram no repositório: só o que `tools/primo_artes.py` gera.
+- Avisos (`toast` em `ui.js`): aparece UM por vez, iguais viram ×N e a fila guarda 3. Se encher, os avisos SEM tipo (`kind` vazio) saem primeiro. Aviso que não pode se perder precisa de tipo (`good`, `gold` ou `bad`).
+- Ícones pixel (`px()` em `icons.js`) são um `<path>` por cor. Não volte para um `<rect>` por pixel: era o que deixava CONQUISTAS e SHOP lentas.
+- Animações do PRIMO e dos interiores sabem se estão na tela por `IntersectionObserver` (`cv._vis`). Não meça posição (`getBoundingClientRect`) a cada quadro.
+- AGUARDANDO virou uma COR nas janelas de tarefa e bloco, mas por baixo continua sendo o estado `st = 'wait'` (a cor guardada em `t.color`/`b.color` não muda). Na tela, item aguardando ganha `data-color="purple"`.
+- Dinheiro: os dados guardam o marcador 💰, mas a tela mostra "$" (troca feita em `deaccent()`, que roda em todo redesenho e em toda janela). O dono escreve `3000$` e `normalizeMoney()` (actions.js) guarda como 💰.
+- NOVO CAPÍTULO (`core.season = { from, minus, spentMinus, tickets }`): XP, nível e tickets de `R.totals` contam só a partir de `from`. Gold, compras, conquistas e histórico continuam inteiros. Não use `totals().earned` como "XP de todos os tempos".
+- Nomes de classe CSS antigos podem colidir (ex.: `.sw` era das paletas que saíram). Antes de criar uma classe nova, procure no `app.css`.
+- Mecânicas do PDF de gamificação (todas com contrapeso): loja destranca com 1 resgate (`core.rescue`), castigo cancela com resgate e tem intensidade (`settings.castigo`), chama aguenta dia com metade da meta (`FLAME_MIN`, sem somar), escada desce numa semana fraca, bônus de volta (`kind: 'volta'`), FOCO AGORA (`R.focusNow`).
+
