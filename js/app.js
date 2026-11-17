@@ -34,6 +34,7 @@ import { extend4, afterRender4, captureFocus, checkMilestones, confirmResched, d
 import { extendPrimo, openPrimoHub, primoFeedback, primoReact } from './primo.js';
 
 import { extendDrive } from './drive.js';
+import { extendImgs, imgSection, fillImgs } from './imgs.js';
 import { autoSnapshot, backupBanner, extendBackup, markBackup, restoreDocs } from './backup.js';
 import { tripBanner, tripCheck, extendTrip } from './trip.js';
 import { maybeReview, extendReview } from './review.js';
@@ -248,10 +249,11 @@ function levelUp(t) {
 
 // ───────────────────────── JANELAS ─────────────────────────
 const MARK_RE = { star: /⭐\s*/g, home: /🛡\s*/g, money: /\s*💰/g, xp: /\s*\(\d+\s*XP\)/gi };
-function rebuildText(text, { star, home, money, xp }) {
+function rebuildText(text, { star, home, money, xp, kind }) {
   let t = text.replace(MARK_RE.star, '').replace(MARK_RE.home, '').replace(MARK_RE.xp, '').trim();
   const hadMoney = /💰/.test(t);
   if (!money) t = t.replace(MARK_RE.money, '').trim();
+  if (kind != null) t = (kind === 'mini' ? '⚔ ' : kind === 'step' ? '↳ ' : '') + t.replace(/^(⚔|↳|>)\s*/, ''); // tipo escolhido nos marcadores
   const pre = (t.match(/^(⚔|↳)\s*/) || [''])[0];
   t = pre + (star ? '⭐ ' : '') + (home ? '🛡 ' : '') + t.slice(pre.length);
   if (money && !hadMoney) t += ' 💰';
@@ -275,7 +277,7 @@ function editTask(id) {
   openModal(`<form data-form="task" data-id="${id}" autocomplete="off">
     <h2>${p.mini ? '⚔ mini-boss' : p.step ? '↳ passo' : 'tarefa'}</h2>
     <p class="meta" style="margin:0">${t.block ? esc(R.findBlock(S, t.block)?.title || '') : R.areaName(t.area)} · ${t.st === 'done' ? `feita ${fmtDM(t.doneAt)} · +${t.xp} XP` : `vale <b class="acc">${now.xp} XP</b>${now.parts.length ? ' (' + esc(now.parts.join(' · ')) + ')' : ''}`}${(t.rounds || []).length ? ` · 🔁 ${t.rounds.length} rodada(s)` : ''}</p>
-    <label class="lbl" for="t-text">Texto</label><textarea class="inp" id="t-text" name="text" rows="2" autofocus>${esc(t.text.replace(MARK_RE.star, '').replace(MARK_RE.home, '').replace(MARK_RE.xp, '').trim())}</textarea>
+    <label class="lbl" for="t-text">Texto</label><textarea class="inp" id="t-text" name="text" rows="2" autofocus>${esc(t.text.replace(MARK_RE.star, '').replace(MARK_RE.home, '').replace(MARK_RE.xp, '').replace(/^(⚔|↳|>)\s*/, '').trim())}</textarea>
     <label class="lbl">Status</label><div class="statusbtns">${sts.map(([k, n]) => `<button type="button" class="btn sm ${(t.st || '') === k ? 'on' : ''}" data-act="set-status" data-id="${id}" data-st="${k}">${n}</button>`).join('')}</div>
     <label class="lbl" for="t-who">⏳ Aguardando quem ou o quê (opcional)</label><div class="row">
       <input class="inp grow" id="t-who" name="who" value="${esc(t.who || '')}" list="who-list" placeholder="pessoa ou motivo: PREFEITURA, CLIENTE, FULANO…" autocomplete="off"><datalist id="who-list">${R.people(S).map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
@@ -285,15 +287,18 @@ function editTask(id) {
       ${[['HOJE', td], ['AMANHÃ', addDays(td, 1)], ['+3', addDays(td, 3)], ['PRÓX. SEG', nextMon], ['SEM', '']].map(([n, d]) => `<button type="button" class="btn sm ghost" data-act="due-quick" data-d="${d}">${n}</button>`).join('')}</div>
     ${t.due ? `<p class="meta" style="margin:4px 0 0">${t.due < td ? `⏰ Atrasada: concluir agora paga só ${Math.round(Math.max(R.C.LATE_MIN, 1 - R.C.LATE_DAY * diffDays(t.due, td)) * 100)}% do XP. ` : ''}Empurrar o prazo custa <b>${A.reschedBase({ ...t, due: '0' }, '9')}</b> XP${A.freeResched() ? ' (mas a 1ª remarcação da semana é grátis)' : ''}${t.rs ? ` · já remarcada ${t.rs}x` : ''}; antecipar é de graça.</p>` : ''}
     <label class="lbl">Marcadores</label><div class="row" style="gap:14px;font-size:12.5px">
+      ${[['', '• tarefa'], ['mini', '⚔ mini-boss'], ['step', '↳ passo']].map(([k, n]) => `<label title="${k === 'mini' ? 'Vitória no meio do caminho: vale mais XP e solta fogos' : k === 'step' ? 'Ação pequena embaixo de outra' : 'Tarefa comum'}"><input type="radio" name="kind" value="${k}" ${(p.mini ? 'mini' : p.step ? 'step' : '') === k ? 'checked' : ''}> ${n}</label>`).join('')}
       <label><input type="checkbox" name="star" ${p.star ? 'checked' : ''}> ⭐ chata x2</label><label><input type="checkbox" name="home" ${p.home ? 'checked' : ''}> 🛡 casa/família</label>
       <label><input type="checkbox" name="money" ${p.money ? 'checked' : ''}> 💰 dinheiro</label><label><input type="checkbox" name="prio" ${t.prio ? 'checked' : ''}> ! prioridade</label>
       <label title="Prefeitura, aprovação, cliente revisando"><input type="checkbox" name="cycle" ${t.cycle || suggestCycle ? 'checked' : ''}> 🔁 vai e volta${suggestCycle ? ' <span class="warn">(sugerido)</span>' : ''}</label>
       <span class="xpset">XP ${[['', 'AUTO'], [5, '5'], [10, '10'], [30, '30'], [60, '60'], [100, '100']].map(([v, n]) => `<button type="button" class="btn sm ghost ${String(p.xpFix ?? '') === String(v) ? 'on' : ''}" data-act="xp-preset" data-v="${v}">${n}</button>`).join('')}<input class="inp" type="number" min="1" name="xp" value="${p.xpFix ?? ''}" placeholder="auto" aria-label="XP fixo" style="width:70px;min-height:28px;display:inline-block"></span></div>
     <div class="row"><div class="grow"><label class="lbl" for="t-where">Onde</label><select class="inp" id="t-where" name="where">${whereOptions(t)}</select></div>
       </div>
+    ${imgSection(t)}
     <div class="actions"><div class="left">
       ${t.block && !p.step ? `<button type="button" class="btn sm" data-act="add-step" data-id="${id}">+ ↳ PASSO</button>` : ''}<button type="button" class="btn sm" data-act="sos" data-id="${id}">${px('sos', 10)} TRAVEI</button>${t.link ? `<button type="button" class="btn sm" data-act="unlink" data-id="${id}">↯ DESVINCULAR</button>` : ''}<button type="button" class="btn sm danger" data-act="del-task" data-id="${id}">APAGAR</button></div>
       <button type="button" class="btn" data-close>FECHAR</button><button class="btn pri">SALVAR</button></div></form>`, { wide: true });
+  fillImgs();
 }
 function editBlock(id) {
   const b = S.quests.blocks.find((x) => x.id === id);
@@ -363,11 +368,9 @@ function editHabits() {
 function editBoss(id) {
   const b = S.quests.bosses.find((x) => x.id === id);
   if (!b) return;
-  const linked = R.bossBlock(S, b);
-  openModal(`<form data-form="boss" data-id="${id}" autocomplete="off"><h2>👹 boss</h2>
+  openModal(`<form data-form="boss" data-id="${id}" autocomplete="off"><h2>👹 boss</h2><p class="meta" style="margin:0">A vida (HP) é o que falta no próprio boss: cada subtarefa feita tira vida. Zerou, ele cai.</p>
     <label class="lbl" for="bo-text">Meta</label><input class="inp" id="bo-text" name="text" value="${esc(b.text)}" autofocus>
     <div class="row"><div style="width:130px"><label class="lbl" for="bo-xp">XP</label><input class="inp" id="bo-xp" name="xp" type="number" min="1" value="${b.xp}"></div>
-      <div class="grow"><label class="lbl" for="bo-block">Vida (HP) vem do bloco 🎯</label><select class="inp" id="bo-block" name="block"><option value="">${linked && !b.block ? 'automático: ' + esc(linked.title) : '— nenhum —'}</option>${S.quests.blocks.filter((x) => x.group === 'bd' || x.group === 'bs').map((x) => `<option value="${x.id}" ${b.block === x.id ? 'selected' : ''}>${esc(x.title)}</option>`).join('')}</select></div>
       <div><label class="lbl" for="bo-st">Situação</label><select class="inp" id="bo-st" name="st"><option value="">EM ABERTO</option><option value="wait" ${b.st === 'wait' ? 'selected' : ''}>… AGUARDANDO</option>${b.st === 'done' ? '<option value="done" selected>DERROTADO</option>' : ''}</select></div></div>
     <div class="actions"><div class="left"><button type="button" class="btn sm danger" data-act="del-boss" data-id="${id}">APAGAR</button></div><button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">SALVAR</button></div></form>`);
 }
@@ -629,6 +632,7 @@ extend35(ACTIONS, () => render());
 extend4(ACTIONS, () => render());
 extendPrimo(ACTIONS);
 extendDrive(ACTIONS, () => render());
+extendImgs();
 extendBackup(ACTIONS, () => render());
 extendTrip(ACTIONS);
 extendReview(ACTIONS);
@@ -674,7 +678,7 @@ const FORMS = {
   'add-boss': (f) => { const v = f.text.value.trim(); f.text.value = ''; if (!v) return; const m = /([\d.]+)\s*XP/i.exec(v); A.addBoss(v, m ? +m[1].replace(/\./g, '') : 500); },
   task: async (f) => {
     const t = S.quests.tasks.find((x) => x.id === f.dataset.id);
-    const text = rebuildText(f.text.value, { star: f.star.checked, home: f.home.checked, money: f.money.checked, xp: +f.xp.value || null });
+    const text = rebuildText(f.text.value, { star: f.star.checked, home: f.home.checked, money: f.money.checked, xp: +f.xp.value || null, kind: f.kind.value });
     const [kind, val] = f.where.value.split(':');
     const patch = { text, due: f.due.value || null, prio: f.prio.checked || undefined, cycle: f.cycle.checked, who: f.who.value.trim().toUpperCase() || undefined, dep: f.dep.value || undefined };
     if ((patch.who || patch.dep) && (!t.st || t.st === 'doing')) patch.st = 'wait'; // disse quem segura: vai pra AGUARDANDO
@@ -701,7 +705,7 @@ const FORMS = {
     A.updateBlock(b.id, patch);
     closeModal();
   },
-  boss: (f) => { const patch = { text: f.text.value.trim(), xp: +f.xp.value || 200, block: f.block.value || undefined }; if (f.st.value !== 'done') patch.st = f.st.value; A.updateBoss(f.dataset.id, patch); closeModal(); },
+  boss: (f) => { const patch = { text: f.text.value.trim(), xp: +f.xp.value || 200 }; /* a vida vem sempre do próprio bloco do boss */ if (f.st.value !== 'done') patch.st = f.st.value; A.updateBoss(f.dataset.id, patch); closeModal(); },
   ritual: (f) => { A.saveRitual({ id: f.dataset.id, type: f.type.value, name: f.name.value, mode: f.mode.value, every: f.every.value, dom: f.dom.value, last: f.last.value, plan: f.plan.value, notes: f.notes.value }); closeModal(); },
   'ritual-plan': (f) => { A.planRitual(f.dataset.id, f.plan.value || null); closeModal(); sfx('tab'); },
   item: (f) => {

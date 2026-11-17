@@ -49,6 +49,10 @@ async function api(path, opts = {}, tk) {
   if (!r.ok) throw new Error('Drive ' + r.status);
   return r;
 }
+/** já conectado ao Drive neste aparelho? (usado pelas imagens das tarefas) */
+export const driveOn = () => ls.get('gamify-ui:gdrive') === '1' && !!clientId();
+/** chamada ao Drive com a mesma chave do backup (escopo drive.appdata). Sem `interactive`, não abre a janela do Google */
+export async function driveApi(path, opts = {}, interactive = false) { return api(path, opts, await getToken(interactive)); }
 /** descobre e guarda o e-mail da conta que entrou (uma vez) */
 async function rememberAccount(tk) {
   if (account()) return;

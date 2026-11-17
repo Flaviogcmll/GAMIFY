@@ -868,3 +868,42 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
   .hg th.hn { width: 98px; max-width: 98px; font-size: 8.5px; word-break: normal; overflow-wrap: break-word; hyphens: auto; }
 }
 .creditos { font-size: 11px; color: var(--dim); text-align: center; margin-top: 14px; line-height: 1.6; }
+
+/* ═════════════ v5.13 — visual repaginado: noite com as cores do dia, botões em fileira, tarefa numa linha só ═════════════ */
+/* cores das listas também à noite (um pouco mais claras pra ler no escuro) */
+:root[data-mode="night"] .list-card[data-list="hoje"] { --lc: #ef6a58; } :root[data-mode="night"] .list-card[data-list="amanha"] { --lc: #f39a52; }
+:root[data-mode="night"] .list-card[data-list="semana"] { --lc: #e8c247; } :root[data-mode="night"] .list-card[data-list="depois"] { --lc: #62b3dc; }
+:root[data-mode="night"] .list-card[data-list="sem"] { --lc: #b3ada3; } :root[data-mode="night"] .list-card[data-list="wait"] { --lc: #ae94ea; }
+:root[data-mode="night"] .list-card[data-list] { border-top-color: var(--lc); }
+:root[data-mode="night"] .list-card[data-list] > header h2 { color: var(--lc) !important; }
+:root[data-mode="night"] .list-card[data-list] > header { background: linear-gradient(180deg, color-mix(in srgb, var(--lc) 14%, transparent), transparent); margin: -10px -10px 10px; padding: 10px 10px 6px; border-radius: 6px 6px 0 0; }
+:root[data-mode="night"] .block[data-color] > .bh { background: linear-gradient(90deg, color-mix(in srgb, var(--bc, transparent) 16%, transparent), transparent 70%); }
+.block[data-color="red"] { --bc: #e0503f; } .block[data-color="yellow"] { --bc: #e2b331; } .block[data-color="green"] { --bc: #4fae6c; } .block[data-color="black"] { --bc: #777; }
+:root[data-mode="night"] .task[data-color="red"] { border-left-color: #e0503f; } :root[data-mode="night"] .task[data-color="yellow"] { border-left-color: #e2b331; } :root[data-mode="night"] .task[data-color="green"] { border-left-color: #4fae6c; }
+:root[data-mode="night"] .task.mini .txt { color: #ffb066; }
+:root[data-mode="night"] .seg-bar.good > i, :root[data-mode="night"] .seg-bar.good.sm > i { filter: brightness(1.15) saturate(1.2); }
+/* botões do bloco numa fileira só, no canto (o cabeçalho fica baixinho; tocar no título abre a edição) */
+.block > .bh .bbtns { display: flex; align-items: flex-start; gap: 0; padding: 4px 2px 0 0; }
+.block > .bh .bbtns .icon-btn { width: 26px; height: 26px; font-size: 12px; }
+.block > .bh .bbtns .handle { width: 18px; height: 26px; display: inline-grid; place-items: center; }
+.block > .bh .bt { padding-bottom: 8px; }
+/* tarefa: texto e etiquetas (prazo, XP) na MESMA linha quando cabe */
+.task { grid-template-columns: 24px minmax(0, 1fr) auto; }
+.task .info { grid-column: 3; grid-row: 1; justify-content: flex-end; flex-wrap: nowrap; gap: 3px; padding-top: 2px; }
+.task .info .chip { font-size: 8px; padding: 1px 4px; white-space: nowrap; }
+.task .info .icon-btn.mini { width: 20px; height: 20px; opacity: .55; } .task:hover .info .icon-btn.mini { opacity: 1; }
+/* avisos do topo mais baixos */
+.banner { padding: 8px 12px; }
+/* BOSSES: o "como funciona" recolhido */
+.bhelp { grid-column: 1 / -1; font-size: 12px; color: var(--muted); }
+.bhelp summary { cursor: pointer; font: 9px/1.6 var(--f-pixel); color: var(--accent); list-style: none; }
+.bhelp p { margin: 6px 0 0; line-height: 1.6; background: var(--panel-2); border-radius: 8px; padding: 8px 10px; }
+/* imagens das tarefas */
+.imgs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.imgs:empty { display: none; }
+.imgth { width: 64px; height: 64px; border: 2px solid var(--line); border-radius: 8px; background: var(--panel-2); padding: 0; overflow: hidden; cursor: zoom-in; display: grid; place-items: center; color: var(--dim); }
+.imgth img { width: 100%; height: 100%; object-fit: cover; }
+.imgview { position: fixed; inset: 0; z-index: 200; background: rgba(0, 0, 0, .86); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px; }
+.imgview img { max-width: 100%; max-height: calc(100% - 60px); object-fit: contain; border-radius: 6px; }
+/* celular: as janelas do QUESTS numa fileira só, que desliza pro lado (em vez de 3 linhas de botões) */
+@media (max-width: 860px) { .qbar .seg { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; max-width: 100%; } .qbar .seg::-webkit-scrollbar { display: none; } .qbar .seg > button { flex: 0 0 auto; } }

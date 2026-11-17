@@ -199,6 +199,12 @@ export function startup() {
     if (!S.loja.cats.includes('JOGOS')) S.loja.cats.push('JOGOS');
     S.core.migrations.push('shop5'); S._lojaChanged = true; changedCore = true;
   }
+  if (!S.core.migrations.includes('bossmae12')) { // v5.13: BOSSES não ganham tarefa-mãe nas LISTAS (são inimigos especiais, as próprias mães)
+    const bs = new Set(q.blocks.filter((b) => b.group === 'bs').map((b) => b.id));
+    q.tasks = q.tasks.filter((t) => !(t.mother && bs.has(t.link)));
+    for (const b of q.blocks) if (bs.has(b.id) && b.src && !q.tasks.some((t) => t.id === b.src)) delete b.src;
+    S.core.migrations.push('bossmae12'); changedQ = changedCore = true;
+  }
   if (!S.core.migrations.includes('bosses4')) { // v4: cada boss ganha o seu bloco (grupo BOSSES) e sai do BREAKDOWN
     for (const boss of q.bosses) {
       let blk = boss.block ? B(boss.block) : R.bossBlock(S, boss);
@@ -275,9 +281,9 @@ function syncLists() {
   const td = today(), released = [];
   let changed = false;
   const byId = new Map(S.quests.tasks.map((t) => [t.id, t])), blk = new Map(S.quests.blocks.map((b) => [b.id, b]));
-  // janela mãe: bloco ativo (não fechado nem parado) sem tarefa nas LISTAS ganha uma, ligada a ele, com o prazo final do bloco
+  // janela mãe: bloco ativo (não fechado nem parado, e que não seja BOSS) sem tarefa nas LISTAS ganha uma, ligada a ele, com o prazo final do bloco
   for (const b of S.quests.blocks) {
-    if (b.st === 'done' || b.color === 'black' || (b.src && byId.has(b.src))) continue;
+    if (b.st === 'done' || b.color === 'black' || b.group === 'bs' || (b.src && byId.has(b.src))) continue; // BOSSES são as próprias mães
     const t = { id: uid('t'), area: 'sem', text: b.title.replace(/\s*\(\d+\s*XP\)/i, '').trim(), st: '', due: b.due || null, created: td, ord: maxOrd() + 1, link: b.id, mother: true };
     S.quests.tasks.push(t); byId.set(t.id, t); b.src = t.id; changed = true;
   }
