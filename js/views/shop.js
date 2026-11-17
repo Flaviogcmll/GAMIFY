@@ -1,5 +1,5 @@
 // SHOP — taverna (XP), mochila (comprou → usa com cronômetro), ferreiro (XP + gold), baú de ouro e registro.
-// Regra de ouro da loja: COMPRE ANTES DE FAZER. Fez sem comprar? Paga depois com multa x2.
+// Regra de ouro da loja: COMPRE ANTES DE FAZER. Fez sem comprar? Paga depois com multa (R.DEBT_MULT).
 import { S } from '../store.js';
 import * as R from '../rules.js';
 import { esc, today, fmtDM, fmtN } from '../util.js';
@@ -30,7 +30,7 @@ function taverna(tot, shop) {
         ${tot.tickets >= R.ticketCost(it) && !shop.locked ? `<button class="btn sm" data-act="buy-ticket" data-id="${it.id}" title="Pegar com ${R.ticketCost(it)} ticket(s)">${R.ticketCost(it)}${px('ticket', 12)}</button>` : ''}
         <button class="icon-btn" data-act="shop-goal" data-id="${it.id}" title="Marcar como meta">${goal ? '★' : '☆'}</button>
 </div>
-      <button class="link-btn" data-act="confess" data-id="${it.id}">fiz sem comprar (x2)</button></div>`;
+      <button class="link-btn" data-act="confess" data-id="${it.id}">fiz sem comprar (x${String(R.DEBT_MULT).replace('.', ',')})</button></div>`;
   }).join('');
   const canM = !shop.locked && tot.balance >= R.C.MYSTERY;
   const myst = `<div class="item lendario"><span class="rar">SURPRESA</span><div class="ic">${kspr(92)}</div><div class="in">BAÚ MISTERIOSO</div><div class="ip">${R.C.MYSTERY} XP</div><small class="dim">sorteia 1 recompensa da taverna</small>
@@ -98,7 +98,7 @@ function forjados() {
 function hist() {
   const list = [...S.loja.purchases].sort((a, b) => (a.date < b.date ? 1 : -1));
   return `<div class="card" style="max-width:860px"><header><h2>Registro de compras</h2><span class="meta">${list.length} compras</span></header>
-    <div class="list">${list.map((p) => `<div class="li"><div class="lt">${fmtDM(p.date)} · ${esc(p.item)}<small>${p.kind}${p.tickets ? ' · 🎟' : p.xp ? ` · -${fmtN(p.xp)} XP` : ''}${p.gold ? ` · -${fmtN(p.gold)} gold` : ''}${p.debt ? ' · dívida x2' : ''}${p.status ? ' · ' + p.status : ''}</small></div>
+    <div class="list">${list.map((p) => `<div class="li"><div class="lt">${fmtDM(p.date)} · ${esc(p.item)}<small>${p.kind}${p.tickets ? ' · 🎟' : p.xp ? ` · -${fmtN(p.xp)} XP` : ''}${p.gold ? ` · -${fmtN(p.gold)} gold` : ''}${p.debt ? ' · dívida' : ''}${p.status ? ' · ' + p.status : ''}</small></div>
       <button class="icon-btn" data-act="undo-buy" data-id="${p.id}" title="Desfazer">↺</button></div>`).join('') || '<div class="empty">nenhuma compra.</div>'}</div></div>`;
 }
 

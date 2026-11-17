@@ -1,6 +1,6 @@
 # BRIEFING — GAMIFY (leia tudo antes de mexer em qualquer coisa)
 
-Atualizado em 16/11/2026: repositório real conferido (v5.1) e cinco rodadas feitas (v5.2 proteção dos dados, v5.3 bugs e praticidade, v5.4 limpeza + viagem + PRIMO, v5.5 listas automáticas + AGUARDANDO, v5.6 retorno + rituais + loja + janelas).
+Atualizado em 17/11/2026: repositório real conferido (v5.1) e sete rodadas feitas (v5.2 a v5.8; a última: economia rebalanceada + PRIMO novo com as artes do dono).
 Este arquivo substitui o briefing antigo. O que mudou em relação a ele está na seção "CONFERIDO EM 15/11/2026".
 
 ## PASSO 0: ALINHAR ANTES DE TUDO
@@ -65,7 +65,7 @@ FEED e notícias; A VILA inteira; BUJO; janela TUDO; CRÔNICA; Google Agenda; ab
 - `review.js`: entrevista do dia e revisão de retorno com o PRIMO.
 - `trip.js`: modo VIAGEM/VISITAS (telas e botões). Regras em `rules.js` (`tripNow`, `tripDay`) e dados em `actions.js` (`startTrip`, `endTrip`).
 - `drive.js`: sync com Google Drive (OAuth GIS, escopo `drive.appdata`, arquivo `gamify-backup.json`). O dono usa no dia a dia para ter os dados no celular e no PC. O Claude não consegue testar o login real: só com um Google simulado.
-- `primo.js`, `pdraw.js`, `pacc.js`, `pstate.js`, `falas.js`, `saber.js`, `claude.js`: o PRIMO.
+- `primo.js` (telas e animação), `pnew.js` (desenho NOVO em alta definição), `pdraw.js` + `pacc.js` (porquinho clássico em pixel, reserva), `pstate.js`, `falas.js`, `saber.js`, `claude.js`: o PRIMO.
 - `v3.js`, `v35.js`, `v4.js`: legado por versões. Imports circulares (primo ↔ v35 ↔ v3): cuidado.
 - `kingdom.js`, `interiors.js`, `sky.js`: sobras da época da VILA, ainda usadas em parte (cenas, céu, estação). Têm funções que ninguém usa mais.
 - `views/*.js`: uma tela por arquivo. `audio.js` (sons e lo-fi gerados no aparelho), `fx.js`, `icons.js`, `ui.js`, `util.js`.
@@ -153,12 +153,31 @@ O dono usa muito mais o PC. Pedidos atendidos:
 - **Janela mãe**: LISTAS fica sempre em primeiro, com cor própria. Botão ＋ cria **janelas do dono** (`core.windows = [{ id, name, base }]`). Uma janela é uma gaveta: o bloco guarda `b.win` e continua com `b.group` = tipo-base (bd, tr, cap, gs), então nenhuma regra de XP muda. Apagar a janela devolve os blocos ao tipo-base. Chave da aba: `w:<id>`.
 - **Nomes personalizáveis** (`core.labels`, editor em PERKS → "Nomes das listas e janelas"): `R.applyLabels` troca só o texto de `R.AREAS`, `R.GROUPS` e `R.TAB_NAMES`; as chaves internas não mudam.
 
+## RODADA 6 — v5.7 (16/11/2026): AGUARDANDO só com tarefas principais + cor da janela
+- A lista AGUARDANDO mostra só as tarefas PRINCIPAIS (as das LISTAS). Subtarefas em espera e blocos em espera não aparecem mais ali: ficam na janela deles. Motivo do dono: tudo passa pela LISTAS antes de ir pras outras janelas.
+- Tarefa da lista ligada a um bloco (`t.link`): o selo 🔗 mostra o NOME da janela onde o bloco está (antes dizia sempre BREAKDOWN) e a linha ganha uma faixa na COR daquela janela (`data-g` + variável CSS `--wc`). As abas das janelas têm a mesma cor na borda de baixo.
+- Se o bloco ligado é marcado como "só aguardando", a tarefa principal dele vai pra AGUARDANDO (`syncLists`).
+
+## RODADA 7 — v5.8 (17/11/2026): economia + PRIMO novo
+**Economia** (o dono mandou 3 PDFs de referência: economia de jogos/Octalysis, boss battle e protocolo neurocognitivo; a análise usou os 23 dias de dados dele). Diagnóstico: tarefa pagava pouco (média 9 XP) perto dos preços; o índice de preço chegava ao máximo justamente ao bater a meta; multas se empilhavam (dobro + DEVENDO + índice); 93% do XP ia para a taverna e quase nada para a forja. Ele aprovou o pacote:
+- `XP_LIST` 10→15, `XP_SUB` 5→8, `XP_STEP` 3→4, `XP_MINI` 30→40 (nada do passado é recalculado).
+- `econIndex`: compara a média de 14 dias com a META DO DIA; limites 0,9–1,15 (era base 100 e 0,8–1,4).
+- "Fiz sem comprar": `R.DEBT_MULT` = 1,5 (era 2). Remarcação: teto `R.RESCHED_CAP` = 8× (era 16×).
+- Curva de níveis, hábitos, rituais, forja e preços base da taverna: não mexidos.
+
+**PRIMO novo** (artes geradas pelo dono no Higgsfield; 78 arquivos, ~290 MB, que NÃO entram no repositório):
+- `tools/primo_artes.py` prepara as artes (recorte do fundo, quadros dos vídeos, redução) e gera `assets/primo/` (~1,9 MB): 5 folhas de animação (parado, feliz, dormindo, andando, comendo), `rostos.webp` (17 expressões), `faisca.webp` (8 fases), `acc/` (24 peças × 2 vistas), `cena/` (6 lugares × dia/tarde/noite) e `primo.json` (medidas).
+- `js/pnew.js` desenha: `drawPortraitNew`, `drawFace`, `drawMascotNew`, tabela `ACC` (posição de cada acessório na vista de frente e de lado). Dormindo, ele tira os acessórios.
+- `js/primo.js`: as telas do desenho agora têm 4× a resolução (`K`); `artOn()` escolhe entre o novo e o clássico; `scenePick()` escolhe o cenário (expedição → estrada/feira; noite → fogueira; manhã cedo e almoço → cozinha; horário de trabalho → escritório; fim de tarde e fim de semana → varanda) e a luz (dia, tarde, noite).
+- O porquinho clássico em pixel continua como reserva: seletor "Desenho do PRIMO" em PERKS (`gamify-ui:primo-art`) e volta automática se as artes não carregarem.
+- Armário: 6 peças novas (`novo: true` em `WARDROBE`), que só aparecem na arte nova. Ícone do app trocado pelo do dono.
+- O cenário da fogueira (dia e noite) tem um porquinho pequeno desenhado junto ao fogo; o dono escolheu deixar.
+
 ## PRÓXIMAS RODADAS
-Princípio do dono: qualidade de vida e praticidade; tudo integrado como um ecossistema; simples no fim das contas (o app não pode tomar o tempo das tarefas). Ele aceita sugestões melhores que o pedido.
-- **Economia (o dono deixou por último).** Analisar toda a economia e propor valores; ele citou um PDF de referência que não está no repositório (pedir de novo). Só mudar valores depois de ele aprovar a análise. Os preços de ACORDAR TARDE e JOGO NA STEAM e o XP da REDENÇÃO são provisórios até lá.
-- **PRIMO novo com IA de imagem.** O dono assinou o Higgsfield e vai gerar as artes seguindo `PROMPTS_HIGGSFIELD.txt` (82 prompts completos) e `GUIA_SPRITES_IA.md`. Quando ele mandar os arquivos: recortar fundo, montar as folhas de animação e as âncoras, trocar o desenho do porquinho, os rostos, os acessórios e o fundo da cena; manter o sprite atual como reserva até ele aprovar.
-- **Mecânicas sugeridas e ainda não escolhidas por ele:** "o que eu faço agora?" (PRIMO escolhe uma tarefa), fechamento do dia às 18h, combo de foco, dia mínimo.
-- **Ajustes prováveis depois do uso:** a lista AGUARDANDO fica longa com os dados dele (tarefas em espera dentro dos blocos); personalizar a lista de tarefas de volta da viagem; mais textos personalizáveis além de listas e janelas.
+Princípio do dono: qualidade de vida e praticidade; tudo integrado como um ecossistema; simples no fim das contas (o app não pode tomar o tempo das tarefas). Ele aceita sugestões melhores que o pedido. **Sem mecânicas novas por enquanto** (pedido dele em 16/11).
+- Acompanhar a economia nova por umas duas semanas e reavaliar com os dados (saldo sobrando? forja andando?). Preços de ACORDAR TARDE e JOGO NA STEAM seguem provisórios.
+- Ajustes finos do PRIMO novo se ele pedir: posição de algum acessório (tabela `ACC` em `pnew.js`), o vídeo opcional "cansado", escolher o cenário à mão, refazer a fogueira sem o porquinho.
+- Mecânicas sugeridas e NÃO pedidas (só se ele quiser): "o que eu faço agora?", fechamento do dia, combo de foco, dia mínimo.
 
 ## LIÇÕES TÉCNICAS
 - Playwright (Chromium) já vem instalado: `require('playwright')`. Servidor local: `python3 -m http.server 8080`.

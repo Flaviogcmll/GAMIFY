@@ -79,10 +79,13 @@ export function taskRow(t, opts = {}) {
   const sub = opts.sub ? `<small>${esc(opts.sub)}</small>` : '';
   const sent = t.st === 'sent' ? `<small class="info">📨 enviada ${fmtDM(t.sentAt)} · aguardando retorno</small>
     <span class="row" style="gap:6px;margin-top:5px"><button class="btn sm" data-act="cycle-back" data-id="${t.id}">↩ VOLTOU</button><button class="btn sm good" data-act="cycle-ok" data-id="${t.id}">✓ APROVADO</button></span>` : '';
-  return `<li class="${cls}" data-id="${t.id}" ${t.color ? `data-color="${t.color}"` : ''}><span class="handle" data-handle="task" data-id="${t.id}" title="Segure e arraste">⠿</span>
+  // tarefa da lista que virou bloco em outra janela: mostra o NOME e a COR da janela onde o bloco está
+  const lb = t.link ? R.findBlock(S, t.link) : null, lw = lb ? R.winOf(S, lb) : null;
+  const wname = lb ? (lw ? lw.name : lb.group === 'bs' ? R.TAB_NAMES.boss : R.GROUPS[lb.group]?.short || '') : '';
+  return `<li class="${cls}" data-id="${t.id}" ${t.color ? `data-color="${t.color}"` : ''} ${lb ? `data-g="${lb.group}"` : ''}><span class="handle" data-handle="task" data-id="${t.id}" title="Segure e arraste">⠿</span>
     <button class="check" data-act="toggle" data-id="${t.id}" aria-label="Concluir ${esc(t.text)}">${CHECK[t.st] || ''}</button>
     <div class="txt" data-act="edit-task" data-id="${t.id}">${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}${sub}${sent}</div>
-    <div class="info">${t.link ? `<button class="chip cyc" data-act="jump-block" data-id="${t.link}" title="Ir pro BREAKDOWN MACHINE">🔗 BREAKDOWN</button>` : opts.list && !p.step && R.isOpen(t) ? `<button class="icon-btn mini" data-act="to-breakdown" data-id="${t.id}" title="Mandar pro BREAKDOWN MACHINE (fica ligada)" aria-label="Mandar pro breakdown">⤴</button>` : ''}${t.who || t.dep ? `<span class="chip wait" title="aguardando: ${esc(R.waitingOn(S, t).label)}">⏳ ${esc((t.who || '🔗').slice(0, 14))}</span>` : ''}${t.prio ? '<span class="chip prio">!</span>' : ''}${t.cycle ? `<span class="chip cyc" title="vai e volta">🔁${rounds ? ' ' + rounds : ''}</span>` : ''}${t.pin && opts.showPin ? '<span class="chip">↗</span>' : ''}${dueChip(t.due, !R.isOpen(t))}${xp ? `<span class="chip xp">${xp}</span>` : ''}</div>
+    <div class="info">${t.link ? `<button class="chip lnk" data-g="${lb?.group || 'bd'}" data-act="jump-block" data-id="${t.link}" title="Esta tarefa tem um bloco na janela ${esc(wname)}. Toque pra ir lá.">🔗 ${esc(wname || 'BREAKDOWN')}</button>` : opts.list && !p.step && R.isOpen(t) ? `<button class="icon-btn mini" data-act="to-breakdown" data-id="${t.id}" title="Mandar pro BREAKDOWN MACHINE (fica ligada)" aria-label="Mandar pro breakdown">⤴</button>` : ''}${t.who || t.dep ? `<span class="chip wait" title="aguardando: ${esc(R.waitingOn(S, t).label)}">⏳ ${esc((t.who || '🔗').slice(0, 14))}</span>` : ''}${t.prio ? '<span class="chip prio">!</span>' : ''}${t.cycle ? `<span class="chip cyc" title="vai e volta">🔁${rounds ? ' ' + rounds : ''}</span>` : ''}${t.pin && opts.showPin ? '<span class="chip">↗</span>' : ''}${dueChip(t.due, !R.isOpen(t))}${xp ? `<span class="chip xp">${xp}</span>` : ''}</div>
   </li>`;
 }
 

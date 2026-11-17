@@ -338,7 +338,7 @@ export function extend4(ACTIONS, render) {
 export async function dropTaskSmart(id, { area, block, before }) {
   const t = S.quests.tasks.find((x) => x.id === id);
   if (!t) return;
-  if (!block && area && area !== 'wait' && (t.block || R.listOf(t) !== area) && !(await confirmResched(t, R.dueForList(area, today(), t.due)))) return;
+  if (!block && area && area !== 'wait' && (t.block || t.area !== area) && !(await confirmResched(t, R.dueForList(area, today(), t.due)))) return;
   const r = A.dropTask(id, { area, block, before });
   if (r?.error) { sfx('error'); toast(esc(r.error), 'bad'); }
 }
@@ -347,5 +347,5 @@ export async function confirmResched(t, due) {
   if (!cost) return true;
   const bal = R.totals(S).balance;
   if (bal < cost) { sfx('error'); toast(`Faltam ${cost - bal} XP pra remarcar (custa ${cost} XP).`, 'bad'); return false; }
-  return ask('Remarcar custa XP', `Empurrar o prazo de "${String(t.text).replace(/\s*\(\d+\s*XP\)/i, '')}" custa ${cost} XP (a próxima vez custa ${cost * 2}). Seu saldo: ${fmtN(bal)} XP. Dar prazo realista evita isso.`, `PAGAR ${cost} XP`);
+  return ask('Remarcar custa XP', `Empurrar o prazo de "${String(t.text).replace(/\s*\(\d+\s*XP\)/i, '')}" custa ${cost} XP (a próxima vez custa ${Math.min(cost * 2, R.C.RESCHED * R.RESCHED_CAP)}). Seu saldo: ${fmtN(bal)} XP. Dar prazo realista evita isso.`, `PAGAR ${cost} XP`);
 }
