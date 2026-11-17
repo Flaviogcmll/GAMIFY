@@ -149,14 +149,20 @@ const LABELS = {};
 const orderOf = (key) => { try { return JSON.parse(ls.get('gamify-ui:order:' + key)) || { order: [], hidden: [] }; } catch { return { order: [], hidden: [] }; } };
 const saveOrder = (key, o) => ls.set('gamify-ui:order:' + key, JSON.stringify(o));
 /** monta seções na ordem que você escolheu (arrastando pela alça ⠿ ou em ⚙ PERSONALIZAR) */
-export function arrange(key, sections, { button = true } = {}) {
+/** cartões arrumáveis. Com `cols`, ficam em colunas FIXAS: o item i vai sempre pra coluna i % cols (abrir um cartão só empurra a própria coluna) */
+export function arrange(key, sections, { button = true, cols = 0 } = {}) {
   LABELS[key] = sections.map(([id, label]) => [id, label]);
   const pref = orderOf(key), ids = sections.map((s) => s[0]);
   const order = [...pref.order.filter((id) => ids.includes(id)), ...ids.filter((id) => !pref.order.includes(id))];
-  return order.filter((id) => !(pref.hidden || []).includes(id)).map((id) => {
-    const s = sections.find((x) => x[0] === id);
-    return s[2] ? `<div class="sitem" data-sitem="${id}" data-slist="${key}"><span class="shandle" data-handle="sort" title="Segure e arraste pra mudar a ordem" aria-label="Arrastar">⠿</span>${s[2]}</div>` : '';
-  }).join('');
+  const items = order.filter((id) => !(pref.hidden || []).includes(id)).map((id) => sections.find((x) => x[0] === id)).filter((s) => s[2])
+    .map((s, i) => `<div class="sitem" data-sitem="${s[0]}" data-slist="${key}" data-ord="${i}" style="order:${i}"><span class="shandle" data-handle="sort" title="Segure e arraste pra mudar a ordem" aria-label="Arrastar">⠿</span>${s[2]}</div>`);
+  return cols ? inColumns(items, cols) : items.join('');
+}
+/** distribui os itens em colunas fixas; no celular viram uma coluna só, na ordem original (estilo `order` de cada item) */
+export function inColumns(items, cols = 3) {
+  const cs = Array.from({ length: cols }, () => []);
+  items.forEach((h, i) => cs[i % cols].push(h));
+  return cs.map((c) => `<div class="mcol">${c.join('')}</div>`).join('');
 }
 function arrangeModal(key) {
   const pref = orderOf(key), labels = LABELS[key] || [], ids = labels.map((l) => l[0]);
@@ -197,7 +203,7 @@ document.addEventListener('pointerup', () => {
   d.ghost?.remove(); d.src.classList.remove('dragging');
   document.querySelectorAll('.sitem.drop-before,.sitem.drop-after').forEach((x) => x.classList.remove('drop-before', 'drop-after'));
   if (!d.on || !d.target) return;
-  const ids = [...document.querySelectorAll(`.sitem[data-slist="${d.list}"]`)].map((x) => x.dataset.sitem).filter((id) => id !== d.src.dataset.sitem);
+  const ids = [...document.querySelectorAll(`.sitem[data-slist="${d.list}"]`)].sort((a, b) => (+a.dataset.ord || 0) - (+b.dataset.ord || 0)).map((x) => x.dataset.sitem).filter((id) => id !== d.src.dataset.sitem); // ordem lógica, não a da tela (colunas)
   let at = ids.indexOf(d.target.el.dataset.sitem) + (d.target.after ? 1 : 0);
   ids.splice(at, 0, d.src.dataset.sitem);
   const pref = orderOf(d.list);

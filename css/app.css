@@ -163,12 +163,10 @@ label.lbl { display: block; font: 7.5px/1.4 var(--f-pixel); color: var(--dim); m
 :root[data-mode="night"] .band { background: #2b241d; color: var(--ink); border: 2px solid var(--edge); }
 /* barra das janelas do QUESTS fica presa abaixo do topo (só em tela grande: no celular o topo já ocupa muito) */
 /* v5.9 ── listas de 3 em 3; blocos em mosaico ("ímãs": um bloco aberto não deixa buraco) */
-.lists.six { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-@media (max-width: 1100px) { .lists.six { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 860px) { .lists.six { grid-template-columns: 1fr; } }
-.group.wide > .masonry { grid-column: 1 / -1; columns: 290px; column-gap: 12px; }
-.masonry > article.block { break-inside: avoid; margin: 0 0 12px; }
-.masonry:empty { display: none; }
+.lists.six, .mcols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.mcol { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.group.wide > .mcols { grid-column: 1 / -1; }
+@media (max-width: 860px) { .lists.six, .mcols { display: flex; flex-direction: column; } .mcol { display: contents; } }
 /* REVISADO nas listas e janela toda revisada (verde na barra) */
 .list-card.reviewed { outline: 2px solid var(--good); outline-offset: -2px; }
 .qbar .seg button.allrev { border-color: #3f9a5c !important; box-shadow: inset 0 -4px 0 #3f9a5c; }
@@ -549,13 +547,6 @@ body { background-image: none; }
 :root[data-mode="night"] .chip.wait { color: #b9a4ea; }
 .group.wide { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; align-items: start; }
 .group.wide > .band, .group.wide > form, .group.wide > .btn, .group.wide > .more, .group.wide > .empty { grid-column: 1 / -1; }
-.daystrip { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x proximity; }
-.daystrip .day { flex: none; min-width: 72px; padding: 8px 6px; border: 2px solid var(--line); background: var(--panel); text-align: center; scroll-snap-align: start; cursor: pointer; }
-.daystrip .day.today { border-color: var(--accent); background: var(--accent-soft); }
-.daystrip .day.off { opacity: .6; }
-.daystrip .day .n { font: 16px/1.6 var(--f-pixel); }
-.daystrip .day .n.l1 { color: var(--good); } .daystrip .day .n.l4 { color: var(--warn); } .daystrip .day .n.l6 { color: var(--bad); }
-.daystrip .day small { display: block; font-size: 10px; color: var(--dim); }
 @media (max-width: 1100px) { .lists.four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 860px) { .lists.four { grid-template-columns: 1fr; } }
 
@@ -567,8 +558,7 @@ body { background-image: none; }
 :root[data-mode="night"] body { background: radial-gradient(110% 70% at 50% 115%, rgba(240, 138, 62, .28), transparent 62%), #17110d; background-attachment: fixed; }
 :root[data-mode="night"] .card, :root[data-mode="night"] .list-card, :root[data-mode="night"] .block, :root[data-mode="night"] .item, :root[data-mode="night"] .stat, :root[data-mode="night"] .modal {
   background: linear-gradient(180deg, #2e2017 0%, #241912 70%); border-color: #6b4528; }
-.card, .list-card, .block, .item, .stat, .medal, .modal, .scene, .banner, .toast, .coin, .lv, .hab, .daystrip .day, .bxp .li { border-radius: var(--rad); }
-.card, .list-card, .block, .item, .stat, .medal { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 3px 4px 0 var(--shadow); }
+.card, .list-card, .block, .item, .stat, .medal, .modal, .scene, .banner, .toast, .coin, .lv, .hab, .card, .list-card, .block, .item, .stat, .medal { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 3px 4px 0 var(--shadow); }
 .block { overflow: hidden; } .scene { overflow: hidden; }
 .btn, .seg button, .chip, .inp, select.inp, textarea.inp, .check, .icon-btn, .st-chip, .timer-chip, .tabs a { border-radius: 8px; }
 .tabs a { border-radius: 8px 8px 0 0; }
@@ -755,12 +745,8 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 .tl thead th:first-child { left: 0; z-index: 5; background: var(--panel-2); }
 .tl td.today { background-color: color-mix(in srgb, var(--warn) 42%, transparent); box-shadow: inset 2px 0 0 var(--warn), inset -2px 0 0 var(--warn); font-weight: 700; }
 .tl th.today { background: var(--warn); color: #1a1208; box-shadow: inset 2px 0 0 var(--ink), inset -2px 0 0 var(--ink); }
-.daystrip .day.today { border-color: var(--ink); background: var(--warn); color: #1a1208; box-shadow: 0 0 0 3px var(--warn), 3px 3px 0 var(--shadow); transform: translateY(-2px); }
-.daystrip .day.today small { color: #3a2a10; }
-.daystrip .day.over { border-color: var(--accent); background: var(--accent-soft); transform: scale(1.05); }
 .li[draggable="true"] { cursor: grab; }
 .card > header .ghandle + h2, .card > header .ghandle + .row, header .ghandle + h2 { margin-right: auto; }
-.daystrip .day.today { opacity: 1; }
 
 /* ───────────── v4: A VILA ───────────── */
 .vtxt { background: rgba(18, 18, 18, .85); color: #e6e0d6; font-size: 11.5px; padding: 6px 10px; border-radius: 8px; }
