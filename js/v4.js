@@ -220,30 +220,6 @@ document.addEventListener('pointerup', () => {
   sfx('drop');
 });
 
-// ───────────────────────── ARRASTAR TAREFA DA FILA PARA UM DIA (PC) ─────────────────────────
-let dragTid = null;
-document.addEventListener('dragstart', (e) => {
-  const li = e.target.closest?.('[data-tid]');
-  if (!li) return;
-  dragTid = li.dataset.tid; e.dataTransfer.setData('text/plain', dragTid); e.dataTransfer.effectAllowed = 'move'; sfx('pick');
-});
-document.addEventListener('dragover', (e) => { if (!dragTid) return; const d = e.target.closest?.('.day[data-d]'); document.querySelectorAll('.day.over').forEach((x) => x !== d && x.classList.remove('over')); if (d) { e.preventDefault(); d.classList.add('over'); } });
-document.addEventListener('dragend', () => { dragTid = null; document.querySelectorAll('.day.over').forEach((x) => x.classList.remove('over')); });
-document.addEventListener('drop', (e) => {
-  if (!dragTid) return;
-  const d = e.target.closest?.('.day[data-d]');
-  if (!d) return;
-  e.preventDefault();
-  const id = dragTid; dragTid = null;
-  const t = S.quests.tasks.find((x) => x.id === id), due = d.dataset.d;
-  (async () => {
-    if (t && !(await confirmResched(t, due))) return;
-    const cost = A.reschedCost(t, due), r = A.updateTask(id, { due });
-    if (r?.error) { toast(esc(r.error), 'bad'); return; }
-    sfx('drop'); toast(`📅 Prazo: <b>${fmtDM(due)}</b>${cost ? ` · −${cost} XP` : ''}`);
-    if (cost) primoReact('remarcou', { xp: cost });
-  })();
-});
 
 // ───────────────────────── ORDEM DAS JANELAS DO QUESTS (arrastar o nome da janela) ─────────────────────────
 let dragTab = null;

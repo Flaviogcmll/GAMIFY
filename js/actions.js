@@ -275,6 +275,12 @@ function syncLists() {
   const td = today(), released = [];
   let changed = false;
   const byId = new Map(S.quests.tasks.map((t) => [t.id, t])), blk = new Map(S.quests.blocks.map((b) => [b.id, b]));
+  // janela mãe: bloco ativo (não fechado nem parado) sem tarefa nas LISTAS ganha uma, ligada a ele, com o prazo final do bloco
+  for (const b of S.quests.blocks) {
+    if (b.st === 'done' || b.color === 'black' || (b.src && byId.has(b.src))) continue;
+    const t = { id: uid('t'), area: 'sem', text: b.title.replace(/\s*\(\d+\s*XP\)/i, '').trim(), st: '', due: b.due || null, created: td, ord: maxOrd() + 1, link: b.id, mother: true };
+    S.quests.tasks.push(t); byId.set(t.id, t); b.src = t.id; changed = true;
+  }
   for (const t of S.quests.tasks) {
     if (t.dep) {
       const d = byId.get(t.dep);
@@ -410,7 +416,7 @@ export function toggleDone(id, at) {
   const t = T(id);
   if (!t) return;
   const lb = t.link && B(t.link);
-  if (lb && !t.linked && lb.st !== 'done') return { error: '🔗 Esta tarefa está no BREAKDOWN: conclua lá (toque no texto pra ir).' };
+  if (lb && !t.linked && lb.st !== 'done') return { error: '🔗 Esta tarefa é um bloco em outra janela: conclua as subtarefas lá (toque na bolinha pra ir).' };
   if (t.linked) return { error: '🔗 Veio do BREAKDOWN: reabra a subtarefa lá.' };
   S._closedBlock = null; S._bossDown = null;
   return commit(['quests'], () => {
@@ -552,7 +558,8 @@ export function updateBlock(id, patch) {
 export function deleteBlock(id) {
   return commit(['quests'], () => {
     const sb = B(id)?.src && T(B(id).src);
-    if (sb) { delete sb.link; delete sb.linked; }
+    if (sb?.mother) S.quests.tasks = S.quests.tasks.filter((t) => t !== sb); // a tarefa-mãe criada sozinha vai junto
+    else if (sb) { delete sb.link; delete sb.linked; }
     S.quests.blocks = S.quests.blocks.filter((b) => b.id !== id);
     S.quests.tasks = S.quests.tasks.filter((t) => t.block !== id);
   });

@@ -5,9 +5,11 @@ import { esc, fmtDM, fmtN, today, diffDays, weekday, addDays } from '../util.js'
 import { taskRow, segBar, statusChips, dueChip } from '../ui.js';
 import { px } from '../icons.js';
 import { isCollapsed, companionCard } from '../v3.js';
-import { arrange } from '../v35.js';
+import { arrange, inColumns } from '../v35.js';
 
 const sortOrd = (a, b) => a.ord - b.ord;
+/** blocos em 3 colunas fixas (o bloco i fica sempre na coluna i % 3: abrir um bloco só empurra os de baixo dele) */
+const cols3 = (items) => inColumns(items.map((h, i) => `<div class="mitem" style="order:${i}">${h}</div>`), 3);
 /** sem MOSTRAR FEITAS: some tudo que foi feito ou cancelado (o ↩ desfaz um clique errado) */
 const visible = (t) => R.isOpen(t) || t.st === 'sent';
 /** botão REVISADO (selo de 24 h) no fim de uma lista ou bloco */
@@ -56,7 +58,7 @@ function bossPanel(ui) {
   const col = isCollapsed('g:bs');
   return `<div class="group wide ${col ? 'collapsed' : ''}" data-group="bs"><div class="band" data-act="collapse" data-k="g:bs"><span><span class="chev">${col ? '▸' : '▾'}</span> BOSSES</span><span class="meta">${list.filter((b) => b.st !== 'done').length} em aberto</span></div>
     <form class="row" data-form="add-boss" autocomplete="off"><input class="inp grow" name="text" placeholder="+ novo boss (META: 500 XP)" aria-label="Novo boss"></form>
-    <div class="masonry">${list.map(card).join('')}</div>${list.length ? '' : '<div class="empty">nenhum boss. Dê um nome à meta grande e quebre em subtarefas.</div>'}</div>`;
+    ${list.length ? `<div class="mcols">${cols3(list.map(card))}</div>` : '<div class="empty">nenhum boss. Dê um nome à meta grande e quebre em subtarefas.</div>'}</div>`;
 }
 
 function blockCard(b, ui, opts = {}) {
@@ -89,7 +91,7 @@ function group(g, ui, win = null) {
   return `<div class="group ${isCollapsed('g:' + g) ? 'collapsed' : ''}" data-group="${g}"><div class="band" data-act="collapse" data-k="g:${g}"><span><span class="chev">${isCollapsed('g:' + g) ? '▸' : '▾'}</span> ${win ? esc(win.name) : R.GROUPS[g].name}</span><span class="meta">${blocks.filter((b) => b.st !== 'done').length} blocos${win ? ` · funciona como ${esc(R.GROUPS[g].short)} <button class="btn sm ghost" data-act="win-edit" data-id="${win.id}" title="Renomear, mudar o tipo ou apagar esta janela">✎</button>` : ''}</span></div>
     <form class="row" data-form="add-block" data-group="${g}" ${win ? `data-win="${win.id}"` : ''} autocomplete="off"><input class="inp grow" name="title" placeholder="+ novo bloco${g === 'bd' ? ' (🎯 meta)' : ' (3000💰 · / MES DIA 05)'}" aria-label="Novo bloco"></form>
     ${g === 'bd' && !win ? `<button class="btn sm" data-act="ai-breakdown">🤖 QUEBRAR META COM IA</button>` : ''}
-    <div class="masonry">${active.map((b) => blockCard(b, ui)).join('')}</div>${active.length ? '' : '<div class="empty">nenhum bloco.</div>'}
+    ${active.length ? `<div class="mcols">${cols3(active.map((b) => blockCard(b, ui)))}</div>` : '<div class="empty">nenhum bloco.</div>'}
     ${blocks.length > active.length ? `<button class="more" data-act="toggle-stalled">⬛ ${blocks.length - active.length} parado(s) · mostrar</button>` : ''}</div>`;
 }
 
@@ -196,7 +198,7 @@ export function viewQuests(ui) {
     : tab === 'boss' ? S.quests.bosses.map((b) => 'b:' + (b.block || b.id))
     : R.tabBlocks(S, tab).filter(stalledOff(ui)).map((b) => 'b:' + b.id);
   const allCol = ckeys.length > 0 && ckeys.every(isCollapsed);
-  const lists = arrange('lists', R.AREA_KEYS.map((a) => [a, R.AREAS[a], listCard(a, ui)]), { button: false });
+  const lists = arrange('lists', R.AREA_KEYS.map((a) => [a, R.AREAS[a], listCard(a, ui)]), { button: false, cols: 3 });
   const body = tab === 'listas' ? `<div class="lists six">${lists}</div>`
     : tab === 'boss' ? bossPanel(ui)
     : group(win ? win.base : tab, ui, win).replace('class="group ', 'class="group wide ');
