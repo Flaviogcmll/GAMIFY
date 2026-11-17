@@ -1,0 +1,5 @@
+IMAGENS DO TOPO DE CADA ABA (GAMIFY)
+
+Origem: geradas por IA de imagem (Higgsfield) com direção do autor do app.
+<aba>-dia.webp e <aba>-noite.webp, 1600 px de largura, preparadas por tools/topo_artes.py a partir dos originais (que não entram no repositório).
+Abas: survival, agenda, shop (taverna), ferreiro, domingo (reflexão), conquistas, filtro, rotina, regras (perks), arquivo.

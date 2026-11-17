@@ -28,8 +28,12 @@ const HAT = { f: [138, 140, 58], s: [100, 172, 58] };
 const EAT_HEAD = [0, 0, 3, 10, 15, 16, 16, 16, 16, 16, 16, 15, 10, 0, 0, 0];
 
 const HAPPY = ['feliz', 'animado', 'festa', 'orgulhoso', 'apaixonado', 'piscada'];
+// v5.14: poses paradas (uma imagem só) para algumas expressões; com chapéu, ele dorme com o chapéu no rosto
+const POSES = { festa: 'comemorando', orgulhoso: 'comemorando', pensativo: 'pensando', triste: 'triste', preocupado: 'triste' };
 /** qual animação combina com a expressão; parado, ele dá uma voltinha e come de vez em quando */
-function pose(expr, f, tired) {
+function pose(expr, f, tired, hat) {
+  const still = expr === 'dormindo' && hat ? 'dormindo-chapeu' : POSES[expr];
+  if (still && ok(img('pose-' + still))) return { still, anim: 'parado', off: 0 };
   if (expr === 'dormindo') return { anim: 'dormindo', off: 0 };
   if (HAPPY.includes(expr)) return { anim: 'feliz', off: 0 };
   if (!tired && ['neutro', 'pensativo', 'debochado', 'suspeito'].includes(expr)) {
@@ -54,7 +58,8 @@ function drawHat(t, view, dx, dy) {
 export function drawPortraitNew(c, o = {}) {
   const { wear = {}, talk = false, f = 0, mood = null } = o, FR = META.fr;
   const tired = mood === 'tired' || o.expr === 'cansado';
-  const ps = pose(o.expr, f, tired), A = META.anim[ps.anim], sheet = img(ps.anim);
+  const ps = pose(o.expr, f, tired, !!wear.hat), A = META.anim[ps.anim], sheet = img(ps.anim);
+  if (ps.still) return drawStill(c, ps.still, f, mood, o.expr);
   const sp = A.speed * (tired ? 2 : 1), i = ps.t != null ? Math.min(A.n - 1, Math.floor(ps.t / A.speed)) : Math.floor(f / sp) % A.n;
   const dance = o.expr === 'festa', hop = dance ? -Math.abs(Math.round(Math.sin(f / 2) * 3)) : talk && f % 4 < 2 ? -1 : 0;
   c.clearRect(0, 0, 72, 96);
@@ -80,6 +85,18 @@ export function drawPortraitNew(c, o = {}) {
   if (ps.flip) { c.translate(x + size, y + hop); c.scale(-1, 1); c.drawImage(TMP, 0, 0, size, size); } else c.drawImage(TMP, x, y + hop, size, size);
   c.restore();
 }
+
+/** pose parada: respira (sobe e desce 1 ponto); comemorando pula; mesmo chão e sombra das animações */
+function drawStill(c, name, f, mood, expr) {
+  const x = 3, y = 26, size = 66, hop = name === 'comemorando' ? -Math.abs(Math.round(Math.sin(f / 3) * 3)) : Math.sin(f / 9) > 0.6 ? -1 : 0;
+  c.clearRect(0, 0, 72, 96);
+  c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
+  c.fillStyle = 'rgba(0,0,0,.22)'; c.beginPath(); c.ellipse(x + size / 2, 90, name === 'dormindo-chapeu' ? 26 : 22, 3.5, 0, 0, 7); c.fill();
+  c.drawImage(img('pose-' + name), x, y + hop, size, size);
+  if (mood === 'poison' || expr === 'enjoado') { c.save(); c.globalCompositeOperation = 'source-atop'; c.fillStyle = 'rgba(124,195,90,.35)'; c.fillRect(0, 0, 72, 96); c.restore(); }
+}
+/** carrega as poses novas cedo (são pequenas) */
+if (typeof document !== 'undefined') for (const n of ['comemorando', 'pensando', 'triste', 'dormindo-chapeu']) img('pose-' + n);
 
 /** só o rosto, com a expressão (faixa de cada aba, entrevista do dia). Desenha num quadrado de lado `size` */
 export function drawFace(c, expr, size, mood) {

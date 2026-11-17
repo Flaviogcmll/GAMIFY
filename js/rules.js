@@ -931,7 +931,7 @@ export function econIndex(s, d = today()) {
   const avg = days.reduce((a, x) => a + (xp[x] || 0), 0) / days.length;
   // v5.8: o preço é NORMAL quando a sua média bate a meta do dia, e varia pouco (−10% a +15%).
   // Antes ia até +40% com 140 XP/dia: render mais deixava tudo mais caro.
-  const goal = s.core?.settings?.dailyGoal || C.DAILY_GOAL || 150;
+  const goal = goalAt(s);
   return Math.min(1.15, Math.max(0.9, Math.round((avg / goal) * 20) / 20));
 }
 /** v4: preços não são mais travados no código; valem os da loja (editáveis em PERKS AND RULES) */
@@ -969,28 +969,38 @@ export function tripDay(s, d) {
   return (s.core?.trips || []).some((t) => d >= t.from && d <= t.to);
 }
 
+// ───────────────────────── v5.14: ESCADA DO ESFORÇO ─────────────────────────
+// Neurociência (limiar de percepção de esforço): o difícil vira fácil quando sobe em degraus. A cada 7 dias seguidos
+// batendo a meta, ela sobe um degrau (+5%). Errar não desce: o degrau fica. Cada dia é medido com a meta que valia NAQUELE dia.
+export const LADDER_STEP = 0.05, LADDER_MAX = 10;
+export const ladderSteps = (s) => (s.core?.ladder || []).slice(0, LADDER_MAX);
+export function goalAt(s, d = today()) {
+  const base = s.core?.settings?.dailyGoal || C.DAILY_GOAL, n = ladderSteps(s).filter((x) => x <= d).length;
+  return n ? Math.round((base * (1 + LADDER_STEP) ** n) / 5) * 5 : base;
+}
 export function dailyGoal(s, d = today()) {
-  const goal = s.core?.settings?.dailyGoal || C.DAILY_GOAL, xp = idx(s).xpByDay;
+  const goal = goalAt(s, d), xp = idx(s).xpByDay;
   let streak = 0, x = (xp[d] || 0) >= goal ? d : addDays(d, -1), skips = 0;
   for (let i = 0; i < 400; i++, x = addDays(x, -1)) {
-    if ((xp[x] || 0) >= goal) streak++;
+    if ((xp[x] || 0) >= goalAt(s, x)) streak++;
     else if (tripDay(s, x)) { /* ✈ viagem: não conta e não quebra a sequência */ }
     else if ((weekday(x) === 0 || weekday(x) === 6) && skips < 1) skips++; // 1 fim de semana perdoado por vez
     else break;
     if (weekday(x) === 1) skips = 0;
   }
-  return { goal, today: xp[d] || 0, pct: Math.min(1, (xp[d] || 0) / goal), streak };
+  return { goal, today: xp[d] || 0, pct: Math.min(1, (xp[d] || 0) / goal), streak, steps: ladderSteps(s).filter((x) => x <= d).length };
 }
 
 // ───────────────────────── v3: COMPANHEIRO (o aventureiro da fogueira) ─────────────────────────
 export const TIERS = [[1, 'ANDARILHO'], [3, 'APRENDIZ'], [5, 'ARQUITETO'], [8, 'SÊNIOR'], [10, 'VETERANO'], [15, 'MESTRE'], [20, 'LENDA']];
-export function companion(s, d = today(), hour = new Date().getHours()) {
+export function companion(s, d = today(), hour = null) {
   const tot = totals(s), st = dayStatus(s, d), n = s.core?.habits?.length || 7;
   const energy = Math.round((countX(s, d) / n) * 100);
   const done = idx(s).doneByDay[d] || 0;
   let tier = 0;
   TIERS.forEach(([lv], i) => { if (tot.level >= lv) tier = i; });
-  const mood = hour >= 23 || hour < 6 ? 'dormindo' : st.has('envenenado') ? 'envenenado' : st.has('neblina') || st.has('fatigado') || st.has('preguica') ? 'cansado'
+  const asleep = hour == null ? bodyClock(s).key === 'sono' : hour >= 23 || hour < 6; // v5.14: dorme no SEU horário de dormir
+  const mood = asleep ? 'dormindo' : st.has('envenenado') ? 'envenenado' : st.has('neblina') || st.has('fatigado') || st.has('preguica') ? 'cansado'
     : done >= 3 || isPerfect(s, d) ? 'feliz' : energy >= 50 ? 'bem' : 'parado';
   return { name: s.core?.companion?.name || 'PRIMO', tier, tierName: TIERS[tier][1], level: tot.level, mood, energy, done, chapter: s.core?.chapter?.n || 1 };
 }
@@ -1149,4 +1159,39 @@ export function chapterStats(s, from, to = today()) {
   const gold = (s.loja?.goldIn || []).filter((g) => g.date >= from && g.date <= to).reduce((a, g) => a + (+g.amount || 0), 0);
   const habits = Object.entries(s.marks?.days || {}).filter(([d]) => d >= from && d <= to).reduce((a, [, v]) => a + Object.values(v.h || {}).filter((x) => x === 'x').length, 0);
   return { xp: xpBetween(s, from, to), tasks: comps.length, onTime: comps.filter((c) => c.onTime).length, gold, habits, level: totals(s).level };
+}
+
+// ───────────────────────── v5.14: NEUROCIÊNCIA — o relógio do corpo ─────────────────────────
+// Base: ciclo circadiano (luz da manhã acerta o relógio; pico de alerta nas primeiras horas; vale depois do almoço;
+// segundo pico no fim da tarde; luz baixa e desaceleração antes de dormir), "sono é inegociável" (7 a 9 h),
+// "coma nos mesmos horários" (comida é sinal para o relógio do corpo) e "não deixe a dopamina mimada".
+// Tudo liga/desliga em PERKS (settings.neuro). Os horários são do dono.
+export const NEURO_DEFAULT = { clock: true, curfew: true, calm: true, ladder: true, wake: '07:00', bed: '23:00', meals: ['08:00', '12:30', '19:30'] };
+export const neuro = (s) => ({ ...NEURO_DEFAULT, ...(s.core?.settings?.neuro || {}) });
+export const neuroOn = (s, k) => neuro(s)[k] !== false;
+export const hm = (x) => { const [h, m] = String(x || '0:0').split(':').map(Number); return ((h || 0) * 60 + (m || 0)) % 1440; };
+const hhmm = (m) => `${String(Math.floor(((m + 1440) % 1440) / 60)).padStart(2, '0')}:${String((m + 1440) % 60).padStart(2, '0')}`;
+export const PHASES = {
+  despertar: { icon: '🌅', name: 'DESPERTAR', tip: 'Luz do sol nos olhos por 10 min, água e nada de celular na cama: é o que acerta o relógio do corpo pro dia todo.' },
+  foco: { icon: '🧠', name: 'PICO DE FOCO', tip: 'As primeiras horas acordado são as de mais alerta. Faça AGORA a tarefa mais pesada do dia.' },
+  vale: { icon: '🍃', name: 'VALE DA TARDE', tip: 'Depois do almoço a energia cai: hora de tarefas leves, mensagens, ligações e reuniões.' },
+  pico2: { icon: '💪', name: 'SEGUNDO PICO', tip: 'Fim de tarde: corpo quente e força alta. Ótimo pra treinar ou fechar pendências.' },
+  desacelerar: { icon: '🌆', name: 'DESACELERAR', tip: 'Luz baixa e telas mais fracas. Jante cedo, sem trabalho pesado: o cérebro precisa descer o ritmo pra dormir bem.' },
+  recolher: { icon: '🌙', name: 'TOQUE DE RECOLHER', tip: 'Falta menos de 1 hora pra dormir. Feche o dia e largue as listas: amanhã elas continuam aqui.' },
+  sono: { icon: '😴', name: 'HORA DE DORMIR', tip: 'Sono é inegociável: 7 a 9 horas. Dormir mal encolhe o hipocampo (memória) e piora o humor do dia seguinte.' },
+};
+/** em que fase do dia o corpo está, pelos horários de acordar e dormir do dono */
+export function bodyClock(s, now = new Date()) {
+  const n = neuro(s), t = now.getHours() * 60 + now.getMinutes(), wake = hm(n.wake), bed = hm(n.bed);
+  const since = (t - wake + 1440) % 1440, awake = (bed - wake + 1440) % 1440 || 960, toBed = awake - since;
+  const key = since >= awake ? 'sono' : toBed <= 60 ? 'recolher' : toBed <= 180 ? 'desacelerar' : since < 60 ? 'despertar' : since < 300 ? 'foco' : since < 480 ? 'vale' : 'pico2';
+  const meal = (n.meals || []).map(hm).map((m) => ({ at: m, in: (m - t + 1440) % 1440 })).filter((m) => m.in <= 180).sort((a, b) => a.in - b.in)[0];
+  return { key, ...PHASES[key], toBed: key === 'sono' ? 0 : toBed, bed: n.bed, wake: n.wake, sleepH: Math.round(((wake - bed + 1440) % 1440) / 6) / 10,
+    meal: meal ? { at: hhmm(meal.at), in: meal.in } : null, coffeeUntil: hhmm(wake + 8 * 60) };
+}
+/** a tarefa mais pesada que dá pra fazer hoje (pro pico de foco): ! prioridade, ⭐, atrasada, mais XP */
+export function heaviestTask(s, td = today()) {
+  const ts = openTasks(s).filter((t) => t.st !== 'wait' && !t.who && !t.dep && (!t.due || t.due <= addDays(td, 7)));
+  const score = (t) => (t.prio ? 400 : 0) + (parse(t.text).star ? 200 : 0) + (t.due && t.due < td ? 150 : t.due === td ? 100 : 0) + taskXp(s, t).xp;
+  return ts.sort((a, b) => score(b) - score(a))[0] || null;
 }

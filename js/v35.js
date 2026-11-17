@@ -214,11 +214,22 @@ document.addEventListener('pointerup', () => {
 });
 
 // ───────────────────────── TEMA E CÉU ─────────────────────────
-export const THEMES = [['', 'Cognac (laranja, padrão)'], ['rouge', 'Rouge Noir'], ['coral', 'Blue Coral'], ['olive', 'Olive'], ['midnight', 'Midnight Blue'], ['tobacco', 'Tobacco'], ['merlot', 'Merlot']];
+/** v5.14 — psicologia das cores: cada cor tem UM significado no app inteiro (a mesma cor = a mesma família de coisa) */
+export const COLOR_MEANING = [
+  ['--c-urg', 'VERMELHO', 'urgente, perigo, inimigo: HOJE, atrasada, URGENTE, BOSS, vida, castigo, apagar. O vermelho acelera e chama a ação imediata.'],
+  ['--c-quase', 'LARANJA', 'quase urgente: AMANHÃ. Alerta sem pânico.'],
+  ['--c-atencao', 'AMARELO', 'em andamento, atenção: ESTA SEMANA, FAZENDO.'],
+  ['--c-ok', 'VERDE', 'feito, saudável, estável: concluída, ESTÁVEL, hábito feito, REVISADO, buff. O verde acalma e diz "está tudo bem".'],
+  ['--c-calma', 'AZUL', 'futuro, planejamento, descanso: DEPOIS, avisos, sono, noite. O azul baixa a ansiedade e ajuda a pensar longe.'],
+  ['--c-espera', 'ROXO', 'depende de outra pessoa: AGUARDANDO, vai e volta.'],
+  ['--c-neutro', 'CINZA', 'sem prazo, parado.'],
+  ['--c-premio', 'DOURADO', 'recompensa: XP, gold, 🎟, conquistas, loja. Dourado = valor.'],
+  ['--c-acao', 'MADEIRA', 'a casa do app: botões, títulos e janelas. Neutro, pra não competir com as cores que avisam.'],
+];
 export function applyTheme() {
-  const t = ls.get('gamify-ui:theme', ''), root = document.documentElement;
-  if (t) root.dataset.theme = t; else delete root.dataset.theme;
-  root.dataset.tabhue = ls.get('gamify-ui:tabhue', '1') === '1' ? 'on' : 'off';
+  const root = document.documentElement;
+  // v5.14: as cores têm significado fixo (ver COLOR_MEANING); paletas e "cada aba com a sua cor" saíram
+  delete root.dataset.theme; delete root.dataset.tabhue;
   const sky = skyAt(sceneHour());
   root.style.setProperty('--sky-a', sky.top); root.style.setProperty('--sky-b', sky.hor); root.style.setProperty('--sky-m', sky.mid);
 }
@@ -309,7 +320,6 @@ export function extend35(ACTIONS, render) {
     'arr-mv': (d, e, el) => { const li = el.closest('.li'), sib = +d.d < 0 ? li.previousElementSibling : li.nextElementSibling; if (sib) { if (+d.d < 0) sib.before(li); else sib.after(li); sfx('tab'); } },
     'arr-reset': (d) => { saveOrder(d.key, { order: [], hidden: [] }); closeModal(); render(); },
     brief: () => brief(),
-    theme: (d) => { ls.set('gamify-ui:theme', d.t || ''); applyTheme(); render(); sfx('tab'); },
   });
   document.addEventListener('submit', (e) => {
     const f = e.target.closest('form[data-v35form]');
@@ -328,17 +338,15 @@ export function extend35(ACTIONS, render) {
     if (el.dataset?.v35 === 'brief-off') ls.set('gamify-ui:brief-off', el.checked ? '1' : '0');
     if (el.dataset?.v35 === 'ai') ls.set('gamify-ui:ai', el.value);
     if (el.dataset?.v35 === 'voice') { setVoice(el.value); say(document.getElementById('voice-test'), 'Oi, primo! É assim que eu falo.'); }
-    if (el.dataset?.v35 === 'tabhue') { ls.set('gamify-ui:tabhue', el.checked ? '1' : '0'); applyTheme(); }
     if (el.dataset?.v35 === 'brief-on') ls.set('gamify-ui:brief-off', el.checked ? '0' : '1');
   });
 }
 /** ajustes da v3.5 que aparecem em PERKS AND RULES */
 export function settingsV35() {
-  const v = voiceMode(), t = ls.get('gamify-ui:theme', '');
+  const v = voiceMode();
   return `<div class="card c12"><header><h2>🎨 Visual, voz e integrações</h2></header>
     <div class="grid3">
-      <div><label class="lbl">Cor do jogo</label><div class="swatches">${THEMES.map(([k, n]) => `<button type="button" class="sw ${t === k ? 'on' : ''}" data-act="theme" data-t="${k}" data-sw="${k || 'cognac'}" title="${esc(n)}" aria-label="${esc(n)}"></button>`).join('')}</div>
-        <label style="display:block;margin-top:8px;font-size:12.5px"><input type="checkbox" data-v35="tabhue" ${ls.get('gamify-ui:tabhue', '1') === '1' ? 'checked' : ''}> cada aba com a sua cor</label></div>
+      <div><label class="lbl">O que cada cor quer dizer</label><div class="colormean">${COLOR_MEANING.map(([c, n, d]) => `<div><i style="background:var(${c})"></i><b>${n}</b> <span class="meta">${d}</span></div>`).join('')}</div></div>
       <div><label class="lbl" for="v35-voice">Voz do ${esc(R.companion(S).name)}</label><select class="inp" id="v35-voice" data-v35="voice"><option value="blip" ${v === 'blip' ? 'selected' : ''}>vozinha (bips de RPG)</option><option value="fala" ${v === 'fala' ? 'selected' : ''}>voz real do aparelho (pt-BR)</option><option value="mudo" ${v === 'mudo' ? 'selected' : ''}>mudo</option></select>
         <div class="speech" id="voice-test" style="margin-top:8px">Oi, primo!</div></div>
       <div><label class="lbl" for="v35-ai">IA do ${esc(R.companion(S).name)} (usa a sua cota do Claude)</label><select class="inp" id="v35-ai" data-v35="ai"><option value="daily" ${ls.get('gamify-ui:ai', 'daily') === 'daily' ? 'selected' : ''}>1 fala por dia + carta da expedição</option><option value="never" ${ls.get('gamify-ui:ai', 'daily') === 'never' ? 'selected' : ''}>só quando eu conversar</option></select></div>

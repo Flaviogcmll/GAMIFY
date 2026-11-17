@@ -160,7 +160,7 @@ export function sidePanel(ui) {
   // v3.5: cada cartão do painel pode ser recolhido (toque no título), arrastado (alça ⠿) e escondido (⚙ PERSONALIZAR)
   // um bloco fixado (📌) fica sempre no topo do painel, à mão enquanto você mexe no resto
   const pinB = pinnedId && S.quests.blocks.find((x) => x.id === pinnedId && x.st !== 'done');
-  return `<aside class="side">${pinB ? `<div class="pinned">${blockCard(pinB, ui, { pinned: true })}</div>` : ''}${arrange('side', [
+  return `<aside class="side">${clockCard()}${pinB ? `<div class="pinned">${blockCard(pinB, ui, { pinned: true })}</div>` : ''}${arrange('side', [
     ['status', '🎭 Status do dia', `<div class="card"><header><h2 title="toque num status pra ver o que é">🎭 Status do dia</h2></header><div class="status-line">${statusChips(st, al) || '<span class="meta">nenhum buff nem debuff hoje.</span>'}</div></div>`],
     ['primo', '🔥 PRIMO', companionCard()],
     ['ouro', '💰 Baú de ouro (quando tem)', goldCard(td)],
@@ -188,7 +188,39 @@ function qtabs() {
   const all = qtAll(), ids = all.map((x) => x[0]), order = [...saved.filter((i) => ids.includes(i)), ...ids.filter((i) => !saved.includes(i))];
   return ['listas', ...order.filter((i) => i !== 'listas')].map((id) => all.find((x) => x[0] === id));
 }
+// ───────────── v5.14: relógio do corpo e toque de recolher (neurociência) ─────────────
+const CURFEW_KEY = 'gamify-ui:curfew-off';
+/** "ver as listas mesmo assim" vale 15 minutos */
+const curfewOff = () => { try { return +localStorage.getItem(CURFEW_KEY) > Date.now(); } catch { return false; } };
+export const curfewSkip = () => { try { localStorage.setItem(CURFEW_KEY, String(Date.now() + 15 * 60e3)); } catch { /* */ } };
+export const inCurfew = () => R.neuroOn(S, 'curfew') && ['recolher', 'sono'].includes(R.bodyClock(S).key) && !curfewOff();
+function clockCard() {
+  if (!R.neuroOn(S, 'clock')) return '';
+  const c = R.bodyClock(S), heavy = c.key === 'foco' ? R.heaviestTask(S) : null;
+  const h = (m) => (m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? String(m % 60).padStart(2, '0') : ''}` : `${m} min`);
+  return `<div class="card clock" data-phase="${c.key}"><header><h2>${c.icon} ${c.name}</h2><span class="meta" title="seus horários: acordar ${c.wake} · dormir ${c.bed} (PERKS)">${c.key === 'sono' ? `acordar ${c.wake}` : `dormir ${c.bed} · faltam ${h(c.toBed)}`}</span></header>
+    <p class="clock-tip">${esc(c.tip)}</p>
+    ${heavy ? `<button class="btn sm pri" data-act="jump" data-id="${heavy.id}" title="A mais pesada pra fazer agora">🎯 ${esc(heavy.text.replace(/\s*\(\d+\s*XP\)/i, '').slice(0, 44))}</button>` : ''}
+    <div class="clock-meta">${c.meal ? `<span>🍽 refeição às ${c.meal.at}${c.meal.in ? ` (em ${h(c.meal.in)})` : ' (agora)'}</span>` : ''}${['despertar', 'foco', 'vale'].includes(c.key) ? `<span>☕ último café até ${c.coffeeUntil}</span>` : ''}</div></div>`;
+}
+/** depois da hora: no lugar das listas, o fechamento do dia (o que fiz, o que fica pra amanhã, hábitos) */
+function closingView() {
+  const td = today(), c = R.bodyClock(S), done = S.quests.tasks.filter((t) => t.st === 'done' && t.doneAt === td);
+  const xp = R.idx(S).xpByDay[td] || 0, tom = R.openTasks(S).filter((t) => !t.block && t.due === addDays(td, 1));
+  const habits = (S.core.habits || []).filter((h) => !S.marks.days[td]?.h?.[h.id]).length;
+  return `<div class="closing card"><header><h2>${c.icon} ${c.name}: fechamento do dia</h2></header>
+    <p class="clock-tip">${esc(c.tip)}</p>
+    <div class="closing-grid">
+      <div><h3>✓ Hoje você fez ${done.length} · +${fmtN(xp)} XP</h3><ul class="tasks">${done.slice(0, 8).map((t) => `<li class="task done"><span></span><div class="txt">${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}</div></li>`).join('') || '<div class="empty">nada concluído hoje. Amanhã é outro jogo.</div>'}</ul></div>
+      <div><h3>☀ Amanhã · ${tom.length}</h3><ul class="tasks">${tom.slice(0, 6).map((t) => `<li class="task"><span></span><div class="txt">${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}</div></li>`).join('') || '<div class="empty">nada marcado pra amanhã.</div>'}</ul>
+        ${habits ? `<p class="meta">✓ ${habits} hábito(s) de hoje sem marcar · <a href="#survival">marcar agora</a></p>` : '<p class="meta">✓ hábitos de hoje marcados.</p>'}</div>
+    </div>
+    <p class="meta">😴 Deitar às ${c.bed} e acordar às ${c.wake} = ${String(c.sleepH).replace('.', ',')} h de sono. ${c.sleepH < 7 ? '<b class="bad">Menos de 7 h: ajuste em PERKS.</b>' : 'Dentro dos 7 a 9 h.'}</p>
+    <div class="row"><button class="btn sm ghost" data-act="curfew-skip">VER AS LISTAS MESMO ASSIM (15 MIN)</button></div></div>`;
+}
+
 export function viewQuests(ui) {
+  if (inCurfew()) return `<div class="quests"><div class="board">${closingView()}</div>${sidePanel(ui)}</div>`;
   const QTABS = qtabs();
   const tab = QTABS.some(([k]) => k === ui.qtab) ? ui.qtab : 'listas';
   const win = tab.startsWith('w:') ? R.windows(S).find((w) => 'w:' + w.id === tab) : null;

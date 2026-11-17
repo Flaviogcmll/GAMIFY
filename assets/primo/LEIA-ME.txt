@@ -11,3 +11,4 @@ cena/<lugar>-<dia|tarde|noite>.webp   cenários de fundo
 primo.json       medidas: quadros por animação, velocidade, centro do corpo em cada quadro, tamanho dos acessórios
 
 As posições dos acessórios no corpo ficam em js/pnew.js (tabela ACC).
+pose-<nome>.webp poses paradas (v5.14): comemorando, pensando, triste, dormindo-chapeu (preparadas por tools/topo_artes.py)

@@ -62,6 +62,12 @@ export function commit(docs, fn, opts = {}) {
   if (lsync.changed) docs.push('quests');
   docs.push(...touched);
   S._epoch++;
+  // 🪜 escada do esforço: 7 dias seguidos na meta → a meta sobe um degrau (uma vez por semana, no máximo R.LADDER_MAX)
+  S._ladderUp = false;
+  if (R.neuroOn(S, 'ladder')) {
+    const lad = S.core.ladder || [], dg = R.dailyGoal(S);
+    if (dg.streak >= 7 && lad.length < R.LADDER_MAX && (!lad.length || diffDays(lad.at(-1), td) >= 7)) { S.core.ladder = [...lad, td]; S._ladderUp = true; changedCore = true; S._epoch++; }
+  }
   const extra = sync();
   if (extra.changed) docs.push('core');
   if (pre) {
@@ -944,6 +950,10 @@ export function setWeekly(ids, ws = weekStart(today())) {
 }
 export function updateMilestones(list) {
   commit(['core'], () => { S.core.milestones = list.filter(Boolean); });
+}
+/** v5.14: liga/desliga e horários da neurociência (settings.neuro) */
+export function setNeuro(k, v) {
+  commit(['core'], () => { S.core.settings ||= {}; S.core.settings.neuro = { ...(S.core.settings.neuro || {}), [k]: v }; }, { noUndo: true });
 }
 export function setSetting(k, v) {
   commit(['core'], () => { S.core.settings ||= {}; S.core.settings[k] = v; });

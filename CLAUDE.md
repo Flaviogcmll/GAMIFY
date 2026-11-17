@@ -42,6 +42,7 @@ O backup do dono NUNCA entra no repositório.
 - `imgs.js` — imagens e prints nas tarefas: guardadas no aparelho (IndexedDB) e na pasta escondida do app no Drive; na tarefa fica só `t.imgs = [{ k, g }]`.
 - `drive.js` — sincronização com Google Drive. O dono usa no dia a dia (celular e PC); o Claude não consegue testar o login real, só com um Google simulado (rotas do Playwright).
 - `primo.js` (telas e animação), `pnew.js` (desenho novo, com as artes de `assets/primo/`), `pdraw.js` + `pacc.js` (porquinho clássico em pixel, reserva; `pacc.js` só desenha o chapéu de palha), `pstate.js`, `falas.js`, `saber.js`, `claude.js` — o mascote PRIMO.
+- `tools/topo_artes.py` — não é do app: prepara as imagens do topo das abas e as poses do PRIMO.
 - `tools/primo_artes.py` — não é do app: prepara as artes do PRIMO (recorta fundo, corta quadros dos vídeos, reduz) quando o dono gera imagens novas.
 - `v3.js`, `v35.js`, `v4.js` — recursos adicionados por versão (legado; têm imports circulares, cuidado).
 - `views/*.js` — uma tela por arquivo. `css/app.css` — todo o visual. `sw.js` — modo offline.
@@ -53,11 +54,13 @@ O backup do dono NUNCA entra no repositório.
 - LISTAS é a janela mãe: `syncLists()` cria uma tarefa nas LISTAS (`t.mother`) para todo bloco ativo sem `b.src`, menos os BOSSES (são as próprias mães). Blocos e listas ficam em 3 colunas FIXAS (`inColumns` em `v35.js`): nunca use CSS columns (redistribui entre colunas).
 - Janelas criadas pelo dono são gavetas: o bloco guarda `b.win`, mas `b.group` continua sendo o tipo-base (bd, tr, cap, gs). Nunca invente um `group` novo: as regras de XP dependem desses quatro. Para saber a aba de um bloco, use `R.winOf`.
 - Nomes de listas e janelas são personalizáveis (`core.labels` → `R.applyLabels`). Em código, compare sempre pela CHAVE (`hoje`, `bd`…), nunca pelo texto.
-- Os testes do Claude congelam a data (15/11/2026, a do backup de teste): sem isso, tarefas viram atrasadas, a loja tranca (ATOLADO) e os testes falham por motivo errado.
+- Os testes do Claude congelam a data (15/11/2026, a do backup de teste): sem isso, tarefas viram atrasadas, a loja tranca (ATOLADO) e os testes falham por motivo errado. Se o relógio congelado cair depois da hora de dormir (padrão 23:00, menos 1 h), o QUESTS mostra o fechamento do dia no lugar das listas: congele num horário de dia ou use o botão "ver as listas mesmo assim".
 - Os pedidos do dono ficam no bloco APP (janela BREAKDOWN) do próprio app: para ler, peça um backup novo (PERKS → BAIXAR BACKUP).
 - Meses esvaziados do ARQUIVO viram `core.legacy.days`, somados em `R.idx`: ao mexer no histórico de XP por dia, lembre deles.
 - Reorganizar os dados do dono: faça rodando o PRÓPRIO app (Playwright + `actions.js`) sobre um backup dele e entregue um arquivo para IMPORTAR; nunca edite o JSON à mão. Ele não pode mexer no app entre o backup e a importação.
 - O cache de totais depende de `S._epoch++`.
+- Cores têm significado fixo (v5.14): use as variáveis `--c-urg`, `--c-quase`, `--c-atencao`, `--c-ok`, `--c-calma`, `--c-espera`, `--c-neutro`, `--c-premio`, `--c-acao`. Não invente cor nova para enfeitar: cor nova só com significado novo, registrado em `COLOR_MEANING` (v35.js).
+- A meta diária muda com a escada do esforço: leia sempre por `R.dailyGoal`/`R.goalAt`, nunca `settings.dailyGoal` direto.
 - O topo (`.top` + `.tabs`) só fica preso na primeira tela de rolagem (o `body` tem altura fixa). A variável CSS `--stick`, atualizada em `app.js`, diz onde ele termina; a barra das janelas do QUESTS e o painel da direita usam essa variável.
 - Qualquer redesenho (`render()`) recria a tela: o que estiver digitado nas linhas "+ adicionar" e a rolagem do painel da direita são guardados e devolvidos por `render()`. Campo novo desse tipo precisa entrar em `ADD_SEL`.
 - O XP do topo anima: leitura no meio da animação dá número intermediário.
