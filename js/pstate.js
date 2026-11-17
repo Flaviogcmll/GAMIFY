@@ -124,6 +124,10 @@ export function petSync() {
 
 // ───────────────────────── ARMÁRIO ─────────────────────────
 export const SLOTS = [['hat', 'CABEÇA'], ['eyes', 'ÓCULOS'], ['neck', 'PESCOÇO'], ['back', 'COSTAS']];
+// ARMÁRIO DESLIGADO (17/11/2026, pedido do dono): os acessórios não encaixaram bem na arte nova do PRIMO.
+// Tudo continua no código (lista abaixo, posições em pnew.js, desenho clássico em pacc.js) e o que ele já tinha escolhido
+// continua salvo em core.primo.wear. Para religar no futuro: troque para true e reveja as posições (tabela ACC em pnew.js).
+export const WARDROBE_ON = false;
 export const WARDROBE = [
   { id: 'bone', slot: 'hat', name: 'Boné vermelho', need: { lv: 1 } }, { id: 'palha', slot: 'hat', name: 'Chapéu de palha', need: { lv: 2 } },
   { id: 'gorro', slot: 'hat', name: 'Gorro de lã', need: { lv: 3 } }, { id: 'bandana', slot: 'hat', name: 'Bandana', need: { lv: 6 } },
@@ -145,7 +149,7 @@ export function wardrobeOk(it, s = S) {
   if (n.ach) return { ok: !!s.core?.achievements?.[n.ach], hint: 'conquista PONTUALIDADE DE ELITE' };
   return { ok: true, hint: '' };
 }
-export const wearing = () => ({ hat: null, eyes: null, neck: null, back: null, ...(P().wear || {}) });
+export const wearing = () => ({ hat: null, eyes: null, neck: null, back: null, ...(WARDROBE_ON ? P().wear || {} : {}) });
 export function setWear(slot, id) {
   if (id) { const it = WARDROBE.find((x) => x.id === id); if (!it || it.slot !== slot || !wardrobeOk(it).ok) return { error: 'Ainda não liberou esse item.' }; }
   return commit(['core'], () => { const p = ensure(); p.wear = { ...(p.wear || {}), [slot]: id || null }; });

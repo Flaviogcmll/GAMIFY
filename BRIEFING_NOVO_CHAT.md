@@ -1,6 +1,6 @@
 # BRIEFING — GAMIFY (leia tudo antes de mexer em qualquer coisa)
 
-Atualizado em 17/11/2026: repositório real conferido (v5.1) e sete rodadas feitas (v5.2 a v5.8; a última: economia rebalanceada + PRIMO novo com as artes do dono).
+Atualizado em 17/11/2026: repositório real conferido (v5.1) e oito rodadas feitas (v5.2 a v5.9; as últimas: economia rebalanceada, PRIMO novo com as artes do dono e armário de acessórios desligado).
 Este arquivo substitui o briefing antigo. O que mudou em relação a ele está na seção "CONFERIDO EM 15/11/2026".
 
 ## PASSO 0: ALINHAR ANTES DE TUDO
@@ -172,6 +172,11 @@ O dono usa muito mais o PC. Pedidos atendidos:
 - O porquinho clássico em pixel continua como reserva: seletor "Desenho do PRIMO" em PERKS (`gamify-ui:primo-art`) e volta automática se as artes não carregarem.
 - Armário: 6 peças novas (`novo: true` em `WARDROBE`), que só aparecem na arte nova. Ícone do app trocado pelo do dono.
 - O cenário da fogueira (dia e noite) tem um porquinho pequeno desenhado junto ao fogo; o dono escolheu deixar.
+
+## RODADA 8 — v5.9 (17/11/2026): armário desligado
+- O dono achou os acessórios bugados na arte nova e pediu para tirar a opção por enquanto, mantendo o código. `WARDROBE_ON = false` em `pstate.js`: o botão ARMÁRIO some e o PRIMO aparece sem acessório (nos dois desenhos). A escolha antiga continua salva em `core.primo.wear`. Para religar: `WARDROBE_ON = true` e rever as posições (tabela `ACC` em `pnew.js`), principalmente durante o pulo, o andar e o "comendo".
+- O dono anota os pedidos num bloco chamado APP, na janela BREAKDOWN do próprio app. O Claude só enxerga esse bloco por um backup (PERKS → BAIXAR BACKUP): peça um backup novo sempre que ele disser "está anotado no bloco APP".
+- Do bloco APP de 15/11 ficaram dois itens sem fazer, por estarem ambíguos (perguntar antes): "BOTÃO DE RESETAR PROGRESSO nas configs" (zerar o quê?) e "REMOVER OPÇÃO DE ÁREA … ir para o local certo apenas colocando a cor" (dependia de um print).
 
 ## PRÓXIMAS RODADAS
 Princípio do dono: qualidade de vida e praticidade; tudo integrado como um ecossistema; simples no fim das contas (o app não pode tomar o tempo das tarefas). Ele aceita sugestões melhores que o pedido. **Sem mecânicas novas por enquanto** (pedido dele em 16/11).
