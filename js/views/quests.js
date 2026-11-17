@@ -6,6 +6,7 @@ import { taskRow, segBar, statusChips, dueChip } from '../ui.js';
 import { px } from '../icons.js';
 import { isCollapsed, companionCard } from '../v3.js';
 import { arrange, inColumns } from '../v35.js';
+import { overflowBar } from '../bujo.js';
 
 const sortOrd = (a, b) => a.ord - b.ord;
 /** blocos em 3 colunas fixas (o bloco i fica sempre na coluna i % 3: abrir um bloco só empurra os de baixo dele) */
@@ -32,7 +33,7 @@ function listCard(area, ui) {
   const rv = R.listReviewed(S, area);
   return `<section class="list-card ${isCollapsed('l:' + area) ? 'collapsed' : ''} ${rv ? 'reviewed' : ''}" data-list="${area}" data-drop-area="${area}"><header><h2 data-act="collapse" data-k="l:${area}" style="cursor:pointer"><span class="chev">${isCollapsed('l:' + area) ? '▸' : '▾'}</span> ${R.AREAS[area]}</h2>
       <span class="row" style="gap:4px"><span class="meta">${open.length}${late ? ` · <span class="bad">${late} atrasada${late > 1 ? 's' : ''}</span>` : ''}</span><button class="icon-btn" data-act="sort" data-area="${area}" title="Organizar por data">⇅</button></span></header>
-    <ul class="tasks">${show.map((t) => taskRow(t, { list: true, sub: sub(t) })).join('')}${show.length ? '' : `<div class="empty">${wait ? 'ninguém te segurando. 👏' : 'vazio.'}</div>`}</ul>
+    ${area === 'hoje' ? overflowBar() : ''}<ul class="tasks">${show.map((t) => taskRow(t, { list: true, sub: sub(t) })).join('')}${show.length ? '' : `<div class="empty">${wait ? 'ninguém te segurando. 👏' : 'vazio.'}</div>`}</ul>
     ${!ui.showDone && nHidden ? `<button class="more" data-act="toggle-done">✓ ${nHidden} feitas · mostrar</button>` : ''}
     ${stalled ? `<button class="more" data-act="toggle-stalled">⬛ ${stalled} parada(s) · mostrar</button>` : ''}
     <form class="addline" data-form="add-task" data-area="${area}" autocomplete="off"><input class="inp" name="text" placeholder="+ adicionar ${LIST_HINT[area]}" aria-label="Adicionar em ${R.AREAS[area]}"></form>
@@ -43,13 +44,14 @@ function listCard(area, ui) {
 function bossPanel(ui) {
   const ordOf = (b) => R.findBlock(S, b.block)?.ord ?? b.ord, list = [...S.quests.bosses].sort((a, z) => ordOf(a) - ordOf(z)).sort((a, z) => (a.st === 'done') - (z.st === 'done'));
   const card = (b) => {
-    const hp = R.bossHp(S, b), blk = hp?.block, done = b.st === 'done';
+    const hp = R.bossHp(S, b), blk = hp?.block, done = b.st === 'done', paused = R.bossPaused(b), idle = R.bossIdle(S, b);
     const items = blk ? S.quests.tasks.filter((t) => t.block === blk.id).sort(sortOrd) : [];
     const show = ui.showDone || done ? items : items.filter(visible);
     const ck = blk?.id || b.id;
-    return `<article class="block boss-b ${done ? 'closed' : ''} ${isCollapsed('b:' + ck) ? 'collapsed' : ''}" data-color="red" ${blk ? `data-drop-block="${blk.id}"` : ''}>
+    return `<article class="block boss-b ${done ? 'closed' : ''} ${paused ? 'paused' : ''} ${isCollapsed('b:' + ck) ? 'collapsed' : ''}" data-color="red" ${blk ? `data-drop-block="${blk.id}"` : ''}>
       <div class="bh"><div class="stripe"></div><div class="bt" data-act="edit-boss" data-id="${b.id}"><h3>👹 ${esc(b.text.replace(/:\s*[\d.]+\s*XP.*$/i, ''))}</h3>
-        <div class="bm"><span class="acc">${fmtN(b.xp)} XP + 1🎟</span>${hp && hp.total ? `<span>HP ${fmtN(hp.left)}/${fmtN(hp.total)}</span>` : '<span>quebre em subtarefas ↓</span>'}${done ? `<span class="good">DERROTADO ${fmtDM(b.doneAt)}</span>` : b.st === 'wait' ? '<span>⏳ aguardando</span>' : ''}</div>
+        <div class="bm"><span class="acc">${fmtN(b.xp)} XP + 1🎟</span>${hp && hp.total ? `<span>HP ${fmtN(hp.left)}/${fmtN(hp.total)}</span>` : '<span>quebre em subtarefas ↓</span>'}${done ? `<span class="good">DERROTADO ${fmtDM(b.doneAt)}</span>` : paused ? `<span class="info">⏸ volta ${fmtDM(b.pause)}</span>` : b.st === 'wait' ? '<span>⏳ aguardando</span>' : idle >= R.BOSS_IDLE_DAYS && R.neuroOn(S, 'why') ? `<span class="warn">💤 ${idle} dias parado</span>` : ''}</div>
+        ${!done && b.why && R.neuroOn(S, 'why') ? `<p class="bwhy">💡 ${esc(b.why)}</p>` : ''}
         ${hp && hp.total && !done ? segBar(hp.pct, 'hp') : ''}</div>
        <div class="bbtns">${blk ? `<span class="handle" data-handle="block" data-id="${blk.id}" title="Segure e arraste">⠿</span>` : ''}<button class="icon-btn" data-act="boss-toggle" data-id="${b.id}" aria-label="${done ? 'Reabrir' : 'Derrotar'} boss" title="${done ? 'Reabrir' : 'Derrotar na hora'}">${done ? '↺' : '⚔'}</button><button class="icon-btn" data-act="collapse" data-k="b:${ck}" aria-label="Recolher boss"><span class="chev">${isCollapsed('b:' + ck) ? '▸' : '▾'}</span></button></div></div>
       <div class="bbody"><ul class="tasks">${show.map((t) => taskRow(t, { showPin: true })).join('') || '<div class="empty">sem subtarefas.</div>'}</ul>

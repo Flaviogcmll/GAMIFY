@@ -1166,7 +1166,9 @@ export function chapterStats(s, from, to = today()) {
 // segundo pico no fim da tarde; luz baixa e desaceleração antes de dormir), "sono é inegociável" (7 a 9 h),
 // "coma nos mesmos horários" (comida é sinal para o relógio do corpo) e "não deixe a dopamina mimada".
 // Tudo liga/desliga em PERKS (settings.neuro). Os horários são do dono.
-export const NEURO_DEFAULT = { clock: true, curfew: true, calm: true, ladder: true, wake: '07:00', bed: '23:00', meals: ['08:00', '12:30', '19:30'] };
+export const NEURO_DEFAULT = { clock: true, curfew: true, calm: true, ladder: true, wake: '07:00', bed: '23:00', meals: ['08:00', '12:30', '19:30'],
+  // v5.16: Bullet Journal e praticidade (cada um liga/desliga em PERKS → 🧠)
+  mig: true, why: true, box: true, cheio: true, pato: true, quick: true, swipe: true };
 export const neuro = (s) => ({ ...NEURO_DEFAULT, ...(s.core?.settings?.neuro || {}) });
 export const neuroOn = (s, k) => neuro(s)[k] !== false;
 export const hm = (x) => { const [h, m] = String(x || '0:0').split(':').map(Number); return ((h || 0) * 60 + (m || 0)) % 1440; };
@@ -1194,4 +1196,45 @@ export function heaviestTask(s, td = today()) {
   const ts = openTasks(s).filter((t) => t.st !== 'wait' && !t.who && !t.dep && (!t.due || t.due <= addDays(td, 7)));
   const score = (t) => (t.prio ? 400 : 0) + (parse(t.text).star ? 200 : 0) + (t.due && t.due < td ? 150 : t.due === td ? 100 : 0) + taskXp(s, t).xp;
   return ts.sort((a, b) => score(b) - score(a))[0] || null;
+}
+
+// ───────────────────────── v5.16: BULLET JOURNAL (Ryder Carroll) ─────────────────────────
+// A) MIGRAÇÃO DO MÊS: "se não vale reescrever, não vale fazer". Candidatas: tarefas das LISTAS abertas, sem prazo
+// ou antigas (criadas há 30+ dias e com prazo a mais de 7 dias). Atrasadas ficam com a revisão de "o que ficou pra trás".
+export const ym = (d = today()) => d.slice(0, 7);
+export function migrationCandidates(s, td = today()) {
+  if (!neuroOn(s, 'mig')) return [];
+  const old = addDays(td, -30), far = addDays(td, 7), m = ym(td);
+  return openTasks(s).filter((t) => !t.block && !t.link && !t.mother && t.st !== 'wait' && !t.who && !t.dep && t.mig !== m
+    && (!t.due || ((t.created || td) <= old && t.due > far))).sort((a, b) => (a.created || '').localeCompare(b.created || ''));
+}
+/** a migração deste mês ainda não foi oferecida e tem o que migrar */
+export const migrationPending = (s, td = today()) => neuroOn(s, 'mig') && s.core?.migrated !== ym(td) && td.slice(8) <= '10' && migrationCandidates(s, td).length > 0;
+
+// H) PAUSA DE META: o boss fica pausado até a data (no máximo 14 dias); passou a data, volta sozinho.
+export const BOSS_PAUSE_MAX = 14;
+export const bossPaused = (b, td = today()) => !!(b?.pause && b.pause > td && b.st !== 'done');
+// C) BOSS PARADO: dias desde a última subtarefa concluída (ou desde que o boss nasceu)
+export function bossIdle(s, boss, td = today()) {
+  const b = bossBlock(s, boss);
+  if (!b || boss.st === 'done' || boss.st === 'wait' || bossPaused(boss, td)) return 0;
+  const last = allTasks(s).filter((t) => t.block === b.id && t.st === 'done' && t.doneAt).map((t) => t.doneAt).sort().at(-1);
+  const from = [last, boss.pausedTo, b.created].filter(Boolean).sort().at(-1);
+  return from ? Math.max(0, diffDays(from, td)) : 0;
+}
+export const BOSS_IDLE_DAYS = 7;
+export const staleBosses = (s, td = today()) => (neuroOn(s, 'why') ? (s.quests?.bosses || []).map((b) => ({ boss: b, days: bossIdle(s, b, td) })).filter((x) => x.days >= BOSS_IDLE_DAYS).sort((a, b) => b.days - a.days) : []);
+
+// E) TIME BOXING: remarcada 3 vezes → para empurrar de novo precisa de horário + duração (ou cancelar)
+export const RESCHED_LOCK = 3;
+export const reschedLocked = (s, t) => neuroOn(s, 'box') && (t?.rs || 0) >= RESCHED_LOCK;
+
+// F) ATENÇÃO RESIDUAL: HOJE com mais tarefas que o limite (AJUSTES → máx. prazos por dia)
+export function hojeOverflow(s, td = today()) {
+  const max = s.core?.settings?.maxPerDay || C.MAX_PER_DAY;
+  const hoje = openTasks(s).filter((t) => !t.block && t.st !== 'wait' && !t.who && !t.dep && t.due && t.due <= td);
+  if (!neuroOn(s, 'cheio') || hoje.length <= max) return null;
+  const score = (t) => (t.prio ? 400 : 0) + (parse(t.text).star ? 200 : 0) + (t.st === 'doing' ? 300 : 0) + taskXp(s, t).xp;
+  const movable = hoje.filter((t) => t.due === td && !t.prio && t.st !== 'doing' && !t.link && !reschedLocked(s, t)).sort((a, b) => score(a) - score(b));
+  return { count: hoje.length, max, suggest: movable.slice(0, hoje.length - max) };
 }

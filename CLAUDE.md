@@ -37,7 +37,8 @@ O backup do dono NUNCA entra no repositório.
 - `actions.js` — tudo que MUDA dados, sempre via `commit()` (desfazer/refazer). Migrações rodam no `startup()`.
 - `store.js` — carrega/salva. `S` = estado global. No GitHub Pages os dados ficam no `localStorage` do aparelho.
 - `backup.js` — proteção dos dados no aparelho: cópia automática diária (`gamify-bak:*`), lembrete de backup, restaurar.
-- `review.js` — entrevista do dia e revisão de retorno (o PRIMO conduz, na 1ª abertura do dia).
+- `review.js` — entrevista do dia e revisão de retorno (o PRIMO conduz, na 1ª abertura do dia). Também a migração do mês e o lembrete do boss parado.
+- `bujo.js` — anotar rápido (botão +), arrastar a tarefa no celular, aviso de HOJE cheio e pato de borracha. Liga/desliga em PERKS → 🧠 (`settings.neuro`).
 - `trip.js` — modo VIAGEM/VISITAS (congela o jogo; na volta empurra prazos e cria as tarefas de chegada).
 - `imgs.js` — imagens e prints nas tarefas: guardadas no aparelho (IndexedDB) e na pasta escondida do app no Drive; na tarefa fica só `t.imgs = [{ k, g }]`.
 - `drive.js` — sincronização com Google Drive. O dono usa no dia a dia (celular e PC); o Claude não consegue testar o login real, só com um Google simulado (rotas do Playwright).

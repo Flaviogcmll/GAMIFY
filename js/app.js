@@ -38,6 +38,7 @@ import { extendImgs, imgSection, fillImgs } from './imgs.js';
 import { autoSnapshot, backupBanner, extendBackup, markBackup, restoreDocs } from './backup.js';
 import { tripBanner, tripCheck, extendTrip } from './trip.js';
 import { maybeReview, extendReview } from './review.js';
+import { extendBujo, afterRenderBujo } from './bujo.js';
 
 
 // abas na mesma ordem da planilha
@@ -137,6 +138,7 @@ function render() {
   try { maybeReview(); } catch (err) { console.error(err); }
   try { afterRender(cur); } catch (err) { console.error(err); }
   try { afterRender4(cur); } catch (err) { console.error(err); }
+  try { afterRenderBujo(); } catch (err) { console.error(err); }
   refocus();
   redraft();
   const side = $main.querySelector('.side'); // o painel da direita tem rolagem própria: volta pra onde estava
@@ -289,6 +291,11 @@ function editTask(id) {
     <label class="lbl" for="t-due">Prazo</label><div class="row"><input class="inp" type="date" id="t-due" name="due" value="${t.due || ''}" ${cap ? `max="${cap}" title="Até o prazo do bloco"` : ''} style="width:auto">
       ${[['HOJE', td], ['AMANHÃ', addDays(td, 1)], ['+3', addDays(td, 3)], ['PRÓX. SEG', nextMon], ['SEM', '']].map(([n, d]) => `<button type="button" class="btn sm ghost" data-act="due-quick" data-d="${d}">${n}</button>`).join('')}</div>
     ${t.due ? `<p class="meta" style="margin:4px 0 0">${t.due < td ? `⏰ Atrasada: concluir agora paga só ${Math.round(Math.max(R.C.LATE_MIN, 1 - R.C.LATE_DAY * diffDays(t.due, td)) * 100)}% do XP. ` : ''}Empurrar o prazo custa <b>${A.reschedBase({ ...t, due: '0' }, '9')}</b> XP${A.freeResched() ? ' (mas a 1ª remarcação da semana é grátis)' : ''}${t.rs ? ` · já remarcada ${t.rs}x` : ''}; antecipar é de graça.</p>` : ''}
+    ${R.reschedLocked(S, t) && R.isOpen(t) ? `<div class="boxlock"><b>🔒 Já remarcada ${t.rs}x.</b> Pra empurrar de novo, combine com você mesmo um horário e quanto tempo (time box). Ou cancele: se não vale fazer, tudo bem.
+      <div class="row" style="margin-top:6px"><label>⏰ às <input class="inp" type="time" name="box_at" value="${esc(t.box?.at || '')}" style="width:auto;display:inline-block"></label>
+      <label>por <select class="inp" name="box_min" style="width:auto;display:inline-block">${[15, 25, 50, 90].map((m) => `<option value="${m}" ${(t.box?.min || 25) === m ? 'selected' : ''}>${m} min</option>`).join('')}</select></label>
+      <button type="button" class="btn sm ghost" data-act="set-status" data-id="${id}" data-st="cancel">✕ CANCELAR TAREFA</button></div></div>` : t.box ? `<p class="meta" style="margin:4px 0 0">⏰ time box: ${esc(t.box.at)} · ${t.box.min} min</p>` : ''}
+    ${(t.duck || []).length ? `<p class="meta" style="margin:4px 0 0">🦆 ${esc([t.duck.at(-1).tried, t.duck.at(-1).nok].filter(Boolean).join(' · ').slice(0, 140))} <a href="#" data-act="duck" data-id="${id}">explicar de novo</a></p>` : ''}
     <label class="lbl">Marcadores</label><div class="row" style="gap:14px;font-size:12.5px">
       ${[['', '• tarefa'], ['mini', '⚔ mini-boss'], ['step', '↳ passo']].map(([k, n]) => `<label title="${k === 'mini' ? 'Vitória no meio do caminho: vale mais XP e solta fogos' : k === 'step' ? 'Ação pequena embaixo de outra' : 'Tarefa comum'}"><input type="radio" name="kind" value="${k}" ${(p.mini ? 'mini' : p.step ? 'step' : '') === k ? 'checked' : ''}> ${n}</label>`).join('')}
       <label><input type="checkbox" name="star" ${p.star ? 'checked' : ''}> ⭐ chata x2</label><label><input type="checkbox" name="home" ${p.home ? 'checked' : ''}> 🛡 casa/família</label>
@@ -369,12 +376,17 @@ function editHabits() {
     <div class="actions"><button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">SALVAR</button></div></form>`);
 }
 function editBoss(id) {
-  const b = S.quests.bosses.find((x) => x.id === id);
+  const b = S.quests.bosses.find((x) => x.id === id), td = today(), paused = R.bossPaused(b);
   if (!b) return;
   openModal(`<form data-form="boss" data-id="${id}" autocomplete="off"><h2>👹 boss</h2><p class="meta" style="margin:0">A vida (HP) é o que falta no próprio boss: cada subtarefa feita tira vida. Zerou, ele cai.</p>
     <label class="lbl" for="bo-text">Meta</label><input class="inp" id="bo-text" name="text" value="${esc(b.text)}" autofocus>
     <div class="row"><div style="width:130px"><label class="lbl" for="bo-xp">XP</label><input class="inp" id="bo-xp" name="xp" type="number" min="1" value="${b.xp}"></div>
-      <div><label class="lbl" for="bo-st">Situação</label><select class="inp" id="bo-st" name="st"><option value="">EM ABERTO</option><option value="wait" ${b.st === 'wait' ? 'selected' : ''}>… AGUARDANDO</option>${b.st === 'done' ? '<option value="done" selected>DERROTADO</option>' : ''}</select></div></div>
+      <div><label class="lbl" for="bo-st">Situação</label><select class="inp" id="bo-st" name="st"><option value="">EM ABERTO</option><option value="wait" ${b.st === 'wait' ? 'selected' : ''}>… AGUARDANDO</option>${b.st !== 'done' ? `<option value="pause" ${paused ? 'selected' : ''}>⏸ PAUSADO</option>` : ''}${b.st === 'done' ? '<option value="done" selected>DERROTADO</option>' : ''}</select></div>
+      ${b.st !== 'done' ? `<div class="pausef"><label class="lbl" for="bo-pause">⏸ volta em (até ${R.BOSS_PAUSE_MAX} dias)</label><input class="inp" type="date" id="bo-pause" name="pause" value="${paused ? b.pause : addDays(td, 7)}" min="${addDays(td, 1)}" max="${addDays(td, R.BOSS_PAUSE_MAX)}" style="width:auto"></div>` : ''}</div>
+    <p class="meta pausef" style="margin:4px 0 0">Pausar não é desistir: os prazos das subtarefas andam junto, sem custo, e o boss volta sozinho na data.</p>
+    ${R.neuroOn(S, 'why') ? `<label class="lbl" for="bo-why">💡 Por que isso importa pra mim? (opcional)</label><textarea class="inp" id="bo-why" name="why" rows="2" maxlength="300">${esc(b.why || '')}</textarea>
+    <label class="lbl" for="bo-fear">⚠ O que acontece se eu NÃO fizer? (opcional)</label><textarea class="inp" id="bo-fear" name="fear" rows="2" maxlength="300">${esc(b.fear || '')}</textarea>
+    <p class="meta" style="margin:4px 0 0">Quando o boss ficar ${R.BOSS_IDLE_DAYS} dias parado, o PRIMO te lembra destas respostas.</p>` : ''}
     <div class="actions"><div class="left"><button type="button" class="btn sm danger" data-act="del-boss" data-id="${id}">APAGAR</button></div><button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">SALVAR</button></div></form>`);
 }
 function redemption() {
@@ -413,6 +425,7 @@ function sos(taskId) {
     clearInterval(sosTimer);
     m.innerHTML = `<h2>o menor passo.</h2><p class="muted">Escolha UMA coisa e combine só 10 minutos. Não precisa terminar.</p>
       <div class="list">${(t ? [t] : smallest).map((x) => `<button class="li" style="width:100%;text-align:left;border:0;background:none;cursor:pointer" data-act="sos-pick" data-id="${x.id}"><span class="lt">${esc(x.text)}<small>${esc(x.block ? R.findBlock(S, x.block)?.title : R.AREAS[x.area])}</small></span><span class="chip">10 MIN</span></button>`).join('')}</div>
+      ${R.neuroOn(S, 'pato') ? `<p class="meta" style="margin:10px 0 0">Nem sabe por onde começar? <a href="#" data-act="duck" data-id="${t?.id || ''}">🦆 explique pro PRIMO</a>: o que tentou, o que funcionou, o que não.</p>` : ''}
       <form data-form="sos-tiny" class="row" style="margin-top:10px"><input class="inp grow" name="text" placeholder="ou escreva um micro-passo (ex.: abrir o arquivo)" aria-label="Micro-passo"><button class="btn">OK</button></form>
       <div class="actions"><button class="btn" data-close>FECHAR</button></div>`;
   };
@@ -685,10 +698,12 @@ const FORMS = {
     const text = rebuildText(f.text.value, { star: f.star.checked, home: f.home.checked, money: f.money.checked, xp: +f.xp.value || null, kind: f.kind.value });
     const [kind, val] = f.where.value.split(':');
     const patch = { text, due: f.due.value || null, prio: f.prio.checked || undefined, cycle: f.cycle.checked, who: f.who.value.trim().toUpperCase() || undefined, dep: f.dep.value || undefined };
+    if (f.box_at?.value && patch.due && t.due && patch.due > t.due) patch.box = { at: f.box_at.value, min: +f.box_min.value || 25 }; // v5.16 E) time box destrava a remarcação
     if ((patch.who || patch.dep) && (!t.st || t.st === 'doing')) patch.st = 'wait'; // disse quem segura: vai pra AGUARDANDO
     if (!patch.who && !patch.dep && (t.who || t.dep) && t.st === 'wait') patch.st = ''; // limpou: volta pra fila
     if (f.pin) patch.pin = f.pin.value || undefined;
     if (f.where.value !== (t.block ? `block:${t.block}` : 'area:auto')) { if (kind === 'block') patch.block = val; else { patch.block = null; patch.area = 'sem'; } } // fora de bloco, a data escolhe a lista
+    if (patch.due && t.due && patch.due > t.due && R.reschedLocked(S, t) && !patch.box) { sfx('error'); toast('🔒 Marque o horário (⏰) do time box pra empurrar de novo, ou cancele a tarefa.', 'bad'); f.box_at?.focus(); return; }
     if (!(await confirmResched(t, patch.due))) return;
     const cost = A.reschedCost(t, patch.due || null), r = A.updateTask(t.id, patch);
     if (r?.error) { toast(esc(r.error), 'bad'); return; }
@@ -709,7 +724,16 @@ const FORMS = {
     A.updateBlock(b.id, patch);
     closeModal();
   },
-  boss: (f) => { const patch = { text: f.text.value.trim(), xp: +f.xp.value || 200 }; /* a vida vem sempre do próprio bloco do boss */ if (f.st.value !== 'done') patch.st = f.st.value; A.updateBoss(f.dataset.id, patch); closeModal(); },
+  boss: (f) => {
+    const b = S.quests.bosses.find((x) => x.id === f.dataset.id), st = f.st.value;
+    const patch = { text: f.text.value.trim() || b.text, xp: +f.xp.value || 200 }; // a vida vem sempre do próprio bloco do boss
+    if (f.why) { patch.why = f.why.value.trim() || undefined; patch.fear = f.fear.value.trim() || undefined; }
+    if (st !== 'done') patch.st = st === 'pause' ? '' : st;
+    A.updateBoss(b.id, patch);
+    if (st === 'pause' && f.pause?.value && f.pause.value !== b.pause) A.pauseBoss(b.id, f.pause.value);
+    else if (st !== 'pause' && R.bossPaused(b)) A.resumeBoss(b.id);
+    closeModal();
+  },
   ritual: (f) => { A.saveRitual({ id: f.dataset.id, type: f.type.value, name: f.name.value, mode: f.mode.value, every: f.every.value, dom: f.dom.value, last: f.last.value, plan: f.plan.value, notes: f.notes.value }); closeModal(); },
   'ritual-plan': (f) => { A.planRitual(f.dataset.id, f.plan.value || null); closeModal(); sfx('tab'); },
   item: (f) => {
@@ -745,6 +769,7 @@ const FORMS = {
     if (status.empty || await ask('Substituir tudo?', 'Os dados atuais serão trocados pelos do backup.', 'SUBSTITUIR', true)) { restoreDocs(docs); render(); toast('Backup importado', 'good'); }
   },
 };
+extendBujo(ACTIONS, FORMS);
 document.addEventListener('submit', (e) => { const f = e.target.closest('form[data-form]'); if (!f) return; e.preventDefault(); FORMS[f.dataset.form]?.(f); });
 document.addEventListener('click', () => flushAdd()); // depois do clique tratado: adiciona o texto que ficou numa linha "+ adicionar"
 document.addEventListener('change', (e) => {

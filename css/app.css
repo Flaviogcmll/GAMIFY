@@ -166,7 +166,7 @@ label.lbl { display: block; font: 7.5px/1.4 var(--f-pixel); color: var(--dim); m
 .lists.six, .mcols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: start; }
 .mcol { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .group.wide > .mcols { grid-column: 1 / -1; }
-@media (max-width: 860px) { .lists.six, .mcols { display: flex; flex-direction: column; } .mcol { display: contents; } }
+@media (max-width: 860px) { .lists.six, .mcols { display: flex; flex-direction: column; align-items: stretch; } .mcol { display: contents; } }
 /* REVISADO nas listas e janela toda revisada (verde na barra) */
 .list-card.reviewed { outline: 2px solid var(--good); outline-offset: -2px; }
 .qbar .seg button.allrev { border-color: #3f9a5c !important; box-shadow: inset 0 -4px 0 #3f9a5c; }
@@ -999,3 +999,41 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 .daystrip .day small { display: block; font-size: 10px; color: var(--dim); }
 .daystrip .day.today { opacity: 1; border-color: var(--c-acao); background: var(--accent-soft); box-shadow: 0 0 0 3px var(--c-acao), 3px 3px 0 var(--shadow); transform: translateY(-2px); }
 .daystrip .day.over { border-color: var(--c-acao); background: var(--accent-soft); transform: scale(1.05); }
+
+/* ───────── v5.16 — BULLET JOURNAL E PRATICIDADE ───────── */
+/* Q1 anotar rápido: botão + fixo (cor de ação = madeira, a casa do app) */
+.qadd { position: fixed; right: 16px; bottom: 16px; z-index: 45; width: 52px; height: 52px; border: 2px solid var(--edge); background: var(--c-acao); color: #fff7ef; font: 22px/1 var(--f-pixel); box-shadow: 4px 4px 0 var(--shadow); cursor: pointer; }
+.qadd:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--shadow); }
+.qadd[hidden] { display: none; }
+.toasts { bottom: 82px; }
+.qwhen label { cursor: pointer; } .qwhen input { margin: 0 4px 0 0; }
+/* Q2 arrastar no celular: ← conclui (verde) · → amanhã (laranja = AMANHÃ) */
+@media (pointer: coarse) { li.task { touch-action: pan-y; } }
+li.task.swiping { transition: none; z-index: 2; background: var(--panel); }
+li.task.sw-done { box-shadow: inset -6px 0 0 var(--c-ok); background: color-mix(in srgb, var(--c-ok) 18%, var(--panel)); }
+li.task.sw-next { box-shadow: inset 6px 0 0 var(--c-quase); background: color-mix(in srgb, var(--c-quase) 18%, var(--panel)); }
+li.task.sw-done::after, li.task.sw-next::after { position: absolute; top: 50%; transform: translateY(-50%); font: 8px/1 var(--f-pixel); pointer-events: none; }
+li.task.sw-done::after { content: '✓ CONCLUIR'; right: -96px; color: var(--c-ok); }
+li.task.sw-next::after { content: 'AMANHA →'; left: -88px; color: var(--c-quase); }
+.tasks { overflow-x: clip; }
+/* Q3 avisos: um por vez; o ×N conta os iguais */
+.toast { cursor: pointer; } .toast .tx { font: 8px/1 var(--f-pixel); color: var(--c-premio); margin-left: 4px; }
+/* F HOJE cheio demais (amarelo = atenção) */
+.cheio { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: space-between; margin: 0 0 6px; padding: 6px 8px; border: 2px dashed var(--c-atencao); font-size: 11.5px; }
+/* E time box */
+.boxlock { margin-top: 8px; padding: 8px 10px; border: 2px solid var(--c-quase); background: color-mix(in srgb, var(--c-quase) 10%, transparent); font-size: 12px; }
+.chip.box { color: var(--c-calma); border-color: var(--c-calma); }
+/* C porquê do boss · H boss pausado (azul = calma/descanso) */
+.bwhy { margin: 4px 0 0; font-size: 11.5px; color: var(--muted); font-style: italic; overflow-wrap: anywhere; }
+.bwhy.fear { color: var(--c-urg); }
+.block.boss-b.paused { opacity: .62; filter: saturate(.4); }
+.block.boss-b.paused .stripe { background: var(--c-calma); }
+/* A migração do mês */
+.migcard { border: 2px solid var(--edge); background: var(--panel-2); padding: 12px; text-align: center; box-shadow: 3px 3px 0 var(--shadow); }
+.migcard b { display: block; font-size: 14px; overflow-wrap: anywhere; } .migcard small { display: block; color: var(--dim); margin-top: 4px; }
+@media (max-width: 860px) {
+  .qadd { right: 12px; bottom: calc(78px + env(safe-area-inset-bottom)); width: 46px; height: 46px; }
+  .toasts { bottom: 134px; }
+}
+form[data-form="boss"] .pausef { display: none; }
+form[data-form="boss"]:has(option[value="pause"]:checked) .pausef { display: block; }

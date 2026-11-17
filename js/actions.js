@@ -18,6 +18,7 @@ const UNDO_LABEL = {
   addGold: 'ouro', deleteGold: 'ouro apagado', saveShopItem: 'item da loja', deleteShopItem: 'item apagado', openSunday: 'baú de domingo',
   answerQuestion: 'diário', deleteJournal: 'página do diário', editJournal: 'página do diário', deleteBonus: 'bônus apagado', deleteSunday: 'baú apagado', setRule: 'regra', resetRules: 'regras', addSaving: 'guardei',
   setWeekly: 'missões da semana', claudeApprove: 'sugestão do Claude', claudeReject: 'sugestão recusada', toBreakdown: 'enviar pro breakdown', unlinkTask: 'desvincular', addBoss: 'novo boss', deleteBoss: 'boss apagado', setVcat: 'custo da vila', resetVcat: 'vila', buildStart: 'obra', buildFinish: 'obra acelerada', buildMove: 'prédio movido', ensureVillage: 'vila', restDay: 'descanso', focusDone: 'foco', sosDone: 'SOS', ritualDone: 'ritual',
+  migrateKeep: 'migração', pushTomorrow: 'empurrar pra amanhã', pauseBoss: 'pausa do boss', resumeBoss: 'boss de volta', saveDuck: 'pato de borracha',
 };
 const snapNow = () => Object.fromEntries(UDOCS.map((d) => [d, JSON.stringify(S[d])]));
 function labelFromStack() {
@@ -493,6 +494,8 @@ export function updateTask(id, patch) {
   // subtarefa não pode passar do prazo final do bloco
   const bk = B(patch.block !== undefined ? patch.block : t.block), cap = R.dueCap(bk);
   if ('due' in patch && patch.due && cap && patch.due > cap) return { error: `O bloco "${bk.title}" termina em ${fmtDM(cap)}: a subtarefa não pode passar disso. Mude antes o prazo do bloco.` };
+  // v5.16 E) time boxing: remarcada 3x, só empurra de novo com horário + duração (patch.box) ou cancelando
+  if ('due' in patch && patch.due && t.due && patch.due > t.due && R.reschedLocked(S, t) && !patch.box) return { error: `"${String(t.text).replace(/\s*\(\d+\s*XP\)/i, '').slice(0, 50)}" já foi remarcada ${t.rs}x. Pra empurrar de novo, abra a tarefa e marque um horário e uma duração (time box), ou cancele.`, locked: true };
   const base = 'due' in patch ? reschedBase(t, patch.due || null) : 0, free = base > 0 && freeResched(), cost = free ? 0 : base;
   if (cost && R.totals(S).balance < cost) return { error: `Faltam ${cost - R.totals(S).balance} XP pra remarcar (custa ${cost} XP). Conclua algo ou mantenha o prazo.` };
   return commit(cost ? ['quests', 'loja'] : free ? ['quests', 'core'] : ['quests'], () => {
@@ -1359,4 +1362,52 @@ function cleanOld() {
   if (S.core.bond?.last) { delete S.core.bond.last.journal; delete S.core.bond.last.wins; }
   S.core.migrations.push('v5-clean');
   return true;
+}
+
+// ───────────────────────── v5.16: BULLET JOURNAL ─────────────────────────
+/** A) a migração deste mês já foi oferecida (não pergunta de novo sozinha) */
+export function markMigrated() {
+  if (S.core.migrated === R.ym()) return;
+  commit(['core'], () => { S.core.migrated = R.ym(); }, { noUndo: true });
+}
+/** A) ✓ ainda vale: ganha a data (se não tinha) e não aparece de novo neste mês */
+export function migrateKeep(id, due) {
+  const t = T(id);
+  if (!t) return;
+  return commit(['quests'], () => { t.mig = R.ym(); if (!t.due && due) t.due = due; syncLink(t); });
+}
+/** F) empurra pra amanhã, SEM custo, as tarefas que passaram do limite de HOJE (planejar não é remarcar) */
+export function pushTomorrow(ids) {
+  const td = today(), tm = addDays(td, 1), list = ids.map(T).filter((t) => t && R.isOpen(t) && t.due === td);
+  if (!list.length) return;
+  return commit(['quests'], () => { for (const t of list) { t.due = tm; syncLink(t); } return { feedback: { msg: `📅 ${list.length} tarefa(s) foram pra AMANHÃ, sem custo.` } }; });
+}
+/** H) pausa o boss até `until` (máx. 14 dias): os prazos das subtarefas andam junto, sem custo */
+export function pauseBoss(id, until) {
+  const b = S.quests.bosses.find((x) => x.id === id), td = today();
+  if (!b || !until || until <= td) return;
+  if (diffDays(td, until) > R.BOSS_PAUSE_MAX) until = addDays(td, R.BOSS_PAUSE_MAX);
+  const days = diffDays(b.pause && b.pause > td ? b.pause : td, until), blk = b.block && B(b.block);
+  return commit(['quests'], () => {
+    if (days > 0 && blk) {
+      for (const t of S.quests.tasks) if (t.block === blk.id && R.isOpen(t) && t.due) t.due = addDays(t.due, days);
+      if (blk.due) blk.due = addDays(blk.due, days);
+    }
+    b.pause = until; b.pausedTo = until;
+    return { feedback: { msg: `⏸ Boss pausado até ${fmtDM(until)}. Os prazos dele andaram ${days} dia(s). Ele volta sozinho.` } };
+  });
+}
+export function resumeBoss(id) {
+  const b = S.quests.bosses.find((x) => x.id === id);
+  if (!b?.pause) return;
+  commit(['quests'], () => { delete b.pause; b.pausedTo = today(); });
+}
+/** G) pato de borracha: o que eu tentei, o que funcionou, o que não funcionou (fica na tarefa) */
+export function saveDuck(taskId, note) {
+  const t = taskId && T(taskId), n = { date: today(), tried: String(note.tried || '').slice(0, 400), ok: String(note.ok || '').slice(0, 400), nok: String(note.nok || '').slice(0, 400) };
+  if (!n.tried && !n.ok && !n.nok) return;
+  return commit(t ? ['quests'] : ['core'], () => {
+    if (t) { t.duck = [...(t.duck || []), n].slice(-5); return; }
+    S.core.duck = [...(S.core.duck || []), n].slice(-20);
+  });
 }

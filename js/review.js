@@ -25,16 +25,49 @@ const todays = () => R.openTasks(S).filter((t) => t.due && t.due <= today() && t
 const waiting = () => R.openTasks(S).filter((t) => t.st === 'wait');
 const blanksYesterday = () => { const y = addDays(today(), -1); if (y < (S.core.startDate || y)) return []; const m = S.marks.days[y]?.h || {}; return S.core.habits.filter((h) => !m[h.id]); };
 
-function buildSteps(gap) {
+const BOSS_NUDGE = 'gamify-ui:boss-nudge'; // o lembrete do boss parado aparece no máximo 1 vez por semana
+const bossNudgeDue = () => { const l = ls.get(BOSS_NUDGE); return !l || l <= addDays(today(), -7); };
+function buildSteps(gap, only) {
+  if (only) return [only];
   const steps = [];
+  if (R.migrationPending(S)) steps.push('mes');
   if (gap >= GAP_DAYS) steps.push('gap');
   else if (blanksYesterday().length) steps.push('ontem');
   if (late().length) steps.push('atras');
+  if (R.staleBosses(S).length && bossNudgeDue()) steps.push('boss');
   steps.push('hoje');
   return steps;
 }
 
+// v5.16 A) MIGRAÇÃO DO MÊS: uma tarefa por vez, ✓ ainda vale (ganha data) · ✕ cancela · ⏭ pula
+let mig = { skip: new Set() };
+const migList = () => R.migrationCandidates(S).filter((t) => !mig.skip.has(t.id));
 const VIEW = {
+  mes: () => {
+    const l = migList(), t = l[0], td = today(), total = l.length + mig.skip.size;
+    return {
+      title: 'migração do mês',
+      line: t ? 'Mês novo, caderno novo, sô. Se não vale reescrever, não vale fazer: ✓ ainda vale ou ✕ larga mão?' : 'Pronto, caderno limpo! O que ficou é o que vale, uai.',
+      body: t ? `<p class="meta">${total - l.length + 1} de ${total} · pode parar quando quiser (PRÓXIMO).</p>
+        <div class="migcard"><b>${esc(clean(t.text))}</b><small>${esc(where(t))} · anotada ${fmtDM(t.created || td)}${t.due ? ' · prazo ' + fmtDM(t.due) : ''}</small>
+          <div class="row" style="gap:6px;margin-top:10px;justify-content:center">${t.due ? '' : `<input type="date" class="inp" id="mig-due" value="${addDays(td, 7)}" min="${td}" aria-label="Nova data" style="width:auto">`}
+            <button class="btn good" data-rv="mig-ok" data-id="${t.id}">✓ AINDA VALE</button><button class="btn danger" data-rv="mig-no" data-id="${t.id}">✕ CANCELA</button><button class="btn ghost sm" data-rv="mig-skip" data-id="${t.id}" title="Deixa como está">⏭</button></div></div>` : '<div class="empty">nada parado. 👏</div>',
+    };
+  },
+  boss: () => {
+    const x = R.staleBosses(S)[0];
+    if (!x) return { title: 'bosses', line: 'Os bosses tão andando. Trem bão, sô.', body: '' };
+    const b = x.boss, name = clean(b.text.replace(/:\s*[\d.]+\s*XP.*$/i, ''));
+    return {
+      title: 'boss parado',
+      line: b.why ? `O boss "${name}" tá parado faz ${x.days} dias. Cê mesmo escreveu por que ele importa, lembra?` : `O boss "${name}" tá parado faz ${x.days} dias. Por que ele importa mesmo, sô?`,
+      body: `${b.why ? `<p class="bwhy">💡 ${esc(b.why)}</p>` : ''}${b.fear ? `<p class="bwhy fear">⚠ se eu não fizer: ${esc(b.fear)}</p>` : ''}
+        ${!b.why && !b.fear ? '<p class="muted">Dá pra escrever o porquê e o medo dele ao editar o boss.</p>' : ''}
+        <div class="list"><button class="li rv-opt" data-rv="boss-go" data-id="${b.id}"><span class="lt">⚔ PUXAR UM PASSO DELE<small>Abre o boss: escolha UMA subtarefa e dê uma data.</small></span></button>
+        <button class="li rv-opt" data-rv="boss-pause" data-id="${b.id}"><span class="lt">⏸ PAUSAR 2 SEMANAS<small>Não é desistir: os prazos andam junto e ele volta sozinho.</small></span></button>
+        <button class="li rv-opt" data-rv="boss-edit" data-id="${b.id}"><span class="lt">✎ EDITAR O BOSS<small>Escrever o porquê, mudar a meta ou apagar.</small></span></button></div>`,
+    };
+  },
   gap: () => ({
     title: `${st.gap} dias fora`,
     line: `Uai, cê sumiu ${st.gap} dias, sô! Sem bronca: em dois minutinhos a gente bota o trem nos trilhos.`,
@@ -96,8 +129,11 @@ function draw() {
   window.__deaccent?.(m);
 }
 
-export function openReview(gap = 0, prev = null) {
-  st = { gap, prev: prev || today(), steps: buildSteps(gap), i: 0, said: '' };
+export function openReview(gap = 0, prev = null, only = null) {
+  st = { gap, prev: prev || today(), steps: buildSteps(gap, only), i: 0, said: '' };
+  mig = { skip: new Set() };
+  if (st.steps.includes('mes')) A.markMigrated(); // oferecida uma vez por mês (dá pra abrir de novo em PERKS → 🧠)
+  if (st.steps.includes('boss')) ls.set(BOSS_NUDGE, today());
   const m = openModal('', { onClose: () => { st = null; } });
   m.addEventListener('change', (e) => { // escolheu o dia novo de uma atrasada: remarca na hora (segue a regra de custo)
     const el = e.target.closest?.('[data-rv-date]');
@@ -120,6 +156,12 @@ export function openReview(gap = 0, prev = null) {
     else if (k === 'trip') { const from = addDays(st.prev, 1); closeModal(); A.startTrip(from <= today() ? from : today(), null); document.querySelector('[data-act="trip-back"]')?.click(); return; }
     else if (k === 'dist') { closeModal(); document.querySelector('[data-act="distribute"]')?.click(); return; }
     else if (k === 'habit') A.cycleHabit(addDays(today(), -1), b.dataset.h);
+    else if (k === 'mig-ok') { A.migrateKeep(id, m.querySelector('#mig-due')?.value || null); sfx('tab'); }
+    else if (k === 'mig-no') { A.setStatus(id, 'cancel'); sfx('undo'); }
+    else if (k === 'mig-skip') mig.skip.add(id);
+    else if (k === 'boss-pause') { A.pauseBoss(id, addDays(today(), R.BOSS_PAUSE_MAX)); sfx('tab'); }
+    else if (k === 'boss-edit') { closeModal(); ACT['edit-boss']?.({ id }); return; }
+    else if (k === 'boss-go') { const bo = S.quests.bosses.find((x) => x.id === id); closeModal(); if (bo?.block) ACT['jump-block']?.({ id: bo.block }); return; }
     else if (k === 'done') A.setStatus(id, 'done');
     else if (k === 'wait') A.setStatus(id, 'wait');
     else if (k === 'cancel') A.setStatus(id, 'cancel');
@@ -134,11 +176,14 @@ export function maybeReview() {
   const td = today();
   if (ls.get('gamify-ui:brief') === td || !ls.get('gamify-ui:tour') || modalOpen() || R.tripNow(S)) return;
   const gap = S._gap || 0, prev = S._prevOpen;
-  if (ls.get('gamify-ui:brief-off') === '1' && gap < GAP_DAYS) return; // desligou a entrevista: só o retorno continua aparecendo
+  const off = ls.get('gamify-ui:brief-off') === '1' && gap < GAP_DAYS; // desligou a entrevista: só o retorno (e a migração do mês) continuam
+  if (off && !R.migrationPending(S)) return;
   ls.set('gamify-ui:brief', td);
-  setTimeout(() => { if (!modalOpen()) openReview(gap, prev); }, 700);
+  setTimeout(() => { if (!modalOpen()) openReview(gap, prev, off ? 'mes' : null); }, 700);
 }
 
+let ACT = {};
 export function extendReview(ACTIONS) {
-  Object.assign(ACTIONS, { review: () => openReview(0) });
+  ACT = ACTIONS;
+  Object.assign(ACTIONS, { review: () => openReview(0), migrate: () => openReview(0, null, 'mes') });
 }

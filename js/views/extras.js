@@ -170,6 +170,16 @@ function neuroCard() {
       ${ck('curfew', '🌙 Sono inegociável', '1 hora antes de dormir, o QUESTS troca as listas pelo fechamento do dia: o que você fez, o que fica pra amanhã e os hábitos. Dá pra abrir as listas por 15 min se precisar.')}
       ${ck('calm', '🎯 Dopamina sob controle', 'Tarefa fácil ganha só o "tic". Número voando e fogos ficam pro que custou (⭐, ⚔, 20 XP ou mais, bloco, boss): o cérebro aprende a gostar do difícil.')}
       ${ck('ladder', `🪜 Escada do esforço${ladder.length ? ' · degrau ' + ladder.length : ''}`, `7 dias seguidos batendo a meta → ela sobe 5% (até ${R.LADDER_MAX} degraus). Errar não desce o degrau. Meta de hoje: ${R.dailyGoal(S).goal} XP.`)}
+    </div>
+    <h3 style="margin:14px 0 6px">📓 Bullet Journal e praticidade</h3>
+    <div class="neurogrid">
+      ${ck('mig', '📓 Migração do mês', `Nos primeiros dias do mês, o PRIMO passa pelas tarefas sem prazo ou antigas, uma por vez: ✓ ainda vale (ganha data) ou ✕ cancela. "Se não vale reescrever, não vale fazer." <a href="#" data-act="migrate">migrar agora (${R.migrationCandidates(S).length})</a>`)}
+      ${ck('why', '💡 Por que esse boss importa', `Dois campos no boss: "por que importa?" e "o que acontece se eu não fizer?". Boss ${R.BOSS_IDLE_DAYS} dias parado → o PRIMO lembra (no máximo 1 vez por semana).`)}
+      ${ck('box', '⏰ Time box', `Tarefa remarcada ${R.RESCHED_LOCK} vezes trava: pra empurrar de novo, marque horário e duração. Ou cancele.`)}
+      ${ck('cheio', '🧠 HOJE cheio demais', 'Passou do limite de tarefas por dia (AJUSTES → máx. prazos por dia), aparece um aviso curto em HOJE e um botão que empurra as menos importantes pra amanhã, sem custo.')}
+      ${ck('pato', '🦆 Pato de borracha', 'No SOS TRAVEI: explicar pro PRIMO o que tentou, o que funcionou e o que não. Fica guardado na tarefa.')}
+      ${ck('quick', '✎ Anotar rápido', 'Botão + no canto da tela, em qualquer aba (no PC, a tecla +). Uma linha, Enter, e pronto: vai pra SEM PRAZO.')}
+      ${ck('swipe', '👆 Arrastar no celular', 'Arraste a tarefa pra ESQUERDA = concluir; pra DIREITA = amanhã. O ↩ desfaz.')}
     </div></div>`;
 }
 
