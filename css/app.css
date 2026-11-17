@@ -990,3 +990,12 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 .li[data-list] { border-left: 4px solid var(--lc, var(--line)); padding-left: 8px; }
 .li[data-list="hoje"] { --lc: var(--c-urg); } .li[data-list="amanha"] { --lc: var(--c-quase); } .li[data-list="semana"] { --lc: var(--c-atencao); }
 .li[data-list="depois"] { --lc: var(--c-calma); } .li[data-list="sem"] { --lc: var(--c-neutro); } .li[data-list="wait"] { --lc: var(--c-espera); }
+/* v5.15 — faixa "Carga do dia" de volta na AGENDA. Cor = peso do dia: verde leve (1–3), amarelo cheio (4–5), vermelho pesado (6+) */
+.daystrip { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x proximity; }
+.daystrip .day { flex: none; min-width: 72px; padding: 8px 6px; border: 2px solid var(--line); background: var(--panel); text-align: center; scroll-snap-align: start; cursor: pointer; border-radius: var(--rad); }
+.daystrip .day.off { opacity: .6; }
+.daystrip .day .n { font: 16px/1.6 var(--f-pixel); color: var(--dim); }
+.daystrip .day .n.l1 { color: var(--c-ok); } .daystrip .day .n.l4 { color: var(--c-atencao); } .daystrip .day .n.l6 { color: var(--c-urg); }
+.daystrip .day small { display: block; font-size: 10px; color: var(--dim); }
+.daystrip .day.today { opacity: 1; border-color: var(--c-acao); background: var(--accent-soft); box-shadow: 0 0 0 3px var(--c-acao), 3px 3px 0 var(--shadow); transform: translateY(-2px); }
+.daystrip .day.over { border-color: var(--c-acao); background: var(--accent-soft); transform: scale(1.05); }
