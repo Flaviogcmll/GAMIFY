@@ -205,7 +205,7 @@ Pendentes (precisam de decisão do dono; perguntar com alternativas): remover re
 
 ## RODADA 11 — v5.12 (17/11/2026): colunas fixas e janela mãe
 - O mosaico com CSS columns (v5.10) redistribuía os blocos entre colunas ao abrir um bloco e virava 2 colunas com um bloco grande: o dono não gostou. Agora são **3 colunas fixas** (`inColumns` em `v35.js`; `cols3` em `quests.js`): o item i fica sempre na coluna i % 3, e abrir um bloco só empurra os de baixo dele. Vale para LISTAS (`arrange(..., { cols: 3 })`), janelas de blocos e BOSSES. No celular vira uma coluna só, na ordem original (`order`). O arrastar das listas ordena por `data-ord`.
-- AGENDA: saiu a faixa "📊 Carga do dia · 6 semanas" (era isso que o dono chamava de "carga do dia da linha do tempo") e o arrastar da fila até ela.
+- AGENDA: saiu a faixa "📊 Carga do dia · 6 semanas" e o arrastar da fila até ela. (Engano: na v5.15 ela voltou; o dono queria tirar as linhas das listas DENTRO da linha do tempo.)
 - **LISTAS = janela mãe de verdade**: em `syncLists()`, todo bloco ativo (não fechado nem parado) sem tarefa nas LISTAS ganha uma, ligada a ele (`t.link`, `b.src`, `t.mother = true`), com o prazo final do bloco. Vale para blocos novos em qualquer janela (os BOSSES ficaram de fora na v5.13). Apagar o bloco apaga a tarefa-mãe criada sozinha.
 
 ## RODADA 12 — v5.13 (17/11/2026): BOSSES, visual, imagens, conquistas e dados reorganizados de novo
@@ -229,6 +229,11 @@ Pedido do dono: "as cores têm que ter justificativa; a mesma cor = a mesma cate
   - Dopamina sob controle: tarefa fácil (< 20 XP, sem ⭐ ⚔) não solta o "+XP" voando; fogos continuam só para o que custou.
   - Escada do esforço: 7 dias seguidos na meta → `core.ladder` ganha a data e a meta sobe 5% (máx. 10 degraus). Cada dia é medido com a meta que valia nele (`goalAt`), então a sequência e as conquistas não quebram.
 
+## AJUSTE v5.15 (17/11/2026)
+- Fila de prazos (QUESTS e AGENDA): cada linha e cada prazo usam a cor da lista onde a tarefa cai (HOJE vermelho, AMANHÃ laranja, SEMANA amarelo, DEPOIS azul, AGUARDANDO roxo). Saíram as cores "por data" (arco-íris), que não tinham significado. `dueChip` ganhou a classe `later` (> 7 dias).
+- AGENDA: a faixa "📊 Carga do dia · 6 semanas" VOLTOU (com o arrastar da fila até um dia e o toque no dia). O que o dono queria tirar desde a v5.10 eram as LINHAS das listas (HOJE…AGUARDANDO) e de RITUAIS dentro da linha do tempo: saíram. A linha do tempo ficou com as datas, as semanas e os blocos.
+- Ícone: o atalho instalado na área de trabalho do dono não atualizou. Os arquivos viraram `assets/icon-*-v2.png` (nome novo = o navegador baixa de novo). Se trocar o ícone outra vez, mude o nome de novo.
+
 ## PRÓXIMA RODADA — JÁ ESCOLHIDA PELO DONO (17/11/2026)
 Lembrete dele: "o app tem que ser PRÁTICO e não comer meu tempo; preciso de tempo para as tarefas". Cada recurso: no máximo 1 toque a mais, nada de tela obrigatória, tudo desligável em PERKS → 🧠.
 Ideias do livro do Bullet Journal (Ryder Carroll), das anotações do dono. Ele escolheu A, C, E, F, G, H:
@@ -241,6 +246,8 @@ Ideias do livro do Bullet Journal (Ryder Carroll), das anotações do dono. Ele 
 Não escolhidas: B (metas 5-4-3-2-1) e D (sprint de 2 semanas).
 - **Material de neurociência**: o dono tem uma lista grande de aulas (Eslen Delanogare). Pedir a ele, pelo TÍTULO, as aulas sobre: sono e ciclo circadiano; dopamina e recompensa; hábitos e automatização; estresse e cortisol; atenção e foco; exercício/BDNF e alimentação. Usar para calibrar o relógio do corpo, a loja e os hábitos (v5.14). Os PDFs NÃO entram no repositório.
 - **Qualidade de vida** sugerida pelo Claude: ver a resposta da rodada 13 e as letras que o dono escolher.
+- **Artes e repaginação (pedido de 17/11)**: o dono tem Higgsfield ilimitado este mês e quer: ícones para o app e para os itens da LOJA, animação de fogos de artifício, fundos (backgrounds), e repaginar as janelas mais esquecidas (ROTINA, PERKS AND RULES, FILTRO, ARQUIVO, CONQUISTAS…) para ficarem tão interessantes quanto QUESTS e AGENDA. Fazer: revisar todas as telas, listar o que falta e o que traria a melhor estética, e entregar um arquivo de prompts no mesmo formato de antes (estilo do PRIMO: pixel art "hi-bit", contorno marrom, paleta quente; fundo verde #00FF00 para recortar; começar por 1 item para aprovar o estilo). Preparar com `tools/topo_artes.py` / `tools/primo_artes.py`.
+- **PDFs de neurociência**: o dono salvou as aulas no Drive dele (016, 021, 044, 052, 093, 099, 153, 164 e extras). Peça a ele que mande os PDFs no chat.
 - **Dados do dono**: o novo chat não tem os arquivos deste. Pedir um backup novo (PERKS → BAIXAR BACKUP). O link da pasta do Drive com as artes originais o dono manda de novo, se precisar (não escrever no repositório).
 
 ## PRÓXIMAS RODADAS

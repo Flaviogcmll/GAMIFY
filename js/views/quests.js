@@ -113,7 +113,7 @@ function filaCard(td) {
   const q = R.deadlineQueue(S, td).slice(0, 12);
   const where = (t) => (t.block ? R.findBlock(S, t.block)?.title : R.areaName(t.area)) || '';
   return `<div class="card"><header><h2>⏰ Fila de prazos</h2><a class="meta" href="#agenda">agenda →</a></header>
-    <div class="list">${q.map((t) => `<div class="li" data-act="jump" data-id="${t.id}" style="cursor:pointer"><div class="lt">${t.st === 'doing' ? '▶ ' : ''}${t.prio ? '<b class="bad">!</b> ' : ''}${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}<small>${esc(where(t))}</small></div><div class="row" style="flex-wrap:nowrap">${dueChip(t.due, false, true)}</div></div>`).join('') || '<div class="empty">nenhuma tarefa com prazo.</div>'}</div></div>`;
+    <div class="list">${q.map((t) => `<div class="li" data-act="jump" data-id="${t.id}" data-list="${R.listOf(t, td)}" style="cursor:pointer"><div class="lt">${t.st === 'doing' ? '▶ ' : ''}${t.prio ? '<b class="bad">!</b> ' : ''}${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}<small>${esc(where(t))}</small></div><div class="row" style="flex-wrap:nowrap">${dueChip(t.due, false, true)}</div></div>`).join('') || '<div class="empty">nenhuma tarefa com prazo.</div>'}</div></div>`;
 }
 
 export function legendHtml() {
