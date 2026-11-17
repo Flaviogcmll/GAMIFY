@@ -13,6 +13,7 @@ import { rulesEditor, shopEditor } from '../v4.js';
 
 import { legendHtml } from './quests.js';
 import { backupPanel } from '../backup.js';
+import { artWanted } from '../pnew.js';
 
 import { driveCard } from '../drive.js';
 
@@ -138,6 +139,7 @@ export function viewRegras() {
         </form></div>
       <div class="card c5"><header><h2>Ajustes</h2></header>
         <label class="lbl" for="set-mode">Visual</label><select class="inp" id="set-mode" data-change="mode"><option value="auto" ${mode === 'auto' ? 'selected' : ''}>AUTOMÁTICO (papel 6h–18h · fogueira à noite)</option><option value="day" ${mode === 'day' ? 'selected' : ''}>SEMPRE PAPEL</option><option value="night" ${mode === 'night' ? 'selected' : ''}>SEMPRE FOGUEIRA</option></select>
+        <label class="lbl" for="set-primo">Desenho do PRIMO</label><select class="inp" id="set-primo" data-change="primo-art"><option value="novo" ${artWanted() ? 'selected' : ''}>NOVO (arte em alta definição, com cenários)</option><option value="classico" ${artWanted() ? '' : 'selected'}>CLÁSSICO (porquinho em pixel)</option></select>
         ${[['music', 'Música lo-fi'], ['fire', 'Som da fogueira'], ['sfx', 'Efeitos']].map(([k, n]) => `<label class="lbl" for="vol-${k}">${n}</label><input id="vol-${k}" type="range" min="0" max="1" step="0.05" value="${prefs[k]}" data-change="vol" data-k="${k}" style="width:100%">`).join('')}
         <label class="lbl" for="set-max">Máx. de prazos por dia útil</label><input class="inp" id="set-max" type="number" min="1" max="20" value="${S.core.settings?.maxPerDay || R.C.MAX_PER_DAY}" data-change="setting" data-k="maxPerDay">
         <label class="lbl" for="set-ms">Áreas do baú de domingo</label><textarea class="inp" id="set-ms" rows="2" data-change="milestones">${esc((S.core.milestones || []).join(', '))}</textarea>
@@ -147,7 +149,7 @@ export function viewRegras() {
       <div class="card c12" data-gk="legenda"><header><h2>📖 Legenda · como marcar e quanto vale</h2></header>${legendHtml()}</div>
       <div class="card c12" data-gk="ref"><header><h2>📖 Referência · regras com os valores padrão</h2></header><div class="refgrid">${RULES.map(card).join('')}</div></div>
     </div>
-    <p class="creditos">Porquinho do PRIMO: "Free Pets Pack" por <a href="https://frakassets.itch.io/free-pets-pack" target="_blank" rel="noopener">Frakassets</a> (CC BY 4.0). Ícones da loja: Kenney (CC0). Lo-fi: gerado no aparelho. Fogueira: "Fireplace sound loop" (CC0).</p>`;
+    <p class="creditos">PRIMO novo, rostos, acessórios, FAÍSCA, cenários e ícone: arte gerada por IA de imagem com direção do autor do app. Porquinho clássico em pixel: "Free Pets Pack" por <a href="https://frakassets.itch.io/free-pets-pack" target="_blank" rel="noopener">Frakassets</a> (CC BY 4.0). Ícones da loja: Kenney (CC0). Lo-fi: gerado no aparelho. Fogueira: "Fireplace sound loop" (CC0).</p>`;
 }
 
 // ───────────── ARQUIVO ─────────────

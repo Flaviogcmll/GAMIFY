@@ -732,6 +732,7 @@ document.addEventListener('change', (e) => {
   const k = el.dataset.k, c = el.dataset.change;
   if (c === 'setting') A.setSetting(k, +el.value);
   if (c === 'label') A.setLabel(k, el.value);
+  if (c === 'primo-art') { try { localStorage.setItem('gamify-ui:primo-art', el.value); } catch { /* */ } render(); }
   if (c === 'milestones') A.updateMilestones(el.value.split(',').map((s) => s.trim().toUpperCase()));
   if (c === 'mode') setMode(el.value);
   if (c === 'vol') setVol(k, +el.value);

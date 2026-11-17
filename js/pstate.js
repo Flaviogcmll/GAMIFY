@@ -132,6 +132,10 @@ export const WARDROBE = [
   { id: 'oculos', slot: 'eyes', name: 'Óculos redondos', need: { lv: 1 } }, { id: 'sol', slot: 'eyes', name: 'Óculos escuros', need: { lv: 4 } }, { id: 'monoculo', slot: 'eyes', name: 'Monóculo', need: { lv: 12 } },
   { id: 'cachecol', slot: 'neck', name: 'Cachecol', need: { lv: 1 } }, { id: 'gravata', slot: 'neck', name: 'Gravata borboleta', need: { lv: 7 } }, { id: 'medalha', slot: 'neck', name: 'Medalha dourada', need: { ach: 'elite' } },
   { id: 'mochila', slot: 'back', name: 'Mochila de aventura', need: { lv: 2 } }, { id: 'capa', slot: 'back', name: 'Capa vermelha', need: { lv: 10 } }, { id: 'capaazul', slot: 'back', name: 'Capa de herói', need: { boss: 3 } },
+  // v5.8: peças que só existem na arte nova do PRIMO
+  { id: 'cozinheiro', slot: 'hat', name: 'Chapéu de cozinheiro', need: { lv: 4 }, novo: true }, { id: 'lanterna', slot: 'hat', name: 'Capacete de mineiro', need: { exp: 6 }, novo: true },
+  { id: 'junina', slot: 'neck', name: 'Lenço de festa junina', need: { lv: 3 }, novo: true }, { id: 'trevo', slot: 'neck', name: 'Trevo da sorte', need: { lv: 9 }, novo: true },
+  { id: 'chuva', slot: 'back', name: 'Capa de chuva', need: { lv: 5 }, novo: true }, { id: 'violao', slot: 'back', name: 'Violão', need: { lv: 6 }, novo: true },
 ];
 export function wardrobeOk(it, s = S) {
   const n = it.need || {}, tot = R.totals(s), st = R.stats(s);

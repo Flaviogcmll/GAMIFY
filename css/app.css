@@ -162,6 +162,13 @@ label.lbl { display: block; font: 7.5px/1.4 var(--f-pixel); color: var(--dim); m
 .band { --band: var(--ink); display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; background: var(--band); color: var(--bg); font: 9px/1 var(--f-pixel); }
 :root[data-mode="night"] .band { background: #2b241d; color: var(--ink); border: 2px solid var(--edge); }
 /* barra das janelas do QUESTS fica presa abaixo do topo (só em tela grande: no celular o topo já ocupa muito) */
+/* PRIMO novo (arte em alta definição): sem o efeito pixelado e com cenário de fundo no palco */
+:root[data-primo="novo"] .pcv { image-rendering: auto; }
+.pcard .pstage.has-scene { background-size: cover; background-position: center 78%; background-repeat: no-repeat; min-height: 230px; }
+.pcard.big .pstage.has-scene { min-height: 320px; }
+.pcard .pstage.has-scene .pcv:not(.pmascot) { width: 190px; }
+.pcard.big .pstage.has-scene .pcv:not(.pmascot) { width: 250px; }
+@media (max-width: 480px) { .pcard .pstage.has-scene .pcv:not(.pmascot) { width: 170px; } }
 /* de qual janela é a tarefa (nas LISTAS): cada janela tem a sua cor, no selo 🔗 e numa faixa à esquerda da linha */
 [data-g="bd"] { --wc: #12807b; } [data-g="tr"] { --wc: #b0662f; } [data-g="cap"] { --wc: #7f8652; } [data-g="gs"] { --wc: #d98a1f; } [data-g="bs"] { --wc: #b02c40; }
 .chip.lnk { background: var(--wc, #12807b); border-color: var(--wc, #12807b); color: #fff; cursor: pointer; }

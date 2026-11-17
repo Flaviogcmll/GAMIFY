@@ -8,6 +8,7 @@ import { openModal, closeModal, toast, segBar } from './ui.js';
 import { sfx } from './audio.js';
 import { confetti } from './fx.js';
 import { drawPortrait, drawMascot, PW, PH } from './pdraw.js';
+import { artOn, drawPortraitNew, drawFace, drawMascotNew, sceneUrl } from './pnew.js';
 import { primoLine, lastExpr, bankSize } from './falas.js';
 import { GROUPS, saberCount } from './saber.js';
 import * as PS from './pstate.js';
@@ -105,21 +106,50 @@ export function paintSpeech() {
 // ───────────────────────── desenho e animação ─────────────────────────
 const MOUNTED = new Set();
 let looping = false, last = 0, frame = 0;
-const OFF = document.createElement('canvas'); OFF.width = PW; OFF.height = PH;
+// K = quantas vezes a tela do desenho é maior que o espaço lógico (72 x 96). O clássico em pixel continua nítido; o novo ganha definição.
+const K = 4;
+const OFF = document.createElement('canvas'); OFF.width = PW * K; OFF.height = PH * K;
+/** cenário atrás do PRIMO novo: o LUGAR segue o contexto (expedição, hora do dia) e a LUZ segue o relógio/modo do app */
+function scenePick() {
+  const es = PS.expState(), d = new Date(), h = d.getHours() + d.getMinutes() / 60, wd = d.getDay();
+  const night = document.documentElement.dataset.mode === 'night';
+  const light = night ? 'noite' : h >= 16.5 ? 'tarde' : 'dia';
+  let place;
+  if (es.cur && !es.ready) place = es.cur.id === 'feira' ? 'feira' : 'estrada'; // fora de casa
+  else if (night || h >= 19 || h < 5) place = 'fogueira';
+  else if (h < 8 || (h >= 12 && h < 13.5)) place = 'cozinha'; // café da manhã e almoço
+  else if (h >= 17.5) place = 'varanda';
+  else place = wd === 0 || wd === 6 ? 'varanda' : 'escritorio';
+  return { place, light };
+}
+function applyScenes() {
+  const on = artOn(), sc = on ? scenePick() : null;
+  document.documentElement.dataset.primo = on ? 'novo' : 'classico';
+  document.querySelectorAll('.pstage').forEach((el) => {
+    const url = on ? `url("${sceneUrl(sc.place, sc.light)}")` : '';
+    if (el.dataset.scene !== url) { el.dataset.scene = url; el.style.backgroundImage = url; el.style.backgroundPosition = on && sc.place === 'fogueira' ? '22% 80%' : ''; el.classList.toggle('has-scene', on); } // na fogueira, o fogo fica à esquerda do quadro
+  });
+}
 const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
 function paint(cv) {
-  const kind = cv.dataset.portrait, ctx = cv.getContext('2d');
-  if (cv.dataset.mascot != null) { const ps = PS.petState(); drawMascot(ctx, ps.stage, frame, R.dailyGoal(S).today >= R.dailyGoal(S).goal); return; }
+  const kind = cv.dataset.portrait, ctx = cv.getContext('2d'), NEW = artOn();
+  ctx.setTransform(K, 0, 0, K, 0, 0);
+  if (cv.dataset.mascot != null) { const ps = PS.petState(), happy = R.dailyGoal(S).today >= R.dailyGoal(S).goal; if (NEW) drawMascotNew(ctx, ps.stage, frame, happy); else { ctx.imageSmoothingEnabled = false; drawMascot(ctx, ps.stage, frame, happy); } return; }
   const o = { tier: R.companion(S).tier, mood: statusMood(), expr: curExpr(), wear: kind === 'closet' && previewWear ? previewWear : PS.wearing(), talk: Date.now() < talkUntil, f: frame };
-  if (kind === 'mini') { drawPortrait(OFF.getContext('2d'), o); ctx.clearRect(0, 0, 44, 44); ctx.drawImage(OFF, 14, 30, 44, 44, 0, 0, 44, 44); } else drawPortrait(ctx, o);
+  if (kind === 'mini') {
+    if (NEW) { drawFace(ctx, o.expr, 44, o.mood); return; }
+    const oc = OFF.getContext('2d'); oc.setTransform(K, 0, 0, K, 0, 0); drawPortrait(oc, o);
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false; ctx.clearRect(0, 0, 44 * K, 44 * K); ctx.drawImage(OFF, 14 * K, 30 * K, 44 * K, 44 * K, 0, 0, 44 * K, 44 * K);
+  } else if (NEW) drawPortraitNew(ctx, o); else drawPortrait(ctx, o);
 }
 export function mountPortraits(root = document) {
   root.querySelectorAll('canvas[data-portrait], canvas[data-mascot]').forEach((cv) => {
     if (cv._pm) return;
     cv._pm = true;
-    if (cv.dataset.mascot != null) { cv.width = 32; cv.height = 32; } else if (cv.dataset.portrait === 'mini') { cv.width = 44; cv.height = 44; } else { cv.width = PW; cv.height = PH; }
+    if (cv.dataset.mascot != null) { cv.width = 32 * K; cv.height = 32 * K; } else if (cv.dataset.portrait === 'mini') { cv.width = 44 * K; cv.height = 44 * K; } else { cv.width = PW * K; cv.height = PH * K; }
     MOUNTED.add(cv); paint(cv);
   });
+  applyScenes();
   if (!looping && !still && MOUNTED.size) { looping = true; requestAnimationFrame(loop); }
   paintSpeech();
 }
@@ -129,6 +159,7 @@ function loop(ts) {
   requestAnimationFrame(loop);
   if (document.hidden || ts - last < 110) return;
   last = ts; frame++;
+  if (frame % 40 === 0) applyScenes(); // as artes novas podem ter acabado de carregar; e a luz muda com a hora
   for (const cv of MOUNTED) { const r = cv.getBoundingClientRect(); if (r.bottom > 0 && r.top < innerHeight) paint(cv); }
 }
 let notified = new Set();
@@ -189,7 +220,7 @@ const rehub = () => { closeModal(); setTimeout(openPrimoHub, 40); };
 let closetSlot = 'hat';
 function openCloset(slot) {
   if (slot) closetSlot = slot;
-  const wear = PS.wearing(), items = PS.WARDROBE.filter((x) => x.slot === closetSlot);
+  const wear = PS.wearing(), items = PS.WARDROBE.filter((x) => x.slot === closetSlot && (!x.novo || artOn())); // peças novas só existem na arte nova
   previewWear = wear;
   const m = openModal(`<h2>👕 armário do PRIMO</h2><div class="closet"><canvas class="pcv" data-portrait="closet" aria-label="PRIMO"></canvas>
     <div class="cl-col"><div class="chips">${PS.SLOTS.map(([k, n]) => `<button class="btn sm ${k === closetSlot ? 'pri' : 'ghost'}" data-act="closet-slot" data-slot="${k}">${n}</button>`).join('')}</div>

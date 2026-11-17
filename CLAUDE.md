@@ -40,7 +40,8 @@ O backup do dono NUNCA entra no repositório.
 - `review.js` — entrevista do dia e revisão de retorno (o PRIMO conduz, na 1ª abertura do dia).
 - `trip.js` — modo VIAGEM/VISITAS (congela o jogo; na volta empurra prazos e cria as tarefas de chegada).
 - `drive.js` — sincronização com Google Drive. O dono usa no dia a dia (celular e PC); o Claude não consegue testar o login real, só com um Google simulado (rotas do Playwright).
-- `primo.js`, `pdraw.js`, `pacc.js`, `pstate.js`, `falas.js`, `saber.js`, `claude.js` — o mascote PRIMO.
+- `primo.js` (telas e animação), `pnew.js` (desenho novo, com as artes de `assets/primo/`), `pdraw.js` + `pacc.js` (porquinho clássico em pixel, reserva), `pstate.js`, `falas.js`, `saber.js`, `claude.js` — o mascote PRIMO.
+- `tools/primo_artes.py` — não é do app: prepara as artes do PRIMO (recorta fundo, corta quadros dos vídeos, reduz) quando o dono gera imagens novas.
 - `v3.js`, `v35.js`, `v4.js` — recursos adicionados por versão (legado; têm imports circulares, cuidado).
 - `views/*.js` — uma tela por arquivo. `css/app.css` — todo o visual. `sw.js` — modo offline.
 
@@ -58,3 +59,4 @@ O backup do dono NUNCA entra no repositório.
 - A fonte pixel desenha mal acentos: `deaccent()` tira acentos dos rótulos.
 - A IA do PRIMO (`window.claude.use('sample')`) só existe dentro do claude.ai; no GitHub Pages esses botões não têm IA.
 - O PRIMO dorme à noite: para testar acordado, simule o horário (mock de `Date`).
+- O desenho do PRIMO usa um espaço lógico de 72 x 96 numa tela 4× maior (`K` em `primo.js`). Posição de acessório: tabela `ACC` em `pnew.js`, em pontos do quadro de 224. Os originais das artes (centenas de MB) nunca entram no repositório: só o que `tools/primo_artes.py` gera.
