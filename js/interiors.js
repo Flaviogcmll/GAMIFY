@@ -100,17 +100,19 @@ function paint(c, kind, f) {
   (SCENES[kind] || SCENES.rotina)(c, f);
   const sky = skyAt(sceneHour()); if (sky.light < 1) R1(c, 0, 0, W, H, `rgba(10,18,48,${0.4 * (1 - sky.light)})`);
 }
+// v5.16: o navegador avisa quando o desenho entra ou sai da tela (antes: medir a posição a cada quadro forçava recalcular a página)
+const VIS = typeof IntersectionObserver === 'function' ? new IntersectionObserver((es) => { for (const e of es) e.target._vis = e.isIntersecting; }) : null;
 const MOUNTED = new Set(); let looping = false, last = 0, frame = 0;
 export function mountInterior(cv, kind) {
   if (!cv || cv._int) return;
-  cv._int = kind; cv.width = W; cv.height = H; MOUNTED.add(cv); paint(cv.getContext('2d'), kind, 0);
+  cv._int = kind; cv.width = W; cv.height = H; MOUNTED.add(cv); VIS?.observe(cv); paint(cv.getContext('2d'), kind, 0);
   if (!looping && !matchMedia('(prefers-reduced-motion: reduce)').matches) { looping = true; requestAnimationFrame(loop); }
 }
 function loop(ts) {
-  for (const c of [...MOUNTED]) if (!c.isConnected) MOUNTED.delete(c);
+  for (const c of [...MOUNTED]) if (!c.isConnected) { MOUNTED.delete(c); VIS?.unobserve(c); }
   if (!MOUNTED.size) { looping = false; return; }
   requestAnimationFrame(loop);
   if (document.hidden || ts - last < 120) return;
   last = ts; frame++;
-  for (const cv of MOUNTED) { const r = cv.getBoundingClientRect(); if (r.bottom > 0 && r.top < innerHeight) paint(cv.getContext('2d'), cv._int, frame); }
+  for (const cv of MOUNTED) if (VIS ? cv._vis !== false : true) paint(cv.getContext('2d'), cv._int, frame);
 }

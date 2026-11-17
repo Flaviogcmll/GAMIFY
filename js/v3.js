@@ -5,9 +5,10 @@ import { S } from './store.js';
 
 import * as A from './actions.js';
 import * as R from './rules.js';
+import { tiles } from './telas.js';
 import { esc, today, fmtDM, fmtN, addDays } from './util.js';
 
-import { openModal, closeModal, toast, ask } from './ui.js';
+import { openModal, closeModal, toast, ask, segBar } from './ui.js';
 import { mountInterior, interiorOf } from './interiors.js';
 
 import { primoCard, mountPortraits, primoReact } from './primo.js';
@@ -176,24 +177,51 @@ document.addEventListener('pointerup', () => {
 
 // ───────────── ARQUIVO com filtro e esvaziar ─────────────
 export function viewArquivo3(ui) {
-  const f = (ui.arqF ||= { q: '', m: '', a: '' });
+  const f = (ui.arqF ||= { q: '', m: '', a: '', st: '' });
   let all = R.allTasks(S).filter((t) => t.st === 'done' || t.st === 'cancel' || (t.rounds || []).length);
   const months = [...new Set(all.map((t) => (t.doneAt || t.cancelAt || t.sentAt || '').slice(0, 7)).filter(Boolean))].sort().reverse();
   all = all.filter((t) => (!f.q || (t.text + ' ' + (t.blockTitle || '')).toLowerCase().includes(f.q.toLowerCase())) && (!f.m || (t.doneAt || t.cancelAt || '').startsWith(f.m)) && (!f.a || (f.a === 'block' ? t.block || t.blockTitle : t.area === f.a)))
     .sort((a, b) => ((b.doneAt || b.cancelAt || '') > (a.doneAt || a.cancelAt || '') ? 1 : -1));
-  const lim = ui.arqLimit || 80;
+  // v5.16: resumo do que está filtrado (o mês escolhido, ou tudo)
+  const xpOf = (t) => (t.xp || 0) + (t.rounds || []).reduce((a, r) => a + r.xp, 0) + (t.bonusXp || 0);
+  const ctxOf = (t) => t.blockTitle || (t.block ? R.findBlock(S, t.block)?.title : R.areaName(t.area)) || '';
+  const dayOf = (t) => t.doneAt || t.cancelAt || t.sentAt || '';
+  const done = all.filter((t) => t.st !== 'cancel'), canc = all.length - done.length, xpSum = done.reduce((a, t) => a + xpOf(t), 0);
+  const perDay = {}; for (const t of done) { const d = dayOf(t); if (d) perDay[d] = (perDay[d] || 0) + 1; }
+  const best = Object.entries(perDay).sort((a, b) => b[1] - a[1])[0];
+  const rounds = all.reduce((a, t) => a + (t.rounds || []).length, 0);
+  const shown = f.st ? all.filter((t) => (f.st === 'cancel' ? t.st === 'cancel' : t.st !== 'cancel')) : all;
+  const strip = tiles([
+    { label: '✓ Concluídas', value: fmtN(done.length), tone: 'ok', act: 'arq-st', data: { v: 'done' }, on: f.st === 'done', sub: f.m ? `${f.m.slice(5)}/${f.m.slice(0, 4)}` : 'todos os meses' },
+    { label: '✕ Canceladas', value: fmtN(canc), tone: 'neutro', act: 'arq-st', data: { v: 'cancel' }, on: f.st === 'cancel', sub: 'largar também é decidir' },
+    { label: '✨ XP', value: fmtN(xpSum), cls: 'gold', tone: 'premio' },
+    best && { label: '🔥 Melhor dia', value: best[1], sub: fmtDM(best[0]), tone: 'ok' },
+    rounds && { label: '🔁 Vai e volta', value: rounds, sub: 'rodadas enviadas', tone: 'espera' },
+  ]);
+  const ctx = {}; for (const t of done) { const c = ctxOf(t) || '—'; ctx[c] = (ctx[c] || 0) + 1; }
+  const top = Object.entries(ctx).sort((a, b) => b[1] - a[1]).slice(0, 8), max = top[0]?.[1] || 1;
+  const lim = ui.arqLimit || 80, page = shown.slice(0, lim);
+  // agrupa por dia: um cabeçalho com o total do dia, e as tarefas embaixo
+  let lastDay = '', rows = '';
+  for (const t of page) {
+    const d = dayOf(t);
+    if (d !== lastDay) {
+      lastDay = d;
+      const dd = shown.filter((x) => dayOf(x) === d);
+      rows += `<div class="arq-day"><b>${d ? fmtDM(d) : 'sem data'}</b><span class="meta">${dd.filter((x) => x.st !== 'cancel').length} feita(s) · <span class="gold">+${fmtN(dd.reduce((a, x) => a + (x.st === 'cancel' ? 0 : xpOf(x)), 0))} XP</span></span></div>`;
+    }
+    rows += `<div class="li ${t.st === 'cancel' ? 'canc' : ''}"><div class="lt">${t.st === 'cancel' ? '✕' : '✓'} ${esc(t.text)}<small>${esc(ctxOf(t))}${(t.rounds || []).length ? ` · 🔁 ${t.rounds.length}` : ''}</small></div><span class="chip xp">+${xpOf(t)}</span></div>`;
+  }
   const L = S.core.legacy;
-  return `${historyCard()}<div class="card" style="margin-bottom:14px"><div class="row">
+  return `<div class="page-title"><div><h1><em>arquivo</em>.</h1><p>Tudo que você já fechou mora aqui. Toque num quadrinho pra filtrar.</p></div></div>
+    ${strip}${historyCard()}<div class="card" style="margin-bottom:14px"><div class="row">
       <input class="inp grow" data-input="arqF.q" value="${esc(f.q)}" placeholder="🔍 buscar no arquivo" aria-label="Buscar">
       <select class="inp" style="width:auto" data-v3change="arqF.m" aria-label="Mês"><option value="">TODOS OS MESES</option>${months.map((m) => `<option ${f.m === m ? 'selected' : ''} value="${m}">${m.slice(5)}/${m.slice(0, 4)}</option>`).join('')}</select>
       <select class="inp" style="width:auto" data-v3change="arqF.a" aria-label="Área"><option value="">TODAS</option>${[...Object.entries(R.AREAS), ['block', 'BLOCOS']].map(([k, n]) => `<option ${f.a === k ? 'selected' : ''} value="${k}">${n}</option>`).join('')}</select>
       <button class="btn" data-act="archive-now">🔄 ATUALIZAR</button><button class="btn danger" data-act="arq-empty" ${Object.keys(S.arq).length ? '' : 'disabled'} title="Escolha os meses; XP e medalhas ficam">🗑 ESVAZIAR…</button></div>
       ${L ? `<p class="meta" style="margin:8px 0 0">saldo histórico guardado: ${fmtN(L.done || 0)} concluídas · ${fmtN(L.onTime || 0)} no prazo</p>` : ''}</div>
-    <div class="card" style="max-width:920px"><div class="list">${all.slice(0, lim).map((t) => {
-      const ctx = t.blockTitle || (t.block ? R.findBlock(S, t.block)?.title : R.areaName(t.area)) || '';
-      const xp = (t.xp || 0) + (t.rounds || []).reduce((a, r) => a + r.xp, 0) + (t.bonusXp || 0);
-      return `<div class="li"><div class="lt">${t.st === 'cancel' ? '✕' : '✓'} ${esc(t.text)}<small>${fmtDM(t.doneAt || t.cancelAt || t.sentAt)} · ${esc(ctx)}${(t.rounds || []).length ? ` · 🔁 ${t.rounds.length}` : ''}</small></div><span class="chip xp">+${xp}</span></div>`;
-    }).join('') || '<div class="empty">nada encontrado.</div>'}</div>${all.length > lim ? '<button class="more" data-act="arq-more">mostrar mais</button>' : ''}</div>`;
+    <div class="grid"><div class="card c8 arq-list"><div class="list">${rows || '<div class="empty">nada encontrado.</div>'}</div>${shown.length > lim ? '<button class="more" data-act="arq-more">mostrar mais</button>' : ''}</div>
+      <div class="card c4"><header><h2>📊 Onde você mais fechou</h2></header>${top.map(([n, c]) => `<div class="bar-row"><span>${esc(n.slice(0, 34))}</span><b class="num" style="font-size:8px">${c}</b>${segBar(c / max, 'good sm')}</div>`).join('') || '<div class="empty">nada ainda.</div>'}</div></div>`;
 }
 
 // ───────────── ações da v3 (somadas às do app) ─────────────

@@ -139,7 +139,10 @@ export function checkMilestones() {
   const g = R.dailyGoal(S), td = today(); let st = { d: td, hit: [] };
   try { const o = JSON.parse(ls.get('gamify-ui:ms')); if (o?.d === td) st = o; } catch { /* */ }
   const marks = [0.25, 0.5, 0.75, 1];
-  marks.forEach((m, i) => { if (g.pct >= m && !st.hit.includes(m)) { st.hit.push(m); if (g.today > 0 && !(st.first)) { sfxMilestone(i); setTimeout(() => primoReact(m >= 1 ? 'meta_batida' : m >= 0.75 ? 'meta_perto' : 'meta_meio'), 900); toast(`🔥 ${Math.round(m * 100)}% da meta de hoje · ${fmtN(g.today)}/${fmtN(g.goal)} XP`, 'good'); } } });
+  // v5.16 (Q3): se pulou várias marcas de uma vez (ex.: 75% e 100%), avisa só a maior
+  const fresh = marks.filter((m) => g.pct >= m && !st.hit.includes(m)); st.hit.push(...fresh);
+  const top = fresh.at(-1), i = marks.indexOf(top);
+  if (top != null && g.today > 0 && !st.first) { const m = top; sfxMilestone(i); setTimeout(() => primoReact(m >= 1 ? 'meta_batida' : m >= 0.75 ? 'meta_perto' : 'meta_meio'), 900); toast(`🔥 ${Math.round(m * 100)}% da meta de hoje · ${fmtN(g.today)}/${fmtN(g.goal)} XP`, 'good'); }
   st.first = false; ls.set('gamify-ui:ms', JSON.stringify(st));
 }
 // ───────────────────────── DIÁRIO E HISTÓRICOS ─────────────────────────

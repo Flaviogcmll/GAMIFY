@@ -135,9 +135,9 @@ function enhance(root, route) {
     const h = card.querySelector(':scope > header > h2');
     if (!h || h.dataset.act || card.closest('.modal')) continue;
     const key = `c:${route}:${slug(h.textContent)}`;
-    // cartões só de consulta (referência e legenda) começam recolhidos; depois vale a sua escolha
+    // cartões só de consulta (referência e legenda) e o editor da loja (v5.16: o mais pesado) começam recolhidos; depois vale a sua escolha
     const gk = card.dataset.gk;
-    if ((gk === 'ref' || gk === 'legenda') && !ls.get('gamify-ui:cinit:' + gk)) { ls.set('gamify-ui:cinit:' + gk, '1'); if (!isCollapsed(key)) toggleCollapse(key); }
+    if ((gk === 'ref' || gk === 'legenda' || gk === 'loja-itens') && !ls.get('gamify-ui:cinit:' + gk)) { ls.set('gamify-ui:cinit:' + gk, '1'); if (!isCollapsed(key)) toggleCollapse(key); }
     h.dataset.act = 'collapse'; h.dataset.k = key; h.classList.add('colh');
     h.insertAdjacentHTML('afterbegin', `<span class="chev">${isCollapsed(key) ? '▸' : '▾'}</span> `);
     card.classList.toggle('collapsed', isCollapsed(key));

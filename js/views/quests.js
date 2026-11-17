@@ -203,7 +203,7 @@ function clockCard() {
   return `<div class="card clock" data-phase="${c.key}"><header><h2>${c.icon} ${c.name}</h2><span class="meta" title="seus horários: acordar ${c.wake} · dormir ${c.bed} (PERKS)">${c.key === 'sono' ? `acordar ${c.wake}` : `dormir ${c.bed} · faltam ${h(c.toBed)}`}</span></header>
     <p class="clock-tip">${esc(c.tip)}</p>
     ${heavy ? `<button class="btn sm pri" data-act="jump" data-id="${heavy.id}" title="A mais pesada pra fazer agora">🎯 ${esc(heavy.text.replace(/\s*\(\d+\s*XP\)/i, '').slice(0, 44))}</button>` : ''}
-    <div class="clock-meta">${c.meal ? `<span>🍽 refeição às ${c.meal.at}${c.meal.in ? ` (em ${h(c.meal.in)})` : ' (agora)'}</span>` : ''}${['despertar', 'foco', 'vale'].includes(c.key) ? `<span>☕ último café até ${c.coffeeUntil}</span>` : ''}</div></div>`;
+    <div class="clock-meta">${c.meal ? `<span>🍽 refeição às ${c.meal.at}${c.meal.in ? ` (em ${h(c.meal.in)})` : ' (agora)'}</span>` : ''}${['despertar', 'foco', 'vale'].includes(c.key) ? `<span>☕ último café até ${c.coffeeUntil}</span>` : ''}${['vale', 'pico2'].includes(c.key) ? `<span>🏋 treino até ${c.trainUntil}</span>` : ''}</div></div>`;
 }
 /** depois da hora: no lugar das listas, o fechamento do dia (o que fiz, o que fica pra amanhã, hábitos) */
 function closingView() {

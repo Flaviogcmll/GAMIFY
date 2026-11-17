@@ -40,6 +40,7 @@ O backup do dono NUNCA entra no repositório.
 - `backup.js` — proteção dos dados no aparelho: cópia automática diária (`gamify-bak:*`), lembrete de backup, restaurar.
 - `review.js` — entrevista do dia e revisão de retorno (o PRIMO conduz, na 1ª abertura do dia). Também a migração do mês e o lembrete do boss parado.
 - `bujo.js` — anotar rápido (botão +), arrastar a tarefa no celular, aviso de HOJE cheio e pato de borracha. Liga/desliga em PERKS → 🧠 (`settings.neuro`).
+- `telas.js` — peças da repaginação: `tiles()` (faixa de quadrinhos de resumo, cor pelo significado em `data-tone`) e o índice de PERKS.
 - `trip.js` — modo VIAGEM/VISITAS (congela o jogo; na volta empurra prazos e cria as tarefas de chegada).
 - `imgs.js` — imagens e prints nas tarefas: guardadas no aparelho (IndexedDB) e na pasta escondida do app no Drive; na tarefa fica só `t.imgs = [{ k, g }]`.
 - `drive.js` — sincronização com Google Drive. O dono usa no dia a dia (celular e PC); o Claude não consegue testar o login real, só com um Google simulado (rotas do Playwright).
@@ -70,3 +71,7 @@ O backup do dono NUNCA entra no repositório.
 - A IA do PRIMO (`window.claude.use('sample')`) só existe dentro do claude.ai; no GitHub Pages esses botões não têm IA.
 - O PRIMO dorme à noite: para testar acordado, simule o horário (mock de `Date`).
 - O desenho do PRIMO usa um espaço lógico de 72 x 96 numa tela 4× maior (`K` em `primo.js`). Posição de acessório: tabela `ACC` em `pnew.js`, em pontos do quadro de 224. Os originais das artes (centenas de MB) nunca entram no repositório: só o que `tools/primo_artes.py` gera.
+- Avisos (`toast` em `ui.js`): aparece UM por vez, iguais viram ×N e a fila guarda 3. Se encher, os avisos SEM tipo (`kind` vazio) saem primeiro. Aviso que não pode se perder precisa de tipo (`good`, `gold` ou `bad`).
+- Ícones pixel (`px()` em `icons.js`) são um `<path>` por cor. Não volte para um `<rect>` por pixel: era o que deixava CONQUISTAS e SHOP lentas.
+- Animações do PRIMO e dos interiores sabem se estão na tela por `IntersectionObserver` (`cv._vis`). Não meça posição (`getBoundingClientRect`) a cada quadro.
+

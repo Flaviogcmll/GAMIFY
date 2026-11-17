@@ -104,6 +104,8 @@ export function paintSpeech() {
 }
 
 // ───────────────────────── desenho e animação ─────────────────────────
+// v5.16: o navegador avisa quando o desenho entra ou sai da tela (antes: medir a posição a cada quadro forçava recalcular a página)
+const VIS = typeof IntersectionObserver === 'function' ? new IntersectionObserver((es) => { for (const e of es) e.target._vis = e.isIntersecting; }) : null;
 const MOUNTED = new Set();
 let looping = false, last = 0, frame = 0;
 // K = quantas vezes a tela do desenho é maior que o espaço lógico (72 x 96). O clássico em pixel continua nítido; o novo ganha definição.
@@ -147,20 +149,20 @@ export function mountPortraits(root = document) {
     if (cv._pm) return;
     cv._pm = true;
     if (cv.dataset.mascot != null) { cv.width = 32 * K; cv.height = 32 * K; } else if (cv.dataset.portrait === 'mini') { cv.width = 44 * K; cv.height = 44 * K; } else { cv.width = PW * K; cv.height = PH * K; }
-    MOUNTED.add(cv); paint(cv);
+    MOUNTED.add(cv); VIS?.observe(cv); paint(cv);
   });
   applyScenes();
   if (!looping && !still && MOUNTED.size) { looping = true; requestAnimationFrame(loop); }
   paintSpeech();
 }
 function loop(ts) {
-  for (const c of [...MOUNTED]) if (!c.isConnected) MOUNTED.delete(c);
+  for (const c of [...MOUNTED]) if (!c.isConnected) { MOUNTED.delete(c); VIS?.unobserve(c); }
   if (!MOUNTED.size) { looping = false; return; }
   requestAnimationFrame(loop);
   if (document.hidden || ts - last < 110) return;
   last = ts; frame++;
   if (frame % 40 === 0) applyScenes(); // as artes novas podem ter acabado de carregar; e a luz muda com a hora
-  for (const cv of MOUNTED) { const r = cv.getBoundingClientRect(); if (r.bottom > 0 && r.top < innerHeight) paint(cv); }
+  for (const cv of MOUNTED) if (VIS ? cv._vis !== false : true) paint(cv);
 }
 let notified = new Set();
 /** roda depois de cada desenho da tela: liga os desenhos, evolui o mascote, avisa a volta da expedição, gera o diário */

@@ -1037,3 +1037,49 @@ li.task.sw-next::after { content: 'AMANHA →'; left: -88px; color: var(--c-quas
 }
 form[data-form="boss"] .pausef { display: none; }
 form[data-form="boss"]:has(option[value="pause"]:checked) .pausef { display: block; }
+/* v5.16 velocidade: o navegador só desenha as medalhas que estão perto da tela */
+.medals .medal { content-visibility: auto; contain-intrinsic-size: auto 96px; }
+
+/* ───────── v5.16 — REPAGINAÇÃO (FILTRO, CONQUISTAS, ARQUIVO, ROTINA, PERKS) ───────── */
+/* faixa de quadrinhos: a cor do topo é o significado (mesmas variáveis --c-*) */
+.tiles .stat { position: relative; text-align: left; font: inherit; color: inherit; overflow: hidden; }
+.tiles .stat[data-tone]::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: var(--tone, var(--c-neutro)); }
+.stat[data-tone="urg"] { --tone: var(--c-urg); } .stat[data-tone="quase"] { --tone: var(--c-quase); } .stat[data-tone="atencao"] { --tone: var(--c-atencao); }
+.stat[data-tone="ok"] { --tone: var(--c-ok); } .stat[data-tone="calma"] { --tone: var(--c-calma); } .stat[data-tone="espera"] { --tone: var(--c-espera); }
+.stat[data-tone="neutro"] { --tone: var(--c-neutro); } .stat[data-tone="premio"] { --tone: var(--c-premio); }
+.tiles .stat.tap { cursor: pointer; }
+.tiles .stat.tap:hover { transform: translateY(-1px); }
+.tiles .stat.on { outline: 3px solid var(--tone, var(--c-acao)); outline-offset: -3px; background: color-mix(in srgb, var(--tone, var(--c-acao)) 12%, var(--panel)); }
+.tiles .stat .lastm { font-size: 9px; line-height: 1.4; display: block; overflow-wrap: anywhere; }
+@media (max-width: 860px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; } .tiles .stat b { font-size: 15px; } }
+/* FILTRO: a faixa da esquerda de cada linha tem a cor da lista onde a tarefa cai */
+.ftab tr[data-b] td.ft { border-left: 4px solid var(--c-neutro); font-weight: 600; }
+.ftab tr[data-b="late"] td.ft, .ftab tr[data-b="today"] td.ft { border-left-color: var(--c-urg); }
+.ftab tr[data-b="week"] td.ft { border-left-color: var(--c-atencao); } .ftab tr[data-b="later"] td.ft { border-left-color: var(--c-calma); }
+.ftab tr[data-b="wait"] td.ft { border-left-color: var(--c-espera); }
+.ftab .chip.doing { color: var(--c-atencao); border-color: var(--c-atencao); } .ftab .chip.wait { color: var(--c-espera); border-color: var(--c-espera); }
+/* CONQUISTAS: dourado = ganha; amarelo = quase lá; cinza com cadeado = falta */
+.sec-h { font: 9px/1.6 var(--f-pixel); margin: 18px 0 10px; display: flex; gap: 8px; align-items: baseline; }
+.medal.on { border-color: var(--c-premio); }
+.medal.on .mi { background: color-mix(in srgb, var(--c-premio) 18%, var(--panel)); border-color: var(--c-premio); color: var(--c-premio); }
+.medal.near { border-color: var(--c-atencao); }
+.medal.near .mi { opacity: .85; }
+.medal .xpc { color: var(--c-premio); }
+/* ARQUIVO: cabeçalho de cada dia */
+.arq-day { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 10px 4px 4px; border-bottom: 2px solid var(--line); font: 8px/1.5 var(--f-pixel); }
+.arq-list .li.canc .lt { color: var(--dim); text-decoration: line-through; }
+/* ROTINA: o dia de hoje numa faixa */
+.rot-now { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 12px; }
+.rot-now .rn-info { display: flex; flex-direction: column; gap: 4px; min-width: 180px; flex: 1; }
+.rot-day { display: flex; gap: 3px; margin-top: 12px; overflow-x: auto; padding-bottom: 4px; }
+.rot-day .rd { flex: 1 0 auto; min-width: 54px; padding: 5px 6px; border-radius: 6px; font: 600 10px/1.3 var(--f-mono); border: 2px solid transparent; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 220px; }
+.rot-day .rd small { display: block; font-size: 9px; opacity: .8; }
+.rot-day .rd.past { opacity: .35; }
+.rot-day .rd.cur { border-color: var(--edge); box-shadow: 0 0 0 2px var(--c-acao); }
+/* PERKS: índice no topo */
+.perks-nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; }
+.perks-nav .chip { cursor: pointer; background: var(--panel); }
+.perks-nav .chip:hover { border-color: var(--c-acao); color: var(--c-acao); }
+.card.flash { animation: flash 1.2s steps(4) 2; }
+.rot-now .rn-info b { font: 700 12px/1.3 var(--f-mono); padding: 0; border: 0; box-shadow: none; background: none; border-radius: 0; color: inherit; }
+.tiles .stat span { display: block; margin-top: 2px; }

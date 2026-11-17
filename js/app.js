@@ -39,6 +39,7 @@ import { autoSnapshot, backupBanner, extendBackup, markBackup, restoreDocs } fro
 import { tripBanner, tripCheck, extendTrip } from './trip.js';
 import { maybeReview, extendReview } from './review.js';
 import { extendBujo, afterRenderBujo } from './bujo.js';
+import { perksNav, perksGo } from './telas.js';
 
 
 // abas na mesma ordem da planilha
@@ -139,6 +140,7 @@ function render() {
   try { afterRender(cur); } catch (err) { console.error(err); }
   try { afterRender4(cur); } catch (err) { console.error(err); }
   try { afterRenderBujo(); } catch (err) { console.error(err); }
+  if (cur === 'regras') try { perksNav($main); } catch (err) { console.error(err); }
   refocus();
   redraft();
   const side = $main.querySelector('.side'); // o painel da direita tem rolagem própria: volta pra onde estava
@@ -230,6 +232,8 @@ A.onFeedback((fb) => {
   if (fb.xp > 0) { if (!easy) floatXp(`+${fmtN(fb.xp)} XP`, fb.at); sfx(fb.task ? 'check' : 'xp'); setTimeout(checkMilestones, 400); }
   // 🎆 fogos pra coisa demorada: boss, bloco fechado, mini-boss ⚔, tarefa chata ⭐ ou tarefa que rendeu 60 XP ou mais
   if (fb.boss || fb.closedBlock || (fb.task && fb.xp > 0 && (fb.xp >= 60 || /⚔|⭐/.test(fb.task.text || '')))) setTimeout(() => { fireworks(); sfx('fireworks'); }, 250);
+  // 🧠 recompensa do processo (aulas 021 e 153): cada passo feito num boss mostra o dano, a recompensa longe fica perto
+  if (fb.task && fb.xp > 0 && !fb.boss && R.neuroOn(S, 'proc')) { const bk = fb.task.block && S.quests.blocks.find((x) => x.id === fb.task.block), bo = bk?.group === 'bs' && S.quests.bosses.find((x) => x.block === bk.id), hp = bo && R.bossHp(S, bo); if (hp?.total && hp.left > 0) toast(`👹 Dano no boss <b>${esc(bo.text.replace(/:\s*[\d.]+\s*XP.*$/i, '').slice(0, 40))}</b>: faltam ${Math.round(hp.pct * 100)}% da vida.`, 'good'); }
   if (fb.sent) toast(`✉ Rodada concluída e enviada: <b>${esc(fb.task.text)}</b>. Fica aguardando retorno.`, 'good');
   if (fb.loot) setTimeout(() => { sfx('loot'); toast(`${px('chest', 16)} <b>LOOT!</b> ${esc(fb.loot.label)}${fb.loot.itemId ? ' (foi pra mochila)' : ''}`, 'gold'); }, 350);
   if (fb.closedBlock) { toast(`🏁 BLOCO FECHADO: <b>${esc(fb.closedBlock.title)}</b> · +${fb.closedBlock.xp} XP`, 'good'); confetti(60); }
@@ -548,7 +552,7 @@ const ACTIONS = {
   redemption: () => redemption(),
   'rd-do': (d) => { closeModal(); if (S.marks.days[today()]?.h?.rd !== 'x') { A.setHabit(today(), 'rd', 'x'); toast(`⚔ Redenção: ${esc(d.o)}. +${R.C.RD_XP} XP e debuffs curados.`, 'good'); } else toast('A redenção de hoje já foi feita.'); },
   'rd-undo': () => { closeModal(); A.setHabit(today(), 'rd', ''); },
-  'rest-day': async () => { if (await ask('Dia de descanso?', 'Doença ou dia puxado: todos os hábitos de HOJE viram folga (–), sem punição. Vai ficar fora mais dias? Use o botão ✈ VIAGEM.', 'DESCANSAR')) A.restDay(today()); },
+  'rest-day': async () => { if (await ask('Dia de descanso?', 'Doença ou dia ruim: todos os hábitos de HOJE viram folga (–), sem punição. Dia ruim passa: hoje só o essencial, nada de decisão grande, longe de notícias e álcool; um treino leve ou um chá ajudam, e dormir cedo resolve muito. Vai ficar fora mais dias? Use o botão ✈ VIAGEM.', 'DESCANSAR')) A.restDay(today()); },
   hweek: (d) => { ui.hweek = Math.min(0, (ui.hweek || 0) + +d.dir); render(); },
   'tl-week': (d) => { ui.tlWeek = +d.dir === 0 ? 0 : (ui.tlWeek || 0) + +d.dir; render(); },
   'ag-filter': (d) => { ui.agB = d.b; render(); },
@@ -579,6 +583,10 @@ const ACTIONS = {
   ltab: (d) => { ui.ltab = d.tab; render(); sfx('tab'); },
   fcat: (d) => { ui.fcat = d.cat; render(); },
   fsort: (d) => { const f = ui.filtro; if (f.sort === d.k) f.dir *= -1; else { f.sort = d.k; f.dir = 1; } render(); },
+  fpick: (d) => { const f = ui.filtro; f[d.k] = f[d.k] === d.v ? '' : d.v; sfx('tab'); render(); }, // v5.16: quadrinho do FILTRO liga/desliga o filtro
+  fclear: () => { Object.assign(ui.filtro, { q: '', cat: '', bucket: '', status: '', type: '', who: '' }); sfx('tab'); render(); },
+  cq: (d) => { ui.cq = d.v; sfx('tab'); render(); }, // v5.16: filtro das CONQUISTAS
+  'perks-go': (d) => perksGo(d.i),
   'toggle-done': () => { ui.showDone = !ui.showDone; render(); },
   'toggle-stalled': () => { ui.showStalled = !ui.showStalled; try { localStorage.setItem('gamify-ui:stalled', ui.showStalled ? '1' : '0'); } catch { /* */ } render(); sfx('tab'); },
   'collapse-all': () => {
@@ -587,7 +595,8 @@ const ACTIONS = {
     for (const k of keys) if (isCollapsed(k) !== close) toggleCollapse(k);
     render(); sfx('swish');
   },
-  'arq-more': () => { ui.arqLimit += 100; render(); },
+  'arq-more': () => { ui.arqLimit = (ui.arqLimit || 80) + 100; render(); },
+  'arq-st': (d) => { ui.arqF.st = ui.arqF.st === d.v ? '' : d.v; sfx('tab'); render(); },
   'archive-now': async () => { if (await ask('Atualizar o quadro?', 'Arquiva agora tudo que está ✓ ou ✕ (e blocos fechados). O XP continua valendo.', 'ATUALIZAR')) A.archiveNow(); },
   distribute: () => distribute(),
   'undo-plan': () => A.undoPlan(),

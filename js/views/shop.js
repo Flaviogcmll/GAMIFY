@@ -25,6 +25,7 @@ function taverna(tot, shop) {
       <div class="ip">${fmtN(price)} XP${price !== it.xp ? `<s>${it.xp}</s>` : ''}</div>
       ${offer?.id === it.id ? `<small class="why">🎁 ${esc(R.offerWhy(S, td))}</small>` : ''}
       <small class="dim">${m.min ? `⏱ ${m.min} min · ` : ''}${R.ticketCost(it)}🎟 · ${n ? `comprei ${n}x` : 'nunca comprei'}</small>
+      ${R.neuroOn(S, 'calm') && R.boughtLast7(S, it.id, td) >= R.HABIT_BUY ? `<small class="warn" title="Habituação: o cérebro se acostuma com a mesma recompensa e ela perde o efeito">🔁 ${R.boughtLast7(S, it.id, td)}x em 7 dias: varie a recompensa</small>` : ''}
       ${goal && !can ? segBar(tot.balance / price, 'sm') : ''}
       <div class="ia"><button class="btn sm ${can ? 'pri' : ''}" data-act="buy" data-id="${it.id}" ${can ? '' : 'disabled'}>${can ? 'COMPRAR' : shop.locked ? 'TRANCADA' : `FALTA ${fmtN(price - tot.balance)}`}</button>
         ${tot.tickets >= R.ticketCost(it) && !shop.locked ? `<button class="btn sm" data-act="buy-ticket" data-id="${it.id}" title="Pegar com ${R.ticketCost(it)} ticket(s)">${R.ticketCost(it)}${px('ticket', 12)}</button>` : ''}

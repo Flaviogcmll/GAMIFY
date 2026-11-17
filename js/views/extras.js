@@ -2,6 +2,7 @@
 import { S, status, backendKind } from '../store.js';
 
 import * as R from '../rules.js';
+import { tiles } from '../telas.js';
 import { sundayTarget } from '../actions.js';
 
 import { esc, today, fmtDM, fmtDMY, weekday, fmtN, DOW, weekStart, addDays } from '../util.js';
@@ -89,15 +90,32 @@ export function viewDomingo() {
 }
 
 // ───────────── CONQUISTAS ─────────────
-export function viewConquistas() {
+// v5.16: faixa de resumo, "quase lá" primeiro (a recompensa perto motiva mais: desconto temporal), filtro de 1 toque,
+// dourado = ganha (recompensa) · cinza com cadeado = falta.
+export function viewConquistas(ui) {
   const list = R.achievementList(S);
-  const got = list.filter((a) => a.unlocked);
-  const xp = got.reduce((a, x) => a + (S.core.achievements[x.key]?.xp || x.xp), 0);
-  const sorted = [...got.sort((a, b) => ((a.date || '') < (b.date || '') ? 1 : -1)), ...list.filter((a) => !a.unlocked).sort((a, b) => b.pct - a.pct)];
-  return `<div class="page-title"><div><h1><em>conquistas</em>.</h1><p>${got.length} / ${list.length} desbloqueadas · +${fmtN(xp)} XP ganho com medalhas</p></div></div>
-    <div class="medals">${sorted.map((a) => `<div class="medal ${a.unlocked ? 'on' : ''}"><div class="mi">${px(a.unlocked ? 'conquistas' : 'regras', 24)}</div>
+  const got = list.filter((a) => a.unlocked).sort((a, b) => ((a.date || '') < (b.date || '') ? 1 : -1));
+  const left = list.filter((a) => !a.unlocked).sort((a, b) => b.pct - a.pct);
+  const near = left.filter((a) => a.pct >= 0.5);
+  const xp = got.reduce((a, x) => a + (S.core.achievements[x.key]?.xp || x.xp), 0), last = got[0];
+  const f = ui?.cq || 'todas';
+  const medal = (a) => `<div class="medal ${a.unlocked ? 'on' : a.pct >= 0.5 ? 'near' : ''}"><div class="mi">${px(a.unlocked ? 'conquistas' : 'lock', 24)}</div>
       <div><div class="mn">${esc(a.name)} <span class="xpc">+${a.xp}</span></div><div class="md">${esc(a.desc)}</div>
-      ${a.unlocked ? `<div class="md good">desbloqueada ${fmtDM(a.date)}</div>` : `${segBar(a.pct, 'sm')}<div class="md num">${fmtN(Math.min(a.value, a.goal))}/${fmtN(a.goal)}</div>`}</div></div>`).join('')}</div>`;
+      ${a.unlocked ? `<div class="md good">desbloqueada ${fmtDM(a.date)}</div>` : `${segBar(a.pct, 'sm')}<div class="md num">${fmtN(Math.min(a.value, a.goal))}/${fmtN(a.goal)}${a.pct >= 0.5 ? ` · falta${a.goal - a.value > 1 ? 'm' : ''} ${fmtN(a.goal - a.value)}` : ''}</div>`}</div></div>`;
+  const sec = (title, items, empty) => `<h2 class="sec-h">${title} <span class="meta">${items.length}</span></h2>${items.length ? `<div class="medals">${items.map(medal).join('')}</div>` : `<div class="empty">${empty}</div>`}`;
+  const strip = tiles([
+    { label: '🏆 Desbloqueadas', value: `${got.length}/${list.length}`, tone: 'premio', sub: `${Math.round((got.length / list.length) * 100)}% do salão`, act: 'cq', data: { v: 'ganhas' }, on: f === 'ganhas' },
+    { label: '🎯 Quase lá', value: near.length, tone: 'atencao', sub: 'metade do caminho ou mais', act: 'cq', data: { v: 'quase' }, on: f === 'quase' },
+    { label: '🔒 Faltam', value: left.length, tone: 'neutro', act: 'cq', data: { v: 'faltam' }, on: f === 'faltam' },
+    { label: '✨ XP de medalhas', value: fmtN(xp), cls: 'gold', tone: 'premio' },
+    last && { label: '🕐 Última', value: `<span class="lastm">${esc(last.name)}</span>`, sub: fmtDM(last.date), tone: 'premio' },
+  ]);
+  const body = f === 'ganhas' ? sec('🏆 Ganhas', got, 'nenhuma ainda.')
+    : f === 'quase' ? sec('🎯 Quase lá', near, 'nenhuma passou da metade ainda.')
+    : f === 'faltam' ? sec('🔒 Faltam', left, 'você pegou todas!')
+    : `${near.length ? sec('🎯 Quase lá', near.slice(0, 6), '') : ''}${sec('🏆 Ganhas', got, 'nenhuma ainda: a primeira tarefa concluída já vale uma.')}${sec('🔒 Faltam', left.filter((a) => !near.slice(0, 6).includes(a)), 'você pegou todas!')}`;
+  return `<div class="page-title"><div><h1><em>conquistas</em>.</h1><p>Toque num quadrinho pra filtrar.${f !== 'todas' ? ' <a href="#" data-act="cq" data-v="todas">ver todas</a>' : ''}</p></div></div>
+    ${strip}${body}`;
 }
 
 // ───────────── PERKS AND RULES (tutorial + regras + ajustes) ─────────────
@@ -168,10 +186,10 @@ function neuroCard() {
     <div class="neurogrid">
       ${ck('clock', '🕰 Relógio do corpo', 'No QUESTS, um cartão diz a fase do seu dia (despertar, pico de foco, vale da tarde, segundo pico, desacelerar) e o que fazer nela; no pico, sugere a tarefa mais pesada. Mostra a próxima refeição (comer sempre no mesmo horário acerta o relógio do corpo) e até quando vale o café.')}
       ${ck('curfew', '🌙 Sono inegociável', '1 hora antes de dormir, o QUESTS troca as listas pelo fechamento do dia: o que você fez, o que fica pra amanhã e os hábitos. Dá pra abrir as listas por 15 min se precisar.')}
-      ${ck('calm', '🎯 Dopamina sob controle', 'Tarefa fácil ganha só o "tic". Número voando e fogos ficam pro que custou (⭐, ⚔, 20 XP ou mais, bloco, boss): o cérebro aprende a gostar do difícil.')}
+      ${ck('calm', '🎯 Dopamina sob controle', 'Tarefa fácil ganha só o "tic". Número voando e fogos ficam pro que custou (⭐, ⚔, 20 XP ou mais, bloco, boss): o cérebro aprende a gostar do difícil. Na TAVERNA, item comprado 4 vezes em 7 dias avisa pra variar (a mesma recompensa repetida perde o efeito).')}
       ${ck('ladder', `🪜 Escada do esforço${ladder.length ? ' · degrau ' + ladder.length : ''}`, `7 dias seguidos batendo a meta → ela sobe 5% (até ${R.LADDER_MAX} degraus). Errar não desce o degrau. Meta de hoje: ${R.dailyGoal(S).goal} XP.`)}
     </div>
-    <h3 style="margin:14px 0 6px">📓 Bullet Journal e praticidade</h3>
+    <h2 class="sec-h">📓 Bullet Journal e praticidade</h2>
     <div class="neurogrid">
       ${ck('mig', '📓 Migração do mês', `Nos primeiros dias do mês, o PRIMO passa pelas tarefas sem prazo ou antigas, uma por vez: ✓ ainda vale (ganha data) ou ✕ cancela. "Se não vale reescrever, não vale fazer." <a href="#" data-act="migrate">migrar agora (${R.migrationCandidates(S).length})</a>`)}
       ${ck('why', '💡 Por que esse boss importa', `Dois campos no boss: "por que importa?" e "o que acontece se eu não fizer?". Boss ${R.BOSS_IDLE_DAYS} dias parado → o PRIMO lembra (no máximo 1 vez por semana).`)}
@@ -179,6 +197,7 @@ function neuroCard() {
       ${ck('cheio', '🧠 HOJE cheio demais', 'Passou do limite de tarefas por dia (AJUSTES → máx. prazos por dia), aparece um aviso curto em HOJE e um botão que empurra as menos importantes pra amanhã, sem custo.')}
       ${ck('pato', '🦆 Pato de borracha', 'No SOS TRAVEI: explicar pro PRIMO o que tentou, o que funcionou e o que não. Fica guardado na tarefa.')}
       ${ck('quick', '✎ Anotar rápido', 'Botão + no canto da tela, em qualquer aba (no PC, a tecla +). Uma linha, Enter, e pronto: vai pra SEM PRAZO.')}
+      ${ck('proc', '⚔ Recompensa do processo', 'Cada subtarefa feita num boss mostra quanto de vida ele perdeu. Recompensa que está longe perde valor pro cérebro (desconto temporal): ver o dano agora mantém a motivação no caminho.')}
       ${ck('swipe', '👆 Arrastar no celular', 'Arraste a tarefa pra ESQUERDA = concluir; pra DIREITA = amanhã. O ↩ desfaz.')}
     </div></div>`;
 }

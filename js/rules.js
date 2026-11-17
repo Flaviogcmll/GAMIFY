@@ -1168,19 +1168,19 @@ export function chapterStats(s, from, to = today()) {
 // Tudo liga/desliga em PERKS (settings.neuro). Os horários são do dono.
 export const NEURO_DEFAULT = { clock: true, curfew: true, calm: true, ladder: true, wake: '07:00', bed: '23:00', meals: ['08:00', '12:30', '19:30'],
   // v5.16: Bullet Journal e praticidade (cada um liga/desliga em PERKS → 🧠)
-  mig: true, why: true, box: true, cheio: true, pato: true, quick: true, swipe: true };
+  mig: true, why: true, box: true, cheio: true, pato: true, quick: true, swipe: true, proc: true };
 export const neuro = (s) => ({ ...NEURO_DEFAULT, ...(s.core?.settings?.neuro || {}) });
 export const neuroOn = (s, k) => neuro(s)[k] !== false;
 export const hm = (x) => { const [h, m] = String(x || '0:0').split(':').map(Number); return ((h || 0) * 60 + (m || 0)) % 1440; };
 const hhmm = (m) => `${String(Math.floor(((m + 1440) % 1440) / 60)).padStart(2, '0')}:${String((m + 1440) % 60).padStart(2, '0')}`;
 export const PHASES = {
-  despertar: { icon: '🌅', name: 'DESPERTAR', tip: 'Luz do sol nos olhos por 10 min, água e nada de celular na cama: é o que acerta o relógio do corpo pro dia todo.' },
+  despertar: { icon: '🌅', name: 'DESPERTAR', tip: 'Luz natural nos olhos por 20 a 30 min (rua ou janela), água e nada de celular na cama: é o que acerta o relógio do corpo pro dia todo.' },
   foco: { icon: '🧠', name: 'PICO DE FOCO', tip: 'As primeiras horas acordado são as de mais alerta. Faça AGORA a tarefa mais pesada do dia.' },
-  vale: { icon: '🍃', name: 'VALE DA TARDE', tip: 'Depois do almoço a energia cai: hora de tarefas leves, mensagens, ligações e reuniões.' },
-  pico2: { icon: '💪', name: 'SEGUNDO PICO', tip: 'Fim de tarde: corpo quente e força alta. Ótimo pra treinar ou fechar pendências.' },
-  desacelerar: { icon: '🌆', name: 'DESACELERAR', tip: 'Luz baixa e telas mais fracas. Jante cedo, sem trabalho pesado: o cérebro precisa descer o ritmo pra dormir bem.' },
+  vale: { icon: '🍃', name: 'VALE DA TARDE', tip: 'Depois do almoço a energia cai: hora de tarefas leves, mensagens, ligações e reuniões. Sem cochilo longo: ele rouba o sono da noite.' },
+  pico2: { icon: '💪', name: 'SEGUNDO PICO', tip: 'Fim de tarde: corpo quente e força alta. Ótimo pra treinar (sempre no mesmo horário, e até 4 h antes de dormir) ou fechar pendências.' },
+  desacelerar: { icon: '🌆', name: 'DESACELERAR', tip: 'Pare de trabalhar e estudar: faltam 3 h pra dormir. Luz laranja e baixa, telas fracas, jantar leve. O cérebro precisa descer o ritmo pra dormir bem.' },
   recolher: { icon: '🌙', name: 'TOQUE DE RECOLHER', tip: 'Falta menos de 1 hora pra dormir. Feche o dia e largue as listas: amanhã elas continuam aqui.' },
-  sono: { icon: '😴', name: 'HORA DE DORMIR', tip: 'Sono é inegociável: 7 a 9 horas. Dormir mal encolhe o hipocampo (memória) e piora o humor do dia seguinte.' },
+  sono: { icon: '😴', name: 'HORA DE DORMIR', tip: 'Sono é inegociável: 7 a 9 horas, no mesmo horário até no fim de semana. Se acordar no meio da noite, não olhe o relógio. Cama é só pra dormir.' },
 };
 /** em que fase do dia o corpo está, pelos horários de acordar e dormir do dono */
 export function bodyClock(s, now = new Date()) {
@@ -1189,7 +1189,7 @@ export function bodyClock(s, now = new Date()) {
   const key = since >= awake ? 'sono' : toBed <= 60 ? 'recolher' : toBed <= 180 ? 'desacelerar' : since < 60 ? 'despertar' : since < 300 ? 'foco' : since < 480 ? 'vale' : 'pico2';
   const meal = (n.meals || []).map(hm).map((m) => ({ at: m, in: (m - t + 1440) % 1440 })).filter((m) => m.in <= 180).sort((a, b) => a.in - b.in)[0];
   return { key, ...PHASES[key], toBed: key === 'sono' ? 0 : toBed, bed: n.bed, wake: n.wake, sleepH: Math.round(((wake - bed + 1440) % 1440) / 6) / 10,
-    meal: meal ? { at: hhmm(meal.at), in: meal.in } : null, coffeeUntil: hhmm(wake + 8 * 60) };
+    meal: meal ? { at: hhmm(meal.at), in: meal.in } : null, coffeeUntil: hhmm(Math.min(wake + 8 * 60, 15 * 60)), trainUntil: hhmm(bed - 4 * 60) };
 }
 /** a tarefa mais pesada que dá pra fazer hoje (pro pico de foco): ! prioridade, ⭐, atrasada, mais XP */
 export function heaviestTask(s, td = today()) {
@@ -1237,4 +1237,12 @@ export function hojeOverflow(s, td = today()) {
   const score = (t) => (t.prio ? 400 : 0) + (parse(t.text).star ? 200 : 0) + (t.st === 'doing' ? 300 : 0) + taskXp(s, t).xp;
   const movable = hoje.filter((t) => t.due === td && !t.prio && t.st !== 'doing' && !t.link && !reschedLocked(s, t)).sort((a, b) => score(a) - score(b));
   return { count: hoje.length, max, suggest: movable.slice(0, hoje.length - max) };
+}
+
+// ───────────────────────── v5.16: RECOMPENSA (aulas 021, 068, 153) ─────────────────────────
+// Habituação: a mesma recompensa repetida perde o efeito. Item da TAVERNA comprado 4+ vezes em 7 dias ganha um aviso pra variar.
+export const HABIT_BUY = 4;
+export function boughtLast7(s, itemId, td = today()) {
+  const from = addDays(td, -6);
+  return (s.loja?.purchases || []).filter((p) => p.itemId === itemId && p.kind === 'taverna' && p.date >= from && p.date <= td).length;
 }

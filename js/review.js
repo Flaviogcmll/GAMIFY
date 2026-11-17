@@ -104,9 +104,12 @@ const VIEW = {
   },
   hoje: () => {
     const l = todays(), w = waiting().length, doing = l.find((t) => t.st === 'doing');
+    // 🧠 aulas 063 e 099: quem dormiu mal enxerga ameaça em tudo. Sono de ontem sem ✓ → hoje só o essencial
+    const sono = R.neuroOn(S, 'clock') && S.core.habits.find((h) => /SONO|DORMIR/i.test(h.name)), y = addDays(today(), -1);
+    const badSleep = sono && y >= (S.core.startDate || y) && !S.marks.days[y]?.h?.[sono.id];
     return {
       title: 'por onde começar',
-      line: doing ? `Fechado: a primeira é "${clean(doing.text).slice(0, 60)}". O resto espera, sô.` : l.length ? 'Agora escolhe UMA pra ser a primeira. Só uma, uai.' : 'Hoje tá sem prazo marcado. Puxa uma coisa pequena pra começar o dia, sô.',
+      line: (badSleep ? 'Ontem o sono não foi marcado. Se dormiu mal, hoje o cérebro aumenta os problemas: só o essencial e nada de decisão grande, uai. ' : '') + (doing ? `Fechado: a primeira é "${clean(doing.text).slice(0, 60)}". O resto espera, sô.` : l.length ? 'Agora escolhe UMA pra ser a primeira. Só uma, uai.' : 'Hoje tá sem prazo marcado. Puxa uma coisa pequena pra começar o dia, sô.'),
       body: `${l.length ? `<div class="list" style="max-height:38vh;overflow:auto">${l.slice(0, 10).map((t) => `<button class="li rv-opt ${t.st === 'doing' ? 'on' : ''}" data-rv="doing" data-id="${t.id}"><span class="lt">${t.st === 'doing' ? '▶ ' : ''}${esc(clean(t.text))}<small>${esc(where(t))}${t.due < today() ? ' · atrasada' : ''}</small></span><span class="chip xp">${R.taskXp(S, t).xp}</span></button>`).join('')}</div>` : '<div class="empty">nenhuma tarefa com prazo pra hoje.</div>'}
         ${w ? `<p class="meta" style="margin:8px 0 0">⏳ ${w} aguardando. Se alguma voltou, é só tirar o "aguardando" dela na lista AGUARDANDO.</p>` : ''}`,
       last: true,
