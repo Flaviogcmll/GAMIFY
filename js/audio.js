@@ -14,11 +14,20 @@ function ensure() {
   master.connect(ctx.destination);
   for (const k of ['sfx', 'music', 'fire']) { bus[k] = ctx.createGain(); bus[k].connect(master); }
   // "fita" do lo-fi: corta os agudos
-  const tape = ctx.createBiquadFilter(); tape.type = 'lowpass'; tape.frequency.value = 2600;
+  const tape = ctx.createBiquadFilter(); tape.type = 'lowpass'; tape.frequency.value = 2300; // v6: um pouco mais abafado = mais aconchegante
   bus.musicIn = ctx.createGain(); bus.musicIn.connect(tape); tape.connect(bus.music);
   noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
   const d = noiseBuf.getChannelData(0);
   for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  // v6: eco de sala pequena (gerado aqui mesmo): deixa o lo-fi e os efeitos quentinhos, como numa cabana
+  try {
+    const len = Math.floor(ctx.sampleRate * 2.2), ir = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) { const x = ir.getChannelData(ch); for (let i = 0; i < len; i++) x[i] = (Math.random() * 2 - 1) * (1 - i / len) ** 3.2; }
+    const room = ctx.createConvolver(); room.buffer = ir;
+    const wetM = ctx.createGain(); wetM.gain.value = 0.28; tape.connect(wetM).connect(room);
+    const wetS = ctx.createGain(); wetS.gain.value = 0.1; bus.sfx.connect(wetS).connect(room);
+    room.connect(master);
+  } catch { /* sem eco */ }
   applyVolumes();
   return ctx;
 }
@@ -32,8 +41,10 @@ export function applyVolumes() {
 export function setVol(k, v) { prefs[k] = v; savePrefs(); applyVolumes(); }
 
 const mtof = (m) => 440 * 2 ** ((m - 69) / 12);
+let detune = 1; // v6: cada efeito sai um tiquinho diferente (não cansa o ouvido)
 function tone(freq, t, dur, { type = 'square', vol = 0.15, out = 'sfx', attack = 0.005, slide = 0, vib = 0 } = {}) {
   const o = ctx.createOscillator(), g = ctx.createGain();
+  if (out === 'sfx') freq *= detune;
   o.type = type;
   o.frequency.setValueAtTime(freq, t);
   if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq * slide), t + dur);
@@ -57,7 +68,8 @@ function noise(t, dur, { vol = 0.2, type = 'bandpass', freq = 1800, q = 1, out =
 const SFX = {
   // fogos: assobio do rojão subindo + estouro com chiado, três vezes
   fireworks: (t) => { for (let i = 0; i < 3; i++) { const u = t + i * 0.27; tone(700, u, 0.2, { slide: 2.4, type: 'sine', vol: 0.05 }); noise(u + 0.22, 0.34, { freq: 900, vol: 0.3, q: 0.6 }); noise(u + 0.24, 0.6, { freq: 5200, vol: 0.1, q: 0.8 }); } },
-  check: (t) => { tone(mtof(76), t, 0.07); tone(mtof(83), t + 0.07, 0.12); },
+  // v6: concluir tarefa = "tic" curtinho e suave, com 4 variações (o PDF: pequeno e não musical; a festa fica pro que custou)
+  check: (t) => { const v = (Math.random() * 4) | 0; const P = [[79, 86], [81, 88], [76, 84], [83, 88]][v]; tone(mtof(P[0]), t, 0.05, { type: 'triangle', vol: 0.13 }); tone(mtof(P[1]), t + 0.045, 0.09, { type: 'sine', vol: 0.11 }); noise(t, 0.02, { freq: 4200, vol: 0.05 }); },
   xp: (t) => [84, 88, 91].forEach((m, i) => tone(mtof(m), t + i * 0.05, 0.12, { type: 'triangle', vol: 0.18 })),
   coin: (t) => { tone(mtof(83), t, 0.08); tone(mtof(88), t + 0.08, 0.3); },
   level: (t) => { [72, 76, 79, 84].forEach((m, i) => tone(mtof(m), t + i * 0.11, 0.18)); tone(mtof(88), t + 0.45, 0.6, { vib: 6 }); [60, 64, 67].forEach((m) => tone(mtof(m), t + 0.45, 0.6, { type: 'triangle', vol: 0.1 })); },
@@ -102,7 +114,7 @@ export function sfxMilestone(i) {
 }
 export function sfx(name) {
   if (prefs.sfx <= 0) return;
-  try { if (!ensure()) return; if (ctx.state === 'suspended') ctx.resume(); SFX[name]?.(ctx.currentTime + 0.01); } catch { /* sem som */ }
+  try { if (!ensure()) return; if (ctx.state === 'suspended') ctx.resume(); detune = 2 ** (((Math.random() - 0.5) * 0.6) / 12); SFX[name]?.(ctx.currentTime + 0.01); detune = 1; } catch { /* sem som */ }
 }
 
 // ───── lo-fi do aventureiro (gerado) ─────
@@ -115,7 +127,9 @@ const THEMES = {
   zen: { bpm: 72, a: [[33, 55, 60, 64, 67], [41, 57, 60, 64, 67], [36, 55, 60, 64, 67], [31, 55, 59, 62, 64]], b: [[38, 57, 60, 64, 65], [31, 55, 59, 62, 67], [36, 55, 59, 64, 67], [33, 55, 60, 64, 67]], penta: [69, 72, 76, 79, 81, 84] },
   night: { bpm: 78, a: [[38, 53, 57, 60, 64], [34, 57, 62, 65, 69], [31, 53, 58, 62, 65], [33, 55, 61, 64, 67]], b: [[43, 53, 57, 60, 62], [41, 57, 60, 64, 67], [38, 53, 57, 60, 64], [33, 55, 61, 64, 67]], penta: [74, 77, 79, 81, 84, 86] },
 };
-const THEME_OF = { quests: 'work', filtro: 'work', agenda: 'plan', arquivo: 'plan', shop: 'shop', cofre: 'shop', domingo: 'zen', survival: 'zen', rotina: 'night', regras: 'night', conquistas: 'shop' };
+// v6: "cozy" = mais lento e mais jazzístico (Fmaj9 · Em7 · Dm9 · G13), pro QUESTS, que é onde você passa mais tempo
+THEMES.cozy = { bpm: 70, a: [[41, 57, 60, 64, 67], [40, 55, 59, 62, 67], [38, 57, 60, 64, 65], [43, 53, 57, 59, 64]], b: [[45, 55, 60, 64, 67], [38, 57, 60, 64, 65], [41, 57, 60, 64, 69], [43, 53, 59, 62, 64]], penta: THEMES.zen.penta };
+const THEME_OF = { quests: 'cozy', filtro: 'work', agenda: 'plan', arquivo: 'plan', shop: 'shop', cofre: 'shop', domingo: 'zen', survival: 'zen', rotina: 'night', regras: 'night', conquistas: 'shop' };
 let THEME = THEMES.work, CHORDS = THEME.a, PENTA = THEME.penta, BPM = THEME.bpm;
 export function setLofiTheme(route) { const t = THEMES[THEME_OF[route] || 'work']; if (t !== THEME) { THEME = t; CHORDS = t.a; PENTA = t.penta; BPM = t.bpm; } }
 let step = 0, nextT = 0, bar = 0;

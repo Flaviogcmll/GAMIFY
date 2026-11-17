@@ -26,7 +26,7 @@ export function toggleCollapse(k) { collapsed.has(k) ? collapsed.delete(k) : col
 
 // ───────────── cenário no topo de cada aba ─────────────
 const TITLES = {
-  survival: ['survival.', 'campo de treino · hábitos e rituais'], agenda: ['agenda.', 'a mesa do mapa · prazos e rituais'], shop: ['taverna.', 'compre antes de aproveitar'],
+  survival: ['survival.', 'campo de treino · hábitos e rituais'], agenda: ['agenda.', 'a mesa do mapa · prazos e rituais'], shop: ['feira.', 'a taverna, o ferreiro e quem mais aparecer'],
   ferreiro: ['ferreiro.', 'upgrades permanentes · XP + gold'], domingo: ['reflexão.', 'o baú da semana · peso · notas'], conquistas: ['conquistas.', 'salão dos troféus'],
   filtro: ['filtro.', 'tudo em aberto, numa tabela'], rotina: ['rotina.', 'a torre do relógio · semana-tipo'], regras: ['perks and rules.', 'o livro de regras'], arquivo: ['arquivo.', 'a biblioteca do que já foi'],
 };
@@ -35,8 +35,10 @@ export function sceneBanner(route, ui) {
   const key = route === 'shop' && ui.ltab === 'ferreiro' ? 'ferreiro' : route;
   const [t, sub] = TITLES[key] || [route + '.', ''];
   // v5.14: cada aba tem a sua imagem (dia e noite); o desenho em código só aparece se a imagem não carregar
-  const night = document.documentElement.dataset.mode === 'night';
-  return `<div class="scene pstrip"><canvas id="scene" data-interior="${interiorOf(key) || 'rotina'}" aria-hidden="true"></canvas><img class="topo" src="assets/topo/${TOPOS.includes(key) ? key : 'survival'}-${night ? 'noite' : 'dia'}.webp" alt="" aria-hidden="true">
+  const night = document.documentElement.dataset.mode === 'night', h = new Date().getHours();
+  // v6: a SHOP virou FEIRA, com o cenário da feira (dia, tarde ou noite)
+  const src = key === 'shop' ? `assets/primo/cena/feira-${night ? 'noite' : h >= 16 ? 'tarde' : 'dia'}.webp` : `assets/topo/${TOPOS.includes(key) ? key : 'survival'}-${night ? 'noite' : 'dia'}.webp`;
+  return `<div class="scene pstrip"><canvas id="scene" data-interior="${interiorOf(key) || 'rotina'}" aria-hidden="true"></canvas><img class="topo" src="${src}" alt="" aria-hidden="true">
     <div class="pst-face"><canvas class="pcv" data-portrait="mini" data-act="primo-hub" title="Falar com o PRIMO" aria-label="PRIMO"></canvas></div>
     <div class="pst-txt"><div class="scene-title">${esc(t)}</div><div class="scene-sub">${esc(sub.toUpperCase())}</div><div class="pst-say" data-pspeech="tab:${key}"></div></div></div>`;
 }
@@ -202,16 +204,14 @@ export function viewArquivo3(ui) {
   const top = Object.entries(ctx).sort((a, b) => b[1] - a[1]).slice(0, 8), max = top[0]?.[1] || 1;
   const lim = ui.arqLimit || 80, page = shown.slice(0, lim);
   // agrupa por dia: um cabeçalho com o total do dia, e as tarefas embaixo
-  let lastDay = '', rows = '';
-  for (const t of page) {
-    const d = dayOf(t);
-    if (d !== lastDay) {
-      lastDay = d;
-      const dd = shown.filter((x) => dayOf(x) === d);
-      rows += `<div class="arq-day"><b>${d ? fmtDM(d) : 'sem data'}</b><span class="meta">${dd.filter((x) => x.st !== 'cancel').length} feita(s) · <span class="gold">+${fmtN(dd.reduce((a, x) => a + (x.st === 'cancel' ? 0 : xpOf(x)), 0))} XP</span></span></div>`;
-    }
-    rows += `<div class="li ${t.st === 'cancel' ? 'canc' : ''}"><div class="lt">${t.st === 'cancel' ? '✕' : '✓'} ${esc(t.text)}<small>${esc(ctxOf(t))}${(t.rounds || []).length ? ` · 🔁 ${t.rounds.length}` : ''}</small></div><span class="chip xp">+${xpOf(t)}</span></div>`;
-  }
+  // v6: cada dia é um cartão (data grande, dia da semana, total do dia) e as tarefas dentro
+  const DOWN = ['DOMINGO', 'SEGUNDA', 'TERÇA', 'QUARTA', 'QUINTA', 'SEXTA', 'SÁBADO'];
+  const groups = []; for (const t of page) { const d = dayOf(t); if (groups.at(-1)?.d !== d) groups.push({ d, items: [] }); groups.at(-1).items.push(t); }
+  const rows = groups.map(({ d, items }) => {
+    const dd = shown.filter((x) => dayOf(x) === d), nDone = dd.filter((x) => x.st !== 'cancel').length, xpD = dd.reduce((a, x) => a + (x.st === 'cancel' ? 0 : xpOf(x)), 0);
+    return `<section class="arq-daycard"><div class="arq-day"><span class="ad-n">${d ? d.slice(8) : '—'}</span><span class="ad-m">${d ? `${DOWN[new Date(d + 'T12:00').getDay()]}<br>${fmtDM(d).slice(3)}` : 'sem data'}</span><span class="ad-s"><b>${nDone}</b> feita(s)<br><span class="gold">+${fmtN(xpD)} XP</span></span></div>
+      <div class="list">${items.map((t) => `<div class="li ${t.st === 'cancel' ? 'canc' : ''}"><div class="lt">${t.st === 'cancel' ? '✕' : '✓'} ${esc(t.text)}<small>${esc(ctxOf(t))}${(t.rounds || []).length ? ` · 🔁 ${t.rounds.length}` : ''}</small></div><span class="chip xp">+${xpOf(t)}</span></div>`).join('')}</div></section>`;
+  }).join('');
   const L = S.core.legacy;
   return `<div class="page-title"><div><h1><em>arquivo</em>.</h1><p>Tudo que você já fechou mora aqui. Toque num quadrinho pra filtrar.</p></div></div>
     ${strip}${historyCard()}<div class="card" style="margin-bottom:14px"><div class="row">
@@ -221,7 +221,7 @@ export function viewArquivo3(ui) {
       <button class="btn" data-act="archive-now">🔄 ATUALIZAR</button><button class="btn danger" data-act="arq-empty" ${Object.keys(S.arq).length ? '' : 'disabled'} title="Escolha os meses; XP e medalhas ficam">🗑 ESVAZIAR…</button></div>
       ${L ? `<p class="meta" style="margin:8px 0 0">saldo histórico guardado: ${fmtN(L.done || 0)} concluídas · ${fmtN(L.onTime || 0)} no prazo</p>` : ''}</div>
     <div class="grid">${top.length ? `<div class="card c12"><header><h2>📊 Onde você mais fechou</h2></header><div class="arq-top">${top.map(([n, c]) => `<div class="bar-row"><span>${esc(n.slice(0, 34))}</span><b class="num" style="font-size:8px">${c}</b>${segBar(c / max, 'good sm')}</div>`).join('')}</div></div>` : ''}
-      <div class="card c12 arq-list"><div class="list">${rows || '<div class="empty">nada encontrado.</div>'}</div>${shown.length > lim ? '<button class="more" data-act="arq-more">mostrar mais</button>' : ''}</div></div>`;
+      <div class="c12 arq-list">${rows || '<div class="card"><div class="empty">nada encontrado.</div></div>'}${shown.length > lim ? '<button class="more" data-act="arq-more">mostrar mais</button>' : ''}</div></div>`;
 }
 
 // ───────────── ações da v3 (somadas às do app) ─────────────
@@ -229,7 +229,8 @@ export function extend(ACTIONS, render) {
   window.__weeklyPick = () => ACTIONS['weekly-pick']();
   Object.assign(ACTIONS, {
     collapse: (d) => { toggleCollapse(d.k); render(); sfx('swish'); },
-    qtab: (d) => { window.__ui.qtab = d.tab; render(); sfx('tab'); },
+    qtab: (d) => { const ui = window.__ui; if ((document.querySelector('.qbar .seg button.on')?.dataset.tab || ui.qtab || 'listas') === d.tab && !ui.mm) ui.mm = true; else { ui.mm = false; ui.qtab = d.tab; } render(); sfx('tab'); }, // v6: tocar de novo na janela aberta = memento mori
+    'mm-off': () => { window.__ui.mm = false; render(); sfx('tab'); },
     'ag-day': (d) => { const list = R.openTasks(S).filter((t) => t.due === d.d); openModal(`<h2>${fmtDM(d.d)}</h2><div class="list">${list.map((t) => `<div class="li" data-list="${R.listOf(t)}"><div class="lt" data-act="jump" data-id="${t.id}" style="cursor:pointer">${esc(t.text)}<small>${esc(t.block ? R.findBlock(S, t.block)?.title || '' : R.areaName(t.area))}</small></div><span class="chip xp">${R.taskXp(S, t).xp}</span></div>`).join('') || '<div class="empty">nada vence nesse dia.</div>'}</div><div class="actions"><button class="btn" data-close>FECHAR</button></div>`); },
     'comp-talk': () => talk(),
     'comp-rename': () => openModal(`<form data-v3form="rename"><h2>nome do companheiro</h2><input class="inp" name="n" value="${esc(R.companion(S).name)}" maxlength="12" autofocus aria-label="Nome"><div class="actions"><button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">SALVAR</button></div></form>`),

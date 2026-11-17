@@ -54,11 +54,19 @@ function drawHat(t, view, dx, dy) {
   t.drawImage(im, p[1] - w / 2 + dx, p[2] - h / 2 + dy, w, h);
 }
 
+/** v6: passeio pelo banner do QUESTS: anda pra direita, para (às vezes come), anda pra esquerda, para. x vai de 0 a 1 */
+export function walkPos(f) {
+  const ph = f % 560;
+  if (ph < 160) return { x: 0.06 + 0.88 * (ph / 160), pose: { anim: 'andando', off: 0, flip: false } };
+  if (ph < 280) return { x: 0.94, pose: ph >= 200 && ph < 232 ? { anim: 'comendo', off: 0, t: ph - 200 } : { anim: 'parado', off: 0 } };
+  if (ph < 440) return { x: 0.94 - 0.88 * ((ph - 280) / 160), pose: { anim: 'andando', off: 0, flip: true } };
+  return { x: 0.06, pose: { anim: 'parado', off: 0 } };
+}
 /** desenha o PRIMO novo no mesmo espaço lógico do clássico (72 x 96): o = { expr, wear, talk, f, mood } */
 export function drawPortraitNew(c, o = {}) {
   const { wear = {}, talk = false, f = 0, mood = null } = o, FR = META.fr;
   const tired = mood === 'tired' || o.expr === 'cansado';
-  const ps = pose(o.expr, f, tired, !!wear.hat), A = META.anim[ps.anim], sheet = img(ps.anim);
+  const ps = o.force || pose(o.expr, f, tired, !!wear.hat), A = META.anim[ps.anim], sheet = img(ps.anim);
   if (ps.still) return drawStill(c, ps.still, f, mood, o.expr);
   const sp = A.speed * (tired ? 2 : 1), i = ps.t != null ? Math.min(A.n - 1, Math.floor(ps.t / A.speed)) : Math.floor(f / sp) % A.n;
   const dance = o.expr === 'festa', hop = dance ? -Math.abs(Math.round(Math.sin(f / 2) * 3)) : talk && f % 4 < 2 ? -1 : 0;

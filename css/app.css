@@ -1002,9 +1002,6 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 
 /* ───────── v5.16 — BULLET JOURNAL E PRATICIDADE ───────── */
 /* Q1 anotar rápido: botão + fixo (cor de ação = madeira, a casa do app) */
-.qadd { position: fixed; right: 16px; bottom: 16px; z-index: 45; width: 52px; height: 52px; border: 2px solid var(--edge); background: var(--c-acao); color: #fff7ef; font: 22px/1 var(--f-pixel); box-shadow: 4px 4px 0 var(--shadow); cursor: pointer; }
-.qadd:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--shadow); }
-.qadd[hidden] { display: none; }
 .toasts { bottom: 82px; }
 .qwhen label { cursor: pointer; } .qwhen input { margin: 0 4px 0 0; }
 /* Q2 arrastar no celular: ← conclui (verde) · → amanhã (laranja = AMANHÃ) */
@@ -1032,7 +1029,6 @@ li.task.sw-next::after { content: 'AMANHA →'; left: -88px; color: var(--c-quas
 .migcard { border: 2px solid var(--edge); background: var(--panel-2); padding: 12px; text-align: center; box-shadow: 3px 3px 0 var(--shadow); }
 .migcard b { display: block; font-size: 14px; overflow-wrap: anywhere; } .migcard small { display: block; color: var(--dim); margin-top: 4px; }
 @media (max-width: 860px) {
-  .qadd { right: 12px; bottom: calc(78px + env(safe-area-inset-bottom)); width: 46px; height: 46px; }
   .toasts { bottom: 134px; }
 }
 form[data-form="boss"] .pausef { display: none; }
@@ -1187,7 +1183,6 @@ li.task.glow[data-color="black"] { --gl: var(--c-neutro); } li.task.glow[data-co
 .item .link-btn { font-size: 10.5px; opacity: .7; }
 .item.locked { opacity: .55; filter: grayscale(.6); }
 .shoptabs { flex-wrap: wrap; }
-main:has(.vitrine) > .scene.pstrip > img.topo { display: none; } main:has(.vitrine) > .scene.pstrip { min-height: 92px; }
 /* v5.16b AGENDA: fim de semana e feriado em azul (descanso), linha do tempo na largura toda */
 .tl table { width: 100%; }
 .tl td.we, .tl th.we { background: color-mix(in srgb, var(--c-calma) 12%, var(--panel)); }
@@ -1223,3 +1218,103 @@ main:has(.vitrine) > .scene.pstrip > img.topo { display: none; } main:has(.vitri
 .csw span { display: none; }
 .csw:has(input:checked) { padding-right: 10px; }
 .csw:has(input:checked) span { display: inline; white-space: nowrap; }
+
+/* ═════════════ v6 — pedidos do bloco APP (17/11) ═════════════ */
+/* largura toda, com respiro */
+.main { max-width: none; padding: 16px clamp(14px, 2.2vw, 36px) 120px; }
+/* topo: fogueirinha + GAMIFY + 💻 pequeno à direita; barra de nível dourada (dourado = recompensa) */
+.brand { gap: 6px; } .savewhere { font-size: 11px; opacity: .6; align-self: flex-start; margin-top: 2px; }
+.lv { background: var(--c-premio); color: #2b1d0c; }
+.hero .who .t { color: var(--c-premio); }
+.hero .seg-bar > i { background: var(--c-premio); }
+/* conquistas: amarelo do "quase lá" mais suave */
+.medal.near { border-color: color-mix(in srgb, var(--c-atencao) 45%, var(--line)); }
+/* banners mais finos e sutis */
+.scene.pstrip { min-height: clamp(96px, 9.5vw, 150px); }
+.scene.pstrip > img.topo { object-position: center 50%; }
+.vit-h { min-height: clamp(88px, 9vw, 130px); }
+/* AGENDA: linha do tempo com degradê pelo prazo (as cores das listas) e rituais em azul na fila */
+.tl td.span.h-ok { background: color-mix(in srgb, var(--c-ok) 32%, var(--panel)); }
+.tl td.span.h-atencao { background: color-mix(in srgb, var(--c-atencao) 40%, var(--panel)); }
+.tl td.span.h-quase { background: color-mix(in srgb, var(--c-quase) 45%, var(--panel)); }
+.tl td.span.h-urg { background: color-mix(in srgb, var(--c-urg) 45%, var(--panel)); }
+.tl td.end { color: var(--c-urg); font-weight: 700; }
+.li.rit { --lc: var(--c-calma); background: color-mix(in srgb, var(--c-calma) 8%, transparent); }
+.chip.rit { background: color-mix(in srgb, var(--c-calma) 14%, transparent); border-color: var(--c-calma); color: var(--c-calma); }
+.li.rit { border-left: 4px solid var(--c-calma); padding-left: 8px; }
+.pill .rx { border: 0; background: none; color: var(--dim); cursor: pointer; font: 700 13px/1 var(--f-mono); padding: 0 0 0 4px; } .pill .rx:hover { color: var(--c-urg); }
+/* ARQUIVO: um cartão por dia */
+.arq-list { display: grid; gap: 14px; }
+.arq-daycard { display: grid; grid-template-columns: 150px 1fr; gap: 0; border: 2px solid var(--edge); border-radius: 12px; background: var(--panel); box-shadow: 3px 3px 0 var(--shadow); overflow: hidden; }
+.arq-daycard .arq-day { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 14px; border: 0; border-right: 2px solid var(--line); background: var(--panel-2); font: inherit; }
+.arq-daycard .ad-n { font: 26px/1 var(--f-pixel); color: var(--c-acao); }
+.arq-daycard .ad-m { font: 7.5px/1.6 var(--f-pixel); color: var(--dim); }
+.arq-daycard .ad-s { font-size: 12px; color: var(--muted); }
+.arq-daycard .list { padding: 6px 14px; }
+@media (max-width: 600px) { .arq-daycard { grid-template-columns: 1fr; } .arq-daycard .arq-day { flex-direction: row; align-items: center; border-right: 0; border-bottom: 2px solid var(--line); } }
+/* v6 POST-IT flutuante (o bloco fixado 📌), em todas as abas */
+#postit { position: fixed; right: 18px; bottom: 18px; z-index: 46; width: min(340px, calc(100vw - 24px)); max-height: min(60vh, 520px); display: flex; flex-direction: column;
+  background: color-mix(in srgb, var(--c-premio) 16%, var(--panel)); border: 2px solid var(--edge); border-radius: 10px; box-shadow: 5px 6px 0 var(--shadow); transform: rotate(-.4deg); }
+#postit .pi-h { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 2px dashed color-mix(in srgb, var(--c-premio) 50%, var(--line)); cursor: grab; user-select: none; }
+#postit .pi-h b { flex: 1; min-width: 0; font: 8px/1.5 var(--f-pixel); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#postit .tasks { overflow: auto; padding: 4px 6px; margin: 0; }
+#postit .addline { padding: 6px 8px 8px; }
+#postit.min { width: auto; max-width: 260px; }
+#postit.min .pi-h { border-bottom: 0; }
+@media (max-width: 860px) { #postit { right: 10px; left: 10px; width: auto; bottom: calc(76px + env(safe-area-inset-bottom)); max-height: 46vh; transform: none; } #postit.min { left: auto; } }
+/* v6 painel da direita: sem buracos entre os cartões, alça de arrastar sempre visível */
+.side { display: flex; flex-direction: column; gap: 14px; }
+.side > .sitem { margin: 0; }
+.side > .sitem > .card, .side .card.clock { margin: 0 !important; }
+.side .shandle { opacity: .55; }
+.side > p.meta { order: 999; margin: 0; } .side > p.meta:empty { display: none; }
+/* v6 MEMENTO MORI */
+.memento { display: grid; grid-template-columns: auto 1fr; gap: 24px; align-items: center; padding: 28px clamp(16px, 4vw, 48px); cursor: pointer; min-height: 52vh; border-top: 5px solid var(--c-neutro); }
+.memento .mm-art { width: clamp(120px, 18vw, 260px); image-rendering: pixelated; }
+.memento .mm-clock { font: clamp(34px, 7vw, 84px)/1 var(--f-pixel); color: var(--ink); letter-spacing: .04em; }
+.memento .mm-bar { margin: 18px 0 12px; max-width: 640px; }
+.memento .mm-bar .seg-bar > i { background: var(--c-neutro); }
+.memento .mm-k { font-size: 15px; margin: 0 0 8px; }
+.memento .mm-l { font: 9px/1.7 var(--f-pixel); color: var(--c-acao); margin: 0 0 10px; }
+@media (max-width: 700px) { .memento { grid-template-columns: 1fr; text-align: center; } .memento .mm-art { margin: 0 auto; } .memento .mm-bar { margin-left: auto; margin-right: auto; } }
+/* v6 (4A) banner do QUESTS: cenário, PRIMO passeando, FAÍSCA e fala */
+.qscene { position: relative; height: clamp(150px, 15vw, 210px); margin: 0 0 16px; border: 2px solid var(--edge); border-radius: 12px; overflow: hidden; background-color: #2a1f17; background-size: cover; background-position: center 72%; box-shadow: 4px 4px 0 var(--shadow); }
+.qscene .walker { position: absolute; bottom: 4px; width: clamp(96px, 9vw, 140px); height: auto; aspect-ratio: 72 / 96; margin-left: calc(clamp(96px, 9vw, 140px) / -2); transition: left .11s linear; cursor: pointer; image-rendering: auto; }
+.qscene .pmascot { position: absolute; left: 10px; bottom: 6px; width: 46px; height: auto; }
+.qscene .qs-say { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); width: min(560px, 80%); }
+.qscene .qs-say .speech { margin: 0; font-size: 12.5px; box-shadow: 3px 3px 0 rgba(0, 0, 0, .3); }
+.pcard.compact .pcol { padding-top: 0; }
+@media (max-width: 600px) { .qscene .qs-say { width: 92%; } .qscene .qs-say .speech { font-size: 11.5px; } }
+/* v6 (5C) cursor próprio (pincel ou patinha); campos de texto continuam com o cursor de texto */
+:root[data-cursor] body, :root[data-cursor] a, :root[data-cursor] button, :root[data-cursor] [data-act], :root[data-cursor] label, :root[data-cursor] summary, :root[data-cursor] select { cursor: var(--cur); }
+:root[data-cursor] input, :root[data-cursor] textarea { cursor: text; }
+/* v6 MAPA MENTAL de montar */
+.mm-tools { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; }
+.mm-cols { display: inline-flex; gap: 4px; padding: 0 6px; }
+.mm-c { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--edge); background: var(--mc); cursor: pointer; padding: 0; }
+.mm-box { border: 2px solid var(--line); border-radius: 10px; background: var(--bg); height: clamp(320px, 52vh, 560px); overflow: auto; }
+.mm-canvas { position: relative; width: 1800px; height: 1000px; background-image: radial-gradient(color-mix(in srgb, var(--line) 70%, transparent) 1px, transparent 1px); background-size: 22px 22px; }
+.mm-links { position: absolute; inset: 0; overflow: visible; }
+.mm-links .ln { fill: none; stroke: var(--c-acao); stroke-width: 2; }
+.mm-links .hit { fill: none; stroke: transparent; stroke-width: 14; cursor: pointer; pointer-events: stroke; }
+.mm-links g.on .ln { stroke: var(--c-premio); stroke-width: 3; }
+.mn { position: absolute; min-height: 38px; display: grid; place-items: center; padding: 6px 12px; text-align: center; border-radius: 12px; background: var(--panel); border: 3px solid var(--mc, var(--c-acao)); font: 700 12px/1.25 var(--f-mono); color: var(--ink); box-shadow: 3px 3px 0 var(--shadow); cursor: grab; user-select: none; touch-action: none; overflow-wrap: anywhere; }
+.mn.on { outline: 3px solid var(--c-premio); outline-offset: 2px; }
+.mn[contenteditable] { cursor: text; user-select: text; outline: 3px dashed var(--c-premio); }
+.mm-empty { position: absolute; left: 40px; top: 40px; color: var(--dim); font-size: 13px; pointer-events: none; }
+/* ───────── v6 PROPORÇÕES (botões e respiro) ─────────
+   Escala de 8 px (8·16·24·32), alturas fixas por tamanho e área de toque de 44 px no celular (lei de Fitts e as diretrizes
+   de acessibilidade): o que é mais importante é maior, o resto é discreto. Texto dos botões sempre no meio. */
+.btn { min-height: 36px; padding: 0 16px; gap: 8px; justify-content: center; }
+.btn.sm { min-height: 30px; padding: 0 12px; }
+.btn.pri { box-shadow: 3px 3px 0 var(--shadow); }
+.icon-btn { width: 32px; height: 32px; border-radius: 8px; }
+.card > header { gap: 12px; }
+.grid { gap: 20px; }
+.actions { gap: 10px; }
+@media (pointer: coarse) {
+  .btn, .seg button, .pill, .csw { min-height: 44px; }
+  .btn.sm { min-height: 40px; }
+  .icon-btn, .check { min-width: 40px; min-height: 40px; }
+  .task .check { width: 28px; height: 28px; min-width: 28px; min-height: 28px; }
+}

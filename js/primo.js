@@ -8,7 +8,7 @@ import { openModal, closeModal, toast, segBar } from './ui.js';
 import { sfx } from './audio.js';
 import { confetti } from './fx.js';
 import { drawPortrait, drawMascot, PW, PH } from './pdraw.js';
-import { artOn, drawPortraitNew, drawFace, drawMascotNew, sceneUrl } from './pnew.js';
+import { walkPos, artOn, drawPortraitNew, drawFace, drawMascotNew, sceneUrl } from './pnew.js';
 import { primoLine, lastExpr, bankSize } from './falas.js';
 import { GROUPS, saberCount } from './saber.js';
 import * as PS from './pstate.js';
@@ -54,9 +54,16 @@ const curExpr = () => {
   if (amb && now - amb.shownAt < 25000) return amb.expr;
   return baseExpr();
 };
+// v6: de vez em quando o PRIMO dá uma dica de como usar o app (no banner do QUESTS)
+const TIPS = ['Dica, sô: no rascunho da REFLEXÃO, Enter solta e Shift+Enter pula linha.', 'Toca de novo na janela aberta que eu te mostro o relógio. Memento mori, uai.',
+  'Arrasta uma tarefa da fila da AGENDA até um dia pra mudar o prazo dela.', 'No celular: tarefa arrastada pra esquerda é concluída; pra direita vai pra amanhã.',
+  'Fixa um bloco no 📌 e ele vira post-it em todas as abas. Bom pra anotar ideia, sô.', 'Escreve 3000$ no título do bloco que eu entendo que ele vale dinheiro.',
+  'Toca na bolinha do lado da tarefa que eu te levo até o bloco dela.', 'Errou? O ↩ lá em cima desfaz. Sem drama, uai.', 'No FILTRO, toca nos quadrinhos de cima que ele já filtra.',
+  'Botão direito no quadradinho cancela a tarefa sem punição. Largar também é decidir.', 'O 🎯 FOCO AGORA escolhe UMA pra você. Não precisa pensar, só fazer.',
+  'Na AGENDA, o azul é ritual. Não deixa a amizade esfriar, sô.'];
 function ambient() {
   const now = Date.now();
-  if (!amb || now - amb.at > 10 * 60000) { const text = primoLine('auto'); amb = { text, expr: lastExpr(), at: now, shownAt: now, typed: false }; }
+  if (!amb || now - amb.at > 3 * 60000) { const tip = Math.random() < 0.45, text = tip ? TIPS[Math.floor(Math.random() * TIPS.length)] : primoLine('auto'); amb = { text, expr: tip ? 'piscada' : lastExpr(), at: now, shownAt: now, typed: false }; }
   return amb;
 }
 /** o PRIMO reage a algo (tarefa feita, compra, carinho…): muda o rosto e fala */
@@ -138,6 +145,12 @@ function paint(cv) {
   ctx.setTransform(K, 0, 0, K, 0, 0);
   if (cv.dataset.mascot != null) { const ps = PS.petState(), happy = R.dailyGoal(S).today >= R.dailyGoal(S).goal; if (NEW) drawMascotNew(ctx, ps.stage, frame, happy); else { ctx.imageSmoothingEnabled = false; drawMascot(ctx, ps.stage, frame, happy); } return; }
   const o = { tier: R.companion(S).tier, mood: statusMood(), expr: curExpr(), wear: PS.wearing(), talk: Date.now() < talkUntil, f: frame };
+  // v6: no banner do QUESTS ele passeia pelo cenário (quando está reagindo, para e reage onde está)
+  if (kind === 'walk') {
+    const reacting = rx && Date.now() < rx.until, wp = walkPos(frame);
+    if (!reacting && o.expr !== 'dormindo') { if (NEW) o.force = wp.pose; cv._x = wp.x; }
+    cv.style.left = `${((cv._x ?? 0.5) * 100).toFixed(1)}%`;
+  }
   if (kind === 'mini') {
     if (NEW) { drawFace(ctx, o.expr, 44, o.mood); return; }
     const oc = OFF.getContext('2d'); oc.setTransform(K, 0, 0, K, 0, 0); drawPortrait(oc, o);
@@ -193,20 +206,27 @@ function expHtml(big) {
   if (!big) return '';
   return `<div class="pexp"><div class="pask-t">🎒 MANDAR EM EXPEDIÇÃO</div><div class="row" style="flex-wrap:wrap;gap:6px">${PS.EXPS.map((e) => `<button class="btn sm" data-act="exp-send" data-id="${e.id}" title="${e.xp[0]}–${e.xp[1]} XP${e.tk ? ' · chance de 🎟' : ''}">${e.ico} ${esc(e.name)}<small style="display:block;font-size:8px;opacity:.8">${PS.fmtMin(e.min)} · ${e.xp[0]}–${e.xp[1]} XP</small></button>`).join('')}</div></div>`;
 }
-function body(big) {
+function body(big, compact = false) {
   const c = R.companion(S), st = primoState(), es = PS.expState(), pet = PS.petState(), n = claudeCount();
   const status = es.cur ? `${es.def.ico} em expedição` : `${esc(c.name)} está ${esc(st.label)}`;
-  return `<div class="pcard ${big ? 'big' : ''}"><div class="pstage"><canvas class="pcv" data-portrait="${big ? 'full' : 'card'}" data-act="comp-poke" aria-label="${esc(c.name)}"></canvas>
-      <canvas class="pcv pmascot" data-mascot title="FAÍSCA · ${esc(pet.name)} · ${pet.days} dias na meta${pet.next ? ' · faltam ' + pet.left + ' pra evoluir' : ''}" data-act="mascot-info"></canvas></div>
-    <div class="pcol"><div class="speech" id="comp-speech" data-pspeech="ambient" data-act="comp-poke" title="toque pra ouvir outra"></div>
+  return `<div class="pcard ${big ? 'big' : ''} ${compact ? 'compact' : ''}">${compact ? '' : `<div class="pstage"><canvas class="pcv" data-portrait="${big ? 'full' : 'card'}" data-act="comp-poke" aria-label="${esc(c.name)}"></canvas>
+      <canvas class="pcv pmascot" data-mascot title="FAÍSCA · ${esc(pet.name)} · ${pet.days} dias na meta${pet.next ? ' · faltam ' + pet.left + ' pra evoluir' : ''}" data-act="mascot-info"></canvas></div>`}
+    <div class="pcol">${compact ? '' : '<div class="speech" id="comp-speech" data-pspeech="ambient" data-act="comp-poke" title="toque pra ouvir outra"></div>'}
       <div class="meta pstat">${status}${st.left ? ` · <span data-countdown="${Date.now() + st.left}">${mmss(st.left)}</span>` : ''}</div>
       ${askHtml()}${expHtml(big)}
       <div class="row prow">${big ? '' : '<button class="btn sm" data-act="primo-hub">🎒 EXPEDIÇÃO</button>'}<button class="btn sm" data-act="focus">🔥 FOCO</button><button class="btn sm pri" data-act="saber" data-g="all">📚 ME CONTA UMA</button><button class="btn sm" data-act="primo-prosa" title="Piada, ditado ou causo da roça">😂 PROSA</button><button class="btn sm ${PS.hatOn() ? '' : 'ghost'}" data-act="hat" title="Pôr ou tirar o chapéu de palha">🤠 CHAPÉU</button><button class="btn sm" data-act="diary">📖 DIÁRIO</button></div></div></div>`;
 }
 /** cartão da aba QUESTS */
+/** v6 (4A): banner do QUESTS com o cenário, o PRIMO passeando, a FAÍSCA e a fala (dicas do app de vez em quando) */
+export function questsBanner() {
+  const c = R.companion(S), pet = PS.petState();
+  return `<div class="qscene pstage"><canvas class="pcv walker" data-portrait="walk" data-act="comp-poke" title="Toque no ${esc(c.name)}" aria-label="${esc(c.name)}"></canvas>
+    <canvas class="pcv pmascot" data-mascot title="FAÍSCA · ${esc(pet.name)}" data-act="mascot-info"></canvas>
+    <div class="qs-say"><div class="speech" data-pspeech="ambient" data-act="comp-poke" title="toque pra ouvir outra"></div></div></div>`;
+}
 export function primoCard() {
   const c = R.companion(S), n = claudeCount();
-  return `<div class="card comp-card"><header><h2>${esc(c.name)}</h2><span class="row" style="gap:6px;flex-wrap:nowrap">${hearts()}<button class="btn sm ${n ? 'pri' : 'ghost'}" data-act="claude" title="Recados, sugestões e o que o Claude mudou">✨${n ? ' ' + n : ''}</button><button class="icon-btn" data-act="comp-rename" title="Nome" aria-label="Renomear">✎</button></span></header>${body(false)}</div>`;
+  return `<div class="card comp-card"><header><h2>${esc(c.name)}</h2><span class="row" style="gap:6px;flex-wrap:nowrap">${hearts()}<button class="icon-btn" data-act="comp-rename" title="Nome" aria-label="Renomear">✎</button></span></header>${body(false, true)}</div>`; void n;
 }
 export function openPrimoHub() {
   const c = R.companion(S), b = bond(), pet = PS.petState();

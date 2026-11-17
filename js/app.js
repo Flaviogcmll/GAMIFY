@@ -39,14 +39,15 @@ import { autoSnapshot, backupBanner, extendBackup, markBackup, restoreDocs } fro
 import { tripBanner, tripCheck, extendTrip } from './trip.js';
 import { maybeReview, extendReview } from './review.js';
 import { extendBujo, afterRenderBujo } from './bujo.js';
-import { perksNav, perksGo } from './telas.js';
+import { perksNav, perksGo, applyCursor, CURSOR_KEY } from './telas.js';
 import { extendMapa } from './mapa.js';
+import { renderPostit } from './postit.js';
 
 
 // abas na mesma ordem da planilha
 const ROUTES = [
   ['quests', 'QUESTS', 'quests', viewQuests, 'q'], ['survival', 'SURVIVAL', 'survival', viewSurvival, 's'], ['agenda', 'AGENDA', 'agenda', viewAgenda, 'a'],
-  ['shop', 'SHOP', 'shop', viewShop, 'l'], ['domingo', 'REFLEXÃO', 'domingo', viewDomingo, 'b'], ['conquistas', 'CONQUISTAS', 'conquistas', viewConquistas, ''],
+  ['shop', 'FEIRA', 'shop', viewShop, 'l'], ['domingo', 'REFLEXÃO', 'domingo', viewDomingo, 'b'], ['conquistas', 'CONQUISTAS', 'conquistas', viewConquistas, ''],
   ['filtro', 'FILTRO', 'filtro', viewFiltro, 'f'], ['rotina', 'ROTINA', 'rotina', viewRotina, 'r'], ['regras', 'PERKS AND RULES', 'regras', viewRegras, 'p'],
   ['arquivo', 'ARQUIVO', 'arquivo', viewArquivo3, ''],
 ];
@@ -92,7 +93,7 @@ function header() {
   const night = document.documentElement.dataset.mode === 'night';
   // v5.16: GAMIFY como logo; onde os dados estão vira um iconezinho com legenda (sem textinho)
   const where = status.mode === 'local' ? ['💻', 'Seus dados estão só neste aparelho. Conecte o Google Drive em PERKS pra sincronizar.'] : status.error ? ['⚠', 'Erro ao salvar: ' + status.error] : status.saving ? ['⏳', 'Salvando…'] : ['☁', 'Salvo no Google Drive'];
-  return `<span class="brand"><span class="savewhere ${status.error ? 'bad' : ''}" title="${esc(where[1])}" aria-label="${esc(where[1])}">${where[0]}</span><a class="logo" href="#quests" title="GAMIFY"><span class="lgo">GAMIFY</span></a></span>
+  return `<span class="brand"><a class="logo" href="#quests" title="GAMIFY">${px('fire', 20)}<span class="lgo">GAMIFY</span></a><span class="savewhere ${status.error ? 'bad' : ''}" title="${esc(where[1])}" aria-label="${esc(where[1])}">${where[0]}</span></span>
     <div class="hero"><div class="lv"><span>NV</span><b>${tot.level}</b></div>
       <div class="who"><div class="t">⚔ ${esc(tot.title)}</div>${segBar(tot.pct, 'sm')}<div class="x">${fmtN(tot.into)}/${fmtN(tot.need)} XP · CAP. ${esc(ch.n)} ${esc(ch.title)}</div></div></div>
     <div class="row" style="gap:6px;flex-wrap:nowrap">
@@ -121,7 +122,7 @@ function render() {
   document.getElementById('top').innerHTML = header();
   document.getElementById('tabs').innerHTML = tabOrder().map(([k, n, ic]) => `<a href="#${k}" draggable="true" data-tabk="${k}" class="${k === cur ? 'on' : ''}">${px(ic, 12)}${n}</a>`).join('');
   const bn = (k, n, ic, cls = '') => `<a href="#${k}" class="${cls} ${k === cur ? 'on' : ''}">${px(ic, 18)}${n}</a>`;
-  document.getElementById('bottom').innerHTML = bn('quests', 'QUESTS', 'quests') + bn('survival', 'SURVIVAL', 'survival') + bn('shop', 'SHOP', 'shop', 'primo-btn') + bn('agenda', 'AGENDA', 'agenda') + `<a href="#" data-act="more">${px('regras', 18)}MAIS</a>`;
+  document.getElementById('bottom').innerHTML = bn('quests', 'QUESTS', 'quests') + bn('survival', 'SURVIVAL', 'survival') + bn('shop', 'FEIRA', 'shop', 'primo-btn') + bn('agenda', 'AGENDA', 'agenda') + `<a href="#" data-act="more">${px('regras', 18)}MAIS</a>`;
   const banners = [];
   if (status.error) banners.push(`<div class="banner bad">${esc(status.error)}</div>`);
   if (status.stale) banners.push('<div class="banner info">Ainda não consegui confirmar os dados com o servidor. Pode estar desatualizado.</div>');
@@ -144,7 +145,7 @@ function render() {
   try { afterRender(cur); } catch (err) { console.error(err); }
   try { afterRender4(cur); } catch (err) { console.error(err); }
   try { afterRenderBujo(); } catch (err) { console.error(err); }
-  if (cur === 'regras') try { perksNav($main); } catch (err) { console.error(err); }
+  try { renderPostit(); } catch (err) { console.error(err); }
   refocus();
   redraft();
   const side = $main.querySelector('.side'); // o painel da direita tem rolagem própria: volta pra onde estava
@@ -612,7 +613,7 @@ const ACTIONS = {
   'review-block': (d) => { A.reviewBlock(d.id); sfx('tab'); },
   'review-list': (d) => { A.reviewList(d.k); sfx('tab'); },
   'curfew-skip': () => { curfewSkip(); render(); },
-  'pin-block': (d) => { toast(togglePin(d.id) ? '📌 Bloco fixado no painel da direita.' : '📌 Bloco tirado do painel.'); render(); sfx('tab'); },
+  'pin-block': (d) => { toast(togglePin(d.id) ? '📌 Virou post-it: ele acompanha você em todas as abas.' : '📌 Post-it guardado.'); render(); sfx('tab'); },
   fullscreen: () => { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); } catch { toast('Este navegador não deixou abrir em tela cheia.', 'bad'); } },
   'win-new': () => windowModal(),
   'win-edit': (d) => windowModal(d.id),
@@ -690,9 +691,20 @@ const ACTIONS = {
   'rot-cell': (d) => {
     const r = S.core.routine, pi = Math.min(ui.rplan ?? r.active ?? 0, r.plans.length - 1), v = r.plans[pi].grid[d.key] || '';
     const sugg = [...new Set([...(r.atividades || []), ...Object.values(r.plans[pi].grid)])].sort();
-    openModal(`<form data-form="rot-cell" data-key="${d.key}" data-p="${pi}"><h2>${d.key.replace('|', ' · ')}H</h2><input class="inp" name="v" value="${esc(v)}" list="rot-sugg" autofocus><datalist id="rot-sugg">${sugg.map((s) => `<option value="${esc(s)}">`).join('')}</datalist><div class="actions"><button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">SALVAR</button></div></form>`);
+    // v6: as sugestões aparecem na hora, como balõezinhos (antes só apareciam depois de digitar)
+    openModal(`<form data-form="rot-cell" data-key="${d.key}" data-p="${pi}" class="mform"><div class="mhead"><span class="mtype">${esc(d.key.replace('|', ' · '))}${d.key.includes(':') ? '' : 'H'}</span></div><input class="inp mtitle" name="v" value="${esc(v)}" autofocus aria-label="Atividade" placeholder="escreva ou toque numa abaixo"><div class="pills rot-sugg" style="margin-top:10px">${sugg.map((s) => `<button type="button" class="pill" data-act="rot-pick" data-v="${esc(s)}"><span>${esc(s)}</span></button>`).join('')}<button type="button" class="pill" data-act="rot-pick" data-v="" title="Deixar este horário vazio"><span>✕ VAZIO</span></button></div><div class="actions"><button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">SALVAR</button></div></form>`);
   },
   'routine-new': () => A.initRoutine(),
+  'rot-pick': (d, e, el) => { const f = el.closest('form'); f.v.value = d.v; f.requestSubmit(); },
+  'rot-hours': () => {
+    const hs = S.core.routine?.hours || [];
+    openModal(`<form data-form="rot-hours" class="mform" autocomplete="off"><div class="mhead"><span class="mtype">🕐 horários da rotina</span></div>
+      <p class="muted">Toque no × pra tirar um horário. Pra meia em meia hora, adicione 07:30, 08:30…</p>
+      <div class="pills" id="rh-list">${hs.map((h) => `<span class="pill"><span>${h}${h.includes(':') ? '' : 'H'}</span><button type="button" class="rx" data-act="rot-hour-del" data-h="${h}" aria-label="Tirar ${h}">×</button></span>`).join('')}</div>
+      <div class="row" style="margin-top:12px"><input class="inp" type="time" name="h" step="1800" style="width:auto" aria-label="Novo horário"><button class="btn sm pri">+ ADICIONAR</button></div>
+      <div class="actions"><button type="button" class="btn" data-close>PRONTO</button></div></form>`);
+  },
+  'rot-hour-del': (d) => { A.setRoutineHours((S.core.routine?.hours || []).filter((h) => h !== d.h)); ACTIONS['rot-hours'](); },
   'ai-breakdown': () => aiBreakdown(),
   'primo-hub': () => openPrimoHub(),
   sos: (d) => { sos(d.id); },
@@ -838,6 +850,7 @@ const FORMS = {
 };
 FORMS['rot-chip-add'] = (f) => { const v = f.v.value.trim().toUpperCase(); if (!v) return; A.setRoutineList(f.dataset.k, [...(S.core.routine?.[f.dataset.k] || []), v]); sfx('tab'); requestAnimationFrame(() => document.querySelector(`form[data-form="rot-chip-add"][data-k="${f.dataset.k}"] input`)?.focus()); };
 FORMS['new-chapter'] = (f) => { const ch = S.core.chapter || {}; closeModal(); A.updateChapter({ n: (+ch.n || 1) + 1, title: f.title.value.trim().toUpperCase(), mission: f.mission.value.trim(), reset: f.reset.checked }); sfx('level'); };
+FORMS['rot-hours'] = (f) => { const v = f.h.value; if (!v) return; A.setRoutineHours([...(S.core.routine?.hours || []), v]); ACTIONS['rot-hours'](); };
 extendBujo(ACTIONS, FORMS);
 extendMapa(ACTIONS, FORMS);
 document.addEventListener('submit', (e) => { const f = e.target.closest('form[data-form]'); if (!f) return; e.preventDefault(); FORMS[f.dataset.form]?.(f); });
@@ -855,6 +868,7 @@ document.addEventListener('change', (e) => {
   if (c === 'vol') setVol(k, +el.value);
   if (c === 'filtro') { ui.filtro[k] = el.value; render(); }
   if (c === 'mapa') A.setMapa(el.value);
+  if (c === 'cursor') { try { localStorage.setItem(CURSOR_KEY, el.value); } catch { /* */ } applyCursor(); }
   if (c === 'routine-list') A.setRoutineList(k, el.value.split('\n'));
 });
 let inputT = null;
@@ -905,7 +919,7 @@ document.addEventListener('drop', (e) => {
 // ───────────────────────── ATALHOS ─────────────────────────
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') { if (modalOpen()) { document.activeElement?.blur?.(); closeModal(); } return; } // blur antes: salva o texto em edição
-  if (modalOpen() || e.ctrlKey || e.metaKey || e.altKey || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)) return;
+  if (modalOpen() || e.ctrlKey || e.metaKey || e.altKey || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName) || document.activeElement?.isContentEditable) return; // v6: escrevendo num balão do mapa, as letras não viram atalho
   const r = ROUTES.find((x) => x[4] && x[4] === e.key.toLowerCase());
   if (r) { location.hash = '#' + r[0]; return; }
   if (e.key === ' ') { e.preventDefault(); openPrimoHub(); }
@@ -918,6 +932,7 @@ let lastDay = today();
 setInterval(() => {
   const now = Date.now();
   document.querySelectorAll('[data-countdown]').forEach((el) => { el.textContent = mmss(+el.dataset.countdown - now); });
+  document.querySelectorAll('[data-clock]').forEach((el) => { el.textContent = new Date().toLocaleTimeString('pt-BR'); }); // v6 memento mori
   if (S.loja) for (const p of S.loja.purchases.filter((p) => p.status === 'using' && p.endsAt <= now)) {
     A.finishItem(p.id); sfx('bell'); toast(`⏰ Acabou: <b>${esc(p.item)}</b>. De volta pra fogueira.`, 'gold');
   }
@@ -937,4 +952,5 @@ onChange((why) => {
 document.addEventListener('pointerdown', () => { if (prefs.on && !ambienceOn()) { startAmbience(); render(); } }, { once: true });
 window.__deaccent = deaccent;
 applyMode();
+applyCursor();
 init();

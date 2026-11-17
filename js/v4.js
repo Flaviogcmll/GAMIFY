@@ -143,6 +143,15 @@ export function checkMilestones() {
   const fresh = marks.filter((m) => g.pct >= m && !st.hit.includes(m)); st.hit.push(...fresh);
   const top = fresh.at(-1), i = marks.indexOf(top);
   if (top != null && g.today > 0 && !st.first) { const m = top; sfxMilestone(i); setTimeout(() => primoReact(m >= 1 ? 'meta_batida' : m >= 0.75 ? 'meta_perto' : 'meta_meio'), 900); toast(`🔥 ${Math.round(m * 100)}% da meta de hoje · ${fmtN(g.today)}/${fmtN(g.goal)} XP`, 'good'); }
+  // v6 (2B): bateu a meta → o PRIMO sugere UMA recompensa que cabe no saldo (a ★ meta, se der). Opcional e só 1 vez por dia.
+  if (top === 1 && g.today > 0 && !st.reward && !R.shopState(S).locked) {
+    st.reward = true;
+    const bal = R.totals(S).balance, price = (it) => R.tavernaPrice(S, it);
+    const goal = S.loja.taverna.find((i) => i.id === S.loja.goal && price(i) <= bal);
+    const ok = S.loja.taverna.filter((i) => price(i) <= bal && !/ANT[IÍ]DOTO/i.test(i.name)).sort((a, b) => price(b) - price(a));
+    const it = goal || ok[Math.floor(Math.random() * Math.min(5, ok.length))];
+    if (it) setTimeout(() => toast(`🎁 Meta batida, sô! Merece: <b>${esc(it.name)}</b> (${fmtN(price(it))} XP). <button class="btn sm pri" data-act="buy" data-id="${it.id}">PEGAR</button>`, 'gold'), 1600);
+  }
   st.first = false; ls.set('gamify-ui:ms', JSON.stringify(st));
 }
 // ───────────────────────── DIÁRIO E HISTÓRICOS ─────────────────────────

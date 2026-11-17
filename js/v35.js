@@ -220,7 +220,7 @@ export const COLOR_MEANING = [
   ['--c-quase', 'LARANJA', 'quase urgente: AMANHÃ. Alerta sem pânico.'],
   ['--c-atencao', 'AMARELO', 'em andamento, atenção: ESTA SEMANA, EM ANDAMENTO, ritual pra amanhã.'],
   ['--c-ok', 'VERDE', 'feito, estável, tranquilo: concluída, ESTÁVEL, DEPOIS, hábito feito, REVISADO, buff. O verde acalma e diz "está tudo bem".'],
-  ['--c-calma', 'AZUL', 'descanso: fim de semana, feriado, sono, noite, pausa, falha perdoada, avisos. O azul baixa a ansiedade.'],
+  ['--c-calma', 'AZUL', 'ritual e descanso: RITUAIS, fim de semana, feriado, sono, noite, pausa, falha perdoada. O azul baixa a ansiedade.'],
   ['--c-espera', 'ROXO', 'depende de outra pessoa: AGUARDANDO (lista, tarefa e bloco), vai e volta.'],
   ['--c-neutro', 'CINZA', 'SEM PRAZO e PARADO.'],
   ['--c-premio', 'DOURADO', 'recompensa: XP, gold, 🎟, conquistas, loja. Dourado = valor.'],

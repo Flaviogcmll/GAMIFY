@@ -173,6 +173,7 @@ export function idx(s) {
   for (const b of s.core?.bonus || []) addXp(b.date, b.xp || 0);
   for (const x of s.core?.sundays || []) addXp(x.date, x.xp);
   for (const a of Object.values(s.core?.achievements || {})) addXp(a.date, a.xp);
+  for (const a of Object.values(s.core?.seasonAch || {})) addXp(a.date, a.xp); // v6: conquistas do capítulo novo
   for (const [ws, w] of Object.entries(s.core?.weeks || {})) {
     for (const [k, v] of Object.entries(w)) if (typeof v === 'number') addXp(w._at?.[k] || addDays(ws, 6), v);
   }
@@ -684,8 +685,27 @@ function extraMetrics(s) {
     })(),
   };
 }
+/** v6: o "jogo" visto só a partir do começo do capítulo (pras conquistas recomeçarem sem apagar o histórico) */
+export function seasonView(s) {
+  const from = s.core?.season?.from;
+  if (!from) return s;
+  if (s._sv && s._sv.epoch === s._epoch) return s._sv.view;
+  const keep = (d) => (d || '') >= from;
+  const tasks = (s.quests?.tasks || []).map((t) => (t.st === 'done' && !keep(t.doneAt) ? null : t.rounds?.length ? { ...t, rounds: t.rounds.filter((r) => keep(r.doneAt)) } : t)).filter(Boolean);
+  const view = {
+    _epoch: s._epoch, arq: {},
+    quests: { ...s.quests, tasks, blocks: (s.quests?.blocks || []).filter((b) => b.st !== 'done' || keep(b.doneAt)), bosses: (s.quests?.bosses || []).filter((b) => b.st !== 'done' || keep(b.doneAt)) },
+    marks: { ...s.marks, days: Object.fromEntries(Object.entries(s.marks?.days || {}).filter(([d]) => keep(d))) },
+    loja: { ...s.loja, purchases: (s.loja?.purchases || []).filter((p) => keep(p.date)), goldIn: (s.loja?.goldIn || []).filter((g) => keep(g.date)) },
+    core: { ...s.core, achievements: s.core?.seasonAch || {}, seasonAch: {}, legacy: null, ladder: [], bonus: (s.core?.bonus || []).filter((b) => keep(b.date)), ritualLog: (s.core?.ritualLog || []).filter((r) => keep(r.date)),
+      sundays: (s.core?.sundays || []).filter((x) => keep(x.date)), focus: (s.core?.focus || []).filter((f) => keep(f.date)), weeks: Object.fromEntries(Object.entries(s.core?.weeks || {}).filter(([w]) => keep(w))), season: null },
+  };
+  s._sv = { epoch: s._epoch, view };
+  return view;
+}
 export function achievementList(s) {
-  const st = { ...stats(s), ...extraMetrics(s) }, got = s.core?.achievements || {};
+  // v6 (1B): no capítulo novo as conquistas recomeçam: contam só o que aconteceu a partir dele e ficam em core.seasonAch
+  const sv = seasonView(s), st = { ...stats(sv), ...extraMetrics(sv) }, got = (s.core?.season?.from ? s.core?.seasonAch : s.core?.achievements) || {};
   return ACHIEVEMENTS.map((a) => {
     const value = st[a.metric] || 0;
     return { ...a, value, pct: Math.min(1, value / a.goal), unlocked: !!got[a.key], date: got[a.key]?.date };
@@ -992,7 +1012,9 @@ export const FLAME_MIN = 0.5;
 export function dailyGoal(s, d = today()) {
   const goal = goalAt(s, d), xp = idx(s).xpByDay;
   let streak = 0, x = (xp[d] || 0) >= goal ? d : addDays(d, -1), skips = 0;
+  const from = s.core?.season?.from || '';
   for (let i = 0; i < 400; i++, x = addDays(x, -1)) {
+    if (from && x < from) break; // v6: a chama recomeça no capítulo novo
     if ((xp[x] || 0) >= goalAt(s, x)) streak++;
     else if (tripDay(s, x)) { /* ✈ viagem: não conta e não quebra a sequência */ }
     else if (x !== d && (xp[x] || 0) >= goalAt(s, x) * FLAME_MIN) { /* v5.16 (2C): metade da meta segura a chama, mas não soma */ }

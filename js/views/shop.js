@@ -17,7 +17,7 @@ const kTav = (it, m) => (iconOf(it) ? `<span class="eico">${iconOf(it)}</span>` 
 const CAT_ICON = { EU: [101, 'dungeon'], PC: [130, 'dungeon'], MERCADO: [107, 'town'], CASA: [85, 'town'], ARQUITETURA: [117, 'dungeon'] };
 const FER_ICON = { ARQUITETURA: '📐', CASA: '🏠', EU: '🪞', JOGOS: '🎮', MERCADO: '🧺', MOTO: '🏍', PC: '🖥' };
 const kFer = (it) => (it.icon || FER_ICON[it.cat] ? `<span class="eico">${it.icon || FER_ICON[it.cat]}</span>` : (() => { const [i, sh] = CAT_ICON[it.cat] || [102, 'dungeon']; return kspr(i, sh); })());
-const TABS = [['loja', '🏪 LOJA'], ['mochila', '🎒 MOCHILA'], ['forjados', '⚒ FORJADOS'], ['ouro', '$ BAÚ DE OURO'], ['hist', '📜 REGISTRO']];
+const TABS = [['loja', '🎪 BARRACAS'], ['mochila', '🎒 MOCHILA'], ['forjados', '⚒ FORJADOS'], ['ouro', '$ BAÚ DE OURO'], ['hist', '📜 REGISTRO']];
 const mmss = (ms) => { const s = Math.max(0, Math.round(ms / 1000)); return `${String((s / 60) | 0).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
 
 function taverna(tot, shop) {
@@ -113,12 +113,12 @@ export function viewShop(ui) {
   const goalIt = S.loja.taverna.find((i) => i.id === S.loja.goal);
   const nb = R.bag(S).length, night = document.documentElement.dataset.mode === 'night', dn = night ? 'noite' : 'dia';
   const fx = shop.mult === 1 ? 'x1' : 'x' + shop.mult.toFixed(2).replace('.', ',');
-  // v5.16 (4B): a LOJA é uma tela só: TAVERNA em cima e FERREIRO embaixo, cada uma com o seu banner
+  // v6: a FEIRA tem barracas (TAVERNA em cima, FERREIRO embaixo), cada uma com o seu banner; outros vendedores entram aqui
   const vitrine = (key, title, sub, body) => `<section class="vitrine" data-v="${key}"><header class="vit-h" style="background-image:url(assets/topo/${key === 'tav' ? 'shop' : 'ferreiro'}-${dn}.webp)"><div><h2>${title}</h2><p>${sub}</p></div></header><div class="vit-b">${body}</div></section>`;
   const body = tab === 'mochila' ? mochila() : tab === 'forjados' ? forjados() : tab === 'ouro' ? ouro() : tab === 'hist' ? hist()
     : vitrine('tav', '🍺 TAVERNA', 'Os prazeres do dia a dia. Compre ANTES de aproveitar: vai pra mochila.', taverna(tot, shop))
       + vitrine('fer', '⚒ FERREIRO', 'Conquistas da vida real: XP + gold. Cada nível destrava itens novos.', ferreiro(tot, shop, ui));
-  return `<div class="page-title"><div><h1><em>shop</em>.</h1></div></div>
+  return `<div class="page-title"><div><h1><em>feira</em>.</h1></div></div>
     ${shop.locked ? `<div class="banner bad">🔒 Loja trancada: ${shop.overdue} tarefas atrasadas. Resolva ou remarque UMA e ela abre. <a href="#agenda">ver prazos →</a></div>` : ''}
     ${tiles([
       { label: '✨ Saldo', value: fmtN(tot.balance), cls: 'gold', tone: 'premio', tip: 'XP pra gastar na TAVERNA e no FERREIRO' },
