@@ -201,7 +201,7 @@ function body(big) {
     <div class="pcol"><div class="speech" id="comp-speech" data-pspeech="ambient" data-act="comp-poke" title="toque pra ouvir outra"></div>
       <div class="meta pstat">${status}${st.left ? ` · <span data-countdown="${Date.now() + st.left}">${mmss(st.left)}</span>` : ''}</div>
       ${askHtml()}${expHtml(big)}
-      <div class="row prow">${big ? '' : '<button class="btn sm" data-act="primo-hub">🎒 EXPEDIÇÃO</button>'}<button class="btn sm" data-act="comp-talk">💬 CONVERSAR</button><button class="btn sm" data-act="focus">🔥 FOCO</button><button class="btn sm pri" data-act="saber" data-g="all">📚 ME CONTA UMA</button><button class="btn sm" data-act="primo-prosa" title="Piada, ditado ou causo da roça">😂 PROSA</button><button class="btn sm ${PS.hatOn() ? '' : 'ghost'}" data-act="hat" title="Pôr ou tirar o chapéu de palha">🤠 CHAPÉU</button><button class="btn sm" data-act="diary">📖 DIÁRIO</button>${n ? `<button class="btn sm pri" data-act="claude">✨ ${n}</button>` : ''}</div></div></div>`;
+      <div class="row prow">${big ? '' : '<button class="btn sm" data-act="primo-hub">🎒 EXPEDIÇÃO</button>'}<button class="btn sm" data-act="focus">🔥 FOCO</button><button class="btn sm pri" data-act="saber" data-g="all">📚 ME CONTA UMA</button><button class="btn sm" data-act="primo-prosa" title="Piada, ditado ou causo da roça">😂 PROSA</button><button class="btn sm ${PS.hatOn() ? '' : 'ghost'}" data-act="hat" title="Pôr ou tirar o chapéu de palha">🤠 CHAPÉU</button><button class="btn sm" data-act="diary">📖 DIÁRIO</button></div></div></div>`;
 }
 /** cartão da aba QUESTS */
 export function primoCard() {

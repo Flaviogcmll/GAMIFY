@@ -220,8 +220,8 @@ export function viewArquivo3(ui) {
       <select class="inp" style="width:auto" data-v3change="arqF.a" aria-label="Área"><option value="">TODAS</option>${[...Object.entries(R.AREAS), ['block', 'BLOCOS']].map(([k, n]) => `<option ${f.a === k ? 'selected' : ''} value="${k}">${n}</option>`).join('')}</select>
       <button class="btn" data-act="archive-now">🔄 ATUALIZAR</button><button class="btn danger" data-act="arq-empty" ${Object.keys(S.arq).length ? '' : 'disabled'} title="Escolha os meses; XP e medalhas ficam">🗑 ESVAZIAR…</button></div>
       ${L ? `<p class="meta" style="margin:8px 0 0">saldo histórico guardado: ${fmtN(L.done || 0)} concluídas · ${fmtN(L.onTime || 0)} no prazo</p>` : ''}</div>
-    <div class="grid"><div class="card c8 arq-list"><div class="list">${rows || '<div class="empty">nada encontrado.</div>'}</div>${shown.length > lim ? '<button class="more" data-act="arq-more">mostrar mais</button>' : ''}</div>
-      <div class="card c4"><header><h2>📊 Onde você mais fechou</h2></header>${top.map(([n, c]) => `<div class="bar-row"><span>${esc(n.slice(0, 34))}</span><b class="num" style="font-size:8px">${c}</b>${segBar(c / max, 'good sm')}</div>`).join('') || '<div class="empty">nada ainda.</div>'}</div></div>`;
+    <div class="grid">${top.length ? `<div class="card c12"><header><h2>📊 Onde você mais fechou</h2></header><div class="arq-top">${top.map(([n, c]) => `<div class="bar-row"><span>${esc(n.slice(0, 34))}</span><b class="num" style="font-size:8px">${c}</b>${segBar(c / max, 'good sm')}</div>`).join('')}</div></div>` : ''}
+      <div class="card c12 arq-list"><div class="list">${rows || '<div class="empty">nada encontrado.</div>'}</div>${shown.length > lim ? '<button class="more" data-act="arq-more">mostrar mais</button>' : ''}</div></div>`;
 }
 
 // ───────────── ações da v3 (somadas às do app) ─────────────

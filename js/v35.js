@@ -218,11 +218,11 @@ document.addEventListener('pointerup', () => {
 export const COLOR_MEANING = [
   ['--c-urg', 'VERMELHO', 'urgente, perigo, inimigo: HOJE, atrasada, URGENTE, BOSS, vida, castigo, apagar. O vermelho acelera e chama a ação imediata.'],
   ['--c-quase', 'LARANJA', 'quase urgente: AMANHÃ. Alerta sem pânico.'],
-  ['--c-atencao', 'AMARELO', 'em andamento, atenção: ESTA SEMANA, FAZENDO.'],
-  ['--c-ok', 'VERDE', 'feito, saudável, estável: concluída, ESTÁVEL, hábito feito, REVISADO, buff. O verde acalma e diz "está tudo bem".'],
-  ['--c-calma', 'AZUL', 'futuro, planejamento, descanso: DEPOIS, avisos, sono, noite. O azul baixa a ansiedade e ajuda a pensar longe.'],
-  ['--c-espera', 'ROXO', 'depende de outra pessoa: AGUARDANDO, vai e volta.'],
-  ['--c-neutro', 'CINZA', 'sem prazo, parado.'],
+  ['--c-atencao', 'AMARELO', 'em andamento, atenção: ESTA SEMANA, EM ANDAMENTO, ritual pra amanhã.'],
+  ['--c-ok', 'VERDE', 'feito, estável, tranquilo: concluída, ESTÁVEL, DEPOIS, hábito feito, REVISADO, buff. O verde acalma e diz "está tudo bem".'],
+  ['--c-calma', 'AZUL', 'descanso: fim de semana, feriado, sono, noite, pausa, falha perdoada, avisos. O azul baixa a ansiedade.'],
+  ['--c-espera', 'ROXO', 'depende de outra pessoa: AGUARDANDO (lista, tarefa e bloco), vai e volta.'],
+  ['--c-neutro', 'CINZA', 'SEM PRAZO e PARADO.'],
   ['--c-premio', 'DOURADO', 'recompensa: XP, gold, 🎟, conquistas, loja. Dourado = valor.'],
   ['--c-acao', 'MADEIRA', 'a casa do app: botões, títulos e janelas. Neutro, pra não competir com as cores que avisam.'],
 ];
@@ -349,7 +349,6 @@ export function settingsV35() {
       <div><label class="lbl">O que cada cor quer dizer</label><div class="colormean">${COLOR_MEANING.map(([c, n, d]) => `<div><i style="background:var(${c})"></i><b>${n}</b> <span class="meta">${d}</span></div>`).join('')}</div></div>
       <div><label class="lbl" for="v35-voice">Voz do ${esc(R.companion(S).name)}</label><select class="inp" id="v35-voice" data-v35="voice"><option value="blip" ${v === 'blip' ? 'selected' : ''}>vozinha (bips de RPG)</option><option value="fala" ${v === 'fala' ? 'selected' : ''}>voz real do aparelho (pt-BR)</option><option value="mudo" ${v === 'mudo' ? 'selected' : ''}>mudo</option></select>
         <div class="speech" id="voice-test" style="margin-top:8px">Oi, primo!</div></div>
-      <div><label class="lbl" for="v35-ai">IA do ${esc(R.companion(S).name)} (usa a sua cota do Claude)</label><select class="inp" id="v35-ai" data-v35="ai"><option value="daily" ${ls.get('gamify-ui:ai', 'daily') === 'daily' ? 'selected' : ''}>1 fala por dia + carta da expedição</option><option value="never" ${ls.get('gamify-ui:ai', 'daily') === 'never' ? 'selected' : ''}>só quando eu conversar</option></select></div>
-      <div><label class="lbl">Atalhos</label><div class="row"><button class="btn sm" data-act="brief">☀ ABERTURA DO DIA</button><button class="btn sm" data-act="realm-open">🏘 VILA</button></div>
+      <div><label class="lbl">Atalhos</label><div class="row"><button class="btn sm" data-act="brief">☀ ABERTURA DO DIA</button></div>
         <label style="display:block;margin-top:8px;font-size:12.5px"><input type="checkbox" data-v35="brief-on" ${ls.get('gamify-ui:brief-off') === '1' ? '' : 'checked'}> mostrar a abertura do dia</label></div></div></div>`;
 }

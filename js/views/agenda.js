@@ -1,6 +1,6 @@
 // AGENDA — controle de prazos, linha do tempo de 6 semanas (◄ ► troca a semana), fila com filtro.
 import { S } from '../store.js';
-import { ritualRow } from './survival.js';
+import { tiles } from '../telas.js';
 
 import * as R from '../rules.js';
 import { esc, today, fmtDM, DOW, addDays, range, weekday, weekStart, holidayName } from '../util.js';
@@ -13,11 +13,10 @@ function timelineCard(ui) {
   const days = range(start, 42);
   const tl = R.timeline(S, start, 42);
   const head1 = [0, 1, 2, 3, 4, 5].map((w) => `<th class="wk" colspan="7">SEM ${fmtDM(days[w * 7])}</th>`).join('');
-  const head2 = days.map((d) => `<th class="${d === td ? 'today' : ''}" title="${holidayName(d) || ''}">${DOW[weekday(d)][0]}<br>${d.slice(8)}</th>`).join('');
-  const cell = (d, n, extra = '') => {
-    const we = weekday(d) === 0 || weekday(d) === 6 || holidayName(d);
-    return `<td class="${d === td ? 'today' : we ? 'we' : ''} ${n ? 'n' : ''} ${n && d < td ? 'late' : ''} ${extra}">${n || ''}</td>`;
-  };
+  // v5.16: fim de semana e feriado em destaque (azul = descanso); o feriado mostra o nome ao passar o mouse
+  const off = (d) => (holidayName(d) ? 'hol' : weekday(d) === 0 || weekday(d) === 6 ? 'we' : '');
+  const head2 = days.map((d) => `<th class="${d === td ? 'today' : off(d)}" title="${esc(holidayName(d) || '')}">${DOW[weekday(d)][0]}<br>${d.slice(8)}${holidayName(d) ? '<i class="holm">★</i>' : ''}</th>`).join('');
+  const cell = (d, n, extra = '') => `<td class="${d === td ? 'today' : off(d)} ${n ? 'n' : ''} ${n && d < td ? 'late' : ''} ${extra}">${n || ''}</td>`;
   // v5.15: as linhas das listas e dos rituais saíram daqui (a carga de cada dia fica na faixa de cima); ficam as datas e os blocos
   const blocks = tl.blocks.map((b) => {
     const dues = Object.keys(b.counts).sort();
@@ -53,36 +52,33 @@ export function viewAgenda(ui) {
   if (fb === 'week') queue = queue.filter((t) => t.due && t.due >= td && t.due <= addDays(td, 7));
   const hol = range(td, 30).filter(holidayName).slice(0, 3);
   const blow = R.blowState(S), blowPct = Math.round((R.BLOW_MULT - 1) * 100);
-  return `<div class="page-title"><div><h1><em>agenda</em>.</h1></div>
-      <button class="btn pri" data-act="distribute">📅 DISTRIBUIR PRAZOS</button></div>
-    <div class="stats">
-      <div class="stat"><small>⏰ Atrasadas</small><b class="${over.length ? 'bad' : ''}">${over.length}</b><span>${over.length >= 3 ? 'ATOLADO: loja trancada' : '3+ tranca a loja'}</span></div>
-      <div class="stat"><small>Hoje</small><b class="${dueToday.length ? 'warn' : ''}">${dueToday.length}</b><span>${DOW[weekday(td)]} ${fmtDM(td)}</span></div>
-      <div class="stat"><small>Próx. 7 dias</small><b>${next7.length}</b></div>
-      <div class="stat"><small>Pontualidade 30d</small><b>${punct == null ? '—' : punct + '%'}</b></div>
-      <div class="stat"><small>🎯 No prazo seguidas</small><b>${seq}</b><span>${seq >= 5 ? '⏰ RELÓGIO SUÍÇO' : '5 = relógio suíço'}</span></div>
-      <div class="stat"><small>💥 Estourados</small><b class="${blow.active ? 'bad' : ''}">${blow.n % R.BLOW_EVERY}/${R.BLOW_EVERY}</b><span>${blow.active ? `CASTIGO: loja +${blowPct}%` : `${R.BLOW_EVERY} = loja +${blowPct}% por ${R.BLOW_DAYS} dias`}</span></div>
-    </div>
+  return `<div class="page-title"><div><h1><em>agenda</em>.</h1></div></div>
+    ${tiles([
+      { label: '⏰ Atrasadas', value: over.length, cls: over.length ? 'bad' : '', tone: 'urg', tip: over.length >= 3 ? 'A loja está trancada: resolva ou remarque 1 atrasada pra abrir.' : 'Com 3 ou mais atrasadas a loja tranca (resolver 1 já destranca).' },
+      { label: 'Hoje', value: dueToday.length, tone: 'urg', tip: `${DOW[weekday(td)]} ${fmtDM(td)}` },
+      { label: 'Próx. 7 dias', value: next7.length, tone: 'atencao' },
+      { label: 'Pontualidade 30d', value: punct == null ? '—' : punct + '%', tone: 'ok', tip: 'Das tarefas com prazo concluídas nos últimos 30 dias, quantas saíram no prazo.' },
+      { label: '🎯 No prazo seguidas', value: seq, tone: 'ok', tip: seq >= 5 ? 'RELÓGIO SUÍÇO!' : '5 seguidas no prazo = RELÓGIO SUÍÇO' },
+      { label: '💥 Estourados', value: `${blow.n % R.BLOW_EVERY}/${R.BLOW_EVERY}`, cls: blow.active ? 'bad' : '', tone: 'urg', tip: blow.active ? `Castigo ativo: loja +${blowPct}%. Resolva 1 atrasada antiga pra cancelar.` : `A cada ${R.BLOW_EVERY} prazos estourados, a loja fica ${blowPct}% mais cara por ${R.BLOW_DAYS} dias.` },
+    ])}
+    <div class="page-actions"><button class="btn pri" data-act="distribute">📅 DISTRIBUIR PRAZOS</button></div>
     ${dayStrip()}
     <div class="grid">${timelineCard(ui)}
-      <div class="card c7"><header><h2>⏰ Fila de prazos</h2><span class="meta">arraste pra um dia ↑</span></header>
+      <div class="card c12"><header><h2>⏰ Fila de prazos</h2><span class="meta" title="Arraste uma tarefa até um dia da faixa CARGA DO DIA pra mudar o prazo">arraste pra um dia ↑</span></header>
         <div class="row" style="margin-bottom:8px"><input class="inp grow" data-input="agQ" value="${esc(ui.agQ || '')}" placeholder="🔍 filtrar por nome, projeto…" aria-label="Filtrar"><div class="seg">${[['', 'TUDO'], ['late', 'ATRASADAS'], ['today', 'HOJE'], ['week', '7 DIAS']].map(([k, n]) => `<button class="fb-${k || 'all'} ${fb === k ? 'on' : ''}" data-act="ag-filter" data-b="${k}">${n}</button>`).join('')}</div></div>
-        <div class="list">${queue.slice(0, 80).map((t) => `<div class="li" data-list="${R.listOf(t)}" draggable="true" data-tid="${t.id}" title="Arraste até um dia da faixa pra mudar o prazo"><div class="lt" data-act="jump" data-id="${t.id}" style="cursor:pointer">${t.st === 'doing' ? '▶ ' : ''}${t.prio ? '<b class="bad">!</b> ' : ''}${esc(t.text)}<small>${esc(where(t))}</small></div>
+        <div class="list qcols">${queue.slice(0, 80).map((t) => `<div class="li" data-list="${R.listOf(t)}" draggable="true" data-tid="${t.id}" title="Arraste até um dia da faixa pra mudar o prazo"><div class="lt" data-act="jump" data-id="${t.id}" style="cursor:pointer">${t.st === 'doing' ? '▶ ' : ''}${t.prio ? '<b class="bad">!</b> ' : ''}${esc(t.text)}<small>${esc(where(t))}</small></div>
           <div class="row" style="flex-wrap:nowrap;gap:6px">${dueChip(t.due, false, true)}<button class="icon-btn" data-act="prio" data-id="${t.id}" title="Prioridade">${t.prio ? '★' : '☆'}</button></div></div>`).join('') || '<div class="empty">nada encontrado.</div>'}</div></div>
-      <div class="c5" style="display:flex;flex-direction:column;gap:16px">
-        <div class="card"><header><h2>🔁 Rituais · próximos 14 dias</h2><a class="meta" href="#survival">todos →</a></header>
-          <div class="list">${(S.core.rituals || []).map((r) => ({ r, s: R.ritualStatus(r, td) })).filter((x) => x.s.left != null && x.s.left <= 14).sort((a, b) => a.s.left - b.s.left).map((x) => ritualRow(x.r, td)).join('') || '<div class="empty">nenhum ritual nos próximos 14 dias.</div>'}</div>
-          ${hol.length ? `<p class="meta" style="margin:8px 0 0">feriados: ${hol.map((d) => `${fmtDM(d)} ${esc(holidayName(d))}`).join(' · ')}</p>` : ''}</div>
-      </div></div>`;
+      </div>`;
 }
 
 /** faixa de dias (volta na v5.15, a pedido do dono): rola pro lado; o número é a carga do dia e a cor diz se pesa */
 function dayStrip() {
   const td = today(), load = R.loadByDay(S), rit = R.ritualDates(S, addDays(td, -3), 45);
-  return `<div class="card" style="margin-bottom:16px"><header><h2>📊 Carga do dia · 6 semanas</h2><span class="meta">toque num dia pra ver · arraste uma tarefa da fila até o dia</span></header>
+  const hols = range(td, 60).filter(holidayName).slice(0, 4);
+  return `<div class="card" style="margin-bottom:16px"><header><h2>📊 Carga do dia · 6 semanas</h2><span class="meta" title="Toque num dia pra ver as tarefas dele. Arraste uma tarefa da fila até um dia pra mudar o prazo.">${hols.length ? `★ ${hols.map((d) => `${fmtDM(d)} ${esc(holidayName(d))}`).join(' · ')}` : ''}</span></header>
     <div class="daystrip">${range(addDays(td, -3), 45).map((d) => {
       const n = load[d] || 0, hol = holidayName(d), we = weekday(d) === 0 || weekday(d) === 6;
-      return `<div class="day ${d === td ? 'today' : ''} ${we || hol ? 'off' : ''}" data-act="ag-day" data-d="${d}"><small>${DOW[weekday(d)]} ${fmtDM(d)}</small><div class="n ${n >= 6 ? 'l6' : n >= 4 ? 'l4' : n ? 'l1' : ''}">${n || '·'}</div><small>${rit[d] ? `<span title="${esc(rit[d].map((r) => r.name).join(', '))}">🔁${rit[d].length}</span> ` : ''}${hol ? esc(hol.split(' ')[0]) : we ? 'fim de sem.' : d < td ? 'passou' : ''}</small></div>`;
+      return `<div class="day ${d === td ? 'today' : ''} ${hol ? 'hol off' : we ? 'off' : ''} ${d < td ? 'past' : ''}" data-act="ag-day" data-d="${d}"><small>${DOW[weekday(d)]} ${fmtDM(d)}</small><div class="n ${n >= 6 ? 'l6' : n >= 4 ? 'l4' : n ? 'l1' : ''}">${n || '·'}</div><small>${rit[d] ? `<span title="${esc(rit[d].map((r) => r.name).join(', '))}">🔁${rit[d].length}</span> ` : ''}${hol ? `<b class="holn" title="${esc(hol)}">★ ${esc(hol.split(' ')[0])}</b>` : ''}</small></div>`;
     }).join('')}</div></div>`;
 }
 

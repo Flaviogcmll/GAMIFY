@@ -722,9 +722,11 @@ export function weekChallenges(s, ws, td = today()) {
 export function shopState(s, d = today()) {
   const st = dayStatus(s, d);
   const overdue = overdueTasks(s, d);
-  const locked = overdue.length >= 3;
+  // v5.16 (2B): com 3+ atrasadas a loja tranca, mas resolver ou remarcar UMA atrasada destranca pelo resto do dia
+  const rescued = s.core?.rescue === d;
+  const locked = overdue.length >= 3 && !rescued;
   const econ = econIndex(s, d);
-  return { mult: st.shopMult * econ, econ, locked, overdue: overdue.length, status: st };
+  return { mult: st.shopMult * econ, econ, locked, rescued: rescued && overdue.length >= 3, overdue: overdue.length, status: st };
 }
 export function tavernaPrice(s, item, d = today()) {
   let m = dayStatus(s, d).shopMult;
@@ -738,7 +740,10 @@ export const DEBT_MULT = 1.5;
 export const RESCHED_CAP = 8;
 export function blowState(s, d = today()) {
   const b = s.core?.blow || {}, n = b.n || 0, hit = (b.hits || []).filter((h) => h <= d).sort().at(-1);
-  return { n, left: BLOW_EVERY - (n % BLOW_EVERY), active: !!hit && diffDays(hit, d) < BLOW_DAYS };
+  // v5.16 (2F): o castigo tem saída (resolver ou remarcar 1 atrasada depois dele cancela) e intensidade escolhida em PERKS
+  const mode = s.core?.settings?.castigo || 'loja', rescued = !!hit && (s.core?.rescue || '') >= hit;
+  const on = !!hit && diffDays(hit, d) < BLOW_DAYS && !rescued;
+  return { n, left: BLOW_EVERY - (n % BLOW_EVERY), active: on && mode === 'loja', warn: on && mode === 'aviso', mode, rescued: !!hit && rescued && diffDays(hit, d) < BLOW_DAYS };
 }
 export const ferreiroXp = (item) => C.FERREIRO_XP * item.nv;
 export const timesBought = (s, itemId) =>
@@ -978,12 +983,15 @@ export function goalAt(s, d = today()) {
   const base = s.core?.settings?.dailyGoal || C.DAILY_GOAL, n = ladderSteps(s).filter((x) => x <= d).length;
   return n ? Math.round((base * (1 + LADDER_STEP) ** n) / 5) * 5 : base;
 }
+/** v5.16 (2C): fração da meta que mantém a chama acesa (sem somar dia) */
+export const FLAME_MIN = 0.5;
 export function dailyGoal(s, d = today()) {
   const goal = goalAt(s, d), xp = idx(s).xpByDay;
   let streak = 0, x = (xp[d] || 0) >= goal ? d : addDays(d, -1), skips = 0;
   for (let i = 0; i < 400; i++, x = addDays(x, -1)) {
     if ((xp[x] || 0) >= goalAt(s, x)) streak++;
     else if (tripDay(s, x)) { /* ✈ viagem: não conta e não quebra a sequência */ }
+    else if (x !== d && (xp[x] || 0) >= goalAt(s, x) * FLAME_MIN) { /* v5.16 (2C): metade da meta segura a chama, mas não soma */ }
     else if ((weekday(x) === 0 || weekday(x) === 6) && skips < 1) skips++; // 1 fim de semana perdoado por vez
     else break;
     if (weekday(x) === 1) skips = 0;
@@ -1168,7 +1176,7 @@ export function chapterStats(s, from, to = today()) {
 // Tudo liga/desliga em PERKS (settings.neuro). Os horários são do dono.
 export const NEURO_DEFAULT = { clock: true, curfew: true, calm: true, ladder: true, wake: '07:00', bed: '23:00', meals: ['08:00', '12:30', '19:30'],
   // v5.16: Bullet Journal e praticidade (cada um liga/desliga em PERKS → 🧠)
-  mig: true, why: true, box: true, cheio: true, pato: true, quick: true, swipe: true, proc: true };
+  mig: true, why: true, box: true, cheio: true, pato: true, quick: true, swipe: true, proc: true, foco: true };
 export const neuro = (s) => ({ ...NEURO_DEFAULT, ...(s.core?.settings?.neuro || {}) });
 export const neuroOn = (s, k) => neuro(s)[k] !== false;
 export const hm = (x) => { const [h, m] = String(x || '0:0').split(':').map(Number); return ((h || 0) * 60 + (m || 0)) % 1440; };
@@ -1245,4 +1253,46 @@ export const HABIT_BUY = 4;
 export function boughtLast7(s, itemId, td = today()) {
   const from = addDays(td, -6);
   return (s.loja?.purchases || []).filter((p) => p.itemId === itemId && p.kind === 'taverna' && p.date >= from && p.date <= td).length;
+}
+
+// ───────────────────────── v5.16: MECÂNICAS DO PDF (com contrapesos) ─────────────────────────
+// 2D escada que desce: na última semana (7 dias antes de hoje) menos de 3 dias na meta → cai um degrau. No máximo 1 por semana.
+export function ladderShouldDrop(s, td = today()) {
+  const lad = ladderSteps(s);
+  if (!lad.length || diffDays(lad.at(-1), td) < 7) return false;
+  if (s.core?.ladderDown && diffDays(s.core.ladderDown, td) < 7) return false;
+  const xp = idx(s).xpByDay, days = Array.from({ length: 7 }, (_, i) => addDays(td, -i - 1)).filter((x) => !tripDay(s, x));
+  return days.length >= 5 && days.filter((x) => (xp[x] || 0) >= goalAt(s, x)).length < 3;
+}
+// 2A bônus de volta: hoje bateu a meta, ontem não (e anteontem bateu ou foi folga). +25 XP, 1 vez por dia.
+export const COMEBACK_XP = 25;
+export function comebackDue(s, td = today()) {
+  if ((s.core?.bonus || []).some((b) => b.kind === 'volta' && b.date === td)) return false;
+  const xp = idx(s).xpByDay, y = addDays(td, -1), y2 = addDays(td, -2), hit = (x) => (xp[x] || 0) >= goalAt(s, x);
+  if (!hit(td) || hit(y) || tripDay(s, y) || y < (s.core?.startDate || y)) return false;
+  return hit(y2) || tripDay(s, y2) || weekday(y2) === 0 || weekday(y2) === 6;
+}
+// 2E + 5A FOCO AGORA: uma tarefa só, e o porquê (o "cérebro": junta prazo, boss, missão, horário do corpo e prioridade)
+export function focusNow(s, td = today(), skip = []) {
+  const wm = new Set(weeklyMissions(s, td).ids || []), clock = neuroOn(s, 'clock') ? bodyClock(s).key : '';
+  const bossOf = (t) => (t.block && (s.quests?.bosses || []).find((b) => b.block === t.block)) || null;
+  const cands = openTasks(s).filter((t) => t.st !== 'wait' && !t.who && !t.dep && !t.mother && !skip.includes(t.id) && (!t.block || findBlock(s, t.block)?.color !== 'black'));
+  const why = (t) => {
+    const r = [];
+    if (t.st === 'doing') r.push([900, 'você já começou']);
+    if (t.due && t.due < td) r.push([600 + diffDays(t.due, td) * 10, `atrasada há ${diffDays(t.due, td)} dia(s)`]);
+    else if (t.due === td) r.push([450, 'o prazo é hoje']);
+    if (t.prio) r.push([400, 'marcada como prioridade']);
+    if (wm.has(t.id)) r.push([350, 'é uma missão da semana']);
+    const bo = bossOf(t), idle = bo ? bossIdle(s, bo, td) : 0;
+    if (bo && idle >= BOSS_IDLE_DAYS) r.push([300, `o boss "${bo.text.replace(/:\s*[\d.]+\s*XP.*$/i, '').slice(0, 28)}" está parado há ${idle} dias`]);
+    if (parse(t.text).star) r.push([200, 'é a chata que você vive adiando']);
+    if (clock === 'foco' && taskXp(s, t, td).xp >= 30) r.push([150, 'é pico de foco: hora da pesada']);
+    if (clock === 'vale' && taskXp(s, t, td).xp < 20) r.push([120, 'no vale da tarde, uma leve rende']);
+    if (t.due && t.due > td && diffDays(td, t.due) <= 2) r.push([100, 'o prazo está perto']);
+    return r.sort((a, b) => b[0] - a[0]);
+  };
+  const ranked = cands.map((t) => ({ t, r: why(t) })).filter((x) => x.r.length).sort((a, b) => b.r.reduce((x, y) => x + y[0], 0) - a.r.reduce((x, y) => x + y[0], 0));
+  const top = ranked[0];
+  return top ? { task: top.t, why: top.r.slice(0, 2).map((x) => x[1]).join(' e '), next: ranked.slice(1, 4).map((x) => x.t.id) } : null;
 }

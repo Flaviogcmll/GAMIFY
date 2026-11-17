@@ -37,7 +37,7 @@ function brain() {
 }
 /** fala do dia: uma frase com IA, no máximo 1x por dia (se estiver ligado em PERKS AND RULES) */
 export async function primoThink(el) {
-  const mode = localStorage.getItem('gamify-ui:ai') || 'daily';
+  const mode = localStorage.getItem('gamify-ui:ai') || 'never'; // v5.16: IA dentro do app desligada (o dono não vai usar agora)
   if (mode === 'never' || !el) return;
   const key = 'gamify-ui:ailine', saved = (() => { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } })();
   if (saved?.d === today()) { if (saved.t && !el.classList.contains('typing')) el.textContent = saved.t; return; }

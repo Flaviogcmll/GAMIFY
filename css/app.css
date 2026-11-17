@@ -447,7 +447,7 @@ canvas.embers { position: fixed; inset: 0; width: 100%; height: 100%; pointer-ev
 @media (max-width: 860px) {
   .top { grid-template-columns: 1fr; padding: 8px 10px; gap: 8px; }
   .top > .row { flex-wrap: wrap !important; justify-content: space-between; }
-  .top .logo { display: none; }
+  .top .brand { display: none; }
   .wallet { grid-column: 1 / -1; order: 3; }
   .coin { flex: 1; min-width: 0; }
   .tools { order: 2; }
@@ -1036,7 +1036,7 @@ li.task.sw-next::after { content: 'AMANHA →'; left: -88px; color: var(--c-quas
   .toasts { bottom: 134px; }
 }
 form[data-form="boss"] .pausef { display: none; }
-form[data-form="boss"]:has(option[value="pause"]:checked) .pausef { display: block; }
+form[data-form="boss"]:has(option[value="pause"]:checked) .pausef, form[data-form="boss"]:has(input[name="st"][value="pause"]:checked) .pausef { display: block; }
 /* v5.16 velocidade: o navegador só desenha as medalhas que estão perto da tela */
 .medals .medal { content-visibility: auto; contain-intrinsic-size: auto 96px; }
 
@@ -1083,3 +1083,126 @@ form[data-form="boss"]:has(option[value="pause"]:checked) .pausef { display: blo
 .card.flash { animation: flash 1.2s steps(4) 2; }
 .rot-now .rn-info b { font: 700 12px/1.3 var(--f-mono); padding: 0; border: 0; box-shadow: none; background: none; border-radius: 0; color: inherit; }
 .tiles .stat span { display: block; margin-top: 2px; }
+
+/* ───────── v5.16b — CORES: DEPOIS verde, SEM PRAZO cinza, AGUARDANDO roxo em tarefa e bloco ───────── */
+.list-card[data-list="depois"], :root[data-mode="night"] .list-card[data-list="depois"], .li[data-list="depois"] { --lc: var(--c-ok); }
+.chip.later { background: color-mix(in srgb, var(--c-ok) 14%, transparent); border-color: var(--c-ok); color: var(--c-ok); }
+.ftab tr[data-b="later"] td.ft { border-left-color: var(--c-ok); }
+.block[data-color="purple"] { --bc: var(--c-espera); }
+.task[data-color="purple"], :root[data-mode="night"] .task[data-color="purple"] { border-left-color: var(--c-espera); }
+.chip.calm { background: color-mix(in srgb, var(--c-calma) 14%, transparent); border-color: var(--c-calma); color: var(--c-calma); }
+.hg td.c.forg { background: color-mix(in srgb, var(--c-calma) 22%, transparent); }
+/* janela das listas: o ícone da janela logo depois do quadradinho */
+.task .txt > .lnk-dot { display: inline-block; vertical-align: -3px; margin-right: 4px; }
+.lnk-dot[data-g="win"]::before { content: '▣'; color: var(--c-acao); }
+/* ir até e brilhar: a cor do brilho é a cor do que o item é */
+@keyframes glowpulse { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 40% { box-shadow: 0 0 0 4px var(--gl, var(--c-premio)), 0 0 18px 4px var(--gl, var(--c-premio)); } }
+.glow { --gl: var(--lc, var(--bc, var(--c-premio))); animation: glowpulse 1s ease-in-out 3; position: relative; z-index: 2; }
+li.task.glow[data-color="red"] { --gl: var(--c-urg); } li.task.glow[data-color="yellow"] { --gl: var(--c-atencao); } li.task.glow[data-color="green"] { --gl: var(--c-ok); }
+li.task.glow[data-color="black"] { --gl: var(--c-neutro); } li.task.glow[data-color="purple"] { --gl: var(--c-espera); }
+/* escolher a janela (setinha ⤴) */
+.pickgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 12px 0; }
+.pick { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 8px; border: 2px solid var(--edge); background: var(--panel-2); color: var(--ink); font: 8px/1.4 var(--f-pixel); cursor: pointer; box-shadow: 3px 3px 0 var(--shadow); border-radius: 8px; }
+.pick .pi { font-size: 22px; } .pick:hover { border-color: var(--c-acao); transform: translateY(-1px); }
+
+/* ───────── v5.16b — JANELAS (pop-ups) no mesmo padrão do jogo ───────── */
+.modal { border-radius: 10px; }
+.modal > h2:first-child, .modal > form > h2:first-child { margin: -18px -18px 14px; padding: 14px 18px 12px; border-bottom: 2px solid var(--line); background: var(--panel-2); border-radius: 10px 10px 0 0; }
+.modal .actions { border-top: 2px solid var(--line); padding-top: 14px; margin-top: 18px; }
+.mform .mhead { display: flex; align-items: center; gap: 10px; margin: -18px -18px 14px; padding: 14px 18px 12px; border-bottom: 2px solid var(--line); background: var(--panel-2); border-radius: 10px 10px 0 0; }
+.mform .mtype { font: 11px/1.3 var(--f-pixel); color: var(--c-acao); text-transform: uppercase; }
+.mform .mwhere { flex: 1; min-width: 0; font-size: 11.5px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mform .mtitle { font: 600 15px/1.4 var(--f-mono); }
+.msplit { display: grid; grid-template-columns: auto 1fr; gap: 6px 24px; align-items: start; }
+@media (max-width: 560px) { .msplit { grid-template-columns: 1fr; } }
+/* marcadores e escolhas: tudo redondo, tudo com legenda (title) */
+.pills { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.pill { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 12px; border: 2px solid var(--line); border-radius: 999px; background: var(--panel); color: var(--ink); font: 600 11.5px/1 var(--f-mono); cursor: pointer; user-select: none; }
+.pill input { position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0; }
+.pill:hover { border-color: var(--c-acao); }
+.pill.on, .pill:has(input:checked) { border-color: var(--c-acao); background: color-mix(in srgb, var(--c-acao) 16%, var(--panel)); color: var(--ink); box-shadow: inset 0 0 0 1px var(--c-acao); }
+.pill:has(input:focus-visible) { outline: 2px solid var(--c-acao); outline-offset: 2px; }
+.xpset .inp { min-height: 30px; border-radius: 999px; padding: 0 12px; }
+.minfo { cursor: help; font-size: 12px; color: var(--dim); padding: 0 4px; }
+/* bolinhas de cor (a mesma linguagem em tarefa, bloco e boss) */
+.swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+.sw { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 6px; border: 2px solid var(--line); border-radius: 999px; cursor: pointer; font: 600 10.5px/1 var(--f-mono); background: var(--panel); }
+.sw input { position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0; }
+.sw i { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--edge); background: var(--c-neutro); flex: none; }
+.sw i[data-tone="urg"] { background: var(--c-urg); } .sw i[data-tone="atencao"] { background: var(--c-atencao); } .sw i[data-tone="ok"] { background: var(--c-ok); }
+.sw i[data-tone="neutro"] { background: var(--c-neutro); } .sw i[data-tone="espera"] { background: var(--c-espera); } .sw i[data-tone="none"] { background: transparent; border-style: dashed; }
+.sw:has(input:checked) { border-color: var(--ink); background: var(--panel-2); box-shadow: inset 0 0 0 1px var(--ink); }
+.sw:hover { border-color: var(--c-acao); }
+/* "aguardando quem": só aparece quando a cor é AGUARDANDO (ou já tem alguém) */
+.waitbox { display: none; padding: 10px 12px; margin-top: 10px; border: 2px dashed var(--c-espera); border-radius: 8px; }
+.mform:has(input[name="color"][value="wait"]:checked) .waitbox { display: block; }
+.waitbox .lbl { margin-top: 0; color: var(--c-espera); }
+/* v5.16b: barra das janelas do QUESTS com lugar fixo pros botões (antes eles pulavam de linha conforme o número de janelas) */
+.band.qbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 8px 12px; }
+.band.qbar > .seg { flex-wrap: wrap; min-width: 0; }
+.band.qbar > .row { flex-wrap: nowrap; justify-self: end; }
+@media (max-width: 860px) { .band.qbar { grid-template-columns: 1fr; } .band.qbar > .row { justify-self: stretch; flex-wrap: wrap; } }
+/* v5.16b: faixa do topo mais alta: a imagem (2,33:1) aparece quase inteira em vez de cortada */
+.scene.pstrip { min-height: clamp(140px, 19vw, 270px); }
+.scene.pstrip > img.topo { object-position: center 55%; }
+/* v5.16b: GAMIFY como logo + iconezinho de onde os dados estão (legenda ao passar o mouse) */
+.logo .lgo { font: 18px/1 var(--f-pixel); letter-spacing: .04em; color: var(--c-premio); text-shadow: 2px 2px 0 var(--c-acao), 4px 4px 0 rgba(0, 0, 0, .25); }
+.brand { display: flex; align-items: center; gap: 8px; } .savewhere { font-size: 13px; cursor: help; opacity: .75; }
+.savewhere.bad { opacity: 1; }
+.creditos-link { text-align: center; margin: 24px 0 8px; font-size: 11px; opacity: .6; }
+.arq-top { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px 24px; }
+.arq-list .list { columns: auto; }
+@media (min-width: 1100px) { .arq-list .li .lt { max-width: 1100px; } }
+/* ROTINA: balõezinhos com × e + */
+.rchips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.rchip { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding-right: 4px; }
+.rchip .rx { border: 0; background: none; color: var(--dim); cursor: pointer; font: 700 13px/1 var(--f-mono); padding: 0 4px; border-radius: 50%; }
+.rchip .rx:hover { color: var(--c-urg); }
+.rchip-add .inp { width: 140px; min-height: 26px; border-radius: 999px; padding: 0 10px; font-size: 11.5px; }
+.rot td { border-radius: 4px; }
+/* botões principais da página: centralizados, embaixo da faixa de resumo */
+.page-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 0 0 16px; }
+@media (min-width: 861px) { .qcols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 28px; } }
+
+/* ───────── v5.16b — SHOP: vitrines aconchegantes (TAVERNA em cima, FERREIRO embaixo) ───────── */
+.vitrine { margin: 0 0 22px; border: 2px solid var(--edge); border-radius: 12px; overflow: hidden; box-shadow: 4px 4px 0 var(--shadow); background: var(--panel); }
+.vit-h { position: relative; min-height: clamp(110px, 14vw, 190px); display: flex; align-items: flex-end; padding: 14px 18px; background-size: cover; background-position: center 55%; image-rendering: pixelated; }
+.vit-h::before { content: ''; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(12, 9, 7, .82) 0, rgba(12, 9, 7, .35) 55%, rgba(12, 9, 7, .05) 100%); }
+.vit-h > div { position: relative; }
+.vit-h h2 { font: 16px/1.3 var(--f-pixel); color: #f6e7c8; text-shadow: 2px 2px 0 #120d09; margin: 0; }
+.vit-h p { margin: 4px 0 0; color: #e8dccb; font-size: 12px; text-shadow: 1px 1px 0 #120d09; }
+.vit-b { padding: 16px; }
+.vitrine .shop { grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 14px; }
+.vitrine .fcats { margin-bottom: 14px; }
+/* cartão do item: ícone grande numa moldura com a cor da raridade (moldura e brilho, sem mudar as cores com significado) */
+.item { border-radius: 10px; align-items: center; text-align: center; transition: transform .12s; }
+.item:hover { transform: translateY(-2px); }
+.item .ic { width: 64px; height: 64px; display: grid; place-items: center; border-radius: 12px; background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--c-premio) 22%, var(--panel)), var(--panel-2)); border: 2px solid var(--line); margin-top: 6px; }
+.item.raro .ic { border-color: var(--c-calma); } .item.epico .ic { border-color: var(--c-espera); } .item.lendario .ic { border-color: var(--c-premio); box-shadow: 0 0 12px color-mix(in srgb, var(--c-premio) 55%, transparent); }
+.item .eico { font-size: 34px; line-height: 1; filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, .25)); }
+.item .ip { color: var(--c-premio); }
+.item .ia { justify-content: center; width: 100%; }
+.itags { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; font-size: 11px; color: var(--dim); }
+.itags span { cursor: help; }
+.item .link-btn { font-size: 10.5px; opacity: .7; }
+.item.locked { opacity: .55; filter: grayscale(.6); }
+.shoptabs { flex-wrap: wrap; }
+main:has(.vitrine) > .scene.pstrip > img.topo { display: none; } main:has(.vitrine) > .scene.pstrip { min-height: 92px; }
+/* v5.16b AGENDA: fim de semana e feriado em azul (descanso), linha do tempo na largura toda */
+.tl table { width: 100%; }
+.tl td.we, .tl th.we { background: color-mix(in srgb, var(--c-calma) 12%, var(--panel)); }
+.tl td.hol, .tl th.hol { background: color-mix(in srgb, var(--c-calma) 26%, var(--panel)); }
+.tl th .holm { display: block; font-style: normal; color: var(--c-calma); font-size: 8px; }
+.daystrip .day.off { background: color-mix(in srgb, var(--c-calma) 12%, var(--panel)); opacity: 1; }
+.daystrip .day.hol { background: color-mix(in srgb, var(--c-calma) 26%, var(--panel)); border-color: var(--c-calma); }
+.daystrip .day.past { opacity: .5; }
+.daystrip .day .holn { display: block; color: var(--c-calma); font: 700 9px/1.2 var(--f-mono); }
+/* v5.16b FOCO AGORA: uma tarefa só, em destaque, no topo do QUESTS */
+.focus-now { display: flex; align-items: center; gap: 12px; padding: 12px 16px; margin-bottom: 16px; border: 2px solid var(--c-acao); border-left: 8px solid var(--c-premio); }
+.focus-now .fn-k { font: 8px/1.4 var(--f-pixel); color: var(--c-acao); white-space: nowrap; }
+.focus-now .check { flex: none; }
+.focus-now .fn-t { flex: 1; min-width: 0; cursor: pointer; }
+.focus-now .fn-t b { display: block; font: 700 14px/1.35 var(--f-mono); overflow-wrap: anywhere; }
+.focus-now .fn-t small { display: block; color: var(--dim); font-size: 11.5px; margin-top: 2px; }
+.focus-now.empty-f { border-left-color: var(--c-ok); }
+@media (max-width: 600px) { .focus-now { flex-wrap: wrap; } .focus-now .fn-k { width: 100%; } }

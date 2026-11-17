@@ -64,10 +64,12 @@ export function commit(docs, fn, opts = {}) {
   docs.push(...touched);
   S._epoch++;
   // 🪜 escada do esforço: 7 dias seguidos na meta → a meta sobe um degrau (uma vez por semana, no máximo R.LADDER_MAX)
-  S._ladderUp = false;
+  // v5.16: corrigido (usava variáveis que não existiam aqui e dava erro na 1ª subida) e agora também DESCE numa semana fraca
+  S._ladderUp = false; S._ladderDown = false;
   if (R.neuroOn(S, 'ladder')) {
-    const lad = S.core.ladder || [], dg = R.dailyGoal(S);
-    if (dg.streak >= 7 && lad.length < R.LADDER_MAX && (!lad.length || diffDays(lad.at(-1), td) >= 7)) { S.core.ladder = [...lad, td]; S._ladderUp = true; changedCore = true; S._epoch++; }
+    const td = today(), lad = S.core.ladder || [], dg = R.dailyGoal(S);
+    if (dg.streak >= 7 && lad.length < R.LADDER_MAX && (!lad.length || diffDays(lad.at(-1), td) >= 7)) { S.core.ladder = [...lad, td]; S._ladderUp = true; docs.push('core'); S._epoch++; }
+    else if (R.ladderShouldDrop(S, td)) { S.core.ladder = lad.slice(0, -1); S.core.ladderDown = td; S._ladderDown = true; docs.push('core'); S._epoch++; }
   }
   const extra = sync();
   if (extra.changed) docs.push('core');
@@ -119,6 +121,13 @@ function sync() {
     S.core.bonus ||= [];
     S.core.bonus.push({ id: uid('wm'), date: td, week: wm.ws, kind: 'missoes', xp: 100, tickets: 1, label: '📌 3 missões da semana' });
     achievements.push({ name: '3 MISSÕES DA SEMANA (+1 🎟)', xp: 100 });
+    changed = true; S._epoch++;
+  }
+  // v5.16 (2A) bônus de volta: bateu a meta hoje depois de um dia abaixo dela (só 1 vez por dia; não vale depois de 2 dias ruins seguidos)
+  if (R.comebackDue(S, td)) {
+    S.core.bonus ||= [];
+    S.core.bonus.push({ id: uid('vol'), date: td, kind: 'volta', xp: R.COMEBACK_XP, label: '🔁 voltou!' });
+    achievements.push({ name: 'VOLTOU! Dia ruim não vira dois', xp: R.COMEBACK_XP });
     changed = true; S._epoch++;
   }
   return { changed, achievements };
@@ -308,8 +317,10 @@ function syncLists() {
 }
 const container = (t) => S.quests.tasks.filter((x) => (t.block ? x.block === t.block : !x.block && x.area === t.area));
 
+/** v5.16: o dono escreve "$" (3000$ ou um $ solto) e o app guarda o marcador de dinheiro 💰; "R$ 300" fica como está */
+export const normalizeMoney = (text) => String(text || '').replace(/(\d)\s*\$/g, '$1💰').replace(/(^|\s)\$(?=\s|$)/g, '$1💰');
 export function normalizeText(text) {
-  let t = String(text || '').trim();
+  let t = normalizeMoney(String(text || '').trim());
   if (t.startsWith('>')) t = '↳ ' + t.slice(1).trim();
   return t;
 }
@@ -346,6 +357,7 @@ export function addTask({ text, area = 'hoje', block = null, due = null, parent 
 }
 
 function completeTask(t, d, auto = false) {
+  if (t.due && t.due < d && !auto) { S.core.rescue = d; touch('core'); } // v5.16: resolveu uma atrasada = resgate (destranca a loja hoje e cancela o castigo)
   const r = R.taskXp(S, t, d);
   if (t.cycle) {
     // 🔁 VAI E VOLTA: a rodada dá XP e a tarefa fica 📨 enviada, aguardando retorno
@@ -498,7 +510,9 @@ export function updateTask(id, patch) {
   if ('due' in patch && patch.due && t.due && patch.due > t.due && R.reschedLocked(S, t) && !patch.box) return { error: `"${String(t.text).replace(/\s*\(\d+\s*XP\)/i, '').slice(0, 50)}" já foi remarcada ${t.rs}x. Pra empurrar de novo, abra a tarefa e marque um horário e uma duração (time box), ou cancele.`, locked: true };
   const base = 'due' in patch ? reschedBase(t, patch.due || null) : 0, free = base > 0 && freeResched(), cost = free ? 0 : base;
   if (cost && R.totals(S).balance < cost) return { error: `Faltam ${cost - R.totals(S).balance} XP pra remarcar (custa ${cost} XP). Conclua algo ou mantenha o prazo.` };
-  return commit(cost ? ['quests', 'loja'] : free ? ['quests', 'core'] : ['quests'], () => {
+  const rescue = 'due' in patch && patch.due && t.due && t.due < today() && patch.due >= today(); // remarcou uma atrasada = resgate
+  return commit(cost || rescue ? ['quests', 'loja', 'core'] : free ? ['quests', 'core'] : ['quests'], () => {
+    if (rescue) S.core.rescue = today();
     if (cost) { chargeResched(t, cost); }
     if (free) { useFree(); t.rs = (t.rs || 0) + 1; }
     if ('text' in patch) patch.text = normalizeText(patch.text);
@@ -556,7 +570,7 @@ export function moveTask(id, dir) {
 
 // ───────────────────────── BLOCOS ─────────────────────────
 export function addBlock(group, title, extra = {}) {
-  title = String(title || '').trim();
+  title = normalizeMoney(String(title || '').trim());
   if (!title) return null;
   return commit(['quests'], () => {
     const b = { id: uid('k'), group, title, color: extra.color || (group === 'tr' ? 'yellow' : 'green'), st: '', due: extra.due || null, created: today(), ord: maxOrd() + 1 };
@@ -671,14 +685,16 @@ export function deleteBoss(id) {
   });
 }
 /** 🔗 manda uma tarefa da lista pro BREAKDOWN: vira um bloco ligado; concluir o bloco conclui a tarefa (sem XP em dobro) */
-export function toBreakdown(id) {
+/** v5.16: `dest` = tipo-base (bd, tr, cap, gs) ou 'w:<id>' de uma janela do dono */
+export function toBreakdown(id, dest = 'bd') {
   const t = T(id);
   if (!t || t.block || t.link) return { error: 'Só tarefas das listas que ainda não estão ligadas.' };
+  const win = String(dest).startsWith('w:') ? R.windows(S).find((w) => 'w:' + w.id === dest) : null, group = win ? win.base : R.GROUPS[dest] ? dest : 'bd';
   return commit(['quests'], () => {
-    const blk = { id: uid('k'), group: 'bd', title: t.text.replace(/\s*\(\d+\s*XP\)/i, '').trim(), color: 'green', st: '', due: t.due || null, created: today(), ord: maxOrd() + 1, src: t.id };
+    const blk = { id: uid('k'), group, ...(win ? { win: win.id } : {}), title: t.text.replace(/\s*\(\d+\s*XP\)/i, '').trim(), color: 'green', st: '', due: t.due || null, created: today(), ord: maxOrd() + 1, src: t.id };
     S.quests.blocks.push(blk);
     t.link = blk.id;
-    return { block: blk, msg: '🔗 Foi pro BREAKDOWN. Toque em 🔗 BREAKDOWN pra ir lá.' };
+    return { block: blk, msg: `Foi pra ${win ? win.name : R.GROUPS[group].short}. A bolinha ao lado dela leva até lá.` };
   });
 }
 export function unlinkTask(id) {

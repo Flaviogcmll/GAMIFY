@@ -4,12 +4,12 @@ import { esc } from './util.js';
 
 /** faixa de quadrinhos. Cada item: { label, value, sub, cls, tone, act, data, on }.
  *  tone = significado da cor (urg, quase, atencao, ok, calma, espera, neutro, premio): vira a faixa colorida no topo do quadrinho.
- *  act = o quadrinho vira botão (filtro de 1 toque). */
+ *  act = o quadrinho vira botão (filtro de 1 toque). tip = legenda ao passar o mouse (no lugar de textinho embaixo). */
 export function tiles(items) {
   return `<div class="stats tiles">${items.filter(Boolean).map((x) => {
     const tag = x.act ? 'button' : 'div';
     const data = Object.entries(x.data || {}).map(([k, v]) => `data-${k}="${esc(v)}"`).join(' ');
-    return `<${tag} class="stat ${x.act ? 'tap' : ''} ${x.on ? 'on' : ''}" ${x.tone ? `data-tone="${x.tone}"` : ''} ${x.act ? `type="button" data-act="${x.act}" ${data}` : ''}><small>${x.label}</small><b class="${x.cls || ''}">${x.value}</b>${x.sub ? `<span>${x.sub}</span>` : ''}</${tag}>`;
+    return `<${tag} class="stat ${x.act ? 'tap' : ''} ${x.on ? 'on' : ''}" ${x.tip ? `title="${esc(x.tip)}"` : ''} ${x.tone ? `data-tone="${x.tone}"` : ''} ${x.act ? `type="button" data-act="${x.act}" ${data}` : ''}><small>${x.label}</small><b class="${x.cls || ''}">${x.value}</b>${x.sub ? `<span>${x.sub}</span>` : ''}</${tag}>`;
   }).join('')}</div>`;
 }
 

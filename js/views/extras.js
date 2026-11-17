@@ -148,7 +148,7 @@ export function viewRegras() {
       ${shopEditor()}
       ${metaCard()}
       ${driveCard()}
-      <div class="card c7"><header><h2>📖 Sua história · o capítulo que você está vivendo</h2></header>
+      <div class="card c12" data-gk="historia"><header><h2>📖 Sua história · o capítulo que você está vivendo</h2></header>
         <form data-form="chapter" autocomplete="off">
           <div class="row"><div style="width:90px"><label class="lbl" for="ch-n">Nº</label><input class="inp" id="ch-n" name="n" type="number" min="1" value="${esc(ch.n)}"></div>
             <div class="grow"><label class="lbl" for="ch-title">Título</label><input class="inp" id="ch-title" name="title" value="${esc(ch.title)}"></div></div>
@@ -156,10 +156,11 @@ export function viewRegras() {
           <label class="lbl" for="ch-why">Por quê</label><input class="inp" id="ch-why" name="why" value="${esc(ch.why)}">
           <div class="row" style="align-items:end"><div class="grow"><label class="lbl" for="ch-until">Até</label><input class="inp" id="ch-until" name="until" type="date" value="${esc(ch.until || '')}"></div><button class="btn pri">SALVAR CAPÍTULO</button></div>
         </form></div>
-      <div class="card c5"><header><h2>Ajustes</h2></header>
+      <div class="card c12" data-gk="ajustes"><header><h2>⚙ Ajustes</h2></header>
         <label class="lbl" for="set-mode">Visual</label><select class="inp" id="set-mode" data-change="mode"><option value="auto" ${mode === 'auto' ? 'selected' : ''}>AUTOMÁTICO (papel 6h–18h · fogueira à noite)</option><option value="day" ${mode === 'day' ? 'selected' : ''}>SEMPRE PAPEL</option><option value="night" ${mode === 'night' ? 'selected' : ''}>SEMPRE FOGUEIRA</option></select>
         <label class="lbl" for="set-primo">Desenho do PRIMO</label><select class="inp" id="set-primo" data-change="primo-art"><option value="novo" ${artWanted() ? 'selected' : ''}>NOVO (arte em alta definição, com cenários)</option><option value="classico" ${artWanted() ? '' : 'selected'}>CLÁSSICO (porquinho em pixel)</option></select>
         ${[['music', 'Música lo-fi'], ['fire', 'Som da fogueira'], ['sfx', 'Efeitos']].map(([k, n]) => `<label class="lbl" for="vol-${k}">${n}</label><input id="vol-${k}" type="range" min="0" max="1" step="0.05" value="${prefs[k]}" data-change="vol" data-k="${k}" style="width:100%">`).join('')}
+        <label class="lbl" for="set-cast" title="A cada ${R.BLOW_EVERY} prazos estourados. Resolver ou remarcar 1 atrasada cancela o castigo.">Castigo por prazos estourados</label><select class="inp" id="set-cast" data-change="setting" data-k="castigo">${[['loja', `LOJA ${Math.round((R.BLOW_MULT - 1) * 100)}% MAIS CARA POR ${R.BLOW_DAYS} DIAS`], ['aviso', 'SÓ UM AVISO'], ['nenhum', 'NENHUM']].map(([k, n]) => `<option value="${k}" ${(S.core.settings?.castigo || 'loja') === k ? 'selected' : ''}>${n}</option>`).join('')}</select>
         <label class="lbl" for="set-max">Máx. de prazos por dia útil</label><input class="inp" id="set-max" type="number" min="1" max="20" value="${S.core.settings?.maxPerDay || R.C.MAX_PER_DAY}" data-change="setting" data-k="maxPerDay">
         <label class="lbl" for="set-ms">Áreas do baú de domingo</label><textarea class="inp" id="set-ms" rows="2" data-change="milestones">${esc((S.core.milestones || []).join(', '))}</textarea>
         <div class="row" style="margin-top:12px"><button class="btn sm" data-act="edit-habits">✎ HÁBITOS</button><button class="btn sm" data-act="backup-download">⬇ BAIXAR BACKUP</button><button class="btn sm" data-act="backup-import">IMPORTAR</button><button class="btn sm ghost" data-act="gorder-reset" title="Volta os cartões das telas pra ordem original">↺ ORDEM DOS CARTÕES</button></div>
@@ -168,7 +169,7 @@ export function viewRegras() {
       <div class="card c12" data-gk="legenda"><header><h2>📖 Legenda · como marcar e quanto vale</h2></header>${legendHtml()}</div>
       <div class="card c12" data-gk="ref"><header><h2>📖 Referência · regras com os valores padrão</h2></header><div class="refgrid">${RULES.map(card).join('')}</div></div>
     </div>
-    <p class="creditos">PRIMO novo, rostos, acessórios, FAÍSCA, cenários e ícone: arte gerada por IA de imagem com direção do autor do app. Porquinho clássico em pixel: "Free Pets Pack" por <a href="https://frakassets.itch.io/free-pets-pack" target="_blank" rel="noopener">Frakassets</a> (CC BY 4.0). Ícones da loja: Kenney (CC0). Lo-fi: gerado no aparelho. Fogueira: "Fireplace sound loop" (CC0).</p>`;
+    <p class="creditos-link"><a href="#" data-act="credits" title="Créditos das artes, sons e fontes">ⓘ créditos</a></p>`;
 }
 
 // ───────────── ARQUIVO ─────────────
@@ -198,6 +199,7 @@ function neuroCard() {
       ${ck('pato', '🦆 Pato de borracha', 'No SOS TRAVEI: explicar pro PRIMO o que tentou, o que funcionou e o que não. Fica guardado na tarefa.')}
       ${ck('quick', '✎ Anotar rápido', 'Botão + no canto da tela, em qualquer aba (no PC, a tecla +). Uma linha, Enter, e pronto: vai pra SEM PRAZO.')}
       ${ck('proc', '⚔ Recompensa do processo', 'Cada subtarefa feita num boss mostra quanto de vida ele perdeu. Recompensa que está longe perde valor pro cérebro (desconto temporal): ver o dano agora mantém a motivação no caminho.')}
+      ${ck('foco', '🎯 FOCO AGORA', 'No topo do QUESTS, UMA tarefa sugerida pelo PRIMO, com o porquê (atrasada, prazo hoje, boss parado, missão, horário do corpo). OUTRA ▸ mostra a próxima.')}
       ${ck('swipe', '👆 Arrastar no celular', 'Arraste a tarefa pra ESQUERDA = concluir; pra DIREITA = amanhã. O ↩ desfaz.')}
     </div></div>`;
 }
