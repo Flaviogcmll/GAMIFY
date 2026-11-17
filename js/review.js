@@ -6,7 +6,7 @@ import { S } from './store.js';
 import * as A from './actions.js';
 import * as R from './rules.js';
 import { esc, today, addDays, fmtDM } from './util.js';
-import { openModal, closeModal, modalOpen } from './ui.js';
+import { openModal, closeModal, modalOpen, toast } from './ui.js';
 import { sfx } from './audio.js';
 import { mountPortraits } from './primo.js';
 import { say } from './v35.js';
@@ -44,9 +44,13 @@ const VIEW = {
   }),
   ontem: () => {
     const y = addDays(today(), -1), m = S.marks.days[y]?.h || {};
+    const miss = S.core.habits.filter((h) => !m[h.id]).map((h) => h.name.toLowerCase());
+    const lista = miss.length > 1 ? miss.slice(0, -1).join(', ') + ' e ' + miss.at(-1) : miss[0] || '';
+    const BRONCA = [`Ô sô, ontem ficou ${lista} pra trás. Não quero saber de desculpa: hoje cê faz, uai.`, `Uai, cadê ${lista} de ontem? Corrente que arrebenta um elo, a gente emenda HOJE, sô.`,
+      `Ontem cê deixou ${lista} na mão. Fiquei triste, mas não bravo... tá, um pouco bravo. Bora compensar hoje.`, `Ontem passou batido: ${lista}. Se fez e esqueceu de marcar, marca aí. Se não fez, hoje é dia de cumprir, uai.`];
     return {
       title: 'ontem',
-      line: 'Antes de tudo: ficou hábito de ontem sem marcar. Marca aí pra sequência ficar certa, sô.',
+      line: miss.length ? BRONCA[new Date().getDate() % BRONCA.length] : 'Ontem foi tudo marcadinho. Assim que eu gosto, sô.',
       body: `<p class="muted">Hábitos de ${fmtDM(y)}. Toque: ✓ fiz → – folga → vazio.</p>
         <div class="habs">${S.core.habits.map((h) => { const v = m[h.id] || ''; return `<button class="hab ${v === 'x' ? 'x' : v === '-' ? 'f' : ''}" data-rv="habit" data-h="${h.id}"><span class="hi">${h.icon}</span><span class="hn">${esc(h.name.slice(0, 9))}</span><span class="hs">${v === 'x' ? '✓' : v === '-' ? '–' : '·'}</span></button>`; }).join('')}</div>`,
     };
@@ -56,9 +60,9 @@ const VIEW = {
     return {
       title: 'o que ficou pra trás',
       line: l.length ? `Tem ${l.length} atrasada${l.length > 1 ? 's' : ''}, uai. Olha uma por uma: fez, tá esperando alguém ou não vale mais?` : 'Uai, zerou as atrasadas! Trem bão demais, sô.',
-      body: l.length ? `<p class="muted">O que você não mexer continua na lista HOJE.</p>
+      body: l.length ? `<p class="muted">📅 escolhe o dia novo · ✓ já fiz · ⏳ esperando alguém · ✕ não vale mais. O que você não mexer continua na lista HOJE.</p>
         <div class="list" style="max-height:44vh;overflow:auto">${show.map((t) => `<div class="li"><div class="lt">${esc(clean(t.text))}<small>${esc(where(t))} · venceu ${fmtDM(t.due)}</small></div>
-          <span class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn sm good" data-rv="done" data-id="${t.id}" title="Já fiz">✓</button><button class="btn sm" data-rv="wait" data-id="${t.id}" title="Está aguardando alguém">⏳</button><button class="btn sm ghost" data-rv="cancel" data-id="${t.id}" title="Não vale mais: cancelar">✕</button></span></div>`).join('')}</div>
+          <span class="row" style="gap:4px;flex-wrap:nowrap"><input type="date" class="inp rv-date" data-rv-date data-id="${t.id}" min="${today()}" ${t.block && R.findBlock(S, t.block)?.due >= today() ? `max="${R.findBlock(S, t.block).due}"` : ''} title="Escolher o novo dia (remarcar custa ${A.reschedCost(t, addDays(today(), 1)) || 0} XP; a 1ª da semana é grátis)" aria-label="Novo prazo"><button class="btn sm good" data-rv="done" data-id="${t.id}" title="Já fiz">✓</button><button class="btn sm" data-rv="wait" data-id="${t.id}" title="Está aguardando alguém">⏳</button><button class="btn sm ghost" data-rv="cancel" data-id="${t.id}" title="Não vale mais: cancelar">✕</button></span></div>`).join('')}</div>
         ${l.length > show.length ? `<p class="meta">e mais ${l.length - show.length}.</p>` : ''}
         <p class="meta" style="margin:8px 0 0">Muita coisa? <a href="#" data-rv="dist">📅 DISTRIBUIR</a> remarca tudo de uma vez pelo seu ritmo.</p>` : '<div class="empty">nada atrasado. 👏</div>',
     };
@@ -93,6 +97,14 @@ function draw() {
 export function openReview(gap = 0, prev = null) {
   st = { gap, prev: prev || today(), steps: buildSteps(gap), i: 0, said: '' };
   const m = openModal('', { onClose: () => { st = null; } });
+  m.addEventListener('change', (e) => { // escolheu o dia novo de uma atrasada: remarca na hora (segue a regra de custo)
+    const el = e.target.closest?.('[data-rv-date]');
+    if (!el || !el.value || !st) return;
+    const t = S.quests.tasks.find((x) => x.id === el.dataset.id);
+    const cost = t ? A.reschedCost(t, el.value) : 0, r = t && A.updateTask(t.id, { due: el.value });
+    if (r?.error) toast(esc(r.error), 'bad'); else toast(`📅 Remarcada pra ${fmtDM(el.value)}${cost ? ` · −${cost} XP` : ''}.`);
+    if (document.querySelector('.modal') === m) draw();
+  });
   m.addEventListener('click', (e) => {
     const off = e.target.closest('[data-rv-off]');
     if (off) { ls.set('gamify-ui:brief-off', off.checked ? '1' : '0'); return; }

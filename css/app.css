@@ -162,6 +162,33 @@ label.lbl { display: block; font: 7.5px/1.4 var(--f-pixel); color: var(--dim); m
 .band { --band: var(--ink); display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; background: var(--band); color: var(--bg); font: 9px/1 var(--f-pixel); }
 :root[data-mode="night"] .band { background: #2b241d; color: var(--ink); border: 2px solid var(--edge); }
 /* barra das janelas do QUESTS fica presa abaixo do topo (só em tela grande: no celular o topo já ocupa muito) */
+/* v5.9 ── listas de 3 em 3; blocos em mosaico ("ímãs": um bloco aberto não deixa buraco) */
+.lists.six { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .lists.six { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 860px) { .lists.six { grid-template-columns: 1fr; } }
+.group.wide > .masonry { grid-column: 1 / -1; columns: 290px; column-gap: 12px; }
+.masonry > article.block { break-inside: avoid; margin: 0 0 12px; }
+.masonry:empty { display: none; }
+/* REVISADO nas listas e janela toda revisada (verde na barra) */
+.list-card.reviewed { outline: 2px solid var(--good); outline-offset: -2px; }
+.qbar .seg button.allrev { border-color: #3f9a5c !important; box-shadow: inset 0 -4px 0 #3f9a5c; }
+.qbar .seg button.allrev::before { content: '✓ '; color: #6fd08c; }
+/* BOSSES em destaque, em vermelho */
+.qbar .seg button[data-tab="boss"] { background: #6e1824; color: #ffd7d7; border-color: #b02c40; }
+.qbar .seg button[data-tab="boss"].on { background: #b02c40; color: #fff; }
+.group[data-group="bs"] > .band { background: #8f1d2c !important; color: #fff; border-color: #b02c40; }
+/* tarefa ligada a um bloco: só uma bolinha na cor da janela (toque = vai pro bloco) */
+.lnk-dot { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid rgba(0,0,0,.35); background: var(--wc, #12807b); padding: 0; cursor: pointer; flex: none; align-self: center; }
+.lnk-dot[data-g="bd"] { --wc: #12807b; } .lnk-dot[data-g="tr"] { --wc: #b0662f; } .lnk-dot[data-g="cap"] { --wc: #7f8652; } .lnk-dot[data-g="gs"] { --wc: #d98a1f; } .lnk-dot[data-g="bs"] { --wc: #b02c40; } .lnk-dot[data-g="lista"] { --wc: var(--accent-2); }
+.lnk-dot:hover { transform: scale(1.35); }
+/* vai e volta com cor própria (não confunde com a ligação) */
+.chip.cyc { background: #b84a8a22; border-color: #b84a8a; color: #b84a8a; }
+:root[data-mode="night"] .chip.cyc { color: #f0a6d2; }
+/* bloco fixado no painel da direita */
+.side .pinned article.block { border: 2px solid var(--accent-2); }
+.icon-btn.on { color: var(--accent-2); }
+/* entrevista: escolher o dia de remarcar */
+.rv-date { width: 128px; min-height: 28px; padding: 2px 4px; font-size: 12px; }
 /* PRIMO novo (arte em alta definição): sem o efeito pixelado e com cenário de fundo no palco */
 :root[data-primo="novo"] .pcv { image-rendering: auto; }
 .pcard .pstage.has-scene { background-size: cover; background-position: center 78%; background-repeat: no-repeat; min-height: 230px; }
@@ -517,7 +544,6 @@ body { background-image: none; }
 .qbar .seg button.on { background: #e6e0d6; color: #1b1b1f; border-color: #e6e0d6; }
 .lists.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 /* LISTAS automáticas: 6 listas, cada uma com a sua cor (a cor diz a urgência) */
-.lists.six { grid-template-columns: repeat(auto-fit, minmax(225px, 1fr)); }
 .list-card[data-list] { --lc: var(--line); border-top: 5px solid var(--lc); }
 .list-card[data-list] > header h2 { color: var(--lc); }
 .list-card[data-list="hoje"] { --lc: #c0392b; } .list-card[data-list="amanha"] { --lc: #d9772b; } .list-card[data-list="semana"] { --lc: #c79a17; }

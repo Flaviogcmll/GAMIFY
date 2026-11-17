@@ -168,6 +168,7 @@ export function idx(s) {
   for (const b of allBlocks(s)) if (b.st === 'done') addXp(b.doneAt, b.xp || 0);
   for (const b of s.quests?.bosses || []) if (b.st === 'done') addXp(b.doneAt, b.xp || 0);
   for (const [d, v] of Object.entries(s.marks?.days || {})) addXp(d, v.xp || 0);
+  for (const [d, v] of Object.entries(s.core?.legacy?.days || {})) { addXp(d, v[0] || 0); if (v[1]) doneByDay[d] = (doneByDay[d] || 0) + v[1]; } // meses esvaziados do arquivo
   for (const r of s.core?.ritualLog || []) addXp(r.date, r.xp);
   for (const b of s.core?.bonus || []) addXp(b.date, b.xp || 0);
   for (const x of s.core?.sundays || []) addXp(x.date, x.xp);
@@ -769,10 +770,12 @@ export function distributePlan(s, opts = {}) {
     for (let i = 0; i < 400; i++, d = addDays(d, 1)) if ((load[d] || 0) < dayCapacity(s, d, pace, max)) return d;
     return from;
   };
+  const capOf = (t) => { const b = t.block && (s.quests?.blocks || []).find((x) => x.id === t.block); return b?.due && b.due >= td ? b.due : null; };
   const push = (t, from, why) => {
     if (t.due && t.due >= td) return;
     if (t.due) load[t.due] = Math.max(0, (load[t.due] || 0) - 1);
-    const d = pick(from);
+    let d = pick(from); const cap = capOf(t);
+    if (cap && d > cap) d = cap; // subtarefa não passa do prazo final do bloco
     load[d] = (load[d] || 0) + 1;
     plan.push({ id: t.id, text: t.text, from: t.due || null, to: d, why });
   };
@@ -833,6 +836,8 @@ export function ritualStatus(r, td = today()) {
 }
 /** bloco marcado como REVISADO nas últimas 24 h */
 export const reviewed = (b, now = Date.now()) => !!b?.rev && now - b.rev < 864e5;
+/** lista do QUESTS marcada como revisada nas últimas 24 h (core.rev = { hoje: hora, amanha: hora… }) */
+export const listReviewed = (s, k, now = Date.now()) => { const t = s.core?.rev?.[k]; return !!t && now - t < 864e5; };
 export const ritualXp = (r) => (r.type === 'pessoa' ? C.RIT_PESSOA : C.RIT_OUTRO);
 
 // ───────────────────────── ALERTAS ─────────────────────────

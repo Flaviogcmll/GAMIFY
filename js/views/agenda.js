@@ -19,7 +19,8 @@ function timelineCard(ui) {
     return `<td class="${d === td ? 'today' : we ? 'we' : ''} ${n ? 'n' : ''} ${n && d < td ? 'late' : ''} ${extra}">${n || ''}</td>`;
   };
   const rows = tl.rows.map((r, i) => `<tr class="rowc-${i >= 4 ? i + 1 : i}"><td class="name">${esc(r.name)}</td>${days.map((d) => cell(d, r.counts[d])).join('')}</tr>`).join('');
-  const load = `<tr class="rowc-6"><td class="name"><b>📊 CARGA DO DIA</b></td>${days.map((d) => { const n = tl.load[d] || 0; return `<td class="${d === td ? 'today' : ''} n ${n >= 6 ? 'load-6' : n >= 4 ? 'load-4' : 'load-1'}">${n || ''}</td>`; }).join('')}</tr>`;
+  // (a linha 📊 CARGA DO DIA saiu da linha do tempo a pedido do dono: a faixa de dias logo acima já mostra a carga)
+  const _load = `<tr class="rowc-6"><td class="name"><b>📊 CARGA DO DIA</b></td>${days.map((d) => { const n = tl.load[d] || 0; return `<td class="${d === td ? 'today' : ''} n ${n >= 6 ? 'load-6' : n >= 4 ? 'load-4' : 'load-1'}">${n || ''}</td>`; }).join('')}</tr>`;
   const blocks = tl.blocks.map((b) => {
     const dues = Object.keys(b.counts).sort();
     const endD = b.due || dues[dues.length - 1];
@@ -30,7 +31,7 @@ function timelineCard(ui) {
   }).join('');
   return `<div class="card c12"><header><h2>Linha do tempo · 6 semanas</h2>
       <div class="row"><button class="btn sm" data-act="tl-week" data-dir="-1" aria-label="Semana anterior">◄</button><button class="btn sm" data-act="tl-week" data-dir="0">HOJE</button><button class="btn sm" data-act="tl-week" data-dir="1" aria-label="Próxima semana">►</button></div></header>
-    <div class="tl"><table><thead><tr><th></th>${head1}</tr><tr><th></th>${head2}</tr></thead><tbody>${rows}${load}<tr class="rowc-5"><td class="name"><b>🔁 RITUAIS</b></td>${days.map((d) => { const l = rit[d] || []; return `<td class="${d === td ? 'today' : ''} ${l.length ? 'n' : ''}" title="${esc(l.map((r) => r.name).join(', '))}">${l.length || ''}</td>`; }).join('')}</tr>
+    <div class="tl"><table><thead><tr><th></th>${head1}</tr><tr><th></th>${head2}</tr></thead><tbody>${rows}<tr class="rowc-5"><td class="name"><b>🔁 RITUAIS</b></td>${days.map((d) => { const l = rit[d] || []; return `<td class="${d === td ? 'today' : ''} ${l.length ? 'n' : ''}" title="${esc(l.map((r) => r.name).join(', '))}">${l.length || ''}</td>`; }).join('')}</tr>
       <tr><td class="name px" style="font-size:7px;background:var(--ink);color:var(--bg)">BLOCOS</td><td colspan="42" style="background:var(--ink)"></td></tr>${blocks}</tbody></table></div></div>`;
 }
 

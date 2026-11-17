@@ -92,11 +92,10 @@ function header() {
     <div class="row" style="gap:6px;flex-wrap:nowrap">
       <div class="wallet"><div class="coin"><small>XP</small><b class="acc">${fmtN(tot.balance)}</b></div><div class="coin"><small>GOLD</small><b class="gold">${fmtN(tot.gold)}</b></div><div class="coin" style="min-width:52px"><small>🎟</small><b class="tk">${tot.tickets}</b></div></div>
       <div class="tools">${using.map((p) => `<button class="timer-chip" data-act="goto-bag" title="${esc(p.item)}" data-countdown="${p.endsAt}">${mmss(p.endsAt - Date.now())}</button>`).join('')}
-        <button class="btn sm" data-act="undo" data-undo-btn ${A.undoState().undo ? '' : 'disabled'} title="Desfazer (Ctrl+Z)" aria-label="Desfazer">↩</button><button class="btn sm" data-act="redo" data-redo-btn ${A.undoState().redo ? '' : 'hidden'} title="Refazer" aria-label="Refazer">↪</button>
+        <button class="btn sm" data-act="undo" data-undo-btn ${A.undoState().undo ? '' : 'disabled'} title="Desfazer (Ctrl+Z)" aria-label="Desfazer">↩</button><button class="btn sm" data-act="redo" data-redo-btn ${A.undoState().redo ? '' : 'disabled'} title="Refazer (Ctrl+Y)" aria-label="Refazer">↪</button>
         <button class="btn sm" data-act="mode" title="Dia/noite (N)">${px(night ? 'moon' : 'sun', 12)}</button>
         <button class="btn sm ${ambienceOn() ? 'pri' : ''}" data-act="music" title="Lo-fi da fogueira">${px('music', 12)}</button>
-        <button class="btn sm" data-act="focus" title="Fogueira de foco">🔥</button>
-        <button class="btn sm" data-act="sos" title="SOS travei">${px('sos', 12)}</button></div></div>`;
+        <button class="btn sm" data-act="fullscreen" title="Tela cheia (F11)" aria-label="Tela cheia">⛶</button></div></div>`;
 }
 function render() {
   if (!status.loaded) return;
@@ -189,6 +188,18 @@ function saveModalText(el) {
   else { const b = S.quests.bosses.find((x) => x.id === id); if (b && v !== b.text) A.updateBoss(id, { text: v }); }
 }
 document.addEventListener('change', (e) => saveModalText(e.target));
+// botão direito no quadradinho (ou segurar o dedo, no celular) = CANCELAR a tarefa; de novo = reabrir. O ↩ desfaz.
+document.addEventListener('contextmenu', (e) => {
+  const c = e.target.closest?.('.check[data-act="toggle"]');
+  if (!c) return;
+  e.preventDefault();
+  const t = S.quests.tasks.find((x) => x.id === c.dataset.id);
+  if (!t) return;
+  const back = t.st === 'cancel';
+  A.setStatus(t.id, back ? '' : 'cancel');
+  sfx(back ? 'tab' : 'undo');
+  toast(back ? '↺ Tarefa reaberta.' : '✕ Cancelada (sem XP e sem punição). ↩ desfaz.');
+});
 document.addEventListener('change', async (e) => { // arquivo de backup escolhido: o conteúdo vai pra caixa de texto
   const el = e.target;
   if (!el.matches?.('[data-import-file]') || !el.files?.[0]) return;
@@ -251,7 +262,7 @@ function whereOptions(t) {
   const groups = Object.entries(R.GROUPS).map(([g, info]) => { const bl = S.quests.blocks.filter((b) => b.group === g).sort((a, b) => a.ord - b.ord); return bl.length ? `<optgroup label="${info.name}">${bl.map((b) => `<option value="block:${b.id}" ${t.block === b.id ? 'selected' : ''}>${esc(b.title)}</option>`).join('')}</optgroup>` : ''; }).join('');
   return `<optgroup label="LISTAS">${lists}</optgroup>${groups}`;
 }
-const COLORS = [['', 'sem cor'], ['red', '🟥 urgente'], ['yellow', '🟨 andamento'], ['green', '🟩 pessoal'], ['orange', '🟧 gestão'], ['black', '⬛ parado']];
+const COLORS = [['', 'sem cor'], ['red', '🟥 URGENTE'], ['yellow', '🟨 FAZENDO'], ['green', '🟩 ESTÁVEL'], ['black', '⬛ PARADO']];
 function editTask(id) {
   const t = S.quests.tasks.find((x) => x.id === id);
   if (!t) return;
@@ -268,7 +279,7 @@ function editTask(id) {
       <input class="inp grow" id="t-who" name="who" value="${esc(t.who || '')}" list="who-list" placeholder="pessoa ou motivo: PREFEITURA, CLIENTE, FULANO…" autocomplete="off"><datalist id="who-list">${R.people(S).map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
       <select class="inp" name="dep" aria-label="Depende de outra tarefa" style="flex:1 1 220px;min-width:0"><option value="">— não depende de outra tarefa —</option>${R.openTasks(S).filter((x) => x.id !== t.id && x.dep !== t.id).sort((x, y) => (x.block === t.block ? 0 : 1) - (y.block === t.block ? 0 : 1) || x.text.localeCompare(y.text)).map((x) => `<option value="${x.id}" ${t.dep === x.id ? 'selected' : ''}>🔗 ${esc(x.text.replace(/\s*\(\d+\s*XP\)/i, '').slice(0, 60))}</option>`).join('')}</select></div>
     <p class="meta" style="margin:4px 0 0">Preencher manda a tarefa pra lista AGUARDANDO. Se depender de outra tarefa, ela volta sozinha quando a outra for concluída.</p>
-    <label class="lbl" for="t-due">Prazo</label><div class="row"><input class="inp" type="date" id="t-due" name="due" value="${t.due || ''}" style="width:auto">
+    <label class="lbl" for="t-due">Prazo</label><div class="row"><input class="inp" type="date" id="t-due" name="due" value="${t.due || ''}" ${t.block && R.findBlock(S, t.block)?.due ? `max="${R.findBlock(S, t.block).due}" title="Até o prazo do bloco"` : ''} style="width:auto">
       ${[['HOJE', td], ['AMANHÃ', addDays(td, 1)], ['+3', addDays(td, 3)], ['PRÓX. SEG', nextMon], ['SEM', '']].map(([n, d]) => `<button type="button" class="btn sm ghost" data-act="due-quick" data-d="${d}">${n}</button>`).join('')}</div>
     ${t.due ? `<p class="meta" style="margin:4px 0 0">${t.due < td ? `⏰ Atrasada: concluir agora paga só ${Math.round(Math.max(R.C.LATE_MIN, 1 - R.C.LATE_DAY * diffDays(t.due, td)) * 100)}% do XP. ` : ''}Empurrar o prazo custa <b>${A.reschedBase({ ...t, due: '0' }, '9')}</b> XP${A.freeResched() ? ' (mas a 1ª remarcação da semana é grátis)' : ''}${t.rs ? ` · já remarcada ${t.rs}x` : ''}; antecipar é de graça.</p>` : ''}
     <label class="lbl">Marcadores</label><div class="row" style="gap:14px;font-size:12.5px">
@@ -534,6 +545,9 @@ const ACTIONS = {
   },
   'plan-quick': (d, e, el) => { el.closest('form').plan.value = d.d; },
   'review-block': (d) => { A.reviewBlock(d.id); sfx('tab'); },
+  'review-list': (d) => { A.reviewList(d.k); sfx('tab'); },
+  'pin-block': (d) => { let cur = null; try { cur = localStorage.getItem('gamify-ui:pinblock'); if (cur === d.id) localStorage.removeItem('gamify-ui:pinblock'); else localStorage.setItem('gamify-ui:pinblock', d.id); } catch { /* */ } toast(cur === d.id ? '📌 Bloco tirado do painel.' : '📌 Bloco fixado no painel da direita.'); render(); sfx('tab'); },
+  fullscreen: () => { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); } catch { toast('Este navegador não deixou abrir em tela cheia.', 'bad'); } },
   'win-new': () => windowModal(),
   'win-edit': (d) => windowModal(d.id),
   'win-del': async (d) => { const w = R.windows(S).find((x) => x.id === d.id); closeModal(); if (w && await ask(`Apagar a janela ${w.name}?`, `Os blocos dela não são apagados: voltam pra ${R.GROUPS[w.base].short}.`, 'APAGAR', true)) { A.deleteWindow(d.id); ui.qtab = w.base; render(); } },

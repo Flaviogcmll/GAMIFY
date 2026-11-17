@@ -1,6 +1,6 @@
 # BRIEFING — GAMIFY (leia tudo antes de mexer em qualquer coisa)
 
-Atualizado em 17/11/2026: repositório real conferido (v5.1) e oito rodadas feitas (v5.2 a v5.9; as últimas: economia rebalanceada, PRIMO novo com as artes do dono e armário de acessórios desligado).
+Atualizado em 17/11/2026: repositório real conferido (v5.1) e nove rodadas feitas (v5.2 a v5.10; a última: pedidos do bloco APP do backup de 17/11).
 Este arquivo substitui o briefing antigo. O que mudou em relação a ele está na seção "CONFERIDO EM 15/11/2026".
 
 ## PASSO 0: ALINHAR ANTES DE TUDO
@@ -177,6 +177,23 @@ O dono usa muito mais o PC. Pedidos atendidos:
 - O dono achou os acessórios bugados na arte nova e pediu para tirar a opção por enquanto, mantendo o código. `WARDROBE_ON = false` em `pstate.js`: o botão ARMÁRIO some e o PRIMO aparece sem acessório (nos dois desenhos). A escolha antiga continua salva em `core.primo.wear`. Para religar: `WARDROBE_ON = true` e rever as posições (tabela `ACC` em `pnew.js`), principalmente durante o pulo, o andar e o "comendo".
 - O dono anota os pedidos num bloco chamado APP, na janela BREAKDOWN do próprio app. O Claude só enxerga esse bloco por um backup (PERKS → BAIXAR BACKUP): peça um backup novo sempre que ele disser "está anotado no bloco APP".
 - Do bloco APP de 15/11 ficaram dois itens sem fazer, por estarem ambíguos (perguntar antes): "BOTÃO DE RESETAR PROGRESSO nas configs" (zerar o quê?) e "REMOVER OPÇÃO DE ÁREA … ir para o local certo apenas colocando a cor" (dependia de um print).
+
+## RODADA 9 — v5.10 (17/11/2026): pedidos do bloco APP (backup de 17/11)
+Feitos:
+- MOSTRAR FEITAS (bug): concluídas e canceladas somem de verdade quando FEITAS está desligado (antes as do próprio dia ficavam).
+- ESVAZIAR o arquivo (bug: só liberava meses com mais de 30 dias): agora escolhe quaisquer meses. O XP de cada dia vai para `core.legacy.days` (`{ data: [xp, concluídas] }`), somado em `R.idx`, então nível, meta do dia, sequências e preços não mudam.
+- Listas de 3 em 3 (PC); dentro de cada lista, ordem pela data. Blocos das janelas em mosaico (CSS columns, `.masonry`): bloco aberto não deixa buraco.
+- REVISADO também nas listas (`core.rev`, `R.listReviewed`); aba da janela fica verde (`.allrev`) quando todas as listas com tarefa, ou todos os blocos ativos, estão revisados.
+- BOSSES em vermelho e em destaque na barra.
+- Cores dos blocos: URGENTE (vermelho), FAZENDO (amarelo), ESTÁVEL (verde), PARADO (preto). Migração `cores5`: laranja → verde.
+- Tarefa ligada a bloco: só uma bolinha na cor da janela (`.lnk-dot`), que leva ao bloco. VAI E VOLTA ganhou cor própria (magenta).
+- Prazo de subtarefa não passa do prazo final do bloco (`updateTask` recusa; campo de data limitado; DISTRIBUIR respeita).
+- 📌 Fixar um bloco no painel da direita (`gamify-ui:pinblock`), com a linha de adicionar: anotar sem trocar de janela.
+- Topo: REFAZER sempre ao lado do DESFAZER, saíram fogueira de foco e SOS (continuam no cartão do PRIMO e em COMANDOS), entrou TELA CHEIA.
+- Botão direito no quadradinho (ou segurar o dedo, no celular) cancela a tarefa; de novo reabre; ↩ desfaz.
+- Entrevista do dia: bronca do PRIMO pelos hábitos que ficaram em branco ontem; nas atrasadas, um campo de data para escolher o dia de remarcar (segue a regra de custo).
+- AGENDA: saiu a linha CARGA DO DIA da linha do tempo.
+Pendentes (precisam de decisão do dono; perguntar com alternativas): remover redundâncias (botões de status etc.); punição acumulada por prazos perdidos; repensar a loja (ele quase não compra; usa mais para organizar); IA para reorganizar metas, redistribuir o bloco GESTÃO e planejar (a IA do app só existe no claude.ai; o Claude da sessão pode fazer pelo backup, mas o dono precisaria importar e não mexer no app no meio); imagens e prints nas tarefas (onde guardar: o localStorage tem ~5 MB); repaginar a janela BOSSES; repaginada visual (modo noturno com as cores do claro, menus, menos texto, mais visual, botões e espaços); sprites no topo de cada aba; previsão do tempo (localização + serviço grátis); mais conquistas; novos sprites. Mecânica de COMPROMISSOS da AGENDA: explicada ao dono; ele nunca usou (candidata a remover).
 
 ## PRÓXIMAS RODADAS
 Princípio do dono: qualidade de vida e praticidade; tudo integrado como um ecossistema; simples no fim das contas (o app não pode tomar o tempo das tarefas). Ele aceita sugestões melhores que o pedido. **Sem mecânicas novas por enquanto** (pedido dele em 16/11).

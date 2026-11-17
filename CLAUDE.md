@@ -52,6 +52,8 @@ O backup do dono NUNCA entra no repositório.
 - Janelas criadas pelo dono são gavetas: o bloco guarda `b.win`, mas `b.group` continua sendo o tipo-base (bd, tr, cap, gs). Nunca invente um `group` novo: as regras de XP dependem desses quatro. Para saber a aba de um bloco, use `R.winOf`.
 - Nomes de listas e janelas são personalizáveis (`core.labels` → `R.applyLabels`). Em código, compare sempre pela CHAVE (`hoje`, `bd`…), nunca pelo texto.
 - Os testes do Claude congelam a data (15/11/2026, a do backup de teste): sem isso, tarefas viram atrasadas, a loja tranca (ATOLADO) e os testes falham por motivo errado.
+- Os pedidos do dono ficam no bloco APP (janela BREAKDOWN) do próprio app: para ler, peça um backup novo (PERKS → BAIXAR BACKUP).
+- Meses esvaziados do ARQUIVO viram `core.legacy.days`, somados em `R.idx`: ao mexer no histórico de XP por dia, lembre deles.
 - O cache de totais depende de `S._epoch++`.
 - O topo (`.top` + `.tabs`) só fica preso na primeira tela de rolagem (o `body` tem altura fixa). A variável CSS `--stick`, atualizada em `app.js`, diz onde ele termina; a barra das janelas do QUESTS e o painel da direita usam essa variável.
 - Qualquer redesenho (`render()`) recria a tela: o que estiver digitado nas linhas "+ adicionar" e a rolagem do painel da direita são guardados e devolvidos por `render()`. Campo novo desse tipo precisa entrar em `ADD_SEL`.

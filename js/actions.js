@@ -184,6 +184,10 @@ export function startup() {
     for (const [cat, name, nv, icon, repeat] of NEW_FERREIRO) { if (!have(S.loja.ferreiro, name)) S.loja.ferreiro.push({ id: uid('f'), name, cat, nv, icon, repeat: !!repeat }); if (!S.loja.cats.includes(cat)) S.loja.cats.push(cat); }
     S.core.migrations.push('shop4'); S._lojaChanged = true; changedCore = true;
   }
+  if (!S.core.migrations.includes('cores5')) { // v5.9: cores dos blocos = URGENTE, FAZENDO, ESTÁVEL, PARADO (o laranja saiu)
+    for (const b of S.quests.blocks) if (b.color === 'orange') { b.color = 'green'; changedQ = true; }
+    S.core.migrations.push('cores5'); changedCore = true;
+  }
   if (!S.core.migrations.includes('shop5')) { // v5.6: itens pedidos pelo dono (preços provisórios até a análise da economia)
     const has = (l, re) => l.some((x) => re.test(x.name.toUpperCase()));
     if (!has(S.loja.taverna, /ACORDAR TARDE/)) S.loja.taverna.push({ id: uid('v'), name: 'ACORDAR TARDE (1H A MAIS)', xp: 90, icon: '😴' });
@@ -453,6 +457,9 @@ function chargeResched(t, cost) {
 export function updateTask(id, patch) {
   const t = T(id);
   if (!t) return;
+  // subtarefa não pode passar do prazo final do bloco
+  const bk = (patch.block !== undefined ? patch.block : t.block) && B(patch.block !== undefined ? patch.block : t.block);
+  if ('due' in patch && patch.due && bk?.due && patch.due > bk.due) return { error: `O bloco "${bk.title}" termina em ${bk.due.slice(8, 10)}/${bk.due.slice(5, 7)}: a subtarefa não pode passar disso. Mude antes o prazo do bloco.` };
   const base = 'due' in patch ? reschedBase(t, patch.due || null) : 0, free = base > 0 && freeResched(), cost = free ? 0 : base;
   if (cost && R.totals(S).balance < cost) return { error: `Faltam ${cost - R.totals(S).balance} XP pra remarcar (custa ${cost} XP). Conclua algo ou mantenha o prazo.` };
   return commit(cost ? ['quests', 'loja'] : free ? ['quests', 'core'] : ['quests'], () => {
@@ -742,6 +749,10 @@ export function planRitual(id, date) {
   return commit(['core'], () => { if (date) r.plan = date; else delete r.plan; return { msg: date ? `📅 ${r.name}: marcado.` : `${r.name}: dia desmarcado.` }; });
 }
 /** REVISADO: você olhou o bloco e está tudo em ordem. Vale 24 h (é só um selo: não dá XP). */
+/** REVISADO de uma lista do QUESTS (selo de 24 h) */
+export function reviewList(k) {
+  return commit(['core'], () => { S.core.rev ||= {}; if (R.listReviewed(S, k)) delete S.core.rev[k]; else S.core.rev[k] = Date.now(); });
+}
 export function reviewBlock(id) {
   const b = B(id);
   if (!b) return;
@@ -1191,9 +1202,9 @@ export function focusDone(min, ok, taskId) {
 
 // ───────────────────────── v3: ARQUIVO ─────────────────────────
 /** esvazia meses antigos do arquivo guardando XP e contagens num saldo histórico (nível e medalhas não caem) */
-export function emptyArchive(beforeMonth) {
-  const months = Object.keys(S.arq).filter((m) => m < beforeMonth);
-  if (!months.length) return { error: 'Nada antigo pra esvaziar.' };
+export function emptyArchive(list) {
+  const months = Array.isArray(list) ? list.filter((m) => S.arq[m]) : Object.keys(S.arq).filter((m) => m < list);
+  if (!months.length) return { error: 'Nada pra esvaziar.' };
   return commit(['core'], () => {
     const L = (S.core.legacy ||= {});
     let xp = 0;
@@ -1201,15 +1212,18 @@ export function emptyArchive(beforeMonth) {
       const d = S.arq[m];
       for (const t of d.tasks || []) {
         const cs = R.completions(t);
+        // o XP de cada dia fica guardado (meta do dia, sequência, preços e gráficos continuam iguais)
+        L.days ||= {};
+        for (const c of cs) { const k = c.doneAt; if (!k) continue; const x = (L.days[k] ||= [0, 0]); x[0] += c.xp || 0; x[1] += 1; }
+        if (t.approved && t.bonusXp && t.doneAt) { const x = (L.days[t.doneAt] ||= [0, 0]); x[0] += t.bonusXp; }
         xp += cs.reduce((a, c) => a + (c.xp || 0), 0) + (t.bonusXp || 0);
         const p = R.parse(t.text);
         L.done = (L.done || 0) + cs.length; L.onTime = (L.onTime || 0) + cs.filter((c) => c.onTime).length; L.early = (L.early || 0) + cs.filter((c) => c.early).length;
         L.star = (L.star || 0) + (p.star ? cs.length : 0); L.home = (L.home || 0) + (p.home ? cs.length : 0); L.archived = (L.archived || 0) + 1;
       }
-      for (const b of d.blocks || []) { xp += b.xp || 0; if (b.group === 'bd') L.bdClosed = (L.bdClosed || 0) + 1; if (b.group === 'tr') L.trClosed = (L.trClosed || 0) + 1; }
+      for (const b of d.blocks || []) { if (b.st === 'done' && b.doneAt) { const x = (L.days ||= {})[b.doneAt] ||= [0, 0]; x[0] += b.xp || 0; } xp += b.xp || 0; if (b.group === 'bd') L.bdClosed = (L.bdClosed || 0) + 1; if (b.group === 'tr') L.trClosed = (L.trClosed || 0) + 1; }
     }
-    S.core.adjust ||= [];
-    S.core.adjust.push({ id: uid('adj'), date: today(), xp, label: `arquivo esvaziado (${months.join(', ')})` });
+    void xp; // o XP agora fica em core.legacy.days (dia a dia), não num ajuste solto
     for (const m of months) { delete S.arq[m]; deleteDocs('arq-' + m); }
     S.core.archiveMonths = (S.core.archiveMonths || []).filter((m) => !months.includes(m));
     return { msg: `🗑 ${months.length} mês(es) esvaziado(s). XP e medalhas mantidos.` };
