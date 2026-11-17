@@ -942,7 +942,10 @@ export function updateChapter(ch) {
       closed = { n: old.n, title: old.title, mission: old.mission, why: old.why, start, end: today(), stats: R.chapterStats(S, start, today()) };
       S.core.chapters = [...(S.core.chapters || []), closed];
       ch.start = today();
+      // v5.16 (1A): recomeçar XP, nível e tickets a partir de hoje (gold, compras, conquistas e histórico ficam)
+      if (ch.reset) S.core.season = { from: today(), n, tickets: 0, minus: R.idx(S).xpByDay[today()] || 0, spentMinus: S.loja.purchases.filter((p) => p.date === today()).reduce((a, p) => a + (p.xp || 0), 0) };
     }
+    delete ch.reset;
     S.core.chapter = { ...old, ...ch, n };
     return { feedback: { chapterClosed: closed } };
   });
@@ -1425,5 +1428,37 @@ export function saveDuck(taskId, note) {
   return commit(t ? ['quests'] : ['core'], () => {
     if (t) { t.duck = [...(t.duck || []), n].slice(-5); return; }
     S.core.duck = [...(S.core.duck || []), n].slice(-20);
+  });
+}
+
+// ───────────────────────── v5.16 (3A): REFLEXÃO — rascunho que some e mapa mental ─────────────────────────
+export const SCRATCH_TTL = 48 * 3600e3; // o rascunho some sozinho em 2 dias: é só pra desatolar a cabeça
+export function addScratch(text) {
+  text = String(text || '').trim();
+  if (!text) return;
+  const now = Date.now();
+  commit(['core'], () => { S.core.scratch = [...(S.core.scratch || []).filter((x) => now - x.at < SCRATCH_TTL), { id: uid('n'), at: now, text: text.slice(0, 2000) }]; }, { noUndo: true });
+}
+export function delScratch(id) {
+  commit(['core'], () => { S.core.scratch = (S.core.scratch || []).filter((x) => x.id !== id); });
+}
+export function setMapa(text) {
+  if ((S.core.mapa?.text || '') === text) return;
+  commit(['core'], () => { S.core.mapa = { text: String(text || '').slice(0, 6000), at: today() }; }, { noUndo: true });
+}
+/** o mapa vira trabalho: a raiz vira um bloco no BREAKDOWN, os galhos viram tarefas e os galhos de galho viram passos ↳ */
+export function mapToBlock(tree) {
+  if (!tree?.text) return;
+  return commit(['quests'], () => {
+    const blk = { id: uid('k'), group: 'bd', title: normalizeMoney(tree.text.toUpperCase()), color: 'green', st: '', due: null, created: today(), ord: maxOrd() + 1 };
+    S.quests.blocks.push(blk);
+    let ord = maxOrd() + 1;
+    for (const k of tree.kids || []) {
+      const t = { id: uid('t'), area: 'block', block: blk.id, text: normalizeMoney(k.text.toUpperCase()), st: '', due: null, created: today(), ord: ord++ };
+      S.quests.tasks.push(t);
+      const walk = (n) => { for (const g of n.kids || []) { S.quests.tasks.push({ id: uid('t'), area: 'block', block: blk.id, parent: t.id, text: '↳ ' + normalizeMoney(g.text.toUpperCase()), st: '', due: null, created: today(), ord: ord++ }); walk(g); } };
+      walk(k);
+    }
+    return { block: blk };
   });
 }

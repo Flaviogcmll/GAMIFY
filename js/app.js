@@ -40,6 +40,7 @@ import { tripBanner, tripCheck, extendTrip } from './trip.js';
 import { maybeReview, extendReview } from './review.js';
 import { extendBujo, afterRenderBujo } from './bujo.js';
 import { perksNav, perksGo } from './telas.js';
+import { extendMapa } from './mapa.js';
 
 
 // abas na mesma ordem da planilha
@@ -285,7 +286,7 @@ const COLORS = [['', 'sem cor'], ['red', '🟥 URGENTE'], ['yellow', '🟨 EM AN
 // v5.16: as mesmas bolinhas de cor em toda janela; AGUARDANDO (roxo) virou uma das cores (por baixo continua o estado "aguardando")
 const SWATCH = [['red', 'URGENTE', 'urg', 'Prazo perto ou atrasado: faça primeiro'], ['yellow', 'EM ANDAMENTO', 'atencao', 'Você está mexendo nisso agora'], ['green', 'ESTÁVEL', 'ok', 'Tudo em ordem, sem pressa'],
   ['black', 'PARADO', 'neutro', 'Parado de propósito: some das listas até você mostrar'], ['wait', 'AGUARDANDO', 'espera', 'Depende de outra pessoa ou de outra coisa']];
-const swatches = (cur, withNone = false) => `<div class="swatches">${[...(withNone ? [['', 'SEM COR', 'none', 'Sem cor']] : []), ...SWATCH].map(([k, n, tone, tip]) => `<label class="sw" title="${tip}"><input type="radio" name="color" value="${k}" ${cur === k ? 'checked' : ''}><i data-tone="${tone}"></i><span>${n}</span></label>`).join('')}</div>`;
+const swatches = (cur, withNone = false) => `<div class="swatches">${[...(withNone ? [['', 'SEM COR', 'none', 'Sem cor']] : []), ...SWATCH].map(([k, n, tone, tip]) => `<label class="csw" title="${tip}"><input type="radio" name="color" value="${k}" ${cur === k ? 'checked' : ''}><i data-tone="${tone}"></i><span>${n}</span></label>`).join('')}</div>`;
 /** marcador redondo (checkbox ou radio) com legenda ao passar o mouse */
 const pill = (type, name, value, on, label, tip) => `<label class="pill" title="${tip}"><input type="${type}" name="${name}" ${value != null ? `value="${value}"` : ''} ${on ? 'checked' : ''}><span>${label}</span></label>`;
 function editTask(id) {
@@ -537,7 +538,7 @@ const goldByKey = (k) => [...R.goldPrompts(S)].find((p) => p.key === k);
 function openUp(keys) { for (const k of keys) if (k && isCollapsed(k)) toggleCollapse(k); }
 /** rola até o elemento e faz ele brilhar (com a cor do que ele é: urgente, aguardando…) */
 function glow(sel) {
-  setTimeout(() => { const el = document.querySelector(sel); if (!el) return; el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.classList.remove('glow'); void el.offsetWidth; el.classList.add('glow'); setTimeout(() => el.classList.remove('glow'), 3200); }, 90);
+  setTimeout(() => { const el = [].concat(sel).map((x) => document.querySelector(x)).find(Boolean); if (!el) return; el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.classList.remove('glow'); void el.offsetWidth; el.classList.add('glow'); setTimeout(() => el.classList.remove('glow'), 3200); }, 90);
 }
 function jump(id) {
   const t = S.quests.tasks.find((x) => x.id === id);
@@ -548,7 +549,7 @@ function jump(id) {
   openUp(b ? ['b:' + b.id, 'g:' + b.group, 'g:bs'] : ['l:' + t.area]);
   ui.qtab = b ? tabOfBlock(b) : 'listas';
   if (route() !== 'quests') location.hash = '#quests'; else render();
-  glow(`.board li.task[data-id="${id}"]`);
+  glow([`.board :is(.list-card, .block) li.task[data-id="${id}"]`, `.board li.task[data-id="${id}"]`]);
 }
 function jumpBlock(bid) {
   const b = S.quests.blocks.find((x) => x.id === bid);
@@ -627,6 +628,15 @@ const ACTIONS = {
   fclear: () => { Object.assign(ui.filtro, { q: '', cat: '', bucket: '', status: '', type: '', who: '' }); sfx('tab'); render(); },
   cq: (d) => { ui.cq = d.v; sfx('tab'); render(); }, // v5.16: filtro das CONQUISTAS
   'perks-go': (d) => perksGo(d.i),
+  'new-chapter': () => {
+    const ch = S.core.chapter || {};
+    openModal(`<form data-form="new-chapter" autocomplete="off" class="mform"><div class="mhead"><span class="mtype">🌅 novo capítulo</span><span class="mwhere">capítulo ${(+ch.n || 1) + 1}</span></div>
+      <p class="muted">Recomeçar numa data marcante funciona (é o "efeito do recomeço"). O capítulo atual vira uma carta guardada, com tudo o que você fez.</p>
+      <label class="lbl" for="nc-t">Título do capítulo</label><input class="inp mtitle" id="nc-t" name="title" required autofocus placeholder="ex.: FAZENDO DIREITO">
+      <label class="lbl" for="nc-m">A missão (uma só)</label><input class="inp" id="nc-m" name="mission" value="${esc(ch.mission || '')}">
+      <label class="pill" style="margin-top:14px" title="Gold, compras da loja, conquistas e histórico ficam"><input type="checkbox" name="reset" checked><span>↺ recomeçar XP, nível e tickets do zero</span></label>
+      <div class="actions"><button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">COMEÇAR</button></div></form>`);
+  },
   // v5.16 (2E) FOCO AGORA: concluir, pular pra outra sugestão, ir até a tarefa
   'focus-skip': (d) => { (ui.focusSkip ||= []).push(d.id); sfx('tab'); render(); },
   'focus-reset': () => { ui.focusSkip = []; sfx('tab'); render(); },
@@ -827,7 +837,9 @@ const FORMS = {
   },
 };
 FORMS['rot-chip-add'] = (f) => { const v = f.v.value.trim().toUpperCase(); if (!v) return; A.setRoutineList(f.dataset.k, [...(S.core.routine?.[f.dataset.k] || []), v]); sfx('tab'); requestAnimationFrame(() => document.querySelector(`form[data-form="rot-chip-add"][data-k="${f.dataset.k}"] input`)?.focus()); };
+FORMS['new-chapter'] = (f) => { const ch = S.core.chapter || {}; closeModal(); A.updateChapter({ n: (+ch.n || 1) + 1, title: f.title.value.trim().toUpperCase(), mission: f.mission.value.trim(), reset: f.reset.checked }); sfx('level'); };
 extendBujo(ACTIONS, FORMS);
+extendMapa(ACTIONS, FORMS);
 document.addEventListener('submit', (e) => { const f = e.target.closest('form[data-form]'); if (!f) return; e.preventDefault(); FORMS[f.dataset.form]?.(f); });
 document.addEventListener('click', () => flushAdd()); // depois do clique tratado: adiciona o texto que ficou numa linha "+ adicionar"
 document.addEventListener('change', (e) => {
@@ -842,6 +854,7 @@ document.addEventListener('change', (e) => {
   if (c === 'mode') setMode(el.value);
   if (c === 'vol') setVol(k, +el.value);
   if (c === 'filtro') { ui.filtro[k] = el.value; render(); }
+  if (c === 'mapa') A.setMapa(el.value);
   if (c === 'routine-list') A.setRoutineList(k, el.value.split('\n'));
 });
 let inputT = null;

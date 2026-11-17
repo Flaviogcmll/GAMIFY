@@ -496,18 +496,22 @@ export function totals(s) {
   const c = cache(s);
   if (c.totals) return c.totals;
   let earned = 0;
-  const ix = idx(s);
-  for (const v of Object.values(ix.xpByDay)) earned += v;
-  for (const a of s.core?.adjust || []) earned += a.xp || 0;
+  const ix = idx(s), from = s.core?.season?.from || '';
+  // v5.16 (1A) NOVO CAPÍTULO: XP, nível e tickets contam a partir do começo do capítulo. Gold, compras, conquistas e histórico ficam.
+  for (const [d, v] of Object.entries(ix.xpByDay)) if (!from || d >= from) earned += v;
+  for (const a of s.core?.adjust || []) if (!from || (a.date || '') >= from) earned += a.xp || 0;
   const buys = s.loja?.purchases || [];
-  const spent = buys.reduce((a, p) => a + (p.xp || 0), 0);
+  const spent = buys.reduce((a, p) => a + (!from || (p.date || '') >= from ? p.xp || 0 : 0), 0) - (s.core?.season?.spentMinus || 0);
+  earned -= s.core?.season?.minus || 0; // o XP do próprio dia, ganho antes de apertar NOVO CAPÍTULO, fica no capítulo velho
   const goldIn = (s.loja?.goldIn || []).reduce((a, g) => a + (+g.amount || 0), 0);
   const goldOut = buys.reduce((a, p) => a + (+p.gold || 0), 0);
   const lv = levelInfo(earned);
   const st = stats(s);
-  const lootTickets = (s.core?.bonus || []).reduce((a, b) => a + (b.tickets || 0), 0);
-  const ticketsEarned = lv.level - 1 + st.bossDone + Math.floor(st.onTime / 10) + lootTickets;
-  const ticketsSpent = buys.reduce((a, p) => a + (p.tickets || 0), 0);
+  const lootTickets = (s.core?.bonus || []).reduce((a, b) => a + (!from || (b.date || '') >= from ? b.tickets || 0 : 0), 0);
+  const bossDone = from ? (s.quests?.bosses || []).filter((b) => b.st === 'done' && (b.doneAt || '') >= from).length : st.bossDone;
+  const onTime = from ? ix.comps.filter((c) => c.onTime && (c.doneAt || '') >= from).length : st.onTime;
+  const ticketsEarned = (s.core?.season?.tickets || 0) + lv.level - 1 + bossDone + Math.floor(onTime / 10) + lootTickets;
+  const ticketsSpent = buys.reduce((a, p) => a + (!from || (p.date || '') >= from ? p.tickets || 0 : 0), 0);
   return (c.totals = {
     earned, spent, balance: earned - spent, goldIn, goldOut, gold: goldIn - goldOut,
     tickets: ticketsEarned - ticketsSpent, ticketsEarned, ...lv,

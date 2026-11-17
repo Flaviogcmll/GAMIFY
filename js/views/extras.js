@@ -3,6 +3,7 @@ import { S, status, backendKind } from '../store.js';
 
 import * as R from '../rules.js';
 import { tiles } from '../telas.js';
+import { scratchCard, mapCard } from '../mapa.js';
 import { sundayTarget } from '../actions.js';
 
 import { esc, today, fmtDM, fmtDMY, weekday, fmtN, DOW, weekStart, addDays } from '../util.js';
@@ -86,7 +87,7 @@ export function viewDomingo() {
       <td style="text-align:center"><b class="num">${a == null ? '' : a.toFixed(1).replace('.', ',')}</b></td><td style="text-align:center">${a == null ? '' : a >= 8 ? '✨' : a < 5 ? '😩' : '⚖'}</td>
       <td style="text-align:center" class="acc num">${x.xp}</td><td class="info" style="white-space:normal">${esc(x.text || '')}</td></tr>`; }).join('')}</tbody></table></div></div>`;
   return `<div class="page-title"><div><h1><em>domingo</em>.</h1></div></div>
-    <div class="grid">${form}${pesoCard()}${resumoCard()}${table}</div>`;
+    <div class="grid">${scratchCard()}${form}${mapCard()}${pesoCard()}${resumoCard()}${table}</div>`;
 }
 
 // ───────────── CONQUISTAS ─────────────
@@ -148,7 +149,7 @@ export function viewRegras() {
       ${shopEditor()}
       ${metaCard()}
       ${driveCard()}
-      <div class="card c12" data-gk="historia"><header><h2>📖 Sua história · o capítulo que você está vivendo</h2></header>
+      <div class="card c12" data-gk="historia"><header><h2>📖 Sua história · o capítulo que você está vivendo</h2><button class="btn sm pri" data-act="new-chapter" title="Fecha este capítulo (vira uma carta guardada) e começa outro">🌅 NOVO CAPÍTULO</button></header>
         <form data-form="chapter" autocomplete="off">
           <div class="row"><div style="width:90px"><label class="lbl" for="ch-n">Nº</label><input class="inp" id="ch-n" name="n" type="number" min="1" value="${esc(ch.n)}"></div>
             <div class="grow"><label class="lbl" for="ch-title">Título</label><input class="inp" id="ch-title" name="title" value="${esc(ch.title)}"></div></div>
