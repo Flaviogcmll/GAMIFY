@@ -649,6 +649,14 @@ export const ACHIEVEMENTS = [
   ['week700', 'SEMANA DE OURO', 'Faça 700 XP numa única semana', 'bestWeekXp', 700, 150], ['missions4', 'TRÊS PEDRAS', '4 semanas com as 3 missões da semana feitas', 'missionWeeks', 4, 200],
   
   ['pet3', 'CRIADOR DE FAÍSCA', 'Faça a FAÍSCA evoluir 3 vezes', 'petStage', 3, 200],
+  // v5.13: com as mecânicas novas (bosses, castigo, revisado, viagem, janelas)
+  ['mini1', 'PRIMEIRO GOLPE', 'Derrote 1 mini-boss ⚔', 'miniDone', 1, 30], ['mini10', 'ESPADACHIM', 'Derrote 10 mini-bosses ⚔', 'miniDone', 10, 150], ['mini30', 'LÂMINA LENDÁRIA', 'Derrote 30 mini-bosses ⚔', 'miniDone', 30, 400],
+  ['steps50', 'PASSO A PASSO', 'Conclua 50 passos ↳', 'stepsDone', 50, 120], ['bosshalf', 'SANGRANDO', 'Tire metade da vida de um BOSS', 'bossHalf', 1, 80],
+  ['gestor', 'GESTOR', 'Feche 1 bloco de GESTÃO', 'gsClosed', 1, 80], ['blocks10', 'EMPREITEIRO', 'Feche 10 blocos', 'blocksClosed', 10, 250], ['blocks25', 'CONSTRUTORA', 'Feche 25 blocos', 'blocksClosed', 25, 500],
+  ['eyes10', 'OLHO DE ÁGUIA', 'Deixe 10 blocos 👁 REVISADOS ao mesmo tempo', 'reviewedNow', 10, 80], ['window1', 'DONO DA CASA', 'Crie uma janela sua no QUESTS', 'windows', 1, 40],
+  ['trip1', 'MOCHILEIRO', 'Use o ✈ modo VIAGEM e volte', 'trips', 1, 50], ['clean30', 'FICHA LIMPA', '30 dias sem castigo 💥 de prazo estourado', 'cleanDays', 30, 200],
+  ['storm10', 'FURACÃO', '10 tarefas num dia só', 'maxDone', 10, 150], ['clock100', 'RELÓGIO SUÍÇO', '100 tarefas feitas no prazo', 'onTime', 100, 400],
+  ['done500', 'MÃO DE OBRA PESADA', 'Conclua 500 tarefas', 'done', 500, 500], ['done1000', 'MIL E UMA', 'Conclua 1.000 tarefas', 'done', 1000, 1000],
 ].map(([key, name, desc, metric, goal, xp]) => ({ key, name, desc, metric, goal, xp }));
 
 /** números que as conquistas novas usam (nível, sequência, semana de ouro…) */
@@ -659,6 +667,17 @@ function extraMetrics(s) {
     bestWeekXp: Math.max(0, ...Object.values(weeks)),
     missionWeeks: (s.core?.bonus || []).filter((b) => b.kind === 'missoes').length,
     petStage: s.core?.primo?.petMax || 0,
+    ...(() => {
+      const comps = idx(s).comps, closed = allBlocks(s).filter((b) => b.st === 'done'), td = today();
+      const lastHit = [...(s.core?.blow?.hits || [])].sort().at(-1) || s.core?.startDate || td;
+      return {
+        miniDone: comps.filter((x) => parse(x.text).mini).length, stepsDone: comps.filter((x) => parse(x.text).step).length,
+        bossHalf: (s.quests?.bosses || []).filter((b) => b.st === 'done' || (bossHp(s, b)?.total && bossHp(s, b).pct <= 0.5)).length,
+        gsClosed: closed.filter((b) => b.group === 'gs').length, blocksClosed: closed.length,
+        reviewedNow: (s.quests?.blocks || []).filter((b) => b.st !== 'done' && reviewed(b)).length,
+        windows: (s.core?.windows || []).length, trips: (s.core?.trips || []).length, cleanDays: Math.max(0, diffDays(lastHit, td)),
+      };
+    })(),
   };
 }
 export function achievementList(s) {

@@ -39,6 +39,7 @@ O backup do dono NUNCA entra no repositório.
 - `backup.js` — proteção dos dados no aparelho: cópia automática diária (`gamify-bak:*`), lembrete de backup, restaurar.
 - `review.js` — entrevista do dia e revisão de retorno (o PRIMO conduz, na 1ª abertura do dia).
 - `trip.js` — modo VIAGEM/VISITAS (congela o jogo; na volta empurra prazos e cria as tarefas de chegada).
+- `imgs.js` — imagens e prints nas tarefas: guardadas no aparelho (IndexedDB) e na pasta escondida do app no Drive; na tarefa fica só `t.imgs = [{ k, g }]`.
 - `drive.js` — sincronização com Google Drive. O dono usa no dia a dia (celular e PC); o Claude não consegue testar o login real, só com um Google simulado (rotas do Playwright).
 - `primo.js` (telas e animação), `pnew.js` (desenho novo, com as artes de `assets/primo/`), `pdraw.js` + `pacc.js` (porquinho clássico em pixel, reserva; `pacc.js` só desenha o chapéu de palha), `pstate.js`, `falas.js`, `saber.js`, `claude.js` — o mascote PRIMO.
 - `tools/primo_artes.py` — não é do app: prepara as artes do PRIMO (recorta fundo, corta quadros dos vídeos, reduz) quando o dono gera imagens novas.
@@ -49,7 +50,7 @@ O backup do dono NUNCA entra no repositório.
 - Ao REMOVER um tipo de dado salvo, o dado antigo do dono continua existindo: trate valores legados e crie migração idempotente (registrada em `core.migrations`).
 - Trocar TODOS os dados de uma vez (importar, restaurar, Drive): use `restoreDocs()` de `backup.js`, nunca `replaceAll()` direto. Ele guarda antes uma cópia do estado atual.
 - As LISTAS do QUESTS são automáticas: a data decide a lista (`R.listOf`). Não grave `t.area` na mão: `syncLists()` (em `actions.js`, dentro do `commit()`) recalcula. Para pôr uma tarefa numa lista, mude a data (`R.dueForList`).
-- LISTAS é a janela mãe: `syncLists()` cria uma tarefa nas LISTAS (`t.mother`) para todo bloco ativo sem `b.src`. Blocos e listas ficam em 3 colunas FIXAS (`inColumns` em `v35.js`): nunca use CSS columns (redistribui entre colunas).
+- LISTAS é a janela mãe: `syncLists()` cria uma tarefa nas LISTAS (`t.mother`) para todo bloco ativo sem `b.src`, menos os BOSSES (são as próprias mães). Blocos e listas ficam em 3 colunas FIXAS (`inColumns` em `v35.js`): nunca use CSS columns (redistribui entre colunas).
 - Janelas criadas pelo dono são gavetas: o bloco guarda `b.win`, mas `b.group` continua sendo o tipo-base (bd, tr, cap, gs). Nunca invente um `group` novo: as regras de XP dependem desses quatro. Para saber a aba de um bloco, use `R.winOf`.
 - Nomes de listas e janelas são personalizáveis (`core.labels` → `R.applyLabels`). Em código, compare sempre pela CHAVE (`hoje`, `bd`…), nunca pelo texto.
 - Os testes do Claude congelam a data (15/11/2026, a do backup de teste): sem isso, tarefas viram atrasadas, a loja tranca (ATOLADO) e os testes falham por motivo errado.
