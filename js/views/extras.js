@@ -122,6 +122,7 @@ export function viewRegras() {
   return `<div class="page-title"><div><h1><em>perks and rules</em>.</h1></div></div>
     <div class="grid">
       ${settingsV35()}
+      ${neuroCard()}
       <div class="card c12" data-gk="nomes"><header><h2>✏ Nomes das listas e janelas</h2><span class="meta">só o texto muda; as regras continuam as mesmas</span></header>
         <div class="namegrid">${R.labelFields().map(([k, def]) => `<label><span class="px">${esc(def)}</span><input class="inp" data-change="label" data-k="${k}" value="${esc(S.core.labels?.[k] || '')}" placeholder="${esc(def)}" maxlength="24" aria-label="Nome para ${esc(def)}"></label>`).join('')}</div>
         <p class="meta" style="margin:8px 0 0">Deixe em branco pra voltar ao nome padrão. Para criar uma janela nova, use o ＋ na barra das janelas do QUESTS.</p></div>
@@ -153,3 +154,22 @@ export function viewRegras() {
 }
 
 // ───────────── ARQUIVO ─────────────
+
+/** v5.14: neurociência — o que o app faz por você (cada item liga/desliga) e os seus horários */
+function neuroCard() {
+  const n = R.neuro(S), c = R.bodyClock(S), ck = (k, t, d) => `<label class="nchk"><input type="checkbox" data-change="neuro" data-k="${k}" ${n[k] !== false ? 'checked' : ''}> <b>${t}</b><span class="meta">${d}</span></label>`;
+  const ladder = R.ladderSteps(S);
+  return `<div class="card c12" data-gk="neuro"><header><h2>🧠 Neurociência: o app te ajudando a se regular</h2><span class="meta">agora: ${c.icon} ${c.name}</span></header>
+    <div class="row" style="gap:14px;flex-wrap:wrap">
+      <label>☀ acordo às <input class="inp" type="time" data-change="neuro" data-k="wake" value="${esc(n.wake)}" style="width:auto;display:inline-block"></label>
+      <label>😴 durmo às <input class="inp" type="time" data-change="neuro" data-k="bed" value="${esc(n.bed)}" style="width:auto;display:inline-block"></label>
+      <label>🍽 refeições <input class="inp" data-change="neuro" data-k="meals" value="${esc((n.meals || []).join(' '))}" placeholder="08:00 12:30 19:30" style="width:170px;display:inline-block"></label>
+      <span class="meta">= ${String(c.sleepH).replace('.', ',')} h de sono${c.sleepH < 7 ? ' <b class="bad">(menos de 7 h)</b>' : ''}</span></div>
+    <div class="neurogrid">
+      ${ck('clock', '🕰 Relógio do corpo', 'No QUESTS, um cartão diz a fase do seu dia (despertar, pico de foco, vale da tarde, segundo pico, desacelerar) e o que fazer nela; no pico, sugere a tarefa mais pesada. Mostra a próxima refeição (comer sempre no mesmo horário acerta o relógio do corpo) e até quando vale o café.')}
+      ${ck('curfew', '🌙 Sono inegociável', '1 hora antes de dormir, o QUESTS troca as listas pelo fechamento do dia: o que você fez, o que fica pra amanhã e os hábitos. Dá pra abrir as listas por 15 min se precisar.')}
+      ${ck('calm', '🎯 Dopamina sob controle', 'Tarefa fácil ganha só o "tic". Número voando e fogos ficam pro que custou (⭐, ⚔, 20 XP ou mais, bloco, boss): o cérebro aprende a gostar do difícil.')}
+      ${ck('ladder', `🪜 Escada do esforço${ladder.length ? ' · degrau ' + ladder.length : ''}`, `7 dias seguidos batendo a meta → ela sobe 5% (até ${R.LADDER_MAX} degraus). Errar não desce o degrau. Meta de hoje: ${R.dailyGoal(S).goal} XP.`)}
+    </div></div>`;
+}
+

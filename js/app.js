@@ -12,7 +12,7 @@ import { px } from './icons.js';
 import { embers, confetti, floatXp, fireworks } from './fx.js';
 import { sfx, startAmbience, stopAmbience, ambienceOn, prefs, setVol } from './audio.js';
 
-import { viewQuests, togglePin } from './views/quests.js';
+import { viewQuests, togglePin, curfewSkip } from './views/quests.js';
 
 import { viewSurvival } from './views/survival.js';
 
@@ -107,6 +107,7 @@ function render() {
     started = true;
     autoSnapshot(); // cópia de segurança do dia, antes de o app ajustar qualquer coisa sozinho
     A.startup();
+    if (S._ladderUp) toast(`🪜 <b>7 dias seguidos na meta!</b> Ela subiu um degrau: agora é ${R.dailyGoal(S).goal} XP. O difícil está virando fácil.`, 'good');
     if (S._blowHit) toast(`💥 <b>${R.BLOW_EVERY} prazos estourados</b>: a loja fica ${Math.round((R.BLOW_MULT - 1) * 100)}% mais cara por ${R.BLOW_DAYS} dias.`, 'bad');
     else if (S._blowNew) toast(`💥 ${S._blowNew} prazo(s) estourou(aram). Faltam ${R.blowState(S).left} pro castigo.`);
     try { if (!localStorage.getItem('gamify-ui:tour')) setTimeout(tour, 600); else tripCheck(); } catch { /* */ }
@@ -222,7 +223,9 @@ function welcome() {
 
 // ───────────────────────── RECOMPENSAS NA TELA ─────────────────────────
 A.onFeedback((fb) => {
-  if (fb.xp > 0) { floatXp(`+${fmtN(fb.xp)} XP`, fb.at); sfx(fb.task ? 'check' : 'xp'); setTimeout(checkMilestones, 400); }
+  // 🧠 dopamina sob controle: tarefa fácil (menos de 20 XP, sem ⭐ ⚔) ganha só o "tic"; o número voando e os fogos ficam pro que custou
+  const easy = R.neuroOn(S, 'calm') && fb.task && fb.xp < 20 && !/⚔|⭐/.test(fb.task.text || '');
+  if (fb.xp > 0) { if (!easy) floatXp(`+${fmtN(fb.xp)} XP`, fb.at); sfx(fb.task ? 'check' : 'xp'); setTimeout(checkMilestones, 400); }
   // 🎆 fogos pra coisa demorada: boss, bloco fechado, mini-boss ⚔, tarefa chata ⭐ ou tarefa que rendeu 60 XP ou mais
   if (fb.boss || fb.closedBlock || (fb.task && fb.xp > 0 && (fb.xp >= 60 || /⚔|⭐/.test(fb.task.text || '')))) setTimeout(() => { fireworks(); sfx('fireworks'); }, 250);
   if (fb.sent) toast(`✉ Rodada concluída e enviada: <b>${esc(fb.task.text)}</b>. Fica aguardando retorno.`, 'good');
@@ -550,6 +553,7 @@ const ACTIONS = {
   'plan-quick': (d, e, el) => { el.closest('form').plan.value = d.d; },
   'review-block': (d) => { A.reviewBlock(d.id); sfx('tab'); },
   'review-list': (d) => { A.reviewList(d.k); sfx('tab'); },
+  'curfew-skip': () => { curfewSkip(); render(); },
   'pin-block': (d) => { toast(togglePin(d.id) ? '📌 Bloco fixado no painel da direita.' : '📌 Bloco tirado do painel.'); render(); sfx('tab'); },
   fullscreen: () => { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); } catch { toast('Este navegador não deixou abrir em tela cheia.', 'bad'); } },
   'win-new': () => windowModal(),
@@ -748,6 +752,7 @@ document.addEventListener('change', (e) => {
   if (!el) return;
   const k = el.dataset.k, c = el.dataset.change;
   if (c === 'setting') A.setSetting(k, +el.value);
+  if (c === 'neuro') A.setNeuro(k, el.type === 'checkbox' ? el.checked : k === 'meals' ? el.value.split(/[\s,;]+/).filter((x) => /^\d{1,2}:\d{2}$/.test(x)) : el.value);
   if (c === 'label') A.setLabel(k, el.value);
   if (c === 'primo-art') { try { localStorage.setItem('gamify-ui:primo-art', el.value); } catch { /* */ } render(); }
   if (c === 'milestones') A.updateMilestones(el.value.split(',').map((s) => s.trim().toUpperCase()));

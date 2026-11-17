@@ -218,9 +218,34 @@ Respostas do dono: 1-A (rodada de visual), 2-B (imagens no Drive), 3-B (previsã
 - **Prompts do Higgsfield** para as imagens do topo de cada aba (10 abas, dia e noite) e 4 poses novas do PRIMO: arquivo entregue no chat (não está no repositório). Quando as artes chegarem: preparar com `tools/primo_artes.py` e trocar o `sceneBanner` (v3.js) por imagem.
 - **Dados do dono reorganizados de novo** (ele pediu para usar o último arquivo, sem backup novo): BOSSES fora das LISTAS; 8 itens do APP concluídos e 2 de sprites aguardando as artes; 7 repetidas canceladas; blocos novos ESTUDOS E CURSOS e HOBBIES E LAZER; soltas movidas para os blocos certos; prazo final em 19 blocos (as tarefas-mãe saíram do SEM PRAZO). Entregue como arquivo para IMPORTAR.
 
+## RODADA 13 — v5.14 (17/11/2026): cores com significado, artes novas e neurociência
+Pedido do dono: "as cores têm que ter justificativa; a mesma cor = a mesma categoria (psicologia das cores)" e "aplicar neurociência pra me regular (ciclo circadiano…)", com base na masterclass "As Regras do Jogo" que ele mandou (os PDFs NÃO entram no repositório). Respostas: janelas neutras; XP dourado e botão madeira; as 4 de neurociência.
+- **Cores com significado** (bloco "v5.14 — CORES COM SIGNIFICADO" no fim de `css/app.css`; legenda em PERKS via `COLOR_MEANING` em `v35.js`): vermelho = urgente/perigo/inimigo (HOJE, atrasada, URGENTE, BOSS, mini-boss, castigo, apagar) · laranja = quase urgente (AMANHÃ) · amarelo = em andamento (SEMANA, FAZENDO) · verde = feito/saudável/estável · azul = futuro/calma/descanso (DEPOIS, avisos, sono) · roxo = esperando outra pessoa (AGUARDANDO, vai e volta) · cinza = sem prazo/parado · dourado = recompensa (XP, gold, 🎟, conquistas) · madeira = a casa do app (botões, títulos, abas, janelas). Variáveis `--c-*`; `--accent` virou madeira. Saíram as paletas ("Cor do jogo") e "cada aba com a sua cor". As janelas do QUESTS ficaram neutras com ícone (🧩 BREAKDOWN, 📐 TRABALHO, 🧲 CAPTAÇÕES, 🗂 GESTÃO, 👹 BOSSES, ▣ do dono); a bolinha da tarefa ligada mostra esse ícone.
+- **Imagens do topo das abas** (`assets/topo/<aba>-<dia|noite>.webp`, geradas pelo dono no Higgsfield; preparo em `tools/topo_artes.py`): `sceneBanner` (v3.js) usa a imagem; o desenho em código só aparece se ela não carregar.
+- **Poses novas do PRIMO** (`assets/primo/pose-*.webp`): comemorando (festa, orgulhoso), pensando (pensativo), triste (triste, preocupado), dormindo de chapéu (dormindo com o chapéu). Tabela `POSES` e `drawStill` em `pnew.js`.
+- **Neurociência** (liga/desliga e horários em PERKS → 🧠; `settings.neuro`; regras em `rules.js`: `bodyClock`, `PHASES`, `heaviestTask`, `goalAt`):
+  - Relógio do corpo: cartão no topo do painel da direita com a fase do dia pelos horários do dono (despertar, pico de foco, vale da tarde, segundo pico, desacelerar, toque de recolher, sono), a dica da fase, a tarefa mais pesada no pico de foco, a próxima refeição e o último café (acordar + 8 h).
+  - Sono inegociável: 1 h antes de dormir o QUESTS mostra o fechamento do dia no lugar das listas (botão abre por 15 min). O PRIMO dorme no horário de dormir do dono (`companion` usa `bodyClock`).
+  - Dopamina sob controle: tarefa fácil (< 20 XP, sem ⭐ ⚔) não solta o "+XP" voando; fogos continuam só para o que custou.
+  - Escada do esforço: 7 dias seguidos na meta → `core.ladder` ganha a data e a meta sobe 5% (máx. 10 degraus). Cada dia é medido com a meta que valia nele (`goalAt`), então a sequência e as conquistas não quebram.
+
+## PRÓXIMA RODADA — JÁ ESCOLHIDA PELO DONO (17/11/2026)
+Lembrete dele: "o app tem que ser PRÁTICO e não comer meu tempo; preciso de tempo para as tarefas". Cada recurso: no máximo 1 toque a mais, nada de tela obrigatória, tudo desligável em PERKS → 🧠.
+Ideias do livro do Bullet Journal (Ryder Carroll), das anotações do dono. Ele escolheu A, C, E, F, G, H:
+- **A) Migração do mês**: no começo do mês, o PRIMO passa uma a uma pelas tarefas paradas, sem prazo ou antigas: ✓ ainda vale (ganha data) ou ✕ cancela. "Se não vale reescrever, não vale fazer." Deve ser rápido (2 botões por tarefa, dá pra parar no meio).
+- **C) 5 porquês no BOSS**: ao criar/editar um boss, dois campos opcionais: "por que isso importa?" e "o que acontece se eu NÃO fizer?" (medo como motivador, da masterclass). O PRIMO lembra quando o boss fica parado.
+- **E) Time boxing**: tarefa remarcada 3 vezes (`t.rs`) trava: o PRIMO pede um horário + duração, ou cancelar.
+- **F) Atenção residual**: se HOJE passar do limite de tarefas por dia (`settings.maxPerDay`), aviso curto e sugestão de empurrar as menos importantes.
+- **G) Pato de borracha** no SOS TRAVEI: explicar ao PRIMO o que travou (o que tentou, o que funcionou, o que não).
+- **H) Pausa de meta**: pausar um boss por até 2 semanas, com data de volta automática (não confundir com abandonar).
+Não escolhidas: B (metas 5-4-3-2-1) e D (sprint de 2 semanas).
+- **Material de neurociência**: o dono tem uma lista grande de aulas (Eslen Delanogare). Pedir a ele, pelo TÍTULO, as aulas sobre: sono e ciclo circadiano; dopamina e recompensa; hábitos e automatização; estresse e cortisol; atenção e foco; exercício/BDNF e alimentação. Usar para calibrar o relógio do corpo, a loja e os hábitos (v5.14). Os PDFs NÃO entram no repositório.
+- **Qualidade de vida** sugerida pelo Claude: ver a resposta da rodada 13 e as letras que o dono escolher.
+- **Dados do dono**: o novo chat não tem os arquivos deste. Pedir um backup novo (PERKS → BAIXAR BACKUP). O link da pasta do Drive com as artes originais o dono manda de novo, se precisar (não escrever no repositório).
+
 ## PRÓXIMAS RODADAS
 Princípio do dono: qualidade de vida e praticidade; tudo integrado como um ecossistema; simples no fim das contas (o app não pode tomar o tempo das tarefas). Ele aceita sugestões melhores que o pedido. **Sem mecânicas novas por enquanto** (pedido dele em 16/11).
-- Quando o dono mandar as artes: imagens do topo das abas e poses novas do PRIMO.
+- Mais regras da masterclass que podem virar recurso (o dono tem mais material do mesmo autor): ver a lista na resposta da rodada 13.
 - Pedidos adiados por ele: previsão do tempo (cidade em PERKS + serviço grátis, cenário muda com o clima), loja opção B (recompensa automática).
 - Acompanhar a economia nova por umas duas semanas e reavaliar com os dados (saldo sobrando? forja andando?). Preços de ACORDAR TARDE e JOGO NA STEAM seguem provisórios.
 - Ajustes finos do PRIMO novo se ele pedir: posição de algum acessório (tabela `ACC` em `pnew.js`), o vídeo opcional "cansado", escolher o cenário à mão, refazer a fogueira sem o porquinho.

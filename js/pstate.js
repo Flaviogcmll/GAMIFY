@@ -105,8 +105,8 @@ export function claimAsk() {
 // ───────────────────────── MASCOTE: FAÍSCA (cresce com os dias batendo a meta; nunca volta atrás) ─────────────────────────
 export const PET_STAGES = [[0, 'OVO'], [2, 'FAÍSCA'], [5, 'BRASINHA'], [10, 'CHAMINHA'], [20, 'CHAMA'], [35, 'FOGUEIRA'], [60, 'FÊNIX'], [100, 'FÊNIX LENDÁRIA']];
 export function goalDays(s = S) {
-  const g = s.core?.settings?.dailyGoal || R.C.DAILY_GOAL, xp = R.idx(s).xpByDay;
-  return Object.values(xp).filter((v) => v >= g).length;
+  const xp = R.idx(s).xpByDay;
+  return Object.entries(xp).filter(([d, v]) => v >= R.goalAt(s, d)).length;
 }
 export function petState(s = S) {
   const n = goalDays(s), prev = s.core?.primo?.petMax || 0;
@@ -140,7 +140,7 @@ const CLOSE = {
   fraca: [['triste', 'Semana difícil. Tudo bem: recomeçar também é avançar.'], ['preocupado', 'Foi pouco, mas pouco ainda é mais que zero. Bora de novo.'], ['cansado', 'A semana pesou. Descansa e volta com calma.']],
 };
 export function weekSummary(ws) {
-  const xp = R.idx(S).xpByDay, done = R.idx(S).doneByDay, g = S.core?.settings?.dailyGoal || R.C.DAILY_GOAL;
+  const xp = R.idx(S).xpByDay, done = R.idx(S).doneByDay, g = R.goalAt(S, ws);
   const days = Array.from({ length: 7 }, (_, i) => addDays(ws, i));
   const tot = days.reduce((a, d) => a + (xp[d] || 0), 0), n = days.reduce((a, d) => a + (done[d] || 0), 0), hit = days.filter((d) => (xp[d] || 0) >= g).length;
   const best = days.reduce((b, d) => ((xp[d] || 0) > (xp[b] || 0) ? d : b), days[0]);

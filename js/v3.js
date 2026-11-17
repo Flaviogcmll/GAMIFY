@@ -33,13 +33,19 @@ export function sceneBanner(route, ui) {
   if (route === 'quests') return '';
   const key = route === 'shop' && ui.ltab === 'ferreiro' ? 'ferreiro' : route;
   const [t, sub] = TITLES[key] || [route + '.', ''];
-  return `<div class="scene pstrip"><canvas id="scene" data-interior="${interiorOf(key) || 'rotina'}" aria-hidden="true"></canvas>
+  // v5.14: cada aba tem a sua imagem (dia e noite); o desenho em código só aparece se a imagem não carregar
+  const night = document.documentElement.dataset.mode === 'night';
+  return `<div class="scene pstrip"><canvas id="scene" data-interior="${interiorOf(key) || 'rotina'}" aria-hidden="true"></canvas><img class="topo" src="assets/topo/${TOPOS.includes(key) ? key : 'survival'}-${night ? 'noite' : 'dia'}.webp" alt="" aria-hidden="true">
     <div class="pst-face"><canvas class="pcv" data-portrait="mini" data-act="primo-hub" title="Falar com o PRIMO" aria-label="PRIMO"></canvas></div>
     <div class="pst-txt"><div class="scene-title">${esc(t)}</div><div class="scene-sub">${esc(sub.toUpperCase())}</div><div class="pst-say" data-pspeech="tab:${key}"></div></div></div>`;
 }
+const TOPOS = ['survival', 'agenda', 'shop', 'ferreiro', 'domingo', 'conquistas', 'filtro', 'rotina', 'regras', 'arquivo'];
 export function mountScenes() {
-  const c = document.getElementById('scene');
-  if (c) mountInterior(c, c.dataset.interior);
+  const c = document.getElementById('scene'), img = document.querySelector('.pstrip img.topo');
+  if (!c) return;
+  if (img && !(img.complete && !img.naturalWidth)) { img.onerror = () => { img.remove(); mountInterior(c, c.dataset.interior); }; return; }
+  img?.remove();
+  mountInterior(c, c.dataset.interior);
 }
 
 // ───────────── painel do companheiro (QUESTS) ─────────────

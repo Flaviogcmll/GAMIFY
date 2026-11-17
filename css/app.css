@@ -907,3 +907,81 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 .imgview img { max-width: 100%; max-height: calc(100% - 60px); object-fit: contain; border-radius: 6px; }
 /* celular: as janelas do QUESTS numa fileira só, que desliza pro lado (em vez de 3 linhas de botões) */
 @media (max-width: 860px) { .qbar .seg { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; max-width: 100%; } .qbar .seg::-webkit-scrollbar { display: none; } .qbar .seg > button { flex: 0 0 auto; } }
+
+/* ═════════════ v5.14 — imagem no topo de cada aba (dia e noite) ═════════════ */
+.scene.pstrip { min-height: clamp(118px, 13vw, 170px); max-height: none; }
+.scene.pstrip > img.topo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 62%; image-rendering: pixelated; z-index: 0; }
+.scene.pstrip:has(> img.topo)::after { background: linear-gradient(90deg, rgba(12, 9, 7, .78) 0, rgba(12, 9, 7, .45) 38%, rgba(12, 9, 7, 0) 70%); z-index: 1; }
+.scene.pstrip > img.topo ~ .pst-face, .scene.pstrip > img.topo ~ .pst-txt { z-index: 2; }
+@media (max-width: 600px) { .scene.pstrip > img.topo { object-position: 70% 62%; } }
+
+/* ═════════════ v5.14 — CORES COM SIGNIFICADO (psicologia das cores) ═════════════
+   Cada cor tem UM significado no app inteiro; a legenda aparece em PERKS (COLOR_MEANING em v35.js).
+   vermelho = urgente/perigo/inimigo · laranja = quase urgente · amarelo = em andamento · verde = feito/saudável
+   azul = futuro/calma/descanso · roxo = esperando outra pessoa · cinza = sem prazo/parado · dourado = recompensa
+   madeira = a casa do app (botões, títulos, janelas): neutra, pra não competir com as cores que avisam. */
+:root { --c-urg: #c0392b; --c-quase: #d9772b; --c-atencao: #c79a17; --c-ok: #3f8a55; --c-calma: #2f7fa3; --c-espera: #7a5fb5; --c-neutro: #8d8a83; --c-premio: #b8862a; --c-acao: #7a4a2c;
+  --accent: var(--c-acao); --accent-2: #9a6440; --accent-soft: #f0e2d2; --good: var(--c-ok); --good-soft: #dfeee2; --bad: var(--c-urg); --bad-soft: #f6dcd8;
+  --warn: var(--c-espera); --warn-soft: #ebe4f6; --info: var(--c-calma); --info-soft: #dcecf4; --gold: var(--c-premio); --ticket: var(--c-premio); }
+:root[data-mode="night"] { --c-urg: #ef6a58; --c-quase: #f39a52; --c-atencao: #e8c247; --c-ok: #6cc489; --c-calma: #62b3dc; --c-espera: #ae94ea; --c-neutro: #b3ada3; --c-premio: #f0c35a; --c-acao: #e2b48a;
+  --accent: var(--c-acao); --accent-2: #f0c9a2; --accent-soft: #3a2a1e; --good: var(--c-ok); --good-soft: #1d3324; --bad: var(--c-urg); --bad-soft: #3d1a17;
+  --warn: var(--c-espera); --warn-soft: #2a2140; --info: var(--c-calma); --info-soft: #14283a; --gold: var(--c-premio); --ticket: var(--c-premio); }
+/* listas e blocos: a mesma escala de urgência */
+.list-card[data-list="hoje"], :root[data-mode="night"] .list-card[data-list="hoje"] { --lc: var(--c-urg); } .list-card[data-list="amanha"], :root[data-mode="night"] .list-card[data-list="amanha"] { --lc: var(--c-quase); }
+.list-card[data-list="semana"], :root[data-mode="night"] .list-card[data-list="semana"] { --lc: var(--c-atencao); } .list-card[data-list="depois"], :root[data-mode="night"] .list-card[data-list="depois"] { --lc: var(--c-calma); }
+.list-card[data-list="sem"], :root[data-mode="night"] .list-card[data-list="sem"] { --lc: var(--c-neutro); } .list-card[data-list="wait"], :root[data-mode="night"] .list-card[data-list="wait"] { --lc: var(--c-espera); }
+.block[data-color="red"] { --bc: var(--c-urg); } .block[data-color="yellow"] { --bc: var(--c-atencao); } .block[data-color="green"] { --bc: var(--c-ok); } .block[data-color="black"] { --bc: var(--c-neutro); }
+.block[data-color] > .bh > .stripe { background: var(--bc) !important; }
+.task[data-color="red"], :root[data-mode="night"] .task[data-color="red"] { border-left-color: var(--c-urg); } .task[data-color="yellow"], :root[data-mode="night"] .task[data-color="yellow"] { border-left-color: var(--c-atencao); }
+.task[data-color="green"], :root[data-mode="night"] .task[data-color="green"] { border-left-color: var(--c-ok); } .task[data-color="black"] { border-left-color: var(--c-neutro); }
+/* prazos: atrasada/hoje vermelho, amanhã laranja, até 7 dias amarelo */
+.chip.late, .chip.today { background: color-mix(in srgb, var(--c-urg) 14%, transparent); border-color: var(--c-urg); color: var(--c-urg); }
+.chip.tomorrow { background: color-mix(in srgb, var(--c-quase) 14%, transparent); border-color: var(--c-quase); color: var(--c-quase); }
+.chip.near, .chip.week { background: color-mix(in srgb, var(--c-atencao) 14%, transparent); border-color: var(--c-atencao); color: var(--c-atencao); }
+.chip.soon { background: color-mix(in srgb, var(--c-ok) 14%, transparent); border-color: var(--c-ok); color: var(--c-ok); }
+/* esperar outra pessoa = roxo (AGUARDANDO e vai e volta) */
+.chip.wait, .chip.cyc, :root[data-mode="night"] .chip.cyc, :root[data-mode="night"] .chip.wait { background: color-mix(in srgb, var(--c-espera) 14%, transparent); border-color: var(--c-espera); color: var(--c-espera); }
+.task.wait .txt { color: var(--c-espera); }
+/* recompensa = dourado */
+.chip.xp, .acc, .gold, .tk, .task.mini .txt + * .chip.xp { color: var(--c-premio); }
+.task.mini .txt, :root[data-mode="night"] .task.mini .txt { color: var(--c-urg); } /* mini-boss = inimigo (vermelho) */
+.toast.gold { border-left-color: var(--c-premio); }
+/* abas e janelas: neutras (madeira); quem dá a cor é o significado, não a aba. Cada janela tem o seu ícone */
+.tabs a, :root[data-mode="night"] .tabs a, .tabs a[href] { --tc: var(--c-acao) !important; }
+:root[data-mode="night"] .tabs a.on { color: #1d140d; }
+.qbar .seg button.filha { border-bottom-color: var(--line) !important; }
+.qbar .seg button.filha.on { border-bottom-color: var(--c-acao) !important; }
+.qbar .seg button.filha[data-tab="bd"]::before { content: '🧩 '; } .qbar .seg button.filha[data-tab="tr"]::before { content: '📐 '; }
+.qbar .seg button.filha[data-tab="cap"]::before { content: '🧲 '; } .qbar .seg button.filha[data-tab="gs"]::before { content: '🗂 '; }
+.qbar .seg button.filha[data-tab^="w:"]::before { content: '▣ '; }
+.qbar .seg button[data-tab="boss"], .qbar .seg button.filha[data-tab="boss"] { border-bottom-color: var(--c-urg) !important; }
+.qbar .seg button.mae { background: var(--c-acao); border-color: var(--c-acao); }
+:root[data-mode="night"] .qbar .seg button.mae { color: #1d140d; }
+.group[data-group="bd"] .band, .group[data-group="tr"] .band, .group[data-group="cap"] .band, .group[data-group="gs"] .band, .group:not([data-group="bs"]) > .band { background: var(--panel-2) !important; color: var(--ink) !important; border: 2px solid var(--line); }
+/* a bolinha da tarefa ligada mostra o ÍCONE da janela onde o bloco está */
+.lnk-dot { width: 18px; height: 18px; border: 0; background: none !important; font-size: 11px; line-height: 18px; text-align: center; }
+.lnk-dot::before { content: '🔗'; } .lnk-dot[data-g="bd"]::before { content: '🧩'; } .lnk-dot[data-g="tr"]::before { content: '📐'; } .lnk-dot[data-g="cap"]::before { content: '🧲'; }
+.lnk-dot[data-g="gs"]::before { content: '🗂'; } .lnk-dot[data-g="bs"]::before { content: '👹'; } .lnk-dot[data-g="lista"]::before { content: '◆'; color: var(--c-acao); }
+/* legenda em PERKS */
+.colormean { display: grid; gap: 6px; font-size: 12px; }
+.colormean > div { display: grid; grid-template-columns: 14px auto; column-gap: 8px; align-items: start; }
+.colormean i { width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0, 0, 0, .3); grid-row: span 2; margin-top: 2px; }
+.colormean .meta { grid-column: 2; font-size: 11px; }
+.task .info .chip.wait { max-width: 74px; overflow: hidden; text-overflow: ellipsis; }
+/* v5.14 — relógio do corpo, fechamento do dia, neurociência em PERKS */
+.card.clock { margin-bottom: 12px; border-top: 5px solid var(--c-calma); }
+.card.clock[data-phase="foco"], .card.clock[data-phase="pico2"] { border-top-color: var(--c-atencao); }
+.card.clock[data-phase="despertar"] { border-top-color: var(--c-premio); }
+.card.clock[data-phase="recolher"], .card.clock[data-phase="sono"], .card.clock[data-phase="desacelerar"] { border-top-color: var(--c-calma); }
+.clock-tip { margin: 0 0 8px; font-size: 12.5px; line-height: 1.45; }
+.card.clock .btn { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; text-align: left; }
+.clock-meta { display: flex; gap: 10px; flex-wrap: wrap; font-size: 11.5px; color: var(--muted); margin-top: 6px; }
+.closing { border-top: 6px solid var(--c-calma); }
+.closing-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 8px 0; }
+.closing h3 { font: 9px/1.6 var(--f-pixel); color: var(--c-calma); margin: 0 0 6px; }
+.closing .task { grid-template-columns: 8px minmax(0, 1fr); }
+@media (max-width: 700px) { .closing-grid { grid-template-columns: 1fr; } }
+.neurogrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.nchk { display: block; font-size: 12.5px; padding: 8px 10px; background: var(--panel-2); border-radius: 8px; }
+.nchk .meta { display: block; margin-top: 3px; font-size: 11.5px; line-height: 1.45; }
+@media (max-width: 700px) { .neurogrid { grid-template-columns: 1fr; } }
