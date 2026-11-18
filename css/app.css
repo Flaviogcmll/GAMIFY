@@ -1252,14 +1252,14 @@ li.task.glow[data-color="black"] { --gl: var(--c-neutro); } li.task.glow[data-co
 .arq-daycard .list { padding: 6px 14px; }
 @media (max-width: 600px) { .arq-daycard { grid-template-columns: 1fr; } .arq-daycard .arq-day { flex-direction: row; align-items: center; border-right: 0; border-bottom: 2px solid var(--line); } }
 /* v6 POST-IT flutuante (o bloco fixado 📌), em todas as abas */
-#postit { position: fixed; right: 18px; bottom: 18px; z-index: 46; width: min(340px, calc(100vw - 24px)); max-height: min(60vh, 520px); display: flex; flex-direction: column;
+aside.postit { position: fixed; right: 18px; bottom: 18px; z-index: 46; width: min(340px, calc(100vw - 24px)); max-height: min(60vh, 520px); display: flex; flex-direction: column;
   background: color-mix(in srgb, var(--c-premio) 16%, var(--panel)); border: 2px solid var(--edge); border-radius: 10px; box-shadow: 5px 6px 0 var(--shadow); transform: rotate(-.4deg); }
-#postit .pi-h { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 2px dashed color-mix(in srgb, var(--c-premio) 50%, var(--line)); cursor: grab; user-select: none; }
-#postit .pi-h b { flex: 1; min-width: 0; font: 8px/1.5 var(--f-pixel); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#postit .tasks { overflow: auto; padding: 4px 6px; margin: 0; }
-#postit .addline { padding: 6px 8px 8px; }
-#postit.min { width: auto; max-width: 260px; }
-#postit.min .pi-h { border-bottom: 0; }
+aside.postit .pi-h { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 2px dashed color-mix(in srgb, var(--c-premio) 50%, var(--line)); cursor: grab; user-select: none; }
+aside.postit .pi-h b { flex: 1; min-width: 0; font: 8px/1.5 var(--f-pixel); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+aside.postit .tasks { overflow: auto; padding: 4px 6px; margin: 0; }
+aside.postit .addline { padding: 6px 8px 8px; }
+aside.postit.min { width: auto; max-width: 260px; }
+aside.postit.min .pi-h { border-bottom: 0; }
 @media (max-width: 860px) { #postit { right: 10px; left: 10px; width: auto; bottom: calc(76px + env(safe-area-inset-bottom)); max-height: 46vh; transform: none; } #postit.min { left: auto; } }
 /* v6 painel da direita: sem buracos entre os cartões, alça de arrastar sempre visível */
 .side { display: flex; flex-direction: column; gap: 14px; }
@@ -1787,3 +1787,34 @@ li.task[data-guia] { outline: 2px solid color-mix(in srgb, #c0392b 70%, transpar
 .card.bann > header { min-height: clamp(70px, 9vw, 130px); align-items: flex-end; background: linear-gradient(0deg, rgba(12, 9, 7, .82) 0, rgba(12, 9, 7, .2) 70%), var(--bimg) center 58% / cover; image-rendering: pixelated; border-radius: calc(var(--rad) - 2px) calc(var(--rad) - 2px) 0 0; }
 .card.bann > header h2, .card.bann > header .meta { color: #fffaf1; text-shadow: 0 1px 0 rgba(12, 9, 7, .8); }
 .card.bann.collapsed > header { border-radius: calc(var(--rad) - 2px); }
+
+/* v7.5: vários post-its: cada um nasce um pouco à esquerda do anterior (no PC); dá pra arrastar cada um */
+@media (min-width: 861px) { aside.postit { right: calc(18px + var(--pi, 0) * 28px); bottom: calc(18px + var(--pi, 0) * 34px); } }
+@media (max-width: 860px) { aside.postit:not(#postit) { display: none; } } /* no celular aparece só o primeiro (a tela é pequena) */
+
+/* ───────────── v7.6: LINGUAGEM VISUAL ─────────────
+   Regras de UX usadas (refs 07/08 do dono):
+   · Efeito estética-usabilidade: cantos redondos = amigável, "cozy" (tudo que é do dia a dia).
+   · Efeito Von Restorff (isolamento): só o PERIGO tem ponta e canto reto, então ele salta aos olhos
+     (assombração, TREM RUIM em diante, prazo de HOJE/atrasado, LUA DE SANGUE).
+   · Lei de Jakob: a barra de rolagem continua onde as pessoas esperam; só ganha a cara de madeira do app. */
+:root { --rad: 12px; --rad-sm: 8px; }
+/* barra de rolagem de madeira (Firefox usa scrollbar-color; Chrome/Edge/Android usam ::-webkit-scrollbar) */
+html, .side, .modal, aside.postit .tasks, .fila-q .list { scrollbar-color: color-mix(in srgb, var(--accent) 70%, var(--edge)) color-mix(in srgb, var(--panel-2) 80%, var(--bg)); }
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track { background: color-mix(in srgb, var(--panel-2) 80%, var(--bg)); border-radius: 8px; }
+::-webkit-scrollbar-thumb { border-radius: 8px; border: 2px solid color-mix(in srgb, var(--panel-2) 80%, var(--bg));
+  background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--accent) 80%, #5a3a1a) 0 3px, color-mix(in srgb, var(--accent) 62%, #5a3a1a) 3px 5px); }
+::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--accent-2) 85%, #5a3a1a); }
+::-webkit-scrollbar-corner { background: transparent; }
+/* cantos redondos em tudo que é do dia a dia (o "NV 5" incluído) */
+.lv, .stat, .card, .list-card, .block, .item, .medal, .vitrine, .banner, .modal, .btn, .inp, .chip, .pill, .seg, .seg > button, .tabs a, .qbar, .focus-now, .memento, .pcard .pstage, .scene.pstrip, aside.postit, .speech, .pask, .hab, .sico, .day { border-radius: var(--rad); }
+.btn.sm, .chip, .pill, .icon-btn, .inp { border-radius: var(--rad-sm); }
+.tabs a { border-radius: var(--rad) var(--rad) 0 0; }
+.vitrine > .vit-h { border-radius: calc(var(--rad) - 2px) calc(var(--rad) - 2px) 0 0; } .vitrine.shut > .vit-h { border-radius: calc(var(--rad) - 2px); }
+/* PERIGO = canto reto e uma ponta (triângulo) no canto: só aqui */
+li.task[data-praga], .banner.praga-b, .praga-pop, .praga-modal .modal, .chip.late, .list-card[data-list="hoje"], .pcard[data-mood="paranoico"] .pstage, .pcard[data-mood="medo"] .pstage, .trem.k-praga { border-radius: 0; }
+.list-card[data-list="hoje"], .banner.praga-b { position: relative; }
+.list-card[data-list="hoje"]::after, .banner.praga-b::after { /* as tarefas da Praga já têm o urubu como sinal de perigo */
+  content: ''; position: absolute; top: -2px; right: -2px; width: 12px; height: 12px; pointer-events: none;
+  background: var(--c-urg); clip-path: polygon(0 0, 100% 0, 100% 100%); }

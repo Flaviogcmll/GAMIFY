@@ -53,7 +53,9 @@ O backup do dono NUNCA entra no repositório.
 - `tools/topo_artes.py` — não é do app: prepara as imagens do topo das abas e as poses do PRIMO.
 - `tools/primo_artes.py` — não é do app: prepara as artes do PRIMO (recorta fundo, corta quadros dos vídeos, reduz) quando o dono gera imagens novas.
 - `v3.js`, `v35.js`, `v4.js` — recursos adicionados por versão (legado; têm imports circulares, cuidado).
-- `postit.js` — post-it flutuante do bloco fixado (arrasta, minimiza, aparece em todas as abas).
+- `postit.js` — post-its flutuantes dos blocos fixados (v7.5: até 4; `gamify-ui:pinblock` virou lista JSON, o texto antigo é lido como lista; posição e recolhido por id: `postit-pos:<id>`, `postit-min:<id>`; no celular só o 1º aparece).
+- v7.5 PERKS: `core.presets = [{ name, at, settings }]` (até 8), `A.savePreset/applyPreset/deletePreset/resetSettings`; os horários do corpo (`neuro.wake/bed/meals`) nunca mudam com preset nem com o padrão.
+- v7.6 visual: `--rad` 12 px, barra de rolagem de madeira, cantos redondos em tudo; canto reto + pontinha vermelha SÓ no perigo (lista HOJE, faixa da Praga, tarefas da Praga, PRIMO paranoico/com medo). Não arredonde o que é perigo.
 - `views/*.js` — uma tela por arquivo. O FILTRO não tem aba própria: `filtroBody()` é desenhado dentro da AGENDA (`#filtro-v`); `#filtro` redireciona (`HIDDEN_TABS` em `app.js`). `css/app.css` — todo o visual. `sw.js` — modo offline.
 
 ## Armadilhas

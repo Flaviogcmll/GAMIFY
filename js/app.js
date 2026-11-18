@@ -701,6 +701,10 @@ const ACTIONS = {
     <div class="actions"><button class="btn" data-close>FECHAR</button></div>`),
   'toggle-done': () => { ui.showDone = !ui.showDone; render(); },
   'toggle-stalled': () => { ui.showStalled = !ui.showStalled; try { localStorage.setItem('gamify-ui:stalled', ui.showStalled ? '1' : '0'); } catch { /* */ } render(); sfx('tab'); },
+  // v7.5: presets do PERKS
+  'preset-apply': async (d) => { if (await ask(`Usar o preset ${d.n}?`, 'Os ajustes de PERKS viram os desse preset (seus horários ficam). O ↩ desfaz.', 'USAR')) { const r = A.applyPreset(d.n); if (r?.error) toast(esc(r.error), 'bad'); else sfx('tab'); } },
+  'preset-del': async (d) => { if (await ask(`Apagar o preset ${d.n}?`, 'Os ajustes de agora não mudam.', 'APAGAR', true)) A.deletePreset(d.n); },
+  'settings-reset': async () => { if (await ask('Voltar ao padrão?', 'Todos os ajustes de PERKS voltam ao padrão do app. Seus horários (acordar, dormir, comer) ficam. Dica: salve antes um preset com o jeito atual. O ↩ desfaz.', 'VOLTAR AO PADRÃO', true)) { A.resetSettings(); sfx('tab'); } },
   'collapse-tab': () => { const keys = tabKeys(), close = keys.some((k) => !isCollapsed(k)); for (const k of keys) if (isCollapsed(k) !== close) toggleCollapse(k); render(); sfx('swish'); },
   'collapse-all': () => {
     const keys = [...new Set([...$main.querySelectorAll('.board [data-act="collapse"][data-k]')].map((x) => x.dataset.k).filter((k) => /^([bl]:|c:quests:)/.test(k)))]; // v6.4: inclui MISSÕES e BOSS DO CAPÍTULO
@@ -816,6 +820,7 @@ document.addEventListener('click', (e) => {
 
 // ───────────────────────── FORMULÁRIOS ─────────────────────────
 const FORMS = {
+  'preset-save': (f) => { const r = A.savePreset(f.name.value); if (r?.error) { toast(esc(r.error), 'bad'); return; } f.name.value = ''; sfx('tab'); },
   'add-task': (f, blur) => {
     const text = f.text.value.trim();
     if (!text) return;

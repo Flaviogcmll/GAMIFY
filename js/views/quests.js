@@ -99,7 +99,7 @@ function blockCard(b, ui, opts = {}) {
       <div class="bt" data-act="edit-block" data-id="${b.id}"><h3>${esc(b.title)}</h3>
         <div class="bm"><span>${done.length}/${counted.length}</span>${rev ? `<span class="chip rev" title="Revisado: vale até ${new Date(b.rev + 864e5).toLocaleString('pt-BR', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}">👁 REVISADO</span>` : ''}${b.src && S.quests.tasks.find((x) => x.id === b.src) ? `<button class="lnk-dot" data-g="lista" data-act="jump" data-id="${b.src}" title="Esta tarefa também está nas LISTAS. Toque pra ir lá." aria-label="Ir pra tarefa nas listas"></button>` : ''}${b.st === 'done' ? `<span class="good">FECHADO ${fmtDM(b.doneAt)} · +${b.xp}</span>` : `<span>${b.due ? '◆ ' + fmtDM(b.due) : dues[0] ? 'próx. ' + fmtDM(dues[0]) : 'sem prazo'}</span><span class="acc">${fmtN(xpLeft)} XP</span>`}</div>
         ${segBar(counted.length ? done.length / counted.length : 0, 'good sm')}</div>
-      <div class="bbtns">${b.st !== 'done' && S.quests.tasks.some((t) => t.block === b.id && R.isOpen(t)) ? `<button class="icon-btn done-all" data-act="done-all" data-id="${b.id}" title="Concluir todas as tarefas deste bloco" aria-label="Concluir tudo">✓</button>` : ''}<span class="handle" data-handle="block" data-id="${b.id}" title="Segure e arraste">⠿</span><button class="icon-btn" data-act="sort" data-block="${b.id}" title="Organizar por data">⇅</button><button class="icon-btn ${opts.pinned ? 'on' : ''}" data-act="pin-block" data-id="${b.id}" title="${opts.pinned ? 'Tirar do painel da direita' : 'Fixar no painel da direita (fica sempre à mão)'}" aria-label="Fixar bloco">📌</button><button class="icon-btn" data-act="collapse" data-k="b:${b.id}" aria-label="Recolher bloco"><span class="chev">${isCollapsed('b:' + b.id) ? '▸' : '▾'}</span></button></div>
+      <div class="bbtns">${b.st !== 'done' && S.quests.tasks.some((t) => t.block === b.id && R.isOpen(t)) ? `<button class="icon-btn done-all" data-act="done-all" data-id="${b.id}" title="Concluir todas as tarefas deste bloco" aria-label="Concluir tudo">✓</button>` : ''}<span class="handle" data-handle="block" data-id="${b.id}" title="Segure e arraste">⠿</span><button class="icon-btn" data-act="sort" data-block="${b.id}" title="Organizar por data">⇅</button><button class="icon-btn ${pinned.includes(b.id) ? 'on' : ''}" data-act="pin-block" data-id="${b.id}" title="${pinned.includes(b.id) ? 'Tirar do painel da direita' : 'Fixar no painel da direita (fica sempre à mão)'}" aria-label="Fixar bloco">📌</button><button class="icon-btn" data-act="collapse" data-k="b:${b.id}" aria-label="Recolher bloco"><span class="chev">${isCollapsed('b:' + b.id) ? '▸' : '▾'}</span></button></div>
     </div>
     <div class="bbody"><ul class="tasks">${show.map((t) => taskRow(t, { showPin: true })).join('') || '<div class="empty">sem itens.</div>'}</ul>
       ${!ui.showDone && b.st !== 'done' && items.length > shown.length ? `<button class="more" data-act="toggle-done">✓ ${items.length - shown.length} feitas · mostrar</button>` : ''}
@@ -167,14 +167,16 @@ function goldCard(td) {
 
 // ───── bloco fixado no painel da direita (preferência deste aparelho) ─────
 const PIN_KEY = 'gamify-ui:pinblock';
-let pinnedId = (() => { try { return localStorage.getItem(PIN_KEY); } catch { return null; } })();
-/** fixa o bloco no painel (ou tira, se já estava); devolve true se ficou fixado */
+// v7.5: VÁRIOS post-its (até PIN_MAX blocos fixados). Antes era um id só; o formato antigo (texto) vira lista sozinho.
+const PIN_MAX = 4;
+let pinned = (() => { try { const v = localStorage.getItem(PIN_KEY); if (!v) return []; return v.startsWith('[') ? JSON.parse(v) : [v]; } catch { return []; } })();
 export function togglePin(id) {
-  pinnedId = pinnedId === id ? null : id;
-  try { if (pinnedId) localStorage.setItem(PIN_KEY, pinnedId); else localStorage.removeItem(PIN_KEY); } catch { /* */ }
-  return !!pinnedId;
+  pinned = pinned.includes(id) ? pinned.filter((x) => x !== id) : [...pinned, id].slice(-PIN_MAX);
+  try { if (pinned.length) localStorage.setItem(PIN_KEY, JSON.stringify(pinned)); else localStorage.removeItem(PIN_KEY); } catch { /* */ }
+  return pinned.includes(id);
 }
-export const pinnedBlockId = () => pinnedId;
+export const pinnedBlockIds = () => pinned;
+export const pinnedBlockId = () => pinned[0] || null;
 export function sidePanel(ui) {
   const td = today(), tot = R.totals(S), st = R.dayStatus(S, td), al = R.alerts(S, td), ch = S.core.chapter || {};
   const open = R.openTasks(S), over = open.filter((t) => t.due && t.due < td).length, hoje = open.filter((t) => t.due === td).length;
@@ -182,8 +184,7 @@ export function sidePanel(ui) {
   const left = ch.until ? diffDays(td, ch.until) : null;
   // v3.5: cada cartão do painel pode ser recolhido (toque no título), arrastado (alça ⠿) e escondido (⚙ PERSONALIZAR)
   // um bloco fixado (📌) fica sempre no topo do painel, à mão enquanto você mexe no resto
-  const pinB = pinnedId && S.quests.blocks.find((x) => x.id === pinnedId && x.st !== 'done');
-  void pinB; // v6: o bloco fixado virou um post-it flutuante (postit.js), visível em todas as abas
+  // v6: o bloco fixado virou um post-it flutuante (postit.js), visível em todas as abas (v7.5: vários)
   return `<aside class="side">${arrange('side', [
     ['relogio', '🕰 Relógio do corpo', clockCard()],
     // v7.2: STATUS DO DIA (em ícones) e COMANDOS moram dentro do cartão do PRIMO

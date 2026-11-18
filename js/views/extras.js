@@ -181,6 +181,7 @@ export function viewRegras() {
   ]);
   return `<div class="page-title"><div><h1><em>perks and rules</em>.</h1></div></div>
     ${strip}<div class="grid">
+      ${presetsCard()}
       ${settingsV35()}
       ${neuroCard()}
       <div class="card c12" data-gk="nomes"><header><h2>✏ Nomes das listas e janelas</h2><span class="meta">só o texto muda; as regras continuam as mesmas</span></header>
@@ -218,6 +219,13 @@ export function viewRegras() {
 // ───────────── ARQUIVO ─────────────
 
 /** v5.14: neurociência — o que o app faz por você (cada item liga/desliga) e os seus horários */
+/** v7.5: salvar o jeito atual com um nome ("SEMANA PESADA", "FÉRIAS"…), trocar com 1 toque e VOLTAR AO PADRÃO */
+function presetsCard() {
+  const list = S.core.presets || [];
+  return `<div class="card c12" data-gk="presets"><header><h2>🎛 Presets e padrão</h2><span class="meta">guarda todos os ajustes de PERKS (regras, castigo, 🧠, Praga); seus horários não mudam</span></header>
+    <form class="row" data-form="preset-save" autocomplete="off" style="gap:8px;flex-wrap:wrap"><input class="inp grow" name="name" maxlength="24" placeholder="nome do jeito atual (ex.: SEMANA PESADA, FÉRIAS)" aria-label="Nome do preset"><button class="btn pri">💾 SALVAR O JEITO ATUAL</button><button type="button" class="btn danger" data-act="settings-reset" title="Volta todos os ajustes ao padrão do app (os seus horários de acordar, dormir e comer ficam)">↺ VOLTAR AO PADRÃO</button></form>
+    ${list.length ? `<div class="list" style="margin-top:10px">${list.map((p) => `<div class="li"><div class="lt"><b>${esc(p.name)}</b><small>guardado em ${fmtDM(p.at)}</small></div><span class="row" style="gap:4px"><button class="btn sm pri" data-act="preset-apply" data-n="${esc(p.name)}">USAR</button><button class="icon-btn" data-act="preset-del" data-n="${esc(p.name)}" aria-label="Apagar preset" title="Apagar">✕</button></span></div>`).join('')}</div>` : '<p class="meta" style="margin:8px 0 0">Nenhum preset ainda. Ajuste o PERKS do jeito de uma fase (férias, semana de entrega…) e salve com um nome.</p>'}</div>`;
+}
 function neuroCard() {
   const n = R.neuro(S), c = R.bodyClock(S), ck = (k, t, d) => `<label class="nchk"><input type="checkbox" data-change="neuro" data-k="${k}" ${n[k] !== false ? 'checked' : ''}> <b>${t}</b><span class="meta">${d}</span></label>`;
   const ladder = R.ladderSteps(S);

@@ -1095,6 +1095,29 @@ export function updateMilestones(list) {
 export function setNeuro(k, v) {
   commit(['core'], () => { S.core.settings ||= {}; S.core.settings.neuro = { ...(S.core.settings.neuro || {}), [k]: v }; }, { noUndo: true });
 }
+// ───── v7.5: PRESETS de ajustes (salvar o jeito atual com um nome) e VOLTAR AO PADRÃO ─────
+// Os horários do corpo (acordar, dormir, refeições) são seus: nunca mudam com preset nem com o padrão.
+const PERSONAL = ['wake', 'bed', 'meals'];
+const personal = () => Object.fromEntries(PERSONAL.filter((k) => S.core.settings?.neuro?.[k] != null).map((k) => [k, S.core.settings.neuro[k]]));
+export function savePreset(name) {
+  const n = String(name || '').trim().toUpperCase().slice(0, 24);
+  if (!n) return { error: 'Dê um nome ao preset (ex.: SEMANA PESADA).' };
+  return commit(['core'], () => {
+    const set = JSON.parse(JSON.stringify(S.core.settings || {}));
+    if (set.neuro) for (const k of PERSONAL) delete set.neuro[k];
+    S.core.presets = [...(S.core.presets || []).filter((p) => p.name !== n), { name: n, at: today(), settings: set }].slice(-8);
+    return { msg: `💾 Preset ${n} guardado.` };
+  });
+}
+export function applyPreset(name) {
+  const p = (S.core.presets || []).find((x) => x.name === name);
+  if (!p) return { error: 'Preset não encontrado.' };
+  return commit(['core'], () => { const mine = personal(), set = JSON.parse(JSON.stringify(p.settings || {})); set.neuro = { ...(set.neuro || {}), ...mine }; S.core.settings = set; return { msg: `🎛 Agora vale o preset ${name}. O ↩ desfaz.` }; });
+}
+export function deletePreset(name) { return commit(['core'], () => { S.core.presets = (S.core.presets || []).filter((x) => x.name !== name); }); }
+export function resetSettings() {
+  return commit(['core'], () => { const mine = personal(); S.core.settings = Object.keys(mine).length ? { neuro: mine } : {}; return { msg: '↺ Ajustes de volta ao padrão (seus horários ficaram). O ↩ desfaz.' }; });
+}
 export function setSetting(k, v) {
   commit(['core'], () => { S.core.settings ||= {}; S.core.settings[k] = v; });
 }
