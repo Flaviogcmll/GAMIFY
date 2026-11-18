@@ -1409,3 +1409,51 @@ body { background-color: var(--bg); color: var(--ink); }
   .tiles:has(> .stat:nth-child(3):last-child) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .tiles > .stat:last-child:nth-child(odd):not(:nth-child(3)) { grid-column: 1 / -1; }
 }
+
+/* ═════════════ v6.2 — PALETA DO DONO (cores exatas da imagem que ele escolheu; 11 colunas: escuro / meio / claro) ═════════════
+   verde-oliva  #3d3d3b #3d654b #889454 · vinho  #3d3d3d #653b51 #a9544d · roxo    #603850 #734c81 #c95d74
+   carmim       #7f3d41 #b73456 #df624c · tijolo #84434b #b84030 #e0783b · laranja #8e414b #c8563e #e3763b
+   amarelo      #c75c48 #e59c36 #f5cd49 · verde  #59686d #5aa062 #c3c772 · água    #6e6e8a #50a69d #9fce7e
+   azul         #59496e #477bab #72b6a7 · creme  #d5ae87 #f0dcb9 #fff4ce · fundo #f0dbbc · contorno #3d3c41
+   O significado de cada cor continua o mesmo (COLOR_MEANING): só o tom mudou. Os "-soft" são essas cores misturadas com o papel. */
+:root, :root[data-theme] {
+  --bg: #f0dbbc; --panel: #fff4ce; --panel-2: #f0dcb9; --line: #d5ae87; --edge: #3d3c41; --ink: #3d3c41; --muted: #653b51; --dim: #a9544d;
+  --shadow: rgba(61, 60, 65, .28); --sky-a: #72b6a7; --sky-b: #f5cd49; --sky-m: #9fce7e;
+  --c-urg: #b84030; --c-quase: #c8563e; --c-atencao: #e59c36; --c-ok: #5aa062; --c-calma: #477bab; --c-espera: #734c81; --c-neutro: #59686d; --c-premio: #e59c36; --c-acao: #a9544d;
+  --accent: var(--c-acao); --accent-2: #c75c48;
+  --accent-soft: color-mix(in srgb, #a9544d 16%, #fff4ce); --good-soft: color-mix(in srgb, #5aa062 18%, #fff4ce); --bad-soft: color-mix(in srgb, #b84030 16%, #fff4ce);
+  --warn-soft: color-mix(in srgb, #734c81 16%, #fff4ce); --info-soft: color-mix(in srgb, #477bab 16%, #fff4ce);
+  --cat-bd: #50a69d; --cat-tr: #e0783b; --cat-cap: #c95d74; --cat-gs: #889454; --cat-bs: #b73456; --cat-win: #734c81; }
+:root[data-mode="night"], :root[data-theme][data-mode="night"] {
+  --bg: #3d3d3b; --panel: #493f3e; --panel-2: #653b51; --line: #59686d; --edge: #84434b; --ink: #fff4ce; --muted: #d5ae87; --dim: #c75c48;
+  --shadow: rgba(30, 28, 30, .5);
+  --c-urg: #df624c; --c-quase: #e3763b; --c-atencao: #f5cd49; --c-ok: #9fce7e; --c-calma: #72b6a7; --c-espera: #c95d74; --c-neutro: #d5ae87; --c-premio: #f5cd49; --c-acao: #e0783b;
+  --accent: var(--c-acao); --accent-2: #e59c36;
+  --accent-soft: color-mix(in srgb, #e0783b 20%, #493f3e); --good-soft: color-mix(in srgb, #5aa062 26%, #493f3e); --bad-soft: color-mix(in srgb, #b84030 30%, #493f3e);
+  --warn-soft: color-mix(in srgb, #734c81 34%, #493f3e); --info-soft: color-mix(in srgb, #477bab 30%, #493f3e);
+  --cat-bd: #50a69d; --cat-tr: #e3763b; --cat-cap: #c95d74; --cat-gs: #c3c772; --cat-bs: #df624c; --cat-win: #c95d74; }
+:root[data-mode="night"] body { background: radial-gradient(110% 70% at 50% 115%, rgba(224, 120, 59, .18), transparent 62%), var(--bg); }
+:root[data-mode="night"] .card, :root[data-mode="night"] .list-card, :root[data-mode="night"] .block, :root[data-mode="night"] .item, :root[data-mode="night"] .stat, :root[data-mode="night"] .modal {
+  background: linear-gradient(180deg, color-mix(in srgb, #653b51 45%, #493f3e) 0%, #493f3e 70%); border-color: var(--edge); }
+/* barra das janelas do QUESTS com as cores da paleta (contorno escuro, vinho do baú) */
+:root { --anth: #3d3c41; }
+:root[data-mode="night"] { --anth: #493f3e; }
+.qbar .seg button { color: #d5ae87; border-color: #59686d; }
+.qbar .seg button.on { background: #fff4ce; color: #3d3c41; border-color: #fff4ce; }
+.qbar .seg button[data-tab="boss"] { background: #7f3d41; color: #fff4ce; border-color: #b73456; }
+.qbar .seg button[data-tab="boss"].on { background: #b73456; color: #fff4ce; }
+.qbar .seg button.mae { background: #c8563e; color: #fff4ce; border-color: #e3763b; }
+.qbar .seg button.mae.on { background: #fff4ce; color: #653b51; border-color: #fff4ce; box-shadow: 0 0 0 2px #e3763b; }
+.qbar .btn { background: #653b51; color: #fff4ce; border-color: #84434b; box-shadow: 2px 2px 0 #3d3d3b; }
+.qbar .btn.ghost { background: transparent; color: #fff4ce; border-color: #59686d; }
+.qbar .btn:hover { background: #734c81; }
+/* noite: o dono preferiu o fundo antigo (mais contraste). As cores de destaque continuam as da paleta dele. */
+:root[data-mode="night"], :root[data-theme][data-mode="night"] {
+  --bg: #1c1612; --panel: #271e18; --panel-2: #30251d; --line: #4a3a2e; --edge: #6a4f3c; --ink: #f0e4d3; --muted: #c4b19c; --dim: #8e7b69; --anth: #241b16;
+  --accent-soft: color-mix(in srgb, #e0783b 20%, #271e18); --good-soft: color-mix(in srgb, #5aa062 26%, #271e18); --bad-soft: color-mix(in srgb, #b84030 30%, #271e18);
+  --warn-soft: color-mix(in srgb, #734c81 34%, #271e18); --info-soft: color-mix(in srgb, #477bab 30%, #271e18); }
+:root[data-mode="night"] body { background: radial-gradient(110% 70% at 50% 115%, rgba(236, 160, 100, .16), transparent 62%), var(--bg); }
+:root[data-mode="night"] .card, :root[data-mode="night"] .list-card, :root[data-mode="night"] .block, :root[data-mode="night"] .item, :root[data-mode="night"] .stat, :root[data-mode="night"] .modal {
+  background: linear-gradient(180deg, var(--panel-2) 0%, var(--panel) 70%); border-color: var(--edge); }
+/* ajuste de harmonia (permitido pelo dono): "quase" ficava colado no "urgente"; vai pro meio dos dois laranjas da paleta (#c8563e e #e0783b) */
+:root { --c-quase: #d4683a; }
