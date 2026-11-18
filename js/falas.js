@@ -173,8 +173,8 @@ export const BANK = {
     ['orgulhoso', 'Olha esse caimento! Alfaiataria de primeira.'], ['surpreso', 'Eita! Quem é esse bonitão no espelho?'],
   ],
   mascote: [
-    ['surpreso', 'O ovo mexeu! Tá nascendo alguma coisa!'], ['festa', 'A FAÍSCA evoluiu! Olha só como ela cresceu!'], ['apaixonado', 'Cuida dela com sequência e ela cuida da gente.'],
-    ['feliz', 'A FAÍSCA tá feliz porque a meta foi batida.'], ['animado', 'Mais uns dias de sequência e ela evolui de novo!'],
+    ['surpreso', 'O ovo mexeu! Tá nascendo alguma coisa!'], ['festa', 'A BRASINHA cresceu! Olha só a crista dela!'], ['apaixonado', 'Cuida dela com sequência e ela cuida da gente.'],
+    ['feliz', 'A BRASINHA tá quentinha porque a meta foi batida.'], ['animado', 'Mais uns dias de sequência e ela cresce de novo, sô!'],
   ],
   levelup: [
     ['festa', 'SUBIU DE NÍVEL! Eu vi o brilho daqui.'], ['orgulhoso', 'Nível novo, primo. Você tá virando outra pessoa.'], ['animado', 'Isso! Mais um andar e a vista melhora.'], ['apaixonado', 'Cada nível é uma versão sua que eu conheço.'],

@@ -48,6 +48,7 @@ O backup do dono NUNCA entra no repositório.
 - `imgs.js` — imagens e prints nas tarefas: guardadas no aparelho (IndexedDB) e na pasta escondida do app no Drive; na tarefa fica só `t.imgs = [{ k, g }]`.
 - `drive.js` — sincronização com Google Drive. O dono usa no dia a dia (celular e PC); o Claude não consegue testar o login real, só com um Google simulado (rotas do Playwright).
 - `primo.js` (telas e animação), `pnew.js` (desenho novo, com as artes de `assets/primo/`), `pdraw.js` + `pacc.js` (porquinho clássico em pixel, reserva; `pacc.js` só desenha o chapéu de palha), `pstate.js`, `falas.js`, `saber.js`, `claude.js` — o mascote PRIMO.
+- v7.2: o cartão do PRIMO junta humor (`primoMood()`/`MOODS`: satisfeito, orgulhoso, focado, cansado, paranoico → rosto, cor `data-mood` e frase), STATUS DO DIA em ícones (`statusIcons`) e os COMANDOS (`data-act="pcmd" data-k="<ação>"`: roda a ação e o PRIMO fala `CMD_LINES`). EXPEDIÇÃO e o botão CHAPÉU saíram (migração `v7-primo` limpa `core.primo.exp`/`wear`); o chapéu é sempre desenhado (`wearing()`). FAÍSCA virou BRASINHA nos textos (chaves internas iguais: `petState`, `petMax`, `data-mascot`).
 - `tools/topo_artes.py` — não é do app: prepara as imagens do topo das abas e as poses do PRIMO.
 - `tools/primo_artes.py` — não é do app: prepara as artes do PRIMO (recorta fundo, corta quadros dos vídeos, reduz) quando o dono gera imagens novas.
 - `v3.js`, `v35.js`, `v4.js` — recursos adicionados por versão (legado; têm imports circulares, cuidado).

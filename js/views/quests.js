@@ -186,18 +186,10 @@ export function sidePanel(ui) {
   void pinB; // v6: o bloco fixado virou um post-it flutuante (postit.js), visível em todas as abas
   return `<aside class="side">${arrange('side', [
     ['relogio', '🕰 Relógio do corpo', clockCard()],
-    ['status', '🎭 Status do dia', `<div class="card"><header><h2 title="toque num status pra ver o que é">🎭 Status do dia</h2></header><div class="status-line">${statusChips(st, al) || '<span class="meta">nenhum buff nem debuff hoje.</span>'}</div></div>`],
+    // v7.2: STATUS DO DIA (em ícones) e COMANDOS moram dentro do cartão do PRIMO
     ['primo', '🔥 PRIMO', companionCard()],
     ['ouro', '💰 Baú de ouro (quando tem)', goldCard(td)],
     ['habitos', '✓ Hábitos de hoje', habitsCard(td)],
-    ['comandos', '🎮 Comandos', `<div class="card"><header><h2>🎮 Comandos</h2></header><div class="cmds">
-      <button class="btn" data-act="archive-now" title="Arquiva o que já foi feito e recalcula tudo">🔄<span>ATUALIZAR</span></button>
-      <button class="btn ${R.tripNow(S) ? 'pri' : ''}" data-act="trip" title="Viagem ou visitas: congela o jogo enquanto você está fora">✈<span>${R.tripNow(S) ? 'VOLTEI' : 'VIAGEM'}</span></button>
-      <button class="btn" data-act="rest-day" title="Doença ou dia puxado: os hábitos de hoje viram folga">🏕<span>DESCANSO</span></button>
-      <button class="btn" data-act="sos">${px('sos', 14)}<span>SOS TRAVEI</span></button>
-      <button class="btn" data-act="distribute" title="Dá dias novos às atrasadas e às tarefas sem prazo, pelo seu ritmo">📅<span>DISTRIBUIR</span></button>
-      <button class="btn" data-act="backup-download" title="Baixa um arquivo com todos os seus dados">⬇<span>BACKUP</span></button>
-      <button class="btn" data-act="review" title="O PRIMO revisa o dia com você: hábitos de ontem, atrasadas e a primeira de hoje" style="grid-column:1 / -1">☀<span>REVISAR O DIA COM O PRIMO</span></button></div></div>`],
     ['fila', '⏰ Fila de prazos', filaCard(td)],
   ])}
     <p class="meta" style="text-align:center">${weekday(td) === 5 ? '⚠ sexta-feira: o dia em que mais se quebra sequência. marque os hábitos!' : ''}</p>

@@ -362,7 +362,6 @@ export const STATUS_INFO = {
   descansado: { icon: '🏕', name: 'DESCANSADO', kind: 'buff', desc: 'Ontem foi dia de descanso: hábitos +20% hoje.' },
   // v4: o jogo reage ao seu momento (vila, foco, dinheiro, diário)
   poupador: { icon: '🏦', name: 'POUPADOR', kind: 'buff', desc: 'Você guardou dinheiro (💰 GUARDEI) nos últimos 7 dias: taverna -10%.' },
-  explorador: { icon: '🎒', name: 'EXPLORADOR', kind: 'buff', desc: 'O PRIMO voltou de uma expedição nos últimos 3 dias: hábitos +10%.' },
   focado: { icon: '🎯', name: 'FOCADO', kind: 'buff', desc: '3+ fogueiras de foco na semana: tarefas +10% XP.' },
   cronista: { icon: '📔', name: 'CRONISTA', kind: 'buff', desc: 'Diário respondido 3 dias seguidos: tarefas +5% XP.' },
   emchama: { icon: '🔥', name: 'EM CHAMA', kind: 'buff', desc: '3+ dias seguidos batendo a meta diária: tarefas +10% XP.' },
@@ -420,7 +419,7 @@ export function dayStatus(s, d) {
   const week = range(addDays(d, -6), 7), dayMs = (x) => new Date(x + 'T00:00:00').getTime();
   if ((s.core?.savings || []).some((g) => g.amount > 0 && week.includes(g.date))) add('poupador', { shop: 0.9 }); // só guardar conta; retirada não dá o bônus
   if ((s.core?.focus || []).filter((f) => f.ok && week.includes(f.date)).length >= 3) add('focado', { task: 10 });
-  if ((s.core?.bonus || []).some((b) => b.kind === 'expedicao' && b.date >= addDays(d, -2) && b.date <= d)) add('explorador', { habit: 10 });
+  // v7.2: o buff EXPLORADOR saiu junto com a EXPEDIÇÃO
   if ([y1, y2, y3].every((x) => s.core?.journal?.[x])) add('cronista', { task: 5 });
   if (dailyGoal(s, d).streak >= 3) add('emchama', { task: 10 });
   if (openTasks(s).filter((t) => t.st === 'doing').length >= 4) add('disperso', { task: -10 });
@@ -645,7 +644,7 @@ export const ACHIEVEMENTS = [
   // v3
   ['level5', 'ARQUITETO DE VERDADE', 'Chegue ao nível 5', 'level', 5, 100], ['level10', 'VETERANO DE GUERRA', 'Chegue ao nível 10', 'level', 10, 300], ['level20', 'LENDA VIVA', 'Chegue ao nível 20', 'level', 20, 1000],
   ['focus1', 'PRIMEIRA CHAMA', 'Complete 1 fogueira de foco', 'focus', 1, 20], ['focus25', 'GUARDIÃO DO FOGO', '25 fogueiras de foco', 'focus', 25, 200], ['focus100', 'MONGE DA FOGUEIRA', '100 fogueiras de foco', 'focus', 100, 500],
-  ['exp1', 'PÉ NA ESTRADA', 'Mande o companheiro em 1 expedição', 'expeditions', 1, 20], ['exp20', 'CARTÓGRAFO', '20 expedições', 'expeditions', 20, 200],
+  // v7.2: PÉ NA ESTRADA e CARTÓGRAFO (expedições) saíram; quem já tinha continua com o XP (fica em core.achievements)
   ['flame7', 'CHAMA ACESA', '7 dias seguidos batendo a meta diária de XP', 'flame', 7, 100], ['flame30', 'CHAMA ETERNA', '30 dias seguidos na meta diária', 'flame', 30, 400],
   ['attr5', 'ESPECIALISTA', 'Leve um atributo ao nível 5', 'maxAttr', 5, 100], ['attr10', 'MESTRE DE OFÍCIO', 'Leve um atributo ao nível 10', 'maxAttr', 10, 300], ['allattr3', 'EQUILIBRADO', 'Todos os atributos no nível 3', 'minAttr', 3, 150],
   ['approved1', 'DESPACHADO', 'Aprove 1 tarefa 🔁 vai e volta', 'approved', 1, 50], ['approved10', 'CARIMBO DE OURO', '10 aprovações de vai e volta', 'approved', 10, 200],
@@ -660,7 +659,7 @@ export const ACHIEVEMENTS = [
   
   ['week700', 'SEMANA DE OURO', 'Faça 700 XP numa única semana', 'bestWeekXp', 700, 150], ['missions4', 'TRÊS PEDRAS', '4 semanas com as 3 missões da semana feitas', 'missionWeeks', 4, 200],
   
-  ['pet3', 'CRIADOR DE FAÍSCA', 'Faça a FAÍSCA evoluir 3 vezes', 'petStage', 3, 200],
+  ['pet3', 'CUIDADOR DA BRASINHA', 'Faça a BRASINHA crescer 3 vezes', 'petStage', 3, 200],
   // v5.13: com as mecânicas novas (bosses, castigo, revisado, viagem, janelas)
   ['mini1', 'PRIMEIRO GOLPE', 'Derrote 1 mini-boss ⚔', 'miniDone', 1, 30], ['mini10', 'ESPADACHIM', 'Derrote 10 mini-bosses ⚔', 'miniDone', 10, 150], ['mini30', 'LÂMINA LENDÁRIA', 'Derrote 30 mini-bosses ⚔', 'miniDone', 30, 400],
   ['steps50', 'PASSO A PASSO', 'Conclua 50 passos ↳', 'stepsDone', 50, 120], ['bosshalf', 'SANGRANDO', 'Tire metade da vida de um BOSS', 'bossHalf', 1, 80],

@@ -252,6 +252,11 @@ export function startup() {
     (S.core.primo ||= {}).wear = { hat: 'palha' };
     S.core.migrations.push('chapeu5'); changedCore = true;
   }
+  if (!S.core.migrations.includes('v7-primo')) { // v7.2: EXPEDIÇÃO e o tira/põe do chapéu saíram (o chapéu é parte do desenho). Limpa os restos; o XP que eles deram continua.
+    const p = S.core.primo || {};
+    delete p.exp; delete p.expN; delete p.wear;
+    S.core.migrations.push('v7-primo'); changedCore = true;
+  }
   if (!S.core.migrations.includes('cores5')) { // v5.9: cores dos blocos = URGENTE, FAZENDO, ESTÁVEL, PARADO (o laranja saiu)
     for (const b of S.quests.blocks) if (b.color === 'orange') { b.color = 'green'; changedQ = true; }
     S.core.migrations.push('cores5'); changedCore = true;
@@ -504,7 +509,7 @@ export function doneMany(ids) {
   S._closedBlock = null; S._bossDown = null;
   return commit(['quests'], () => {
     const d = today(); let n = 0;
-    for (const t of list) if (R.isOpen(t)) { expBoost(R.C.X_TASK); completeTask(t, d); n++; }
+    for (const t of list) if (R.isOpen(t)) { completeTask(t, d); n++; }
     return { msg: `✓ ${n} tarefa(s) concluída(s) de uma vez. ↩ desfaz.`, feedback: { closedBlock: S._closedBlock, boss: S._bossDown || undefined } };
   }, { label: 'concluir várias' });
 }
@@ -518,7 +523,6 @@ export function toggleDone(id, at) {
   return commit(['quests'], () => {
     if (t.st === 'done' || t.st === 'sent') { uncompleteTask(t); return { msg: null }; }
     const d = today();
-    expBoost(R.C.X_TASK);
     const auto = completeTask(t, d);
     const loot = addLoot(t, d);
     const b = S._closedBlock;
@@ -1333,7 +1337,6 @@ export function focusDone(min, ok, taskId) {
     S.core.focus.push({ date: td, min, ok, taskId: taskId || null });
     if (S.core.focus.length > 400) S.core.focus = S.core.focus.slice(-400);
     if (!ok) return { msg: '🪵 A fogueira apagou: você saiu do app. Sem XP desta vez.' };
-    expBoost(Math.round((min / 25) * R.C.X_FOCUS));
     const today = (S.core.bonus || []).filter((b) => b.kind === 'foco' && b.date === td).reduce((a, b) => a + b.xp, 0);
     const xp = Math.min(Math.round((min / 25) * R.C.FOCUS_XP), Math.max(0, 60 - today));
     S.core.bonus ||= [];
@@ -1445,14 +1448,6 @@ function dropVillage() {
   S._lojaChanged = true;
   return true;
 }
-/** tarefa concluída e foco encurtam a expedição do PRIMO (a regra de quanto está em rules.js: X_TASK, X_FOCUS) */
-function expBoost(mins) {
-  const e = S.core.primo?.exp;
-  if (!e || e.claimed || !(mins > 0)) return;
-  e.end = Math.max(Date.now(), e.end - mins * 60000);
-  touch('core');
-}
-
 // ───────────────────────── PESO (REFLEXÃO) ─────────────────────────
 export function saveWeight(date, kg) {
   const v = Math.round(+String(kg).replace(',', '.') * 10) / 10;

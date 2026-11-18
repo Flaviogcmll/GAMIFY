@@ -454,7 +454,7 @@ function tour(step = 0) {
   const steps = [
     ['bem-vindo ao gamify v2.', 'Igual à planilha, com as mesmas abas: QUESTS é a casa e o painel. De dia ele é papel; à noite vira acampamento com fogueira. O ♪ liga o lo-fi.'],
     ['quests.', 'Listas e BOSS em cima; BREAKDOWN, TRABALHO e CAPTAÇÕES embaixo. Toque no quadradinho pra concluir, no texto pra editar (prazo, cor, ! prioridade, 🔁 vai e volta). No PC dá pra arrastar tarefas.'],
-    ['o primo.', 'O PRIMO é o centro do jogo: ele reage ao que você faz, pede uma missão por dia, sai em expedição e tem um mascote que cresce. Toque no botão PRIMO pra falar com ele.'],
+    ['o primo.', 'O PRIMO é o centro do jogo: porco arquiteto, de chapéu de palha, que protege a BRASINHA (filhote de fênix) dos TRENS, os inimigos que nascem de cada tarefa. Ele reage ao que você faz, pede uma missão por dia e guarda os comandos no cartão dele.'],
     ['shop.', 'Compre ANTES de aproveitar: vai pra MOCHILA; na hora, USAR liga o cronômetro. Fez sem comprar? Paga 50% a mais. Gold é a sua metade: o app pergunta quando entra.'],
     ['travou?', 'O botão SOS guia uma respiração de 1 minuto, escolhe o menor passo e acende 10 minutos de fogueira. Vale +5 XP de coragem.'],
   ];
@@ -695,7 +695,7 @@ const ACTIONS = {
   'focus-skip': (d) => { (ui.focusSkip ||= []).push(d.id); sfx('tab'); render(); },
   'focus-reset': () => { ui.focusSkip = []; sfx('tab'); render(); },
   'rot-chip-del': (d) => { const l = [...(S.core.routine?.[d.k] || [])]; l.splice(+d.i, 1); A.setRoutineList(d.k, l); sfx('tab'); },
-  credits: () => openModal(`<h2>ⓘ créditos</h2><p class="muted">PRIMO, rostos, acessórios, FAÍSCA, cenários e ícone: arte gerada por IA com direção do autor do app.</p>
+  credits: () => openModal(`<h2>ⓘ créditos</h2><p class="muted">PRIMO, rostos, BRASINHA, cenários e ícone: arte gerada por IA com direção do autor do app.</p>
     <p class="muted">Porquinho clássico em pixel: "Free Pets Pack" por <a href="https://frakassets.itch.io/free-pets-pack" target="_blank" rel="noopener">Frakassets</a> (CC BY 4.0). Ícones da loja: Kenney (CC0). Fogueira: "Fireplace sound loop" (CC0). Lo-fi: gerado no aparelho. Fontes: Press Start 2P e Roboto Mono (licença aberta).</p>
     <div class="actions"><button class="btn" data-close>FECHAR</button></div>`),
   'toggle-done': () => { ui.showDone = !ui.showDone; render(); },

@@ -1716,3 +1716,24 @@ li.task[data-guia] { outline: 2px solid color-mix(in srgb, #c0392b 70%, transpar
 .tab-tools { display: flex; justify-content: flex-end; margin: 0 0 6px; }
 .tab-tools .btn { opacity: .75; font-size: 9px; padding: 4px 10px; }
 .tab-tools .btn:hover { opacity: 1; }
+
+/* v7.2: cartão do PRIMO = humor (cor), status em ícones e os comandos */
+.pcard[data-mood="satisfeito"] { --mood: var(--c-ok); } .pcard[data-mood="orgulhoso"] { --mood: var(--c-premio); } .pcard[data-mood="focado"] { --mood: var(--c-acao); }
+.pcard[data-mood="cansado"] { --mood: var(--c-calma); } .pcard[data-mood="paranoico"] { --mood: var(--c-urg); }
+.comp-card:has(.pcard[data-mood]) { border-top: 4px solid var(--mood, var(--edge)); }
+.comp-card:has(.pcard[data-mood="satisfeito"]) { --mood: var(--c-ok); } .comp-card:has(.pcard[data-mood="orgulhoso"]) { --mood: var(--c-premio); } .comp-card:has(.pcard[data-mood="focado"]) { --mood: var(--c-acao); }
+.comp-card:has(.pcard[data-mood="cansado"]) { --mood: var(--c-calma); } .comp-card:has(.pcard[data-mood="paranoico"]) { --mood: var(--c-urg); }
+.pcard[data-mood] .pstat b { color: var(--mood); }
+.pcard[data-mood] .pstage { box-shadow: inset 0 -4px 0 color-mix(in srgb, var(--mood) 70%, transparent); }
+.pstatus { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+.pstatus .sico { width: 30px; height: 30px; display: grid; place-items: center; font-size: 15px; line-height: 1; padding: 0; border-radius: 10px; border: 2px solid var(--line); background: var(--panel-2); cursor: help; }
+.pstatus .sico.buff { border-color: color-mix(in srgb, var(--c-ok) 70%, var(--line)); }
+.pstatus .sico.debuff { border-color: color-mix(in srgb, var(--c-urg) 70%, var(--line)); }
+.pstatus .sico.event { border-color: color-mix(in srgb, var(--c-premio) 70%, var(--line)); }
+.pstatus .sico.alert { border-color: color-mix(in srgb, var(--c-quase) 70%, var(--line)); }
+.pcmds { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; margin: 8px 0 6px; }
+.pcmds .btn { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 5px 1px; font-size: 6px; letter-spacing: 0; line-height: 1.2; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pcmds .btn span { font-size: 14px; line-height: 1; }
+/* v7.2: a BRASINHA anda ATRÁS do PRIMO, no chão (nunca em cima dele) */
+.pcard .pstage .pmascot, .pcard.big .pstage .pmascot { left: calc(50% - 128px); right: auto; bottom: 6px; }
+@media (max-width: 480px) { .pcard .pstage .pmascot { left: calc(50% - 116px); } }
