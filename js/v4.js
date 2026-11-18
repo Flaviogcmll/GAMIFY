@@ -113,7 +113,7 @@ const fld = (kind, it, f, { type = 'text', w = '', ph = '', val } = {}) => `<inp
 export function shopEditor() {
   const tav = [...S.loja.taverna].sort((a, b) => a.xp - b.xp);
   const fer = [...S.loja.ferreiro].sort((a, b) => (a.cat || '').localeCompare(b.cat || '') || a.nv - b.nv);
-  return `<div class="card c12" data-gk="loja-itens"><header><h2>🛒 Loja · itens e preços</h2><div class="row"><button class="btn sm" data-act="shop-add" data-kind="taverna">+ TAVERNA</button><button class="btn sm" data-act="shop-add" data-kind="ferreiro">+ FERREIRO</button></div></header>
+  return `<div class="card c12" data-gk="loja-itens"><header><h2>🛒 Loja · itens e preços</h2><div class="row"><button class="btn sm" data-act="shop-add" data-kind="taverna">+ BARZINHO</button><button class="btn sm" data-act="shop-add" data-kind="ferreiro">+ FERREIRO</button></div></header>
     <label class="lbl">Taverna · preço em XP · cronômetro (min) · 🎟 tickets (vazio = automático)</label>
     <div class="srows">${tav.map((it) => `<div class="srow">${fld('taverna', it, 'icon', { w: '54px' })}${fld('taverna', it, 'name')}${fld('taverna', it, 'xp', { type: 'number', w: '84px' })}${fld('taverna', it, 'min', { type: 'number', w: '72px', ph: 'min', val: it.min ?? '' })}${fld('taverna', it, 'tk', { type: 'number', w: '62px', ph: R.ticketCost(it) + '🎟', val: it.tk ?? '' })}<button class="icon-btn" data-act="shop-del" data-kind="taverna" data-id="${it.id}" aria-label="Apagar ${esc(it.name)}">🗑</button></div>`).join('')}</div>
     <label class="lbl" style="margin-top:14px">Ferreiro · categoria · nível (XP = nível × ${R.C.FERREIRO_XP}) · recorrente</label>

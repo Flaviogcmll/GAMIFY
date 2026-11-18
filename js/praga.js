@@ -9,7 +9,7 @@ import * as R from './rules.js';
 import * as A from './actions.js';
 import { esc, today, addDays } from './util.js';
 import { openModal, closeModal, toast, modalOpen } from './ui.js';
-import { sfx, playFile, pragaDrone, pragaWarp } from './audio.js';
+import { sfx, playFile, pragaDrone, pragaWarp, uivo } from './audio.js';
 import { mountPortraits } from './primo.js';
 
 // v7.3: o PRIMO é destemido. Com a Praga ele fica PARANOICO (desconfiado, olhando de lado). Medo de verdade só na LUA DE SANGUE.
@@ -57,7 +57,7 @@ export function pragaPaint() {
   // LAMBEHOMI: a tela treme ao trocar de aba
   if (pg.phase >= 4 && route !== lastRoute) { const m = document.getElementById('main'); m?.classList.remove('praga-shake'); void m?.offsetWidth; m?.classList.add('praga-shake'); playFile('praga-chiado', { vol: 0.35 }); }
   lastRoute = route;
-  if (pg.phase !== fxPhase) { fxPhase = pg.phase; fx(pg); }
+  if (pg.phase !== fxPhase) { if (pg.phase >= 4 && fxPhase < 4) setTimeout(() => uivo(), 1200); fxPhase = pg.phase; fx(pg); } // v7.7: o LAMBEHOMI chega uivando
   return pg;
 }
 /** faixa no topo de todas as abas a partir do ENCOSTO */
@@ -81,11 +81,12 @@ export function pragaLine() {
 let layer = null, bugs = [], loop = 0, glitchT = 0, crawlT = 0, ambT = 0;
 function fx(pg) {
   const ph = pg.phase;
-  pragaDrone(ph >= 4 ? 2 : ph >= 2 ? 1 : 0);
+  pragaDrone(ph >= 4 ? 2 : ph >= 1 ? 1 : 0); // v7.7: os sons começam no TREM RUIM (o problema eram os rituais pulando pro ENCOSTO)
   pragaWarp(ph >= 4 ? 0.06 : ph >= 3 ? 0.02 : 0);
   clearInterval(loop); clearInterval(glitchT); clearInterval(crawlT); clearInterval(ambT);
   layer?.remove(); layer = null; bugs = [];
-  if (ph >= 2) { ambT = setInterval(ambient, 38e3); scheduleGhost(); } else clearTimeout(ghostT);
+  // v7.7: sons desde o TREM RUIM, espaçados (o app é cozy). No LAMBEHOMI, uivos de vez em quando.
+  if (ph >= 1) { ambT = setInterval(ambient, ph >= 4 ? 45e3 : ph >= 3 ? 60e3 : 90e3); scheduleGhost(); } else clearTimeout(ghostT);
   if (ph < 3) return;
   layer = document.createElement('div'); layer.id = 'praga-fx'; layer.setAttribute('aria-hidden', 'true');
   document.body.appendChild(layer);
@@ -134,9 +135,10 @@ function crawlName() {
 function ambient() {
   if (document.hidden) return;
   const ph = R.praga(S).phase, r = Math.random();
-  if (ph >= 4 && r < 0.3) playFile('praga-canto', { vol: 0.55 });
+  if (ph >= 4 && r < 0.45) uivo();
+  else if (ph >= 4 && r < 0.6) playFile('praga-canto', { vol: 0.55 });
   else if (ph >= 3 && r < 0.6) playFile('praga-sino', { vol: 0.5 });
-  else if (ph >= 2) playFile('praga-corvo', { vol: 0.6 });
+  else if (ph >= 1) playFile('praga-corvo', { vol: 0.6 });
 }
 
 // ───── a janela que pula ("ERRO NA FITA") ─────

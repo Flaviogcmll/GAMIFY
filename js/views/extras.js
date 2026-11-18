@@ -98,15 +98,15 @@ export function viewDomingo() {
     { label: '🎁 Baús abertos', value: hist.length, sub: `${fmtN(hist.reduce((s, x) => s + (x.xp || 0), 0))} XP`, tone: 'premio' },
   ]);
   return `<div class="page-title"><div><h1><em>domingo</em>.</h1></div></div>
-    ${strip}<div class="grid">${scratchCard()}${form}${mapCard()}${pesoCard()}${resumoCard()}${table}</div>`;
+    ${strip}<div class="grid">${form}${pesoCard()}${resumoCard()}${table}</div>
+    ${(() => { const ck = 'c:domingo:caderno', shut = isCollapsed(ck); return `<section class="vitrine caderno-v ${shut ? 'shut' : ''}" data-v="caderno"><header class="vit-h" data-act="collapse" data-k="${ck}" title="Toque pra recolher ou abrir o CADERNO" style="--img:url('${new URL(`assets/topo/${CADERNO_ART ? 'caderno' : 'domingo'}-${lightNow() === 'noite' ? 'noite' : 'dia'}.webp`, document.baseURI).href}')"><div><h2><span class="chev">${shut ? '▸' : '▾'}</span> 📓 CADERNO</h2><p>Descarregar a cabeça e o mapa mental, guardados aqui no fim.</p></div></header>${shut ? '' : `<div class="vit-b"><div class="grid">${scratchCard()}${mapCard()}</div></div>`}</section>`; })()}`; // v7.7: o CADERNO fica no fim (pedido do dono)
 }
 
 // ───────────── CONQUISTAS ─────────────
 // v5.16: faixa de resumo, "quase lá" primeiro (a recompensa perto motiva mais: desconto temporal), filtro de 1 toque,
 // dourado = ganha (recompensa) · cinza com cadeado = falta.
-/** v7.4: CONQUISTAS por categoria (cada uma com banner; a arte B-17 entra em CONQ_ART quando existir assets/topo/conq-<categoria>-<dia|noite>.webp) */
+/** v7.4: CONQUISTAS por categoria (v7.7: em linhas simples, sem banner) */
 const CONQ_CATS = [['tarefas', '✅ TAREFAS E PRAZOS'], ['bosses', '👹 BOSSES E BLOCOS'], ['habitos', '💪 HÁBITOS E CORPO'], ['praga', '🐺 PRAGA E LAMBEHOMI'], ['feira', '🎪 FEIRA E OURO'], ['jornada', '🧭 JORNADA'], ['outras', '✨ OUTRAS']];
-const CONQ_ART = [];
 const CONQ_OF = {
   tarefas: ['done', 'onTime', 'withDue', 'maxDone', 'early', 'star', 'legendaryDay', 'approved', 'home', 'people'],
   bosses: ['bossDone', 'miniDone', 'stepsDone', 'blocksClosed', 'bdClosed', 'trClosed', 'capClosed', 'gsClosed', 'windows', 'reviewedNow'],
@@ -143,8 +143,8 @@ export function viewConquistas(ui) {
       // v7.4: uma seção (com banner) por categoria: as ganhas primeiro, depois as que faltam (as mais perto na frente)
       const items = [...got, ...left].filter((a) => conqCat(a) === k);
       if (!items.length) return '';
-      const ck = 'c:conquistas:cat-' + k, shut = isCollapsed(ck), n = items.filter((a) => a.unlocked).length;
-      return `<section class="vitrine conq-v ${shut ? 'shut' : ''}" data-v="conq-${k}"><header class="vit-h" data-act="collapse" data-k="${ck}" title="Toque pra recolher ou abrir" style="--img:url('${new URL(`assets/topo/${CONQ_ART.includes(k) ? 'conq-' + k : 'conquistas'}-${lightNow() === 'noite' ? 'noite' : 'dia'}.webp`, document.baseURI).href}')"><div><h2><span class="chev">${shut ? '▸' : '▾'}</span> ${t}</h2><p>${n}/${items.length} ganhas</p></div></header>${shut ? '' : `<div class="vit-b"><div class="medals">${items.map(medal).join('')}</div></div>`}</section>`;
+      const n = items.filter((a) => a.unlocked).length; // v7.7: linhas simples (sem banner), recolhem como os outros cartões
+      return `<div class="card conq-l"><header><h2>${t}</h2><span class="meta">${n}/${items.length} ganhas</span></header><div class="medals">${items.map(medal).join('')}</div></div>`;
     }).join('')}`;
   return `<div class="page-title"><div><h1><em>conquistas</em>.</h1><p>Toque num quadrinho pra filtrar.${f !== 'todas' ? ' <a href="#" data-act="cq" data-v="todas">ver todas</a>' : ''}${S.core.season?.from ? ` · <span title="As do capítulo anterior ficam guardadas">capítulo anterior: ${Object.keys(S.core.achievements || {}).length} conquistas</span>` : ''}</p></div></div>
     ${strip}${body}`;
@@ -153,7 +153,7 @@ export function viewConquistas(ui) {
 // ───────────── PERKS AND RULES (tutorial + regras + ajustes) ─────────────
 const RULES = [
   ['XP', ['Subtarefa 8 · lista 15 · ↳ passo 4 · ⚔ mini-boss 40 (ou o escrito) · 🛡 casa/família 50 · (60XP) no texto manda.', 'Fechar bloco: BREAKDOWN 100 · 🎯 meta 200 · CAPTAÇÃO 150 · TRABALHO 300. BOSS = o XP escrito + 🎟.', '⭐ adiada x2 · 📅 no prazo x1,5 · 🐦 2+ dias antes x2 · 💰 x1,5. Tudo acumula (⭐ antecipada = x4). Atrasou = sem bônus e −20% por dia (mín. 40%).', 'Hábitos 5 cada · combo 7 dias x1,5 · 14 dias x2 · ⚒ forjado (66 ✓) nunca abaixo de x1,5 · dia perfeito x2 · ⚔ redenção +30.', 'Semana: treino 4 (+40) · noites boas 5 (+30) · casa 5 (+30) · perfeito 1 (+30) · semana no prazo (+50) · os 5 = LENDÁRIA +50.', 'Rituais: 👥 15 por encontro · 🔁 💼 20. Baú de domingo 50 a 190. 🎲 Loot: às vezes concluir solta XP extra, 🎟 ou vale da taverna.']],
-  ['Níveis, gold e loja', ['Nível com curva: 500 + 150 por nível². NV 2 ≈ 1 semana · NV 5 ≈ 1,5 mês · NV 10 ≈ 5 meses · NV 20 ≈ 1,5 ano.', 'Títulos: 1 INICIANTE · 3 APRENDIZ DE OBRA · 5 ARQUITETO · 8 SÊNIOR · 10 VETERANO · 15 MESTRE CONSTRUTOR · 20 LENDA.', '🎟 Ticket = 1 item grátis da TAVERNA. Ganha 1 por nível, 1 por BOSS, 1 a cada 10 no prazo e às vezes no loot.', 'GOLD = a sua metade do dinheiro que entrou. 3000💰 no título do bloco: quando fecha, o app pergunta. "1900💰 / MES (DIA 05)": pergunta todo dia 5.', 'FERREIRO: 100 XP por NV do item + o gold (dinheiro real). Item acima do seu nível fica trancado.']],
+  ['Níveis, gold e loja', ['Nível com curva: 500 + 150 por nível². NV 2 ≈ 1 semana · NV 5 ≈ 1,5 mês · NV 10 ≈ 5 meses · NV 20 ≈ 1,5 ano.', 'Títulos: 1 INICIANTE · 3 APRENDIZ DE OBRA · 5 ARQUITETO · 8 SÊNIOR · 10 VETERANO · 15 MESTRE CONSTRUTOR · 20 LENDA.', '🎟 Ticket = 1 item grátis do BARZINHO. Ganha 1 por nível, 1 por BOSS, 1 a cada 10 no prazo e às vezes no loot.', 'GOLD = a sua metade do dinheiro que entrou. 3000💰 no título do bloco: quando fecha, o app pergunta. "1900💰 / MES (DIA 05)": pergunta todo dia 5.', 'FERREIRO: 100 XP por NV do item + o gold (dinheiro real). Item acima do seu nível fica trancado.']],
   ['Buffs', ['✨ INSPIRADO: média do baú ≥ 8 → hábitos +20% na semana.', '🚀 EMBALO: 5+ tarefas ontem → hábitos +20% hoje.', '🦾 MÁQUINA: 4+ treinos em 7 dias → hábitos +15%.', '🧘 ZEN: 7 noites boas seguidas e nenhum ☠ → taverna -20%.', '👑 LENDA: semana passada LENDÁRIA → hábitos +25%.', '🛡 SÁBADO BLINDADO: falha não conta e hábitos +50%.', '⏰ RELÓGIO SUÍÇO: 5+ no prazo seguidas · 🔥 COMBO · 🌟 DIA PERFEITO.', 'v4 · 🏦 POUPADOR (guardou na semana): taverna -10% · 🎯 FOCADO (3 fogueiras na semana): tarefas +10% · 🎒 EXPLORADOR (expedição concluída em 3 dias): hábitos +10% · 📔 CRONISTA (diário 3 dias): tarefas +5% · 🔥 EM CHAMA (3 dias na meta): tarefas +10% · 💙 NO AZUL (mês fechou com sobra): taverna -10%.']],
   ['Debuffs', ['☠ ENVENENADO: falhou o NO PH → taverna x2 por 48h. Cura: ⚔ redenção ou ANTÍDOTO.', '🌫 NEBLINA: 2 dias sem treino → hábitos -50%. Cura: treinar hoje, redenção ou ANTÍDOTO.', '😵 FATIGADO: 2 noites ruins → multa x2 na loja. Cura: 1 noite boa ou ANTÍDOTO.', '🧱 SOBRECARGA: 3 dias sem 🧹 → TRABALHO sem o bônus 💰. Cura: 🧹 hoje.', '🍺 RESSACA: 3+ compras num dia → amanhã hábitos -25%.', '🐌 PROCRASTINAÇÃO: 2 dias sem concluir → taverna x1,5.', '🦥 PREGUIÇA: 3 dias com menos de 3 hábitos → hábitos -30%. Cura: 5+ hoje.', '😩 CANSADO: média do baú < 5 → hábitos -10%. Cura: 2 noites boas.', 'v4 · 🌀 DISPERSO (4+ tarefas ▶ ao mesmo tempo): tarefas -10% · 💸 DEVENDO (2+ "fiz sem comprar" na semana): taverna x1,25 · 🕳 VAZANDO (mês passado com besteira > 40% ou crédito > 70%): taverna x1,15.', 'A punição é estagnação, não retrocesso: debuff trava recompensa, nunca apaga XP. 🛡 1 falha por semana em cada hábito é perdoada. 🏕 Descanso (viagem/doença): marca o dia inteiro como folga.']],
   ['Alertas', ['⏰ ATOLADO: 3+ atrasadas → loja trancada até zerar.', '💀 ESQUECIDA: atrasada há 7+ dias. Resolva, quebre ou remarque com honestidade.', '🗿 ESTAGNADO: 5 dias sem concluir nada. Use o 🆘 SOS e faça 10 minutos.', '💔 SAUDADE: alguém dos rituais atrasado 3+ dias.', '⚠ SEXTA-FEIRA: é o dia em que mais se quebra sequência. Marque os hábitos.']],
@@ -238,7 +238,7 @@ function neuroCard() {
     <div class="neurogrid">
       ${ck('clock', '🕰 Relógio do corpo', 'No QUESTS, um cartão diz a fase do seu dia (despertar, pico de foco, vale da tarde, segundo pico, desacelerar) e o que fazer nela; no pico, sugere a tarefa mais pesada. Mostra a próxima refeição (comer sempre no mesmo horário acerta o relógio do corpo) e até quando vale o café.')}
       ${ck('curfew', '🌙 Sono inegociável', '1 hora antes de dormir, o QUESTS troca as listas pelo fechamento do dia: o que você fez, o que fica pra amanhã e os hábitos. Dá pra abrir as listas por 15 min se precisar.')}
-      ${ck('calm', '🎯 Dopamina sob controle', 'Tarefa fácil ganha só o "tic". Número voando e fogos ficam pro que custou (⭐, ⚔, 20 XP ou mais, bloco, boss): o cérebro aprende a gostar do difícil. Na TAVERNA, item comprado 4 vezes em 7 dias avisa pra variar (a mesma recompensa repetida perde o efeito).')}
+      ${ck('calm', '🎯 Dopamina sob controle', 'Tarefa fácil ganha só o "tic". Número voando e fogos ficam pro que custou (⭐, ⚔, 20 XP ou mais, bloco, boss): o cérebro aprende a gostar do difícil. Na BARZINHO, item comprado 4 vezes em 7 dias avisa pra variar (a mesma recompensa repetida perde o efeito).')}
       ${ck('ladder', `🪜 Escada do esforço${ladder.length ? ' · degrau ' + ladder.length : ''}`, `7 dias seguidos batendo a meta → ela sobe 5% (até ${R.LADDER_MAX} degraus). Errar não desce o degrau. Meta de hoje: ${R.dailyGoal(S).goal} XP.`)}
     </div>
     <h2 class="sec-h">📓 Bullet Journal e praticidade</h2>
@@ -247,7 +247,7 @@ function neuroCard() {
       ${ck('why', '💡 Por que esse boss importa', `Dois campos no boss: "por que importa?" e "o que acontece se eu não fizer?". Boss ${R.BOSS_IDLE_DAYS} dias parado → o PRIMO lembra (no máximo 1 vez por semana).`)}
       ${ck('box', '⏰ Time box', `Tarefa remarcada ${R.RESCHED_LOCK} vezes trava: pra empurrar de novo, marque horário e duração. Ou cancele.`)}
       ${ck('cheio', '🧠 HOJE cheio demais', 'Passou do limite de tarefas por dia (AJUSTES → máx. prazos por dia), aparece um aviso curto em HOJE e um botão que empurra as menos importantes pra amanhã, sem custo.')}
-      ${ck('praga', '🐺 A Praga (o sopro do LAMBEHOMI)', `Cada tarefa é um TREM. Atrasou, vira assombração: 4 fases, 1 por dia (rituais começam na 2). TREM RUIM → ENCOSTO (vira o FOCO AGORA, PRIMO paranoico) → DISGRAMA (faixa nas abas, janela a cada 7 min) → LAMBEHOMI (tela vermelha, loja trancada, a BRASINHA perde 1 fase). Com ${R.luaN(S)} ou mais no LAMBEHOMI ao mesmo tempo: 🌕 LUA DE SANGUE (o PRIMO com medo de verdade e a BRASINHA vira OVO). Sem perder XP: castigos não somam. REZA BRABA = fazer, remarcar (custa o de sempre) ou cancelar; espantar não dá XP. Feriado, DESCANSO e VIAGEM não contam.`)}
+      ${ck('praga', '🐺 A Praga (o sopro do LAMBEHOMI)', `Cada tarefa é um TREM. Atrasou, vira assombração: 4 fases, 1 por dia. TREM RUIM → ENCOSTO (vira o FOCO AGORA, PRIMO paranoico) → DISGRAMA (faixa nas abas, janela a cada 7 min) → LAMBEHOMI (tela vermelha, loja trancada, a BRASINHA perde 1 fase). Com ${R.luaN(S)} ou mais no LAMBEHOMI ao mesmo tempo: 🌕 LUA DE SANGUE (o PRIMO com medo de verdade e a BRASINHA vira OVO). Sem perder XP: castigos não somam. REZA BRABA = fazer, remarcar (custa o de sempre) ou cancelar; espantar não dá XP. Feriado, DESCANSO e VIAGEM não contam.`)}
       <label class="meta" style="grid-column:1 / -1">🌕 LUA DE SANGUE com <input class="inp" type="number" min="1" max="10" data-change="neuro" data-k="luaN" value="${R.luaN(S)}" style="width:64px;display:inline-block"> tarefa(s) no LAMBEHOMI ao mesmo tempo (padrão ${R.LUA_N}; menos = mais difícil)</label>
       ${ck('pato', '🦆 Pato de borracha', 'No SOS TRAVEI: explicar pro PRIMO o que tentou, o que funcionou e o que não. Fica guardado na tarefa.')}
       ${ck('proc', '⚔ Recompensa do processo', 'Cada subtarefa feita num boss mostra quanto de vida ele perdeu. Recompensa que está longe perde valor pro cérebro (desconto temporal): ver o dano agora mantém a motivação no caminho.')}
@@ -256,3 +256,5 @@ function neuroCard() {
     </div></div>`;
 }
 
+/** v7.7: banner do CADERNO na REFLEXÃO (true quando existir assets/topo/caderno-<dia|noite>.webp) */
+const CADERNO_ART = false;

@@ -18,8 +18,16 @@ export function qsortOf(ui, tab) {
 const URG_RANK = { hoje: 0, amanha: 1, semana: 2, depois: 3, sem: 4, wait: 5 };
 const byDue = (a, b) => (a.due || '9').localeCompare(b.due || '9') || sortOrd(a, b);
 const byUrg = (td) => (a, b) => (URG_RANK[R.listOf(a, td)] - URG_RANK[R.listOf(b, td)]) || (!!b.prio - !!a.prio) || byDue(a, b);
-/** ordem das tarefas de um bloco: a escolhida no ≡ (ou a guardada) */
-const taskSorter = (ui) => { const m = qsortOf(ui, ui.qtab || 'listas'); return m === 'date' ? byDue : m === 'urg' ? byUrg(today()) : sortOrd; };
+/** v7.7: nas janelas de blocos o ≡ ORDENAR mexe nos BLOCOS inteiros (as subtarefas ficam na ordem delas). Só na tela. */
+const taskSorter = () => sortOrd;
+const blockDate = (b) => { const ds = S.quests.tasks.filter((t) => t.block === b.id && R.isOpen(t) && t.due).map((t) => t.due); if (b.due) ds.push(b.due); return ds.sort()[0] || '9999'; };
+const BLOCK_URG = { red: 1, yellow: 2, green: 3, purple: 4, black: 5 };
+const blockRank = (b, td) => (S.quests.tasks.some((t) => t.block === b.id && R.isOpen(t) && t.due && t.due < td) ? 0 : b.st === 'wait' ? 4 : BLOCK_URG[b.color] ?? 3);
+function sortBlocks(list, mode, td = today()) {
+  if (mode === 'date') return [...list].sort((a, b) => blockDate(a).localeCompare(blockDate(b)) || a.ord - b.ord);
+  if (mode === 'urg') return [...list].sort((a, b) => blockRank(a, td) - blockRank(b, td) || blockDate(a).localeCompare(blockDate(b)) || a.ord - b.ord);
+  return list;
+}
 /** blocos em 3 colunas fixas: abrir um bloco só empurra os de baixo dele.
  *  v7.0: o bloco guarda a coluna (b.col, 0 a 2) quando você arrasta ele pra outra; sem isso, fica na coluna i % 3 (como antes) */
 const colOf = (b, i) => (Number.isInteger(b?.col) && b.col >= 0 && b.col < 3 ? b.col : i % 3);
@@ -65,6 +73,7 @@ function listCard(area, ui) {
 
 function bossPanel(ui) {
   const ordOf = (b) => R.findBlock(S, b.block)?.ord ?? b.ord, list = [...S.quests.bosses].sort((a, z) => ordOf(a) - ordOf(z)).sort((a, z) => (a.st === 'done') - (z.st === 'done'));
+  const bqs = qsortOf(ui, 'boss'); if (bqs) { const blk = (b) => R.findBlock(S, b.block) || { id: b.id, ord: b.ord, color: 'red' }; const sorted = sortBlocks(list.map(blk), bqs); list.sort((a, z) => (a.st === 'done') - (z.st === 'done') || sorted.indexOf(blk(a)) - sorted.indexOf(blk(z))); }
   const card = (b) => {
     const hp = R.bossHp(S, b), blk = hp?.block, done = b.st === 'done', paused = R.bossPaused(b), idle = R.bossIdle(S, b);
     const items = blk ? S.quests.tasks.filter((t) => t.block === blk.id).sort(taskSorter(ui)) : [];
@@ -83,7 +92,7 @@ function bossPanel(ui) {
   return `<div class="group wide ${col ? 'collapsed' : ''}" data-group="bs"><div class="band" data-act="collapse" data-k="g:bs"><span><span class="chev">${col ? '▸' : '▾'}</span> BOSSES</span><span class="meta">${list.filter((b) => b.st !== 'done').length} em aberto</span></div>
     <details class="bhelp"><summary>❔ como funciona</summary><p>👹 <b>BOSS</b> = uma meta grande, inimigo especial. Não vai pras LISTAS: ele é a própria mãe.<br>❤ <b>Vida (HP)</b> = o que falta fazer nele. Cada item feito é dano; zerou, ele cai (XP + 1🎟).<br>⚔ <b>mini-boss</b> = uma vitória no caminho (vale ${R.C.XP_MINI} XP e solta fogos). ↳ <b>passo</b> = ação pequena embaixo dela.<br>Escreva começando com ⚔ ou &gt;, ou marque o tipo ao editar a tarefa.</p></details>
     <form class="row" data-form="add-boss" autocomplete="off"><input class="inp grow" name="text" placeholder="+ novo boss (ex.: 90 KG SECO)" aria-label="Novo boss"></form>
-    ${list.length ? `<div class="mcols">${cols3(list.map(card), list.map((b) => R.findBlock(S, b.block)))}</div>` : '<div class="empty">nenhum boss. Dê um nome à meta grande e quebre em subtarefas.</div>'}</div>`;
+    ${list.length ? `<div class="mcols">${cols3(list.map(card), bqs ? [] : list.map((b) => R.findBlock(S, b.block)))}</div>` : '<div class="empty">nenhum boss. Dê um nome à meta grande e quebre em subtarefas.</div>'}</div>`;
 }
 
 function blockCard(b, ui, opts = {}) {
@@ -112,10 +121,10 @@ function blockCard(b, ui, opts = {}) {
 /** `g` = tipo-base (bd, tr, cap, gs). `win` = janela criada pelo dono (só os blocos guardados nela) */
 function group(g, ui, win = null) {
   const blocks = R.tabBlocks(S, win ? 'w:' + win.id : g).sort(sortOrd);
-  const active = blocks.filter(stalledOff(ui));
+  const qs = qsortOf(ui, win ? 'w:' + win.id : g), active = sortBlocks(blocks.filter(stalledOff(ui)), qs); // v7.7: ordenado = em sequência nas 3 colunas (a coluna guardada vale sem ordenar)
   return `<div class="group" data-group="${g}">
     <form class="row" data-form="add-block" data-group="${g}" ${win ? `data-win="${win.id}"` : ''} autocomplete="off"><input class="inp grow" name="title" placeholder="+ novo bloco${g === 'bd' ? ' (🎯 meta)' : ' (3000$ · / MES DIA 05)'}" aria-label="Novo bloco">${win ? `<button type="button" class="btn sm ghost" data-act="win-edit" data-id="${win.id}" title="Renomear, mudar o tipo ou apagar a janela ${esc(win.name)} (funciona como ${esc(R.GROUPS[g].short)})">✎ JANELA</button>` : ''}</form>
-    ${active.length ? `<div class="mcols">${cols3(active.map((b) => blockCard(b, ui)), active)}</div>` : '<div class="empty">nenhum bloco.</div>'}
+    ${active.length ? `<div class="mcols">${cols3(active.map((b) => blockCard(b, ui)), qs ? [] : active)}</div>` : '<div class="empty">nenhum bloco.</div>'}
     ${blocks.length > active.length ? `<button class="more" data-act="toggle-stalled">⬛ ${blocks.length - active.length} parado(s) · mostrar</button>` : ''}</div>`;
 }
 
@@ -258,15 +267,14 @@ export function viewQuests(ui) {
     : group(win ? win.base : tab, ui, win).replace('class="group ', 'class="group wide ');
   return `<div class="quests"><div class="board">
       <div class="band qbar"><div class="seg">${QTABS.map(([k, t]) => `<button class="${tab === k ? 'on' : ''} ${k === 'listas' ? 'mae' : 'filha'} ${R.tabReviewed(S, k) ? 'allrev' : ''}" data-act="qtab" data-tab="${k}" ${k === 'listas' ? 'title="Janela mãe: tudo passa por aqui"' : 'draggable="true" title="arraste pra mudar a ordem"'}>${k === 'listas' ? '◆ ' : ''}${esc(t)}${n[k] != null ? ' · ' + n[k] : ''}</button>`).join('')}<button class="qadd" data-act="win-new" title="Criar uma janela nova">＋</button></div>
-        <details class="qmenu"><summary class="btn sm ghost qham" title="Abrir/recolher, ordenar, concluir e o que aparece">≡${qs ? ' · ' + (qs === 'urg' ? 'URGÊNCIA' : 'DATA') : ''}${ui.showDone || ui.showStalled ? ' · 👁' : ''}</summary><div class="qpop">
+        <details class="qmenu"><summary class="btn sm ghost qham" title="Abrir/recolher, ordenar, concluir e o que aparece">≡${qs ? `<small class="qh-m">${qs === 'urg' ? 'URGÊNCIA' : 'DATA'}</small>` : ''}${ui.showDone || ui.showStalled ? '<small class="qh-m">👁</small>' : ''}</summary><div class="qpop">
             <button class="btn sm ghost" data-act="collapse-all" title="Recolhe ou abre tudo desta janela de uma vez">${allCol ? '▾ ABRIR TUDO' : '▸ RECOLHER TUDO'}</button>
-            <small class="qpop-h">ORDENAR (só na tela)</small>
-            <button class="btn sm ${qs === 'date' ? 'pri' : 'ghost'}" data-act="qsort" data-v="date" title="Prazo mais perto em cima">${qs === 'date' ? '☑' : '☐'} POR DATA</button>
-            <button class="btn sm ${qs === 'urg' ? 'pri' : 'ghost'}" data-act="qsort" data-v="urg" title="Vermelho (hoje e atrasadas) primeiro, depois laranja, amarelo, verde, cinza e roxo">${qs === 'urg' ? '☑' : '☐'} POR URGÊNCIA</button>
+            <small class="qpop-h">ORDENAR ${tab === 'listas' ? 'AS TAREFAS' : 'OS BLOCOS'} (só na tela)</small>
+            <button class="btn sm ${qs === 'date' ? 'pri' : 'ghost'}" data-act="qsort" data-v="date" title="${tab === 'listas' ? 'Prazo mais perto em cima' : 'Blocos com o prazo mais perto primeiro'}">${qs === 'date' ? '☑' : '☐'} POR DATA</button>
+            <button class="btn sm ${qs === 'urg' ? 'pri' : 'ghost'}" data-act="qsort" data-v="urg" title="${tab === 'listas' ? 'Vermelho (hoje e atrasadas) primeiro, depois laranja, amarelo, verde, cinza e roxo' : 'Bloco com atrasada primeiro, depois URGENTE, FAZENDO, ESTÁVEL, AGUARDANDO e PARADO'}">${qs === 'urg' ? '☑' : '☐'} POR URGÊNCIA</button>
             <small class="qpop-h">MOSTRAR</small>
             <button class="btn sm ${ui.showDone ? 'pri' : 'ghost'}" data-act="toggle-done">${ui.showDone ? '☑' : '☐'} FEITAS</button>
             <button class="btn sm ${ui.showStalled ? 'pri' : 'ghost'}" data-act="toggle-stalled" title="⬛ parados: blocos e tarefas com a cor PARADO">${ui.showStalled ? '☑' : '☐'} PARADOS</button>
-            <button class="btn sm danger" data-act="done-window" title="Conclui todas as tarefas abertas que estão aparecendo nesta janela (pergunta antes; ↩ desfaz)">✓ CONCLUIR TUDO</button>
             <small class="qpop-h">Dica: Shift + clique no ☐ conclui um intervalo inteiro${matchMedia('(pointer: coarse)').matches ? ' · no celular: segure numa tarefa e arraste o dedo' : ''}</small></div></details></div>
       ${ui.mm ? mementoCard(ui) : `${chapterDue()}${focusCard(ui)}${topStrip()}${body}`}
     </div>${sidePanel(ui)}</div>`;

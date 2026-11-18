@@ -235,12 +235,6 @@ const CMD_LINES = {
 };
 /** o PRIMO fala um texto pronto (sem sortear do banco) */
 export function primoSay(text, expr) { rx = { text, expr: expr || lastExpr(), until: Date.now() + 14000, typed: false }; paintSpeech(); }
-/** v7.3b: os TRENS de hoje (e os atrasados) chegando pela direita do cartão. Maior = mais perto do prazo. Tocar leva até a tarefa. */
-function tremsHtml() {
-  const td = today(), list = R.openTasks(S).filter((t) => t.due && t.due <= td && t.st !== 'wait' && !t.who && !t.mother)
-    .map((t) => ({ t, tr: R.tremOf(S, t, td) })).sort((a, b) => (b.tr?.phase || 0) - (a.tr?.phase || 0)).slice(0, 5);
-  return list.length ? `<div class="trens">${list.map(({ t, tr }, i) => `<span class="trem k-${tr.k}" data-act="jump" data-id="${t.id}" style="--i:${i};--s:${tr.k === 'praga' ? 1 + tr.phase * 0.12 : 1}" title="${esc(tr.name)}: ${esc(String(t.text).replace(/\s*\(\d+\s*XP\)/i, '').slice(0, 60))}"></span>`).join('')}</div>` : '';
-}
 /** v7.3b: a BRASINHA e o CALOR 🔥 dela, numa linha */
 function brasLine(p) {
   return `<div class="pbras" title="${esc(p.title)}" data-act="mascot-info"><span>🐣 <b>${esc(p.name)}</b></span>${p.max ? '<span class="meta">FÊNIX!</span>' : `${segBar(p.pct, 'sm')}<span class="meta">🔥 ${Math.max(0, p.calor + p.hoje)}/${p.need}</span>`}</div>`;
@@ -257,14 +251,14 @@ function body(big, compact = false) {
   const status = st.act !== 'idle' ? `${esc(c.name)} está ${esc(st.label)}` : `<span title="${esc(m.tip)}">${m.ico} ${esc(c.name)} está <b>${m.label}</b></span>`;
   const trip = R.tripNow(S);
   return `<div class="pcard ${big ? 'big' : ''} ${compact ? 'compact' : ''}" data-mood="${mk}">${compact ? '' : `<div class="pstage"><canvas class="pcv" data-portrait="${big ? 'full' : 'card'}" data-act="comp-poke" aria-label="${esc(c.name)}"></canvas>
-      <canvas class="pcv pmascot" data-mascot title="${esc(pet.title)}" data-act="mascot-info"></canvas>${tremsHtml()}</div>`}
+      <canvas class="pcv pmascot" data-mascot title="${esc(pet.title)}" data-act="mascot-info"></canvas></div>`}
     <div class="pcol">${compact ? '' : '<div class="speech" id="comp-speech" data-pspeech="ambient" data-act="comp-poke" title="toque pra ouvir outra"></div>'}
       <div class="meta pstat">${status}${st.left ? ` · <span data-countdown="${Date.now() + st.left}">${mmss(st.left)}</span>` : ''}</div>
       ${statusIcons()}
       ${brasLine(pet)}
       ${askHtml()}
       <div class="pcmds">${CMDS.map(([k, i, l, t]) => `<button class="btn sm ${k === 'trip' && trip ? 'pri' : ''}" data-act="pcmd" data-k="${k}" title="${esc(t)}"><span>${i}</span>${k === 'trip' && trip ? 'VOLTEI' : l}</button>`).join('')}</div>
-      <div class="row prow"><button class="btn sm pri" data-act="saber" data-g="all">📚 ME CONTA UMA</button><button class="btn sm" data-act="primo-prosa" title="Piada, ditado ou causo da roça">😂 PROSA</button><button class="btn sm" data-act="diary">📖 DIÁRIO</button></div></div></div>`;
+      <div class="pcmds pcmds3"><button class="btn sm" data-act="saber" data-g="all" title="Uma curiosidade verdadeira, com fonte"><span>📚</span>ME CONTA</button><button class="btn sm" data-act="primo-prosa" title="Piada, ditado ou causo da roça"><span>😂</span>PROSA</button><button class="btn sm" data-act="diary" title="O diário que ele escreve toda semana"><span>📖</span>DIÁRIO</button></div></div></div>`; // v7.7: tudo na mesma grade
 }
 /** cartão da aba QUESTS */
 /** v6 (4A): banner do QUESTS com o cenário, o PRIMO passeando, a BRASINHA e a fala (dicas do app de vez em quando) */
