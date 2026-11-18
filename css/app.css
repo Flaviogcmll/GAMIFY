@@ -1523,3 +1523,18 @@ body { background-color: var(--bg); color: var(--ink); }
 
 /* MEMENTO: coluna de texto do jeito certo */
 .memento .mm-col { min-width: 0; }
+
+/* ═════════════ v6.4 — últimos refinamentos ═════════════ */
+/* o navegador não "ajeita" a rolagem sozinho quando um cartão abre ou fecha (era o que fazia o cartão pular) */
+html, body, main { overflow-anchor: none; }
+/* MEMENTO: o FOCO AGORA aparece no canto direito, pra dar vontade de começar */
+.memento { grid-template-columns: auto minmax(0, 1fr) minmax(220px, 320px); }
+.memento .mm-foco:empty { display: none; }
+.memento .mm-foco .focus-now { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: center; margin: 0; padding: 14px; border-left: 4px solid var(--c-premio); cursor: default; }
+.memento .mm-foco .focus-now .fn-k { grid-column: 1 / -1; }
+.memento .mm-foco .focus-now .chip.xp, .memento .mm-foco .focus-now [data-act="focus-skip"] { grid-column: 1 / -1; justify-self: start; }
+@media (max-width: 700px) { .memento { grid-template-columns: 1fr; } .memento .mm-foco { text-align: left; } }
+/* FEIRA: vitrine recolhida fica só a faixa */
+.vitrine.shut .vit-h { height: 64px !important; min-height: 0; aspect-ratio: auto; }
+/* botão CONCLUIR TUDO do bloco */
+.bbtns .done-all { color: var(--c-ok); font-weight: 700; }

@@ -79,7 +79,7 @@ function blockCard(b, ui, opts = {}) {
       <div class="bt" data-act="edit-block" data-id="${b.id}"><h3>${esc(b.title)}</h3>
         <div class="bm"><span>${done.length}/${counted.length}</span>${rev ? `<span class="chip rev" title="Revisado: vale até ${new Date(b.rev + 864e5).toLocaleString('pt-BR', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}">👁 REVISADO</span>` : ''}${b.src && S.quests.tasks.find((x) => x.id === b.src) ? `<button class="lnk-dot" data-g="lista" data-act="jump" data-id="${b.src}" title="Esta tarefa também está nas LISTAS. Toque pra ir lá." aria-label="Ir pra tarefa nas listas"></button>` : ''}${b.st === 'done' ? `<span class="good">FECHADO ${fmtDM(b.doneAt)} · +${b.xp}</span>` : `<span>${b.due ? '◆ ' + fmtDM(b.due) : dues[0] ? 'próx. ' + fmtDM(dues[0]) : 'sem prazo'}</span><span class="acc">${fmtN(xpLeft)} XP</span>`}</div>
         ${segBar(counted.length ? done.length / counted.length : 0, 'good sm')}</div>
-      <div class="bbtns"><span class="handle" data-handle="block" data-id="${b.id}" title="Segure e arraste">⠿</span><button class="icon-btn" data-act="sort" data-block="${b.id}" title="Organizar por data">⇅</button><button class="icon-btn ${opts.pinned ? 'on' : ''}" data-act="pin-block" data-id="${b.id}" title="${opts.pinned ? 'Tirar do painel da direita' : 'Fixar no painel da direita (fica sempre à mão)'}" aria-label="Fixar bloco">📌</button><button class="icon-btn" data-act="collapse" data-k="b:${b.id}" aria-label="Recolher bloco"><span class="chev">${isCollapsed('b:' + b.id) ? '▸' : '▾'}</span></button></div>
+      <div class="bbtns">${b.st !== 'done' && S.quests.tasks.some((t) => t.block === b.id && R.isOpen(t)) ? `<button class="icon-btn done-all" data-act="done-all" data-id="${b.id}" title="Concluir todas as tarefas deste bloco" aria-label="Concluir tudo">✓</button>` : ''}<span class="handle" data-handle="block" data-id="${b.id}" title="Segure e arraste">⠿</span><button class="icon-btn" data-act="sort" data-block="${b.id}" title="Organizar por data">⇅</button><button class="icon-btn ${opts.pinned ? 'on' : ''}" data-act="pin-block" data-id="${b.id}" title="${opts.pinned ? 'Tirar do painel da direita' : 'Fixar no painel da direita (fica sempre à mão)'}" aria-label="Fixar bloco">📌</button><button class="icon-btn" data-act="collapse" data-k="b:${b.id}" aria-label="Recolher bloco"><span class="chev">${isCollapsed('b:' + b.id) ? '▸' : '▾'}</span></button></div>
     </div>
     <div class="bbody"><ul class="tasks">${show.map((t) => taskRow(t, { showPin: true })).join('') || '<div class="empty">sem itens.</div>'}</ul>
       ${!ui.showDone && b.st !== 'done' && items.length > shown.length ? `<button class="more" data-act="toggle-done">✓ ${items.length - shown.length} feitas · mostrar</button>` : ''}
@@ -236,6 +236,8 @@ export function viewQuests(ui) {
   const ckeys = tab === 'listas' ? R.AREA_KEYS.map((a) => 'l:' + a)
     : tab === 'boss' ? S.quests.bosses.map((b) => 'b:' + (b.block || b.id))
     : R.tabBlocks(S, tab).filter(stalledOff(ui)).map((b) => 'b:' + b.id);
+  // v6.4: também recolhe MISSÕES DA SEMANA e BOSS DO CAPÍTULO (cartões do topo)
+  ckeys.push(new Date().getDay() === 0 ? 'c:quests:missoes-da-proxima-semana' : 'c:quests:missoes-da-semana'); if (R.chapterBoss(S)) ckeys.push('c:quests:boss-do-capitulo');
   const allCol = ckeys.length > 0 && ckeys.every(isCollapsed); // v6.1: o botão voltou (pedido do dono); tocar de novo na janela aberta continua sendo o memento mori
   const lists = arrange('lists', R.AREA_KEYS.map((a) => [a, R.AREAS[a], listCard(a, ui)]), { button: false, cols: 3 });
   const body = tab === 'listas' ? `<div class="lists six">${lists}</div>`
@@ -247,7 +249,7 @@ export function viewQuests(ui) {
           <details class="qmenu"><summary class="btn sm ghost" title="Escolha o que aparece nesta tela">MOSTRAR${ui.showDone || ui.showStalled ? ' · ' + (!!ui.showDone + !!ui.showStalled) : ''} ▾</summary><div class="qpop">
             <button class="btn sm ${ui.showDone ? 'pri' : 'ghost'}" data-act="toggle-done">${ui.showDone ? '☑' : '☐'} FEITAS</button>
             <button class="btn sm ${ui.showStalled ? 'pri' : 'ghost'}" data-act="toggle-stalled" title="⬛ parados: blocos e tarefas com a cor PARADO">${ui.showStalled ? '☑' : '☐'} PARADOS</button></div></details></span></div>
-      ${ui.mm ? mementoCard() : `${chapterDue()}${focusCard(ui)}${topStrip()}${body}`}
+      ${ui.mm ? mementoCard(ui) : `${chapterDue()}${focusCard(ui)}${topStrip()}${body}`}
     </div>${sidePanel(ui)}</div>`;
 }
 
@@ -268,7 +270,7 @@ function focusCard(ui) {
 }
 /** v6 MEMENTO MORI: tocar de novo na janela aberta recolhe tudo e mostra o tempo passando (lembra de parar de procrastinar) */
 const MM_LINES = ['Memento mori: o tempo não volta. Faça hoje o que importa.', 'Cada minuto aqui é um minuto a menos lá fora. Escolha UMA coisa.', 'O dia está passando agora, enquanto você lê isto.', 'Você não tem todo o tempo do mundo. Tem o de hoje.'];
-function mementoCard() {
+function mementoCard(ui) {
   const c = R.bodyClock(S), n = R.neuro(S), now = new Date(), wake = R.hm(n.wake), bed = R.hm(n.bed), t = now.getHours() * 60 + now.getMinutes();
   const awake = (bed - wake + 1440) % 1440 || 960, gone = Math.min(awake, (t - wake + 1440) % 1440), pct = gone / awake;
   const h = (m) => `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}`;
@@ -276,7 +278,8 @@ function mementoCard() {
     <div class="mm-col"><div class="mm-clock" data-clock>${now.toLocaleTimeString('pt-BR')}</div>
       <div class="mm-bar">${segBar(pct, 'sm')}</div>
       <p class="mm-k">${c.key === 'sono' ? 'Hora de dormir.' : `Já se foi ${Math.round(pct * 100)}% do seu dia acordado. Faltam <b>${h(Math.max(0, awake - gone))}</b> pra dormir.`}</p>
-      <p class="mm-l">${MM_LINES[now.getDate() % MM_LINES.length]}</p><p class="meta">toque pra voltar</p></div></div>`;
+      <p class="mm-l">${MM_LINES[now.getDate() % MM_LINES.length]}</p><p class="meta">toque pra voltar</p></div>
+    <div class="mm-foco">${focusCard(ui)}</div></div>`;
 }
 function topStrip() {
   const sunday = new Date().getDay() === 0, wm = R.weeklyMissions(S, sunday ? addDays(today(), 1) : today()), boss = R.chapterBoss(S);

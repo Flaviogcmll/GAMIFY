@@ -73,6 +73,11 @@ export function commit(docs, fn, opts = {}) {
   }
   const extra = sync();
   if (extra.changed) docs.push('core');
+  { // v6.4: a loja tranca com 3 atrasadas e só destranca quando não sobrar nenhuma
+    const ov = R.shopState(S).overdue;
+    if (ov >= 3 && !S.core.shopLock) { S.core.shopLock = today(); docs.push('core'); }
+    else if (ov === 0 && S.core.shopLock) { delete S.core.shopLock; docs.push('core'); }
+  }
   if (pre) {
     const post = snapNow();
     if (UDOCS.some((d) => post[d] !== pre[d])) { UNDO.push({ label: opts.label || labelFromStack(), pre, t: Date.now() }); if (UNDO.length > 40) UNDO.shift(); REDO.length = 0; undoEvt(); }
@@ -438,6 +443,17 @@ function removeLoot(t) {
   if (S.loja.purchases.length !== m) touch('loja');
 }
 
+/** v6.4: CONCLUIR TUDO de um bloco (um commit só; o bloco fecha sozinho se era o que faltava) */
+export function doneAll(blockId) {
+  const list = S.quests.tasks.filter((t) => t.block === blockId && R.isOpen(t) && !t.linked && !(t.link && B(t.link) && B(t.link).st !== 'done'));
+  if (!list.length) return;
+  S._closedBlock = null; S._bossDown = null;
+  return commit(['quests'], () => {
+    const d = today(); let n = 0;
+    for (const t of list) if (R.isOpen(t)) { completeTask(t, d); n++; }
+    return { msg: `✓ ${n} tarefa(s) concluída(s) de uma vez.`, feedback: { closedBlock: S._closedBlock, boss: S._bossDown || undefined } };
+  }, { label: 'concluir tudo do bloco' });
+}
 export function toggleDone(id, at) {
   const t = T(id);
   if (!t) return;

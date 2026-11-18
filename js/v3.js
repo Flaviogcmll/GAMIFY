@@ -214,13 +214,13 @@ export function viewArquivo3(ui) {
   }).join('');
   const L = S.core.legacy;
   return `<div class="page-title"><div><h1><em>arquivo</em>.</h1><p>Tudo que você já fechou mora aqui. Toque num quadrinho pra filtrar.</p></div></div>
-    ${strip}${historyCard()}<div class="card" style="margin-bottom:14px"><div class="row">
+    ${strip}${historyCard()}<div class="grid" style="margin-bottom:14px">${top.length ? `<div class="card c12"><header><h2>📊 Onde você mais fechou</h2></header><div class="arq-top">${top.map(([n, c]) => `<div class="bar-row"><span>${esc(n.slice(0, 34))}</span><b class="num" style="font-size:8px">${c}</b>${segBar(c / max, 'good sm')}</div>`).join('')}</div></div>` : ''}</div><div class="card" style="margin-bottom:14px"><div class="row">
       <input class="inp grow" data-input="arqF.q" value="${esc(f.q)}" placeholder="🔍 buscar no arquivo" aria-label="Buscar">
       <select class="inp" style="width:auto" data-v3change="arqF.m" aria-label="Mês"><option value="">TODOS OS MESES</option>${months.map((m) => `<option ${f.m === m ? 'selected' : ''} value="${m}">${m.slice(5)}/${m.slice(0, 4)}</option>`).join('')}</select>
       <select class="inp" style="width:auto" data-v3change="arqF.a" aria-label="Área"><option value="">TODAS</option>${[...Object.entries(R.AREAS), ['block', 'BLOCOS']].map(([k, n]) => `<option ${f.a === k ? 'selected' : ''} value="${k}">${n}</option>`).join('')}</select>
       <button class="btn" data-act="archive-now">🔄 ATUALIZAR</button><button class="btn danger" data-act="arq-empty" ${Object.keys(S.arq).length ? '' : 'disabled'} title="Escolha os meses; XP e medalhas ficam">🗑 ESVAZIAR…</button></div>
       ${L ? `<p class="meta" style="margin:8px 0 0">saldo histórico guardado: ${fmtN(L.done || 0)} concluídas · ${fmtN(L.onTime || 0)} no prazo</p>` : ''}</div>
-    <div class="grid">${top.length ? `<div class="card c12"><header><h2>📊 Onde você mais fechou</h2></header><div class="arq-top">${top.map(([n, c]) => `<div class="bar-row"><span>${esc(n.slice(0, 34))}</span><b class="num" style="font-size:8px">${c}</b>${segBar(c / max, 'good sm')}</div>`).join('')}</div></div>` : ''}
+    <div class="grid">
       <div class="c12 arq-list">${rows || '<div class="card"><div class="empty">nada encontrado.</div></div>'}${shown.length > lim ? '<button class="more" data-act="arq-more">mostrar mais</button>' : ''}</div></div>`;
 }
 
@@ -230,6 +230,8 @@ export function extend(ACTIONS, render) {
   Object.assign(ACTIONS, {
     collapse: (d, e, el) => { // v6.3: o título que você tocou fica parado no mesmo lugar da tela (o cartão não "pula")
       const y0 = (el || document.querySelector(`[data-k="${CSS.escape(d.k)}"]`))?.getBoundingClientRect().top;
+      // v6.4: a página não encolhe enquanto você está na aba (senão, perto do fim, o navegador puxa a tela e o cartão "vai pra baixo")
+      const mn = document.getElementById('main'); if (mn) { mn.style.minHeight = Math.max(mn.offsetHeight, parseFloat(mn.style.minHeight) || 0) + 'px'; mn.dataset.keepFor = location.hash; }
       toggleCollapse(d.k); render(); sfx('swish');
       const h = document.querySelector(`[data-k="${CSS.escape(d.k)}"]`);
       if (h && y0 != null) { const dy = h.getBoundingClientRect().top - y0; if (Math.abs(dy) > 1) window.scrollBy(0, dy); }
@@ -311,3 +313,6 @@ export function chapterCard(ch) {
     <div class="stat"><small>Hábitos</small><b>${st.habits || 0}</b></div><div class="stat"><small>Gold</small><b class="gold">${fmtN(st.gold || 0)}</b></div></div>
     <p>${fmtDM(ch.start)} → ${fmtDM(ch.end)} · ${esc(R.companion(S).name)} chegou ao nível ${st.level}. Um novo capítulo começa agora.</p><div class="actions" style="justify-content:center"><button class="btn pri" data-close>VIRAR A PÁGINA</button></div></div>`);
 }
+
+// v6.4: ao trocar de aba, a página volta a ter a altura do conteúdo
+window.addEventListener('hashchange', () => { const mn = document.getElementById('main'); if (mn && mn.dataset.keepFor !== location.hash) { mn.style.minHeight = ''; delete mn.dataset.keepFor; } });

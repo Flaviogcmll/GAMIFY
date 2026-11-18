@@ -746,9 +746,9 @@ export function weekChallenges(s, ws, td = today()) {
 export function shopState(s, d = today()) {
   const st = dayStatus(s, d);
   const overdue = overdueTasks(s, d);
-  // v5.16 (2B): com 3+ atrasadas a loja tranca, mas resolver ou remarcar UMA atrasada destranca pelo resto do dia
-  const rescued = s.core?.rescue === d;
-  const locked = overdue.length >= 3 && !rescued;
+  // v6.4: com 3+ atrasadas a loja tranca e só destranca quando TODAS forem resolvidas ou remarcadas (core.shopLock)
+  const rescued = false; // v6.4: o resgate não destranca mais a loja (o dono quer: resolva TODAS)
+  const locked = overdue.length >= 3 || (!!s.core?.shopLock && overdue.length > 0);
   const econ = econIndex(s, d);
   return { mult: st.shopMult * econ, econ, locked, rescued: rescued && overdue.length >= 3, overdue: overdue.length, status: st };
 }
