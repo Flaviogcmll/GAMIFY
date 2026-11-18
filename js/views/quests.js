@@ -9,6 +9,17 @@ import { arrange } from '../v35.js';
 import { overflowBar } from '../bujo.js';
 
 const sortOrd = (a, b) => a.ord - b.ord;
+/** v7.1: ORDENAR pelo menu ≡ (só na tela: a ordem guardada não muda). Uma escolha por janela, lembrada no aparelho.
+ *  'date' = prazo mais perto em cima · 'urg' = pela cor da urgência (vermelho, laranja, amarelo, verde, cinza, roxo) */
+export function qsortOf(ui, tab) {
+  if (!ui.qsort) { try { ui.qsort = JSON.parse(localStorage.getItem('gamify-ui:qsort')) || {}; } catch { ui.qsort = {}; } }
+  return ui.qsort[tab] || '';
+}
+const URG_RANK = { hoje: 0, amanha: 1, semana: 2, depois: 3, sem: 4, wait: 5 };
+const byDue = (a, b) => (a.due || '9').localeCompare(b.due || '9') || sortOrd(a, b);
+const byUrg = (td) => (a, b) => (URG_RANK[R.listOf(a, td)] - URG_RANK[R.listOf(b, td)]) || (!!b.prio - !!a.prio) || byDue(a, b);
+/** ordem das tarefas de um bloco: a escolhida no ≡ (ou a guardada) */
+const taskSorter = (ui) => { const m = qsortOf(ui, ui.qtab || 'listas'); return m === 'date' ? byDue : m === 'urg' ? byUrg(today()) : sortOrd; };
 /** blocos em 3 colunas fixas: abrir um bloco só empurra os de baixo dele.
  *  v7.0: o bloco guarda a coluna (b.col, 0 a 2) quando você arrasta ele pra outra; sem isso, fica na coluna i % 3 (como antes) */
 const colOf = (b, i) => (Number.isInteger(b?.col) && b.col >= 0 && b.col < 3 ? b.col : i % 3);
@@ -33,7 +44,8 @@ function listCard(area, ui) {
   // as tarefas andam pelas listas com o tempo: dentro de cada lista, a ordem é a da data (a mais próxima em cima)
   const winKey = (t) => { const b = t.link && R.findBlock(S, t.link); return b ? (R.winOf(S, b)?.name || (b.group === 'bs' ? 'ZZ' : R.GROUPS[b.group]?.short || '')) : '~'; };
   const byDate = (a, b) => (a.due || '9').localeCompare(b.due || '9') || sortOrd(a, b);
-  const every = [...own].sort(ui.lsort?.[area] === 'win' ? (a, b) => winKey(a).localeCompare(winKey(b)) || byDate(a, b) : area === 'wait' || area === 'sem' ? sortOrd : byDate);
+  const qs = qsortOf(ui, 'listas'); // v7.1: o ≡ ORDENAR vale pra todas as listas
+  const every = [...own].sort(qs === 'urg' ? byUrg(td) : qs === 'date' ? byDate : ui.lsort?.[area] === 'win' ? (a, b) => winKey(a).localeCompare(winKey(b)) || byDate(a, b) : area === 'wait' || area === 'sem' ? sortOrd : byDate);
   const all = every.filter(stalledOff(ui)), stalled = every.length - all.length;
   const open = all.filter(visible), show = ui.showDone ? all : open, nHidden = all.length - open.length;
   const late = area === 'hoje' ? open.filter((t) => t.due && t.due < td).length : 0;
@@ -55,7 +67,7 @@ function bossPanel(ui) {
   const ordOf = (b) => R.findBlock(S, b.block)?.ord ?? b.ord, list = [...S.quests.bosses].sort((a, z) => ordOf(a) - ordOf(z)).sort((a, z) => (a.st === 'done') - (z.st === 'done'));
   const card = (b) => {
     const hp = R.bossHp(S, b), blk = hp?.block, done = b.st === 'done', paused = R.bossPaused(b), idle = R.bossIdle(S, b);
-    const items = blk ? S.quests.tasks.filter((t) => t.block === blk.id).sort(sortOrd) : [];
+    const items = blk ? S.quests.tasks.filter((t) => t.block === blk.id).sort(taskSorter(ui)) : [];
     const show = ui.showDone || done ? items : items.filter(visible);
     const ck = blk?.id || b.id;
     return `<article class="block boss-b ${done ? 'closed' : ''} ${paused ? 'paused' : ''} ${isCollapsed('b:' + ck) ? 'collapsed' : ''}" data-color="red" ${blk ? `data-drop-block="${blk.id}"` : ''}>
@@ -75,7 +87,7 @@ function bossPanel(ui) {
 }
 
 function blockCard(b, ui, opts = {}) {
-  const items = S.quests.tasks.filter((t) => t.block === b.id).sort(sortOrd);
+  const items = S.quests.tasks.filter((t) => t.block === b.id).sort(taskSorter(ui));
   const open = items.filter(R.isOpen), done = items.filter((t) => t.st === 'done'), counted = items.filter((t) => t.st !== 'cancel');
   const shown = ui.showDone || b.st === 'done' ? items : items.filter(visible);
   const show = shown.filter(stalledOff(ui)), stalled = shown.length - show.length; // a conta do bloco (feitas/total) não muda ao ocultar parados
@@ -245,6 +257,7 @@ export function viewQuests(ui) {
     : R.tabBlocks(S, tab).filter(stalledOff(ui)).map((b) => 'b:' + b.id);
   // v6.4: também recolhe MISSÕES DA SEMANA e BOSS DO CAPÍTULO (cartões do topo)
   ckeys.push(new Date().getDay() === 0 ? 'c:quests:missoes-da-proxima-semana' : 'c:quests:missoes-da-semana'); if (R.chapterBoss(S)) ckeys.push('c:quests:boss-do-capitulo');
+  const qs = qsortOf(ui, tab);
   const allCol = ckeys.length > 0 && ckeys.every(isCollapsed); // v6.1: o botão voltou (pedido do dono); tocar de novo na janela aberta continua sendo o memento mori
   const lists = arrange('lists', R.AREA_KEYS.map((a) => [a, R.AREAS[a], listCard(a, ui)]), { button: false, cols: 3 });
   const body = tab === 'listas' ? `<div class="lists six">${lists}</div>`
@@ -252,10 +265,16 @@ export function viewQuests(ui) {
     : group(win ? win.base : tab, ui, win).replace('class="group ', 'class="group wide ');
   return `<div class="quests"><div class="board">
       <div class="band qbar"><div class="seg">${QTABS.map(([k, t]) => `<button class="${tab === k ? 'on' : ''} ${k === 'listas' ? 'mae' : 'filha'} ${R.tabReviewed(S, k) ? 'allrev' : ''}" data-act="qtab" data-tab="${k}" ${k === 'listas' ? 'title="Janela mãe: tudo passa por aqui"' : 'draggable="true" title="arraste pra mudar a ordem"'}>${k === 'listas' ? '◆ ' : ''}${esc(t)}${n[k] != null ? ' · ' + n[k] : ''}</button>`).join('')}<button class="qadd" data-act="win-new" title="Criar uma janela nova">＋</button></div>
-        <span class="row" style="gap:6px"><button class="btn sm ghost" data-act="collapse-all" title="Recolhe ou abre tudo desta janela de uma vez">${allCol ? '▾ ABRIR TUDO' : '▸ RECOLHER TUDO'}</button>
-          <details class="qmenu"><summary class="btn sm ghost" title="Escolha o que aparece nesta tela">MOSTRAR${ui.showDone || ui.showStalled ? ' · ' + (!!ui.showDone + !!ui.showStalled) : ''} ▾</summary><div class="qpop">
+        <details class="qmenu"><summary class="btn sm ghost qham" title="Abrir/recolher, ordenar, concluir e o que aparece">≡${qs ? ' · ' + (qs === 'urg' ? 'URGÊNCIA' : 'DATA') : ''}${ui.showDone || ui.showStalled ? ' · 👁' : ''}</summary><div class="qpop">
+            <button class="btn sm ghost" data-act="collapse-all" title="Recolhe ou abre tudo desta janela de uma vez">${allCol ? '▾ ABRIR TUDO' : '▸ RECOLHER TUDO'}</button>
+            <small class="qpop-h">ORDENAR (só na tela)</small>
+            <button class="btn sm ${qs === 'date' ? 'pri' : 'ghost'}" data-act="qsort" data-v="date" title="Prazo mais perto em cima">${qs === 'date' ? '☑' : '☐'} POR DATA</button>
+            <button class="btn sm ${qs === 'urg' ? 'pri' : 'ghost'}" data-act="qsort" data-v="urg" title="Vermelho (hoje e atrasadas) primeiro, depois laranja, amarelo, verde, cinza e roxo">${qs === 'urg' ? '☑' : '☐'} POR URGÊNCIA</button>
+            <small class="qpop-h">MOSTRAR</small>
             <button class="btn sm ${ui.showDone ? 'pri' : 'ghost'}" data-act="toggle-done">${ui.showDone ? '☑' : '☐'} FEITAS</button>
-            <button class="btn sm ${ui.showStalled ? 'pri' : 'ghost'}" data-act="toggle-stalled" title="⬛ parados: blocos e tarefas com a cor PARADO">${ui.showStalled ? '☑' : '☐'} PARADOS</button></div></details></span></div>
+            <button class="btn sm ${ui.showStalled ? 'pri' : 'ghost'}" data-act="toggle-stalled" title="⬛ parados: blocos e tarefas com a cor PARADO">${ui.showStalled ? '☑' : '☐'} PARADOS</button>
+            <button class="btn sm danger" data-act="done-window" title="Conclui todas as tarefas abertas que estão aparecendo nesta janela (pergunta antes; ↩ desfaz)">✓ CONCLUIR TUDO</button>
+            <small class="qpop-h">Dica: Shift + clique no ☐ conclui um intervalo inteiro${matchMedia('(pointer: coarse)').matches ? ' · no celular: segure numa tarefa e arraste o dedo' : ''}</small></div></details></div>
       ${ui.mm ? mementoCard(ui) : `${chapterDue()}${focusCard(ui)}${topStrip()}${body}`}
     </div>${sidePanel(ui)}</div>`;
 }
@@ -281,12 +300,14 @@ function mementoCard(ui) {
   const c = R.bodyClock(S), n = R.neuro(S), now = new Date(), wake = R.hm(n.wake), bed = R.hm(n.bed), t = now.getHours() * 60 + now.getMinutes();
   const awake = (bed - wake + 1440) % 1440 || 960, gone = Math.min(awake, (t - wake + 1440) % 1440), pct = gone / awake;
   const h = (m) => `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}`;
-  return `<div class="memento card" data-act="mm-off" title="Toque pra voltar"><span class="mm-art">${px('hourglass', 120)}</span>
+  // v7.1: o FOCO AGORA é o grande (é o que fazer com o tempo que resta); o relógio fica pequeno, embaixo
+  return `<div class="memento v71 card" data-act="mm-off" title="Toque pra voltar">
+    <div class="mm-foco">${focusCard(ui)}</div>
+    <div class="mm-row"><span class="mm-art">${px('hourglass', 56)}</span>
     <div class="mm-col"><div class="mm-clock" data-clock>${now.toLocaleTimeString('pt-BR')}</div>
       <div class="mm-bar">${segBar(pct, 'sm')}</div>
       <p class="mm-k">${c.key === 'sono' ? 'Hora de dormir.' : `Já se foi ${Math.round(pct * 100)}% do seu dia acordado. Faltam <b>${h(Math.max(0, awake - gone))}</b> pra dormir.`}</p>
-      <p class="mm-l">${MM_LINES[now.getDate() % MM_LINES.length]}</p><p class="meta">toque pra voltar</p></div>
-    <div class="mm-foco">${focusCard(ui)}</div></div>`;
+      <p class="mm-l">${MM_LINES[now.getDate() % MM_LINES.length]}</p><p class="meta">toque pra voltar</p></div></div></div>`;
 }
 function topStrip() {
   const sunday = new Date().getDay() === 0, wm = R.weeklyMissions(S, sunday ? addDays(today(), 1) : today()), boss = R.chapterBoss(S);

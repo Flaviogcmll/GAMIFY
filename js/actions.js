@@ -496,6 +496,18 @@ export function doneAll(blockId) {
     return { msg: `✓ ${n} tarefa(s) concluída(s) de uma vez.`, feedback: { closedBlock: S._closedBlock, boss: S._bossDown || undefined } };
   }, { label: 'concluir tudo do bloco' });
 }
+/** v7.1: concluir VÁRIAS de uma vez (Shift + clique no PC, segurar e arrastar no celular, ≡ CONCLUIR TUDO). Um commit só: o ↩ desfaz tudo.
+ *  Pula as que só podem ser concluídas em outro lugar (tarefa-mãe de bloco aberto, subtarefa que veio do BREAKDOWN). */
+export function doneMany(ids) {
+  const list = [...new Set(ids)].map(T).filter((t) => t && R.isOpen(t) && !t.linked && !(t.link && B(t.link) && B(t.link).st !== 'done'));
+  if (!list.length) return { error: 'Nenhuma dessas dá pra concluir daqui.' };
+  S._closedBlock = null; S._bossDown = null;
+  return commit(['quests'], () => {
+    const d = today(); let n = 0;
+    for (const t of list) if (R.isOpen(t)) { expBoost(R.C.X_TASK); completeTask(t, d); n++; }
+    return { msg: `✓ ${n} tarefa(s) concluída(s) de uma vez. ↩ desfaz.`, feedback: { closedBlock: S._closedBlock, boss: S._bossDown || undefined } };
+  }, { label: 'concluir várias' });
+}
 export function toggleDone(id, at) {
   const t = T(id);
   if (!t) return;

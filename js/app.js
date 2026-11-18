@@ -12,7 +12,7 @@ import { px } from './icons.js';
 import { embers, confetti, floatXp, fireworks } from './fx.js';
 import { sfx, startAmbience, stopAmbience, ambienceOn, prefs, setVol } from './audio.js';
 
-import { viewQuests, togglePin, curfewSkip } from './views/quests.js';
+import { viewQuests, togglePin, curfewSkip, qsortOf } from './views/quests.js';
 
 import { viewSurvival } from './views/survival.js';
 
@@ -152,11 +152,23 @@ function render() {
   try { afterRenderBujo(); } catch (err) { console.error(err); }
   try { renderPostit(); } catch (err) { console.error(err); }
   try { pragaGuide(); } catch (err) { console.error(err); } // v6.7: o urubu pousa onde a tarefa infectada está
+  try { tabTools(cur); } catch (err) { console.error(err); }
   tips($main); // v6.1: os afterRender acima ainda acrescentam botões; eles também ganham legenda
   refocus();
   redraft();
   const side = $main.querySelector('.side'); // o painel da direita tem rolagem própria: volta pra onde estava
   if (side && sideY) side.scrollTop = sideY;
+}
+/** v7.1: RECOLHER TUDO discreto nas outras abas (em cima do banner). Vale para todos os cartões recolhíveis da aba. */
+const tabKeys = () => [...new Set([...$main.querySelectorAll('[data-act="collapse"][data-k]')].filter((x) => !x.closest('.modal, .side')).map((x) => x.dataset.k))];
+function tabTools(cur) {
+  if (cur === 'quests') return;
+  const keys = tabKeys();
+  if (keys.length < 2) return;
+  const all = keys.every(isCollapsed);
+  const el = document.createElement('div'); el.className = 'tab-tools';
+  el.innerHTML = `<button class="btn sm ghost" data-act="collapse-tab" title="Recolhe ou abre todos os cartões desta aba">${all ? '▾ ABRIR TUDO' : '▸ RECOLHER TUDO'}</button>`;
+  const at = $main.querySelector('.scene.pstrip'); if (at) at.before(el); else $main.prepend(el);
 }
 /** onde termina o topo (cabeçalho + abas) na tela agora: a barra das janelas do QUESTS e o painel da direita ficam presos logo abaixo.
  *  O topo só acompanha a primeira tela de rolagem; quando ele sai, os dois sobem e aproveitam o espaço. */
@@ -207,6 +219,8 @@ function saveModalText(el) {
   else { const b = S.quests.bosses.find((x) => x.id === id); if (b && v !== b.text) A.updateBoss(id, { text: v }); }
 }
 document.addEventListener('change', (e) => saveModalText(e.target));
+// v7.1: Shift + clique no quadradinho não pinta o texto da tela (só conclui o intervalo)
+document.addEventListener('mousedown', (e) => { if (e.shiftKey && e.target.closest?.('.check[data-act="toggle"]')) e.preventDefault(); });
 // botão direito no quadradinho (ou segurar o dedo, no celular) = CANCELAR a tarefa; de novo = reabrir. O ↩ desfaz.
 document.addEventListener('contextmenu', (e) => {
   const c = e.target.closest?.('.check[data-act="toggle"]');
@@ -579,8 +593,27 @@ function jumpBlock(bid) {
   if (route() !== 'quests') location.hash = '#quests'; else render();
   glow(`[data-drop-block="${bid}"]`);
 }
+let lastCheck = null, lastBoxes = []; // v7.1: a última tarefa clicada e a ordem da tela naquela hora (pro Shift + clique)
 const ACTIONS = {
-  toggle: (d, e) => { const r = A.toggleDone(d.id, at(e)); if (r?.error) { sfx('error'); toast(esc(r.error), 'bad'); } },
+  toggle: (d, e) => {
+    // v7.1: Shift + clique = conclui todas do intervalo (da última clicada até esta), igual selecionar arquivos no Windows
+    // a ordem da tela é guardada no 1º clique: a tarefa concluída pode sumir da tela (MOSTRAR FEITAS desligado)
+    const prev = lastCheck, boxes = lastBoxes.length ? lastBoxes : [];
+    lastCheck = d.id; lastBoxes = [...$main.querySelectorAll('.board .lists li.task .check[data-act="toggle"], .board .group li.task .check[data-act="toggle"]')].map((c) => c.dataset.id);
+    if (e?.shiftKey && prev && prev !== d.id) {
+      const i = boxes.indexOf(prev), j = boxes.indexOf(d.id);
+      if (i >= 0 && j >= 0) { const ids = boxes.slice(Math.min(i, j), Math.max(i, j) + 1); const r = A.doneMany(ids); if (r?.error) { sfx('error'); toast(esc(r.error), 'bad'); } else sfx('ready'); return; }
+    }
+    const r = A.toggleDone(d.id, at(e)); if (r?.error) { sfx('error'); toast(esc(r.error), 'bad'); }
+  },
+  // v7.1: menu ≡ do QUESTS
+  qsort: (d) => { const tab = $main.querySelector('.qbar .seg button.on')?.dataset.tab || 'listas'; qsortOf(ui, tab); ui.qsort[tab] = ui.qsort[tab] === d.v ? '' : d.v; try { localStorage.setItem('gamify-ui:qsort', JSON.stringify(ui.qsort)); } catch { /* */ } sfx('tab'); render(); },
+  'done-window': async () => {
+    const ids = [...new Set([...$main.querySelectorAll('.board .lists li.task:not(.done) .check[data-act="toggle"], .board .group li.task:not(.done) .check[data-act="toggle"]')].map((c) => c.dataset.id))]
+      .filter((id) => R.isOpen(S.quests.tasks.find((t) => t.id === id) || {}));
+    if (!ids.length) { toast('Nada aberto aparecendo nesta janela.'); return; }
+    if (await ask('Concluir tudo desta janela?', `Marca as ${ids.length} tarefa(s) abertas que estão aparecendo como feitas. O ↩ desfaz tudo de uma vez.`, `CONCLUIR ${ids.length}`, true)) { const r = A.doneMany(ids); if (r?.error) toast(esc(r.error), 'bad'); else sfx('ready'); }
+  },
   // v5.16: a setinha ⤴ pergunta pra qual janela a tarefa vai (vira um bloco lá)
   'to-breakdown': (d) => {
     const wins = [['bd', R.GROUPS.bd.short, '🧩'], ['tr', R.GROUPS.tr.short, '📐'], ['cap', R.GROUPS.cap.short, '🧲'], ['gs', R.GROUPS.gs.short, '🗂'], ...R.windows(S).map((w) => ['w:' + w.id, w.name, '▣'])];
@@ -667,6 +700,7 @@ const ACTIONS = {
     <div class="actions"><button class="btn" data-close>FECHAR</button></div>`),
   'toggle-done': () => { ui.showDone = !ui.showDone; render(); },
   'toggle-stalled': () => { ui.showStalled = !ui.showStalled; try { localStorage.setItem('gamify-ui:stalled', ui.showStalled ? '1' : '0'); } catch { /* */ } render(); sfx('tab'); },
+  'collapse-tab': () => { const keys = tabKeys(), close = keys.some((k) => !isCollapsed(k)); for (const k of keys) if (isCollapsed(k) !== close) toggleCollapse(k); render(); sfx('swish'); },
   'collapse-all': () => {
     const keys = [...new Set([...$main.querySelectorAll('.board [data-act="collapse"][data-k]')].map((x) => x.dataset.k).filter((k) => /^([bl]:|c:quests:)/.test(k)))]; // v6.4: inclui MISSÕES e BOSS DO CAPÍTULO
     const close = keys.some((k) => !isCollapsed(k));

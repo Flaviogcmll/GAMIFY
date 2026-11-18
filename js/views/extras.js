@@ -224,7 +224,7 @@ function neuroCard() {
       ${ck('pato', '🦆 Pato de borracha', 'No SOS TRAVEI: explicar pro PRIMO o que tentou, o que funcionou e o que não. Fica guardado na tarefa.')}
       ${ck('proc', '⚔ Recompensa do processo', 'Cada subtarefa feita num boss mostra quanto de vida ele perdeu. Recompensa que está longe perde valor pro cérebro (desconto temporal): ver o dano agora mantém a motivação no caminho.')}
       ${ck('foco', '🎯 FOCO AGORA', 'No topo do QUESTS, UMA tarefa sugerida pelo PRIMO, com o porquê (atrasada, prazo hoje, boss parado, missão, horário do corpo). OUTRA ▸ mostra a próxima.')}
-      ${ck('swipe', '👆 Arrastar no celular', 'Arraste a tarefa pra ESQUERDA = concluir; pra DIREITA = amanhã. O ↩ desfaz.')}
+      ${ck('swipe', '👆 Segurar e arrastar no celular', 'Segure o dedo numa tarefa e arraste por cima das outras: ao soltar, conclui todas de uma vez. O ↩ desfaz.')}
     </div></div>`;
 }
 
