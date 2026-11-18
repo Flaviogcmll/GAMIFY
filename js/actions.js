@@ -59,18 +59,34 @@ function pragaCure(before) {
   if (R.tripNow(S) || !R.neuroOn(S, 'praga')) return null;
   const td = today(), after = new Set(R.praga(S).list.map((x) => x.id)), gone = before.filter((x) => !after.has(x.id));
   if (!gone.length) return null;
-  let xp = 0, early = 0;
+  let xp = 0, early = 0, exo = 0;
   for (const x of gone) {
     const done = x.kind === 'task' ? (() => { const t = S.quests.tasks.find((y) => y.id === x.id); return t && (t.st === 'done' || t.st === 'sent') && (t.doneAt === td || t.sentAt === td); })()
       : (S.core.rituals || []).find((r) => r.id === x.id)?.last === td;
     if (!done) continue;
-    const v = R.PRAGA_XP[x.phase] || 0; xp += v; if (x.phase < 3) early++;
+    const v = R.PRAGA_XP[x.phase] || 0; xp += v; if (x.phase < 3) early++; if (x.phase >= 4) exo++;
+    if (x.kind === 'task') { const t = S.quests.tasks.find((y) => y.id === x.id); if (t) t.reza = x.phase; }
     S.core.bonus.push({ id: uid('pg'), date: td, kind: 'antidoto', xp: v, label: `🙏 reza braba: ${x.text.slice(0, 40)}` });
   }
   const pv = S.core.praga || {};
-  S.core.praga = { ...pv, vac: { from: td, until: Date.now() + R.PRAGA_VAC_MS }, cured: (pv.cured || 0) + gone.length, early: (pv.early || 0) + early };
+  S.core.praga = { ...pv, vac: { from: td, until: Date.now() + R.PRAGA_VAC_MS }, cured: (pv.cured || 0) + gone.length, early: (pv.early || 0) + early, exo: (pv.exo || 0) + exo,
+    hist: [...(pv.hist || []), ...gone.map((x) => ({ d: td, ph: x.phase, reza: xp > 0 }))].slice(-200) };
   S._epoch++;
   return { n: gone.length, xp, clean: after.size === 0, names: gone.map((x) => x.text) };
+}
+/** v6.7: anota o último dia com Praga e dá +1 🎟 por semana inteira sem Praga (conta da segunda ao domingo) */
+function pragaWeek(docs, seen) {
+  if (!R.neuroOn(S, 'praga') || !S.core.praga?.start) return;
+  const td = today(), pv = S.core.praga;
+  if (seen && pv.lastSeen !== td) { pv.lastSeen = td; docs.push('core'); }
+  const ws = addDays(weekStart(td), -7), we = addDays(ws, 6);
+  if (pv.start > ws || (pv.weeks || []).includes(ws)) return;
+  pv.weeks = [...(pv.weeks || []), ws].slice(-60);
+  if (!pv.lastSeen || pv.lastSeen < ws || pv.lastSeen > we) {
+    S.core.bonus.push({ id: uid('pw'), date: td, kind: 'semlimpa', xp: 0, tickets: 1, label: '🌙 semana sem Praga' });
+    S._pragaWeek = true;
+  }
+  docs.push('core');
 }
 export function commit(docs, fn, opts = {}) {
   const pre = opts.noUndo ? null : snapNow();
@@ -92,6 +108,7 @@ export function commit(docs, fn, opts = {}) {
   }
   const cured = pgBefore.length ? pragaCure(pgBefore) : null;
   if (cured) docs.push('core', 'loja');
+  pragaWeek(docs, pgBefore.length > 0);
   const extra = sync();
   if (extra.changed) docs.push('core');
   { // v6.4: a loja tranca com 3 atrasadas e só destranca quando não sobrar nenhuma

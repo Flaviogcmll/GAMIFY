@@ -41,7 +41,7 @@ import { maybeReview, extendReview } from './review.js';
 import { extendBujo, afterRenderBujo } from './bujo.js';
 import { perksNav, perksGo, applyCursor, CURSOR_KEY } from './telas.js';
 import { extendMapa, mountMap } from './mapa.js';
-import { extendPraga, pragaPaint, pragaBanner, rezaBraba } from './praga.js';
+import { extendPraga, extendPraga2, pragaPaint, pragaBanner, rezaBraba, pragaGuide } from './praga.js';
 import { renderPostit } from './postit.js';
 
 
@@ -150,6 +150,7 @@ function render() {
   try { afterRender4(cur); } catch (err) { console.error(err); }
   try { afterRenderBujo(); } catch (err) { console.error(err); }
   try { renderPostit(); } catch (err) { console.error(err); }
+  try { pragaGuide(); } catch (err) { console.error(err); } // v6.7: o urubu pousa onde a tarefa infectada está
   tips($main); // v6.1: os afterRender acima ainda acrescentam botões; eles também ganham legenda
   refocus();
   redraft();
@@ -272,6 +273,7 @@ A.onFeedback((fb) => {
   primoFeedback(fb);
   if (fb.levelUp) levelUp(fb.levelUp);
   if (fb.chapterClosed) chapterCard(fb.chapterClosed);
+  if (S._pragaWeek) { S._pragaWeek = false; toast('🌙 Uma semana inteira sem Praga: +1 🎟', 'gold'); }
   if (fb.praga) { rezaBraba(fb.praga); toast(fb.praga.xp ? `🙏 REZA BRABA! +${fb.praga.xp} XP · ${fb.praga.clean ? 'a Praga foi embora e o PRIMO sarou!' : 'o PRIMO melhorou um pouco'} · 🛡 corpo fechado por 24 h` : `🛡 Encosto espantado (${esc(fb.praga.names[0].slice(0, 40))}) · corpo fechado por 24 h. Fazendo, a reza dá XP.`, 'good'); }
   if (!fb.quiet || fb.xp || fb.achievements?.length || fb.levelUp) render();
 });
@@ -872,6 +874,7 @@ FORMS['rot-hours'] = (f) => { const v = f.h.value; if (!v) return; A.setRoutineH
 extendBujo(ACTIONS, FORMS);
 extendMapa(ACTIONS, FORMS);
 extendPraga(ACTIONS, FORMS, jump);
+extendPraga2(ACTIONS, jump);
 document.addEventListener('submit', (e) => { const f = e.target.closest('form[data-form]'); if (!f) return; e.preventDefault(); FORMS[f.dataset.form]?.(f); });
 document.addEventListener('click', () => flushAdd()); // depois do clique tratado: adiciona o texto que ficou numa linha "+ adicionar"
 document.addEventListener('change', (e) => {

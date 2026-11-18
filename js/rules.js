@@ -371,6 +371,11 @@ export const STATUS_INFO = {
   estourado: { icon: '💥', name: 'CASTIGO', kind: 'debuff', desc: `${BLOW_EVERY} prazos estourados: loja ${Math.round((BLOW_MULT - 1) * 100)}% mais cara por ${BLOW_DAYS} dias.`, cure: 'Passa sozinho. Pra não voltar: prazo realista e DISTRIBUIR.' },
   devendo: { icon: '💸', name: 'DEVENDO', kind: 'debuff', desc: '2+ compras "fiz sem comprar" na semana: taverna x1,25.', cure: 'Compre ANTES de aproveitar por 7 dias.' },
   vazando: { icon: '🕳', name: 'VAZANDO', kind: 'debuff', desc: 'Mês passado: besteira acima de 40% ou crédito acima de 70% do gasto (planilha): taverna x1,15.', cure: 'Passa quando o mês virar com números melhores.' },
+  // v6.7: A PRAGA no STATUS DO DIA (o castigo de XP já vem do praga(); aqui é pra explicar ao tocar)
+  assustado: { icon: '😰', name: 'ASSUSTADO', kind: 'debuff', desc: 'Tem um trem ruim no jogo: uma tarefa ou ritual atrasado virou ANGUSTIADO. Ela vira o FOCO AGORA e o PRIMO fica com medo.', cure: '🙏 REZA BRABA: faça a tarefa (ou remarque com motivo, ou cancele). Siga o urubu: ele pousa onde ela está.' },
+  encostado: { icon: '👻', name: 'ENCOSTADO', kind: 'debuff', desc: 'ENCOSTO: o XP das outras tarefas cai 10%, a faixa ERRO NA FITA aparece em todas as abas e a janela pula a cada 7 min.', cure: '🙏 REZA BRABA na tarefa que o urubu mostra.' },
+  amaldicoado: { icon: '💀', name: 'AMALDIÇOADO', kind: 'debuff', desc: 'A PRAGA tomou conta: XP −20%, loja trancada, tela vermelha e preta.', cure: '🙏 REZA BRABA. Curar uma na fase A PRAGA vale a conquista EXORCISTA.' },
+  corpofechado: { icon: '🛡', name: 'CORPO FECHADO', kind: 'buff', desc: 'Rezou e espantou: por 24 h, atrasada nova fica presa no TREM RUIM (não avança).', cure: 'Some sozinho depois de 24 h.' },
 };
 
 export function dayStatus(s, d) {
@@ -427,6 +432,7 @@ export function dayStatus(s, d) {
 
   const ev = eventOfDay(s, d);
   let habitMult = 1, shopMult = 1, taskMult = 1;
+  if (d === today()) { const pg = praga(s, d); if (pg.phase >= 2) add(pg.phase >= 4 ? 'amaldicoado' : pg.phase >= 3 ? 'encostado' : 'assustado'); else if (pg.vac) add('corpofechado'); }
   for (const x of list) {
     if (x.habit) habitMult *= 1 + x.habit / 100;
     if (x.shop) shopMult *= x.shop;
@@ -662,6 +668,7 @@ export const ACHIEVEMENTS = [
   ['eyes10', 'OLHO DE ÁGUIA', 'Deixe 10 blocos 👁 REVISADOS ao mesmo tempo', 'reviewedNow', 10, 80], ['window1', 'DONO DA CASA', 'Crie uma janela sua no QUESTS', 'windows', 1, 40],
   ['trip1', 'MOCHILEIRO', 'Use o ✈ modo VIAGEM e volte', 'trips', 1, 50], ['clean30', 'FICHA LIMPA', '30 dias sem castigo 💥 de prazo estourado', 'cleanDays', 30, 200],
   ['storm10', 'FURACÃO', '10 tarefas num dia só', 'maxDone', 10, 150], ['clock100', 'RELÓGIO SUÍÇO', '100 tarefas feitas no prazo', 'onTime', 100, 400],
+  ['exo', 'EXORCISTA', 'Espante uma tarefa que já estava na fase A PRAGA', 'pragaExo', 1, 150], ['calma7', 'NOITE TRANQUILA', '7 dias seguidos sem Praga no jogo', 'pragaCalm', 7, 120], ['alma10', 'CAÇA-ALMA', 'Espante a assombração que passa 10 vezes', 'pragaGhosts', 10, 80],
   ['imuno', 'BENZEDEIRA', 'Espante 3 encostos antes de virarem ENCOSTO (fase 3)', 'pragaEarly', 3, 120], ['imuno10', 'CORPO FECHADO', 'Espante 10 pragas', 'pragaCured', 10, 200],
   ['done500', 'MÃO DE OBRA PESADA', 'Conclua 500 tarefas', 'done', 500, 500], ['done1000', 'MIL E UMA', 'Conclua 1.000 tarefas', 'done', 1000, 1000],
 ].map(([key, name, desc, metric, goal, xp]) => ({ key, name, desc, metric, goal, xp }));
@@ -675,6 +682,7 @@ function extraMetrics(s) {
     missionWeeks: (s.core?.bonus || []).filter((b) => b.kind === 'missoes').length,
     petStage: s.core?.primo?.petMax || 0,
     pragaEarly: s.core?.praga?.early || 0, pragaCured: s.core?.praga?.cured || 0,
+    pragaExo: s.core?.praga?.exo || 0, pragaGhosts: s.core?.praga?.ghosts || 0, pragaCalm: s.core?.praga?.start ? Math.max(0, diffDays(s.core.praga.lastSeen && s.core.praga.lastSeen > s.core.praga.start ? s.core.praga.lastSeen : s.core.praga.start, today())) : 0,
     ...(() => {
       const comps = idx(s).comps, closed = allBlocks(s).filter((b) => b.st === 'done'), td = today();
       const lastHit = [...(s.core?.blow?.hits || [])].sort().at(-1) || s.core?.startDate || td;
@@ -1410,3 +1418,24 @@ function pragaCalc(s, td) {
   return { list, phase, worst: list[0], mult: phase >= 4 ? 0.8 : phase >= 3 ? 0.9 : 1, vac: vacOn };
 }
 export const pragaOf = (s, id) => praga(s).list.find((x) => x.id === id) || null;
+
+/** v6.7: em que dia uma tarefa com prazo `due` vira A PRAGA (fase 4) se ninguém fizer nada (feriado, descanso e viagem não contam) */
+export function pragaDay(s, due) {
+  if (!due) return null;
+  const rests = s.core?.rests || [], born = s.core?.praga?.start || today();
+  let d = due < born ? addDays(born, -1) : due, n = 0;
+  for (let i = 0; i < 40 && n < 4; i++) { d = addDays(d, 1); if (!holidayName(d) && !rests.includes(d) && !tripDay(s, d)) n++; }
+  return d;
+}
+/** v6.7: cenários assombrados que já existem (o dono gera no Higgsfield, #101). Nome da aba → assets/topo/<aba>-praga.webp */
+export const PRAGA_TOPOS = [];
+/** v6.7: onde a tarefa infectada está (pro urubu guiar): 'listas' (área) ou a janela do bloco */
+export function pragaWhere(s, id) {
+  const t = (s.quests?.tasks || []).find((x) => x.id === id);
+  if (!t) return null;
+  if (!t.block) return { tab: 'listas', area: listOf(t, today()) || t.area };
+  const b = findBlock(s, t.block);
+  if (!b) return { tab: 'listas' };
+  const boss = (s.quests?.bosses || []).some((x) => x.block === b.id);
+  return { tab: boss ? 'boss' : b.win ? 'w:' + b.win : b.group, block: b.id };
+}

@@ -33,7 +33,7 @@ export function primoState() {
 /** o visual muda com buffs e debuffs: envenenado = esverdeado, cansado = murcho, em chama = pegando fogo */
 function statusMood() {
   const st = R.dayStatus(S, today());
-  if (st.has('envenenado') || st.has('miasma') || R.praga(S).phase >= 2) return 'poison'; // v6.5: infectado pela Praga
+  if (st.has('envenenado') || st.has('miasma')) return 'poison';
   if (st.has('neblina') || st.has('fatigado') || st.has('preguica')) return 'tired';
   if (st.has('emchama') || st.has('embalo') || st.has('lenda')) return 'fire';
   return null;
@@ -41,7 +41,8 @@ function statusMood() {
 function baseExpr() {
   const c = R.companion(S), st = primoState();
   if (st.expr) return st.expr;
-  if (c.mood === 'envenenado' || R.praga(S).phase >= 2) return 'enjoado';
+  if (R.praga(S).phase >= 2) return 'preocupado'; // v6.7: com a Praga o PRIMO fica COM MEDO (não doente)
+  if (c.mood === 'envenenado') return 'enjoado';
   if (c.mood === 'cansado') return 'cansado';
   if (R.overdueTasks(S).length >= 3) return 'preocupado';
   return c.mood === 'feliz' ? 'feliz' : 'neutro';
@@ -64,7 +65,7 @@ const TIPS = ['Dica, sô: no rascunho da REFLEXÃO, Enter solta e Shift+Enter pu
   'Na AGENDA, o azul é ritual. Não deixa a amizade esfriar, sô.'];
 function ambient() {
   const now = Date.now();
-  const pl = pragaLine(); if (pl && Math.random() < 0.75) return { text: pl, expr: 'enjoado', at: now }; // v6.5: infectado só fala dela
+  const pl = pragaLine(); if (pl && Math.random() < 0.75) return { text: pl, expr: 'preocupado', at: now }; // v6.7: com medo, só fala dela
   if (!amb || now - amb.at > 3 * 60000) { const tip = Math.random() < 0.45, text = tip ? TIPS[Math.floor(Math.random() * TIPS.length)] : primoLine('auto'); amb = { text, expr: tip ? 'piscada' : lastExpr(), at: now, shownAt: now, typed: false }; }
   return amb;
 }
