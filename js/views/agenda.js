@@ -56,7 +56,7 @@ export function viewAgenda(ui) {
   // v6: os rituais dos próximos 14 dias entram na fila, em azul (azul = ritual/destaque), na ordem da data
   const rits = (S.core.rituals || []).map((r) => ({ r, s: R.ritualStatus(r, td) })).filter((x) => x.s.next && x.s.left <= 14 && (!q || x.r.name.toLowerCase().includes(q)) && (fb !== 'late' || x.s.left < 0) && (fb !== 'today' || x.s.left === 0) && (fb !== 'week' || x.s.left <= 7));
   const rows = [...queue.slice(0, 80).map((t) => ({ t, k: t.due || '9999' })), ...rits.map((x) => ({ ...x, k: x.s.next }))].sort((a, b) => a.k.localeCompare(b.k));
-  const ritRow = (r, s) => `<div class="li rit" title="Ritual: ${esc(r.every ? `a cada ${r.every} dias` : 'sem frequência')}"><div class="lt" data-act="edit-ritual" data-id="${r.id}" style="cursor:pointer">🔁 ${esc(r.name)}<small>ritual${s.plan ? ' · dia marcado por você' : ''}</small></div>
+  const ritRow = (r, s) => `<div class="li rit" ${R.pragaOf(S, r.id) ? `data-praga="${R.pragaOf(S, r.id).phase}"` : ''} title="Ritual: ${esc(r.every ? `a cada ${r.every} dias` : 'sem frequência')}"><div class="lt" data-act="edit-ritual" data-id="${r.id}" style="cursor:pointer">🔁 ${esc(r.name)}<small>ritual${s.plan ? ' · dia marcado por você' : ''}</small></div>
     <div class="row" style="flex-wrap:nowrap;gap:6px"><span class="chip ${s.left <= 0 ? 'late' : s.left <= 1 ? 'week' : 'rit'}">${esc(s.label)}</span>${r.last === td ? '' : `<button class="btn sm" data-act="ritual-done" data-id="${r.id}" title="Fiz">✓</button>`}</div></div>`;
   const blow = R.blowState(S), blowPct = Math.round((R.BLOW_MULT - 1) * 100);
   return `<div class="page-title"><div><h1><em>agenda</em>.</h1></div></div>

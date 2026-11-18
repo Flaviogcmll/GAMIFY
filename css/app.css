@@ -1538,3 +1538,107 @@ html, body, main { overflow-anchor: none; }
 .vitrine.shut .vit-h { height: 64px !important; min-height: 0; aspect-ratio: auto; }
 /* botão CONCLUIR TUDO do bloco */
 .bbtns .done-all { color: var(--c-ok); font-weight: 700; }
+
+/* ═════════════ v6.5 — A PRAGA (tarefa atrasada que se espalha) ═════════════ */
+@keyframes praga-pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c-urg) 0%, transparent); } 50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-urg) 45%, transparent); } }
+@keyframes praga-float { 0% { transform: translateY(6px) rotate(0); opacity: 0; } 20% { opacity: .9; } 100% { transform: translateY(-38px) rotate(30deg); opacity: 0; } }
+/* fase 1 incubação: laranja com 🦠 · fase 2 infecção: vermelho pulsando · fase 3/4: mais forte */
+li.task[data-praga] .txt::before, .li.rit[data-praga] .lt::before { content: '🦠 '; }
+li.task[data-praga="1"] { border-left-color: var(--c-quase) !important; background: color-mix(in srgb, var(--c-quase) 8%, transparent); }
+li.task[data-praga="2"], li.task[data-praga="3"], li.task[data-praga="4"], .li.rit[data-praga="2"], .li.rit[data-praga="3"], .li.rit[data-praga="4"] { border-left-color: var(--c-urg) !important; background: color-mix(in srgb, var(--c-urg) 10%, transparent); animation: praga-pulse 1.6s ease-in-out infinite; border-radius: 6px; }
+li.task[data-praga="4"] { background: color-mix(in srgb, var(--c-urg) 18%, transparent); }
+.li.rit[data-praga="1"] { border-left-color: var(--c-quase) !important; }
+.focus-now.praga { border-left: 6px solid var(--c-urg); animation: praga-pulse 1.6s ease-in-out infinite; }
+.chip.praga-chip { background: color-mix(in srgb, var(--c-urg) 16%, var(--panel)); color: var(--c-urg); border-color: var(--c-urg); }
+/* faixa nas abas (fase 3 e 4) */
+.banner.praga-b { background: color-mix(in srgb, var(--c-urg) 14%, var(--panel)); border-color: var(--c-urg); color: var(--ink); display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; animation: praga-pulse 2.2s ease-in-out infinite; }
+.banner.praga-b .btn { margin-left: auto; }
+/* PRIMO infectado: partículas da praga subindo em volta dele (o verde vem do visual "envenenado") */
+:root[data-praga="2"] .pstage, :root[data-praga="3"] .pstage, :root[data-praga="4"] .pstage, :root[data-praga="2"] .pst-face, :root[data-praga="3"] .pst-face, :root[data-praga="4"] .pst-face { position: relative; }
+:root[data-praga="2"] .pstage::after, :root[data-praga="3"] .pstage::after, :root[data-praga="4"] .pstage::after, :root[data-praga="3"] .pst-face::after, :root[data-praga="4"] .pst-face::after {
+  content: '🦠'; position: absolute; left: 30%; bottom: 20%; font-size: 14px; pointer-events: none; animation: praga-float 2.6s ease-in infinite; }
+:root[data-praga="3"] .pstage::before, :root[data-praga="4"] .pstage::before { content: '🦠'; position: absolute; right: 30%; bottom: 30%; font-size: 11px; pointer-events: none; animation: praga-float 3.1s ease-in 1.2s infinite; z-index: 3; }
+:root[data-praga="2"] .pcv:not(.pmascot), :root[data-praga="3"] .pcv:not(.pmascot) { filter: saturate(.75) hue-rotate(28deg) brightness(.97); }
+:root[data-praga="4"] .pcv:not(.pmascot) { filter: saturate(.6) hue-rotate(45deg) brightness(.92); }
+/* fase 4: a FAÍSCA fica doente */
+:root[data-praga="4"] .pmascot { filter: grayscale(.7) hue-rotate(70deg) brightness(.85); animation: none; }
+/* fase 3 e 4: a tela vai ficando contaminada (bordas avermelhadas; não atrapalha clicar) */
+:root[data-praga="3"] body::after, :root[data-praga="4"] body::after { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 90;
+  background: radial-gradient(120% 90% at 50% 50%, transparent 62%, color-mix(in srgb, var(--c-urg) 16%, transparent) 100%); }
+:root[data-praga="4"] body::after { background: radial-gradient(120% 90% at 50% 50%, transparent 48%, color-mix(in srgb, var(--c-urg) 28%, transparent) 100%), color-mix(in srgb, var(--c-urg) 5%, transparent); }
+/* janela da Praga */
+.praga-pop h2 { color: var(--c-urg); }
+.praga-pop .pp-row { display: grid; grid-template-columns: 76px 1fr; gap: 12px; align-items: center; margin: 8px 0; }
+.praga-pop .pp-row .pcv { width: 76px; filter: saturate(.7) hue-rotate(35deg); }
+.praga-pop .pp-t { font-size: 15px; margin: 0; }
+.praga-pop .speech { margin: 6px 0 0; }
+@media (prefers-reduced-motion: reduce) { li.task[data-praga], .banner.praga-b, .focus-now.praga, .pstage::after, .pstage::before { animation: none !important; } }
+
+/* ═════════════ v6.6 — A PRAGA: o cartucho amaldiçoado (glitch de videogame antigo + assombração caipira) ═════════════
+   Nada pisca mais de 3 vezes por segundo. Tudo que anda por cima deixa o clique passar. */
+@keyframes pg-flick { 0%, 91%, 100% { opacity: 1; transform: none; filter: none; } 92% { opacity: .35; transform: translateX(-3px); filter: hue-rotate(-30deg) contrast(1.6); } 94% { opacity: 1; transform: translateX(2px); } 96% { opacity: .7; filter: saturate(2); } }
+@keyframes pg-jitter { 0%, 86%, 100% { transform: none; } 88% { transform: translate(-2px, 1px); } 90% { transform: translate(2px, -1px); } 92% { transform: translate(-1px, 0); } }
+@keyframes pg-shake { 0% { transform: none; } 15% { transform: translate(-6px, 2px) skewX(-1deg); } 30% { transform: translate(5px, -3px); } 45% { transform: translate(-4px, 1px) skewX(1deg); } 60% { transform: translate(3px, 2px); } 80% { transform: translate(-2px, -1px); } 100% { transform: none; } }
+@keyframes pg-rgb { 0%, 100% { text-shadow: -1px 0 color-mix(in srgb, #e04a3a 70%, transparent), 1px 0 color-mix(in srgb, #4fa196 60%, transparent); } 50% { text-shadow: -2px 0 color-mix(in srgb, #e04a3a 80%, transparent), 2px 0 color-mix(in srgb, #4fa196 70%, transparent); } }
+@keyframes pg-slices { 0%, 84%, 100% { clip-path: none; transform: none; } 86% { clip-path: inset(10% 0 55% 0); transform: translateX(-5px); } 88% { clip-path: inset(48% 0 20% 0); transform: translateX(6px); } 90% { clip-path: inset(70% 0 5% 0); transform: translateX(-3px); } }
+@keyframes pg-cursor { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+@keyframes pg-crawl { from { transform: translateX(105vw); } to { transform: translateX(-120%); } }
+@keyframes pg-pop { 0% { transform: scale(.9) skewX(4deg); filter: contrast(2) hue-rotate(-40deg); } 20% { transform: scale(1.03) skewX(-3deg); } 40% { transform: translateX(-6px); filter: none; } 60% { transform: translateX(5px); } 100% { transform: none; } }
+@keyframes rz-up { from { transform: translateY(0) rotate(0); opacity: 0; } 15% { opacity: 1; } to { transform: translateY(-105vh) rotate(260deg); opacity: 0; } }
+@keyframes rz-luz { from { transform: translateY(100%); } 55% { transform: translateY(0); opacity: 1; } to { transform: translateY(-30%); opacity: 0; } }
+@keyframes rz-t { 0% { opacity: 0; transform: scale(.7); } 25% { opacity: 1; transform: scale(1.08); } 80% { opacity: 1; transform: scale(1); } 100% { opacity: 0; } }
+
+/* TREM RUIM (1): teia no canto, mofo por dentro, urubu pousado, a linha "chia" de vez em quando */
+li.task[data-praga], .li.rit[data-praga] { position: relative; }
+li.task[data-praga]::after, .li.rit[data-praga]::after { content: ''; position: absolute; right: 4px; top: -9px; width: 20px; height: 16px; background: var(--urubu) no-repeat center / contain; image-rendering: pixelated; pointer-events: none; }
+li.task[data-praga] { box-shadow: inset 0 0 14px color-mix(in srgb, #6f7a3a 35%, transparent); background-image: linear-gradient(135deg, transparent 88%, color-mix(in srgb, #8a8780 45%, transparent) 88.5%, transparent 89.5%), linear-gradient(110deg, transparent 92%, color-mix(in srgb, #8a8780 35%, transparent) 92.5%, transparent 93.5%); animation: pg-flick 5.5s steps(1) infinite; }
+/* ANGUSTIADO (2): treme, borda vermelha, PRIMO com linhas de TV */
+li.task[data-praga="2"], li.task[data-praga="3"], li.task[data-praga="4"] { animation: pg-flick 4.5s steps(1) infinite, pg-jitter 3.2s steps(1) infinite, praga-pulse 1.6s ease-in-out infinite; }
+:root[data-praga="2"] .comp-card .pstage::before, :root[data-praga="3"] .comp-card .pstage::before, :root[data-praga="4"] .comp-card .pstage::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 2; border-radius: inherit;
+  background: repeating-linear-gradient(0deg, color-mix(in srgb, #241414 22%, transparent) 0 1px, transparent 1px 3px); }
+:root[data-praga] .focus-now.praga { background: linear-gradient(90deg, color-mix(in srgb, #241414 10%, var(--panel)), var(--panel)); }
+/* ENCOSTO (3): linhas de TV na tela toda, cores separando nos títulos, cantos escuros, bichos andando */
+:root[data-praga="3"] body::before, :root[data-praga="4"] body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 89;
+  background: repeating-linear-gradient(0deg, color-mix(in srgb, #241414 9%, transparent) 0 1px, transparent 1px 3px); }
+:root[data-praga="3"] main h1, :root[data-praga="3"] main h2, :root[data-praga="4"] main h1, :root[data-praga="4"] main h2, :root[data-praga="3"] .logo, :root[data-praga="4"] .logo { animation: pg-rgb 2.4s ease-in-out infinite; }
+:root[data-praga="3"] body::after { background: radial-gradient(120% 95% at 50% 45%, transparent 55%, color-mix(in srgb, #3a0d0d 38%, transparent) 100%); }
+.pfx-glitch { animation: pg-slices .26s steps(1) 1 !important; color: var(--c-urg) !important; }
+#praga-fx { position: fixed; inset: 0; pointer-events: none; z-index: 95; overflow: hidden; }
+.pfx-bug { position: absolute; left: 0; top: 0; will-change: transform; filter: drop-shadow(1px 2px 0 color-mix(in srgb, #241414 50%, transparent)); }
+.pfx-bug svg { display: block; } .pfx-bug .f1 { display: none; } .pfx-bug[data-f="1"] .f0 { display: none; } .pfx-bug[data-f="1"] .f1 { display: block; }
+.pfx-crawl { position: absolute; left: 0; white-space: nowrap; font: 18px/1 var(--f-pixel); color: color-mix(in srgb, #c0392b 75%, transparent); letter-spacing: .2em; animation: pg-crawl 14s linear forwards; text-shadow: -2px 0 color-mix(in srgb, #4fa196 50%, transparent), 2px 2px 0 color-mix(in srgb, #241414 60%, transparent); }
+/* faixa "ERRO NA FITA" */
+.banner.praga-b { background: linear-gradient(90deg, #1f1214, #2a1416) !important; color: #f0d8c8 !important; border: 2px solid #8a2a22 !important; font-family: var(--f-mono); }
+.banner.praga-b .pb-tag { font: 8px/1 var(--f-pixel); color: #ff8a6a; background: color-mix(in srgb, #c0392b 30%, transparent); padding: 5px 7px; border: 1px solid #c0392b; animation: pg-rgb 1.8s infinite; }
+.banner.praga-b .pb-cur { font-style: normal; animation: pg-cursor 1s steps(1) infinite; color: #ff8a6a; margin-left: 4px; }
+.banner.praga-b .btn.pri { background: #8a2a22; border-color: #c0392b; color: #fff4ce; }
+/* A PRAGA (4): o jogo afunda no vermelho e preto, treme ao trocar de aba, PRIMO corrompido, FAÍSCA quase apagando */
+:root[data-praga="4"] main { filter: sepia(.35) saturate(1.5) hue-rotate(-18deg) brightness(.82) contrast(1.12); }
+:root[data-praga="4"] body { background: #140b0b !important; }
+:root[data-praga="4"] body::after { background: radial-gradient(110% 90% at 50% 45%, transparent 40%, color-mix(in srgb, #1a0606 70%, transparent) 100%), color-mix(in srgb, #7a1010 10%, transparent) !important; }
+:root[data-praga="4"] .top, :root[data-praga="4"] .tabs, :root[data-praga="4"] .bottom { filter: sepia(.5) hue-rotate(-20deg) saturate(1.6) brightness(.75); }
+.praga-shake { animation: pg-shake .45s linear 1; }
+:root[data-praga="3"] .pcv:not(.pmascot), :root[data-praga="4"] .pcv:not(.pmascot) { animation: pg-slices 3.4s steps(1) infinite; }
+:root[data-praga="4"] .pmascot { opacity: .45; filter: grayscale(.85) brightness(.7) !important; }
+/* a janela que pula: "ERRO NA FITA", treme ao abrir; na A PRAGA vem empilhada */
+.modal.praga-modal { animation: pg-pop .5s ease-out 1; background: #1f1214 !important; color: #f0d8c8; border: 2px solid #c0392b !important; box-shadow: 0 0 0 1px #3a1414, 8px 8px 0 #1a0c0c; overflow: hidden; position: relative; }
+.modal.praga-modal::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, color-mix(in srgb, #0f0606 25%, transparent) 0 1px, transparent 1px 3px); }
+:root[data-praga="4"] .modal.praga-modal { box-shadow: 10px 10px 0 -2px #2a1416, 10px 10px 0 0 #8a2a22, 20px 20px 0 -2px #2a1416, 20px 20px 0 0 #6b1d18, 30px 30px 0 -2px #1f1214, 30px 30px 0 0 #4a1512; }
+.praga-pop .pp-bar { display: flex; justify-content: space-between; font: 8px/1 var(--f-pixel); color: #ff8a6a; background: #3a1414; margin: -6px -6px 10px; padding: 7px 9px; border-bottom: 1px solid #8a2a22; }
+.praga-pop h2 { color: #ff7a5a !important; animation: pg-rgb 1.6s infinite; } .praga-pop h2 small { font: 11px var(--f-mono); color: #c9a89a; margin-left: 6px; }
+.praga-pop .meta, .praga-pop p { color: #d9c2b2 !important; } .praga-pop .pp-t { color: #fff4ce; }
+.praga-pop .speech { background: #2a1416; color: #f0d8c8; border-color: #8a2a22; }
+.praga-pop .btn { background: #2a1416; color: #f0d8c8; border-color: #6b1d18; } .praga-pop .btn.pri { background: #8a2a22; border-color: #c0392b; color: #fff4ce; }
+.praga-pop a { color: #ff8a6a; }
+/* a cura: REZA BRABA (luz dourada sobe, arruda e sal grosso voando) */
+.reza-fx { position: fixed; inset: 0; z-index: 300; pointer-events: none; overflow: hidden; }
+.reza-fx .rz-luz { position: absolute; inset: 0; background: linear-gradient(0deg, color-mix(in srgb, #f5cd49 55%, transparent), color-mix(in srgb, #fff4ce 35%, transparent) 40%, transparent 75%); animation: rz-luz 1.9s ease-out forwards; }
+.reza-fx i { position: absolute; bottom: -12px; width: 8px; height: 8px; animation: rz-up 2.2s ease-out forwards; }
+.reza-fx i.sal { background: #fffaf1; box-shadow: 1px 1px 0 #d8c8b0; }
+.reza-fx i.arruda { width: 10px; height: 6px; background: #5a9862; border-radius: 0 6px 0 6px; box-shadow: 1px 1px 0 #3d654b; }
+.reza-fx .rz-t { position: absolute; left: 50%; top: 42%; translate: -50% 0; font: 22px/1.2 var(--f-pixel); color: #fff4ce; text-shadow: 3px 3px 0 #8a5a3c, 0 0 18px #f5cd49; animation: rz-t 2.2s ease-out forwards; white-space: nowrap; }
+@media (max-width: 600px) { .reza-fx .rz-t { font-size: 15px; } .pfx-crawl { font-size: 13px; } .banner.praga-b { font-size: 12px; } }
+@media (prefers-reduced-motion: reduce) { .pfx-bug, .pfx-crawl { display: none; } li.task[data-praga], :root[data-praga] .pcv { animation: none !important; } }
+/* o tremor e os bichos nunca criam rolagem pro lado */
+:root[data-praga], :root[data-praga] body { overflow-x: clip; }

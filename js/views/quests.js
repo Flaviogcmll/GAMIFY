@@ -263,10 +263,10 @@ function focusCard(ui) {
   const f = R.focusNow(S, today(), ui.focusSkip || []);
   if (!f) return `<div class="focus-now card empty-f"><span class="fn-k">🎯 FOCO AGORA</span><span class="meta">nada urgente: escolha você ${ui.focusSkip?.length ? '<a href="#" data-act="focus-reset">ver de novo as sugestões</a>' : ''}</span></div>`;
   const t = f.task, b = t.block && R.findBlock(S, t.block);
-  return `<div class="focus-now card"><span class="fn-k" title="O PRIMO escolhe UMA tarefa pra você não perder tempo decidindo">🎯 FOCO AGORA</span>
+  return `<div class="focus-now card ${f.praga ? 'praga' : ''}" ${f.praga ? `data-praga="${f.praga}"` : ''}><span class="fn-k" title="O PRIMO escolhe UMA tarefa pra você não perder tempo decidindo">🎯 FOCO AGORA</span>
     <button class="check" data-act="toggle" data-id="${t.id}" aria-label="Concluir">${t.st === 'doing' ? '▶' : ''}</button>
     <div class="fn-t" data-act="jump" data-id="${t.id}" title="Toque pra ir até a tarefa"><b>${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}</b><small>${b ? esc(b.title) + ' · ' : ''}porque ${esc(f.why)}</small></div>
-    <span class="chip xp">${R.taskXp(S, t).xp}</span><button class="btn sm ghost" data-act="focus-skip" data-id="${t.id}" title="Agora não: mostra outra sugestão">OUTRA ▸</button></div>`;
+    <span class="chip xp">${R.taskXp(S, t).xp}</span>${f.praga ? `<span class="chip praga-chip" title="Enquanto ela estiver infectada, não dá pra trocar">🐛 FASE ${f.praga}</span>` : `<button class="btn sm ghost" data-act="focus-skip" data-id="${t.id}" title="Agora não: mostra outra sugestão">OUTRA ▸</button>`}</div>`;
 }
 /** v6 MEMENTO MORI: tocar de novo na janela aberta recolhe tudo e mostra o tempo passando (lembra de parar de procrastinar) */
 const MM_LINES = ['Memento mori: o tempo não volta. Faça hoje o que importa.', 'Cada minuto aqui é um minuto a menos lá fora. Escolha UMA coisa.', 'O dia está passando agora, enquanto você lê isto.', 'Você não tem todo o tempo do mundo. Tem o de hoje.'];

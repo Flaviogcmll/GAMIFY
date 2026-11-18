@@ -42,9 +42,11 @@ export function setVol(k, v) { prefs[k] = v; savePrefs(); applyVolumes(); }
 
 const mtof = (m) => 440 * 2 ** ((m - 69) / 12);
 let detune = 1; // v6: cada efeito sai um tiquinho diferente (não cansa o ouvido)
+let warp = 0;
 function tone(freq, t, dur, { type = 'square', vol = 0.15, out = 'sfx', attack = 0.005, slide = 0, vib = 0 } = {}) {
   const o = ctx.createOscillator(), g = ctx.createGain();
   if (out === 'sfx') freq *= detune;
+  else if (warp) freq *= 1 - warp * Math.random(); // v6.6: A PRAGA desafina a música (cada nota cai um pouco, sem padrão)
   o.type = type;
   o.frequency.setValueAtTime(freq, t);
   if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq * slide), t + dur);
@@ -229,3 +231,35 @@ export function blip(ch, base = 240, vol = 0.07) {
     o.start(t); o2.start(t); o.stop(t + 0.09); o2.stop(t + 0.09);
   } catch { /* sem som */ }
 }
+
+// ───── v6.6: SONS DE ARQUIVO (CC0, assets/sons — créditos em assets/sons/CREDITOS.txt): A PRAGA e a REZA BRABA ─────
+const FILES = {};
+const fileBuf = (n) => (FILES[n] ||= fetch(new URL(`assets/sons/${n}.mp3`, document.baseURI).href).then((r) => (r.ok ? r.arrayBuffer() : null)).then((a) => (a ? ctx.decodeAudioData(a) : null)).catch(() => null));
+let heard = false; // o navegador só deixa tocar som depois do 1º toque/clique
+document.addEventListener('pointerdown', () => { heard = true; if (pendingDrone != null) { const l = pendingDrone; pendingDrone = null; pragaDrone(l); } }, { capture: true });
+export async function playFile(n, { vol = 1, rate = 1 } = {}) {
+  if (prefs.sfx <= 0 || !heard) return;
+  try {
+    if (!ensure()) return; if (ctx.state === 'suspended') ctx.resume();
+    const b = await fileBuf(n); if (!b) return;
+    const s = ctx.createBufferSource(), g = ctx.createGain(); s.buffer = b; s.playbackRate.value = rate * (0.97 + Math.random() * 0.06); g.gain.value = vol;
+    s.connect(g).connect(bus.sfx); s.start();
+  } catch { /* sem som */ }
+}
+let drone = null, pendingDrone = null;
+/** zumbido de fundo da Praga: 0 desliga · 1 baixinho (ANGUSTIADO/ENCOSTO) · 2 forte e mais grave (A PRAGA) */
+export async function pragaDrone(level) {
+  if (!heard) { pendingDrone = level; return; }
+  if (!level || prefs.sfx <= 0) { if (drone) { const d = drone; drone = null; try { d.g.gain.setTargetAtTime(0, ctx.currentTime, 0.5); setTimeout(() => { try { d.s.stop(); } catch { /* */ } }, 2500); } catch { /* */ } } return; }
+  try {
+    if (!ensure()) return; if (ctx.state === 'suspended') ctx.resume();
+    const vol = level >= 2 ? 0.5 : 0.22, rate = level >= 2 ? 0.82 : 1;
+    if (drone) { drone.g.gain.setTargetAtTime(vol, ctx.currentTime, 0.8); drone.s.playbackRate.setTargetAtTime(rate, ctx.currentTime, 1.5); return; }
+    const b = await fileBuf('praga-drone'); if (!b || drone) return;
+    const s = ctx.createBufferSource(), g = ctx.createGain(); s.buffer = b; s.loop = true; s.playbackRate.value = rate; g.gain.value = 0;
+    s.connect(g).connect(bus.sfx); s.start(); g.gain.setTargetAtTime(vol, ctx.currentTime, 1.5);
+    drone = { s, g };
+  } catch { /* sem som */ }
+}
+/** música desafinada (0 = normal; 0.06 = bem torta) */
+export const pragaWarp = (v) => { warp = v || 0; };
