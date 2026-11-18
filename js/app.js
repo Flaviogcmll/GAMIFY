@@ -40,7 +40,7 @@ import { tripBanner, tripCheck, extendTrip } from './trip.js';
 import { maybeReview, extendReview } from './review.js';
 import { extendBujo, afterRenderBujo } from './bujo.js';
 import { perksNav, perksGo, applyCursor, CURSOR_KEY } from './telas.js';
-import { extendMapa } from './mapa.js';
+import { extendMapa, mountMap } from './mapa.js';
 import { renderPostit } from './postit.js';
 
 
@@ -141,6 +141,7 @@ function render() {
   setStick();
   scrollTo(0, y);
   try { mountScenes(); } catch (err) { console.error(err); }
+  try { mountMap(); } catch (err) { console.error(err); }
   deaccent(document.body);
   try { maybeReview(); } catch (err) { console.error(err); }
   try { afterRender(cur); } catch (err) { console.error(err); }
@@ -269,7 +270,7 @@ A.onFeedback((fb) => {
   primoFeedback(fb);
   if (fb.levelUp) levelUp(fb.levelUp);
   if (fb.chapterClosed) chapterCard(fb.chapterClosed);
-  render();
+  if (!fb.quiet || fb.xp || fb.achievements?.length || fb.levelUp) render();
 });
 function levelUp(t) {
   confetti(); sfx('level');
@@ -636,7 +637,7 @@ const ACTIONS = {
   ltab: (d) => { ui.ltab = d.tab; render(); sfx('tab'); },
   fcat: (d) => { ui.fcat = d.cat; render(); },
   fsort: (d) => { const f = ui.filtro; if (f.sort === d.k) f.dir *= -1; else { f.sort = d.k; f.dir = 1; } render(); },
-  fpick: (d) => { const f = (ui.filtro ||= { q: '', cat: '', bucket: '', status: '', type: '', who: '', sort: 'date', dir: 1 }); f[d.k] = f[d.k] === d.v ? '' : d.v; sfx('tab'); render(); if (d.go) setTimeout(() => document.getElementById('filtro-v')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60); }, // quadrinho liga/desliga o filtro (na AGENDA, rola até a tabela)
+  fpick: (d) => { const f = (ui.filtro ||= { q: '', cat: '', bucket: '', status: '', type: '', who: '', sort: 'date', dir: 1 }); f[d.k] = f[d.k] === d.v ? '' : d.v; if (d.go && isCollapsed('c:agenda:filtro')) toggleCollapse('c:agenda:filtro'); sfx('tab'); render(); if (d.go) setTimeout(() => document.getElementById('filtro-v')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60); }, // quadrinho liga/desliga o filtro (na AGENDA, rola até a tabela)
   fclear: () => { Object.assign(ui.filtro, { q: '', cat: '', bucket: '', status: '', type: '', who: '' }); sfx('tab'); render(); },
   cq: (d) => { ui.cq = d.v; sfx('tab'); render(); }, // v5.16: filtro das CONQUISTAS
   'perks-go': (d) => perksGo(d.i),

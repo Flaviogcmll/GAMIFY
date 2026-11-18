@@ -82,7 +82,7 @@ export function commit(docs, fn, opts = {}) {
   feedbackFn({
     xp: after.earned - before.earned, spent: after.spent - before.spent, gold: after.gold - before.gold,
     tickets: after.tickets - before.tickets, levelUp: after.level > before.level ? after : null,
-    achievements: extra.achievements, at: opts.at, msg: res?.msg, released: lsync.released, ...(res?.feedback || {}),
+    achievements: extra.achievements, at: opts.at, msg: res?.msg, released: lsync.released, quiet: !!opts.quiet, ...(res?.feedback || {}),
   });
   return res;
 }
@@ -1462,7 +1462,7 @@ export function delScratch(id) {
 export function setMapa(data) {
   const v = typeof data === 'string' ? { text: data.slice(0, 6000) } : { nodes: (data.nodes || []).slice(0, 200), links: (data.links || []).slice(0, 400) };
   if (JSON.stringify(S.core.mapa ? { ...S.core.mapa, at: undefined } : null) === JSON.stringify({ ...v, at: undefined })) return;
-  commit(['core'], () => { S.core.mapa = { ...v, at: today() }; }, { noUndo: true });
+  commit(['core'], () => { S.core.mapa = { ...v, at: today() }; }, { noUndo: true, quiet: true }); // v6.3: o mapa se redesenha sozinho (sem redesenhar a aba e pular a tela)
 }
 /** o mapa vira trabalho: a raiz vira um bloco no BREAKDOWN, os galhos viram tarefas e os galhos de galho viram passos ↳ */
 export function mapToBlock(tree) {

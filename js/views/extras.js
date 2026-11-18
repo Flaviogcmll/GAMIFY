@@ -1,3 +1,4 @@
+import { prefs as aprefs } from '../audio.js';
 // TELAS DOMINGO (baú semanal), CONQUISTAS e REGRAS (capítulo, regras, ajustes, backup).
 import { S, status, backendKind } from '../store.js';
 
@@ -86,8 +87,16 @@ export function viewDomingo() {
     <tbody>${hist.map((x) => { const a = avg(x); return `<tr><th class="hn">${fmtDM(x.date)}</th>${ms.map((m) => `<td style="text-align:center">${x.notes?.[m] ?? ''}</td>`).join('')}
       <td style="text-align:center"><b class="num">${a == null ? '' : a.toFixed(1).replace('.', ',')}</b></td><td style="text-align:center">${a == null ? '' : a >= 8 ? '✨' : a < 5 ? '😩' : '⚖'}</td>
       <td style="text-align:center" class="acc num">${x.xp}</td><td class="info" style="white-space:normal">${esc(x.text || '')}</td></tr>`; }).join('')}</tbody></table></div></div>`;
+  const a0 = hist[0] ? avg(hist[0]) : null, a1 = hist[1] ? avg(hist[1]) : null, nf = (v) => (v == null ? '—' : v.toFixed(1).replace('.', ','));
+  const diff = a0 != null && a1 != null ? a0 - a1 : null;
+  const strip = tiles([
+    { label: '📖 Nota da semana', value: nf(a0), sub: hist[0] ? `baú de ${fmtDM(hist[0].date)}` : 'abra o 1º baú', tone: a0 == null ? 'neutro' : a0 >= 8 ? 'ok' : a0 < 5 ? 'urg' : 'atencao', tip: 'Média das notas do último baú de domingo' },
+    { label: '⏮ Semana anterior', value: nf(a1), sub: hist[1] ? fmtDM(hist[1].date) : '', tone: 'neutro' },
+    { label: diff == null ? '↕ Diferença' : diff >= 0 ? '▲ Melhorou' : '▼ Caiu', value: diff == null ? '—' : `${diff >= 0 ? '+' : ''}${diff.toFixed(1).replace('.', ',')}`, tone: diff == null ? 'neutro' : diff >= 0 ? 'ok' : 'quase', tip: 'Nota desta semana menos a da anterior' },
+    { label: '🎁 Baús abertos', value: hist.length, sub: `${fmtN(hist.reduce((s, x) => s + (x.xp || 0), 0))} XP`, tone: 'premio' },
+  ]);
   return `<div class="page-title"><div><h1><em>domingo</em>.</h1></div></div>
-    <div class="grid">${scratchCard()}${form}${mapCard()}${pesoCard()}${resumoCard()}${table}</div>`;
+    ${strip}<div class="grid">${scratchCard()}${form}${mapCard()}${pesoCard()}${resumoCard()}${table}</div>`;
 }
 
 // ───────────── CONQUISTAS ─────────────
@@ -110,7 +119,9 @@ export function viewConquistas(ui) {
     { label: '🔒 Faltam', value: left.length, tone: 'neutro', act: 'cq', data: { v: 'faltam' }, on: f === 'faltam' },
     { label: '✨ XP de medalhas', value: fmtN(xp), cls: 'gold', tone: 'premio' },
     last && { label: '🕐 Última', value: `<span class="lastm">${esc(last.name)}</span>`, sub: fmtDM(last.date), tone: 'premio' },
-  ]);
+  ]) + (left.length ? `<h2 class="sec-h">🎯 Falta pouco <span class="meta">as 3 mais perto</span></h2>` + tiles(left.slice(0, 3).map((a) => ({
+    label: esc(a.name), value: `${Math.round(a.pct * 100)}%`, sub: `falta ${fmtN(Math.max(0, a.goal - a.value))} · +${a.xp} XP`, tone: a.pct >= 0.75 ? 'ok' : 'atencao', tip: a.desc,
+  }))) : '');
   const body = f === 'ganhas' ? sec('🏆 Ganhas', got, 'nenhuma ainda.')
     : f === 'quase' ? sec('🎯 Quase lá', near, 'nenhuma passou da metade ainda.')
     : f === 'faltam' ? sec('🔒 Faltam', left, 'você pegou todas!')
@@ -138,8 +149,18 @@ export function viewRegras() {
   const tot = R.totals(S);
   const kb = (n) => Math.round(JSON.stringify(n || {}).length / 1024);
   const mode = localStorage.getItem('gamify-ui:mode') || 'auto';
+  const nv = R.neuro(S), bools = Object.entries(nv).filter(([, v]) => typeof v === 'boolean'), on = bools.filter(([, v]) => v).length;
+  const cast = { loja: 'LOJA CARA', aviso: 'SÓ AVISO', nenhum: 'NENHUM' }[S.core.settings?.castigo || 'loja'];
+  let cur = 'seta'; try { cur = localStorage.getItem('gamify-ui:cursor') || 'seta'; } catch { /* */ }
+  const strip = tiles([
+    { label: '🧠 Recursos ligados', value: `${on}/${bools.length}`, sub: on === bools.length ? 'tudo ligado' : `${bools.length - on} desligado(s)`, tone: on === bools.length ? 'ok' : 'atencao', tip: 'Relógio do corpo, migração do mês, time box, pato de borracha… (liga e desliga no cartão 🧠)' },
+    { label: '⚖ Castigo', value: `<span class="lastm">${cast}</span>`, tone: cast === 'NENHUM' ? 'neutro' : 'quase', tip: 'O que acontece quando os prazos estouram' },
+    { label: '🔊 Sons', value: aprefs.on ? 'LIGADO' : 'DESLIGADO', sub: `efeitos ${Math.round((aprefs.sfx ?? 0.6) * 100)}%`, tone: aprefs.on ? 'ok' : 'neutro', tip: 'Música e efeitos (botão ♪ no topo)' },
+    { label: '🖱 Cursor', value: `<span class="lastm">${{ seta: 'SETA DO JOGO', pincel: 'PINCEL', patinha: 'PATINHA', normal: 'NORMAL' }[cur] || cur}</span>`, tone: 'neutro', tip: 'Troca em Ajustes, mais abaixo' },
+    { label: '📖 Capítulo', value: ch.n || 1, sub: esc(ch.title || ''), tone: 'premio' },
+  ]);
   return `<div class="page-title"><div><h1><em>perks and rules</em>.</h1></div></div>
-    <div class="grid">
+    ${strip}<div class="grid">
       ${settingsV35()}
       ${neuroCard()}
       <div class="card c12" data-gk="nomes"><header><h2>✏ Nomes das listas e janelas</h2><span class="meta">só o texto muda; as regras continuam as mesmas</span></header>
@@ -161,7 +182,7 @@ export function viewRegras() {
         <label class="lbl" for="set-mode">Visual</label><select class="inp" id="set-mode" data-change="mode"><option value="auto" ${mode === 'auto' ? 'selected' : ''}>AUTOMÁTICO (papel 6h–18h · fogueira à noite)</option><option value="day" ${mode === 'day' ? 'selected' : ''}>SEMPRE PAPEL</option><option value="night" ${mode === 'night' ? 'selected' : ''}>SEMPRE FOGUEIRA</option></select>
         <label class="lbl" for="set-primo">Desenho do PRIMO</label><select class="inp" id="set-primo" data-change="primo-art"><option value="novo" ${artWanted() ? 'selected' : ''}>NOVO (arte em alta definição, com cenários)</option><option value="classico" ${artWanted() ? '' : 'selected'}>CLÁSSICO (porquinho em pixel)</option></select>
         ${[['music', 'Música lo-fi'], ['fire', 'Som da fogueira'], ['sfx', 'Efeitos']].map(([k, n]) => `<label class="lbl" for="vol-${k}">${n}</label><input id="vol-${k}" type="range" min="0" max="1" step="0.05" value="${prefs[k]}" data-change="vol" data-k="${k}" style="width:100%">`).join('')}
-        <label class="lbl" for="set-cur">Cursor (neste aparelho)</label><select class="inp" id="set-cur" data-change="cursor">${[['pincel', '🖌 PINCEL MÁGICO'], ['patinha', '🐾 PATINHA DO PORQUINHO'], ['normal', 'NORMAL']].map(([k, n]) => `<option value="${k}" ${((() => { try { return localStorage.getItem('gamify-ui:cursor'); } catch { return null; } })() || 'pincel') === k ? 'selected' : ''}>${n}</option>`).join('')}</select>
+        <label class="lbl" for="set-cur">Cursor (neste aparelho)</label><select class="inp" id="set-cur" data-change="cursor">${[['seta', '➤ SETA DO JOGO (padrão)'], ['pincel', '🖌 PINCEL MÁGICO'], ['patinha', '🐾 PATINHA DO PORQUINHO'], ['normal', 'NORMAL DO SISTEMA']].map(([k, n]) => `<option value="${k}" ${((() => { try { return localStorage.getItem('gamify-ui:cursor'); } catch { return null; } })() || 'seta') === k ? 'selected' : ''}>${n}</option>`).join('')}</select>
         <label class="lbl" for="set-cast" title="A cada ${R.BLOW_EVERY} prazos estourados. Resolver ou remarcar 1 atrasada cancela o castigo.">Castigo por prazos estourados</label><select class="inp" id="set-cast" data-change="setting" data-k="castigo">${[['loja', `LOJA ${Math.round((R.BLOW_MULT - 1) * 100)}% MAIS CARA POR ${R.BLOW_DAYS} DIAS`], ['aviso', 'SÓ UM AVISO'], ['nenhum', 'NENHUM']].map(([k, n]) => `<option value="${k}" ${(S.core.settings?.castigo || 'loja') === k ? 'selected' : ''}>${n}</option>`).join('')}</select>
         <label class="lbl" for="set-max">Máx. de prazos por dia útil</label><input class="inp" id="set-max" type="number" min="1" max="20" value="${S.core.settings?.maxPerDay || R.C.MAX_PER_DAY}" data-change="setting" data-k="maxPerDay">
         <label class="lbl" for="set-ms">Áreas do baú de domingo</label><textarea class="inp" id="set-ms" rows="2" data-change="milestones">${esc((S.core.milestones || []).join(', '))}</textarea>
