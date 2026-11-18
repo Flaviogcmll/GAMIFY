@@ -4,7 +4,7 @@
 import { S } from './store.js';
 import * as A from './actions.js';
 import * as R from './rules.js';
-import { esc, lightNow } from './util.js';
+import { esc } from './util.js';
 import { openModal, closeModal, toast } from './ui.js';
 import { sfx } from './audio.js';
 import { addImages } from './imgs.js';
@@ -62,13 +62,10 @@ const slug = (t) => String(t || 'mapa').normalize('NFD').replace(/[^\w ]/g, '').
 
 // ───── cartões da REFLEXÃO ─────
 
-/** v7.4: REFLEXÃO em banners (como a FEIRA). Quando a arte B-15/B-16 chegar, ponha o nome aqui (assets/topo/refl-<nome>-<dia|noite>.webp). */
-const REFL_ART = [];
-const bannerUrl = (k) => new URL(`assets/topo/${REFL_ART.includes(k) ? 'refl-' + k : 'domingo'}-${lightNow() === 'noite' ? 'noite' : 'dia'}.webp`, document.baseURI).href;
 export function scratchCard() {
   const now = Date.now(), list = (S.core.scratch || []).filter((x) => now - x.at < A.SCRATCH_TTL).sort((a, b) => b.at - a.at);
   const left = (x) => { const h = Math.max(1, Math.round((A.SCRATCH_TTL - (now - x.at)) / 3600e3)); return h >= 24 ? `${Math.round(h / 24)}d` : `${h}h`; };
-  return `<div class="card c12 bann" data-gk="rascunho" style="--bimg:url('${bannerUrl('rascunho')}')"><header><h2 title="Escreva o que está rodando na cabeça. Some sozinho em 2 dias: é só pra desatolar.">🫧 Descarregar a cabeça</h2></header>
+  return `<div class="card c12" data-gk="rascunho"><header><h2 title="Escreva o que está rodando na cabeça. Some sozinho em 2 dias: é só pra desatolar.">🫧 Descarregar a cabeça</h2></header>
     <form data-form="scratch" class="scratch-f" autocomplete="off"><textarea class="inp" name="text" rows="3" placeholder="escreva sem filtro… (Enter solta · Shift+Enter pula linha · some em 2 dias)" aria-label="Rascunho"></textarea><button class="btn pri">SOLTAR</button></form>
     ${list.length ? `<div class="scratch-l">${list.map((x) => `<div class="sn"><p>${esc(x.text)}</p><span class="sn-t" title="Some sozinho">⏳ ${left(x)}</span><button class="rx" data-act="scratch-del" data-id="${x.id}" title="Apagar agora" aria-label="Apagar">×</button></div>`).join('')}</div>` : ''}</div>`;
 }
@@ -167,7 +164,7 @@ function toolsHtml() {
 }
 export function mapCard() {
   const d = data();
-  return `<div class="card c12 bann" data-gk="mapa" style="--bimg:url('${bannerUrl('mapa')}')"><header><h2 title="Quadro infinito: duplo clique no vazio cria um balão. Roda do mouse = zoom. Arraste o fundo = caixa de seleção. Botão do meio/direito ou ESPAÇO + arrastar = mover o quadro. Delete apaga.">🗺 Mapa mental</h2>
+  return `<div class="card c12" data-gk="mapa"><header><h2 title="Quadro infinito: duplo clique no vazio cria um balão. Roda do mouse = zoom. Arraste o fundo = caixa de seleção. Botão do meio/direito ou ESPAÇO + arrastar = mover o quadro. Delete apaga.">🗺 Mapa mental</h2>
       <div class="row" style="gap:6px">${d.nodes.length ? `<button class="btn sm" data-act="map-png" title="Baixar o mapa como imagem">⬇ PNG</button><button class="btn sm" data-act="map-attach" title="Guardar o mapa como imagem numa tarefa">🖼 NA TAREFA</button><button class="btn sm pri" data-act="map-block" title="O balão escolhido (ou o primeiro) vira um bloco no BREAKDOWN; os ligados a ele viram tarefas e passos ↳">✅ VIRAR BLOCO</button>` : ''}</div></header>
     <div class="mm-tools">${toolsHtml()}</div>
     <div class="mm-box ${boxMode ? 'boxmode' : ''}" data-mmbox tabindex="0" aria-label="Quadro do mapa mental"><div class="mm-world">${worldHtml(d)}</div>

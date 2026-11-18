@@ -51,12 +51,12 @@ export function viewSurvival(ui) {
   for (let d = addDays(td, -1); R.isPerfect(S, d); d = addDays(d, -1)) perfectRun++;
   if (R.isPerfect(S, td)) perfectRun++;
   return `<div class="page-title"><div><h1><em>survival</em>.</h1></div></div>
+    <div class="page-actions"><button class="btn" data-act="rest-day">🏕 DESCANSO HOJE</button><button class="btn ${R.tripNow(S) ? 'pri' : ''}" data-act="trip" title="Viagem ou visitas: congela o jogo enquanto você está fora">✈ ${R.tripNow(S) ? 'VOLTEI' : 'VIAGEM'}</button><button class="btn" data-act="edit-habits">✎ HÁBITOS</button></div> <!-- v7.7: os botões vêm antes dos quadrinhos -->
     ${tiles([
       { label: '🌟 Perfeitos seguidos', value: perfectRun, tone: 'ok', tip: 'Dias seguidos com todos os hábitos feitos' },
       { label: '✓ Hábitos hoje', value: `${R.countX(S, td)}/${S.core.habits.length}`, tone: 'ok' },
       { label: '✨ XP hoje', value: S.marks.days[td]?.xp || 0, cls: 'gold', tone: 'premio', tip: `Multiplicador dos hábitos hoje: x${st.habitMult.toFixed(2).replace('.', ',')}` },
     ])}
-    <div class="page-actions"><button class="btn" data-act="rest-day">🏕 DESCANSO HOJE</button><button class="btn ${R.tripNow(S) ? 'pri' : ''}" data-act="trip" title="Viagem ou visitas: congela o jogo enquanto você está fora">✈ ${R.tripNow(S) ? 'VOLTEI' : 'VIAGEM'}</button><button class="btn" data-act="edit-habits">✎ HÁBITOS</button></div>
     <div class="card status-sv"><header><h2 title="Toque num status pra ver o que é e como resolver">🎭 Status do dia</h2></header><div class="status-line">${statusChips(st, R.alerts(S, td)) || '<span class="meta">nenhum buff nem debuff hoje.</span>'}</div></div>
     <div class="grid">${grid(ui)}${ritualsMini(td)}</div>`;
 }

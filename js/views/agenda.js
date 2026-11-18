@@ -20,17 +20,20 @@ function timelineCard(ui) {
   const head2 = days.map((d) => `<th class="${d === td ? 'today' : off(d)}" title="${esc(holidayName(d) || '')}">${DOW[weekday(d)][0]}<br>${d.slice(8)}${holidayName(d) ? '<i class="holm">★</i>' : ''}</th>`).join('');
   const cell = (d, n, extra = '') => `<td class="${d === td ? 'today' : off(d)} ${n ? 'n' : ''} ${n && d < td ? 'late' : ''} ${extra}">${n || ''}</td>`;
   // v5.15: as linhas das listas e dos rituais saíram daqui (a carga de cada dia fica na faixa de cima); ficam as datas e os blocos
+  // v7.7: o inimigo chegando pelas linhas: 💀 no dia em que uma subtarefa do bloco vira TREM RUIM (se ninguém fizer)
+  const skulls = (bid) => { const m = {}; if (!R.neuroOn(S, 'praga')) return m; for (const t of S.quests.tasks) if (t.block === bid && R.isOpen(t) && t.due && t.st !== 'wait' && !t.who) { const x = R.pragaDay(S, t.due, 1); if (x && x >= td) (m[x] ||= []).push(String(t.text).replace(/\s*\(\d+\s*XP\)/i, '')); } return m; };
   const blocks = tl.blocks.map((b) => {
+    const sk = skulls(b.block);
     const dues = Object.keys(b.counts).sort();
     const endD = b.due || dues[dues.length - 1];
     return `<tr><td class="name" data-act="jump-block" data-id="${b.block}" style="cursor:pointer">${esc(b.title || b.name)}</td>${days.map((d) => {
       const inSpan = endD && d >= td && d <= endD, left = inSpan ? Math.round((new Date(endD) - new Date(d)) / 864e5) : 0;
       const heat = !inSpan ? '' : left <= 1 ? 'h-urg' : left <= 3 ? 'h-quase' : left <= 7 ? 'h-atencao' : 'h-ok'; // v6: as cores das listas (HOJE, AMANHÃ, SEMANA, DEPOIS)
-      return cell(d, b.counts[d], `${inSpan ? 'span ' + heat : ''} ${b.due === d ? 'end' : ''}`).replace('></td>', `>${b.due === d && !b.counts[d] ? '◆' : ''}</td>`);
+      return cell(d, b.counts[d], `${inSpan ? 'span ' + heat : ''} ${b.due === d ? 'end' : ''} ${sk[d] ? 'skull' : ''}`).replace('></td>', `>${b.due === d && !b.counts[d] ? '◆' : ''}</td>`).replace(/<\/td>$/, sk[d] ? `<i class="tl-skull" title="💀 O inimigo chega aqui: vira TREM RUIM se ninguém fizer até a véspera · ${esc(sk[d].slice(0, 3).join(' · ').slice(0, 120))}">💀</i></td>` : '</td>');
     }).join('')}</tr>`;
   }).join('');
-  return `<div class="card c12"><header><h2>Linha do tempo dos blocos · 6 semanas</h2>
-      <div class="row"><button class="btn sm" data-act="tl-week" data-dir="-1" aria-label="Semana anterior">◄</button><button class="btn sm" data-act="tl-week" data-dir="0">HOJE</button><button class="btn sm" data-act="tl-week" data-dir="1" aria-label="Próxima semana">►</button></div></header>
+  return `<div class="cal-part c12"><div class="cal-h"><h3>Linha do tempo dos blocos · 6 semanas</h3>
+      <div class="row"><button class="btn sm" data-act="tl-week" data-dir="-1" aria-label="Semana anterior">◄</button><button class="btn sm" data-act="tl-week" data-dir="0">HOJE</button><button class="btn sm" data-act="tl-week" data-dir="1" aria-label="Próxima semana">►</button></div></div>
     <div class="tl"><table><thead><tr><th></th>${head1}</tr><tr><th></th>${head2}</tr></thead><tbody>${blocks}</tbody></table></div></div>`;
 }
 
@@ -60,12 +63,12 @@ export function viewAgenda(ui) {
     <div class="row" style="flex-wrap:nowrap;gap:6px"><span class="chip ${s.left <= 0 ? 'late' : s.left <= 1 ? 'week' : 'rit'}">${esc(s.label)}</span>${r.last === td ? '' : `<button class="btn sm" data-act="ritual-done" data-id="${r.id}" title="Fiz">✓</button>`}</div></div>`;
   const blow = R.blowState(S), blowPct = Math.round((R.BLOW_MULT - 1) * 100);
   return `<div class="page-title"><div><h1><em>agenda</em>.</h1></div></div>
+    <div class="page-actions"><button class="btn pri" data-act="distribute">📅 DISTRIBUIR PRAZOS</button></div> <!-- v7.7: os botões vêm antes dos quadrinhos -->
     ${tiles([
       { label: 'Pontualidade 30d', value: punct == null ? '—' : punct + '%', tone: 'ok', tip: 'Das tarefas com prazo concluídas nos últimos 30 dias, quantas saíram no prazo.' },
       { label: '🎯 No prazo seguidas', value: seq, tone: 'ok', tip: seq >= 5 ? 'RELÓGIO SUÍÇO!' : '5 seguidas no prazo = RELÓGIO SUÍÇO' },
       { label: '💥 Estourados', value: `${blow.n % R.BLOW_EVERY}/${R.BLOW_EVERY}`, cls: blow.active ? 'bad' : '', tone: 'urg', tip: blow.active ? `Castigo ativo: loja +${blowPct}%. Resolva 1 atrasada antiga pra cancelar.` : `A cada ${R.BLOW_EVERY} prazos estourados, a loja fica ${blowPct}% mais cara por ${R.BLOW_DAYS} dias.` },
     ])}
-    <div class="page-actions"><button class="btn pri" data-act="distribute">📅 DISTRIBUIR PRAZOS</button></div>
     <section class="vitrine cal-v ${isCollapsed('c:agenda:calendario') ? 'shut' : ''}" data-v="calendario"><header class="vit-h" data-act="collapse" data-k="c:agenda:calendario" title="Toque pra recolher ou abrir o CALENDÁRIO" style="--img:url('${new URL(`assets/topo/${CAL_ART ? 'calendario' : 'agenda'}-${lightNow() === 'noite' ? 'noite' : 'dia'}.webp`, document.baseURI).href}')"><div><h2><span class="chev">${isCollapsed('c:agenda:calendario') ? '▸' : '▾'}</span> 📅 CALENDÁRIO</h2><p>A carga de cada dia e a linha do tempo dos blocos, juntas. 💀 = o inimigo chega.</p></div></header>
       ${isCollapsed('c:agenda:calendario') ? '' : `<div class="vit-b">${dayStrip()}<div class="grid">${timelineCard(ui)}</div></div>`}</section>
     <section class="vitrine filtro-v ${isCollapsed('c:agenda:filtro') ? 'shut' : ''}" id="filtro-v" data-v="filtro"><header class="vit-h" data-act="collapse" data-k="c:agenda:filtro" title="Toque pra recolher ou abrir o FILTRO" style="--img:url('${new URL(`assets/topo/filtro-${lightNow() === 'noite' ? 'noite' : 'dia'}.webp`, document.baseURI).href}')"><div><h2><span class="chev">${isCollapsed('c:agenda:filtro') ? '▸' : '▾'}</span> 🔍 FILTRO</h2><p>Tudo em aberto, numa tabela. Toque num quadrinho pra filtrar, no cabeçalho pra ordenar, na linha pra abrir.</p></div></header>
@@ -80,7 +83,7 @@ const SKULL_DAYS = 3;
 function dayStrip() {
   const td = today(), load = R.loadByDay(S), rit = R.ritualDates(S, addDays(td, -3), 45);
   const hols = range(td, 60).filter(holidayName).slice(0, 4);
-  return `<div class="card" style="margin-bottom:16px"><header><h2>📊 Carga do dia · 6 semanas</h2><span class="meta" title="Toque num dia pra ver as tarefas dele. Arraste uma tarefa da fila até um dia pra mudar o prazo.">${hols.length ? `★ ${hols.map((d) => `${fmtDM(d)} ${esc(holidayName(d))}`).join(' · ')}` : ''}</span></header>
+  return `<div class="cal-part" style="margin-bottom:16px"><div class="cal-h"><h3>📊 Carga do dia · 6 semanas</h3><span class="meta" title="Toque num dia pra ver as tarefas dele. Arraste uma tarefa da fila até um dia pra mudar o prazo.">${hols.length ? `★ ${hols.map((d) => `${fmtDM(d)} ${esc(holidayName(d))}`).join(' · ')}` : ''}</span></div>
     <div class="daystrip">${((pd) => (S.quests.tasks.filter((t) => R.isOpen(t) && t.due && t.st !== 'wait' && !t.who && !t.mother).forEach((t) => { const x = R.neuroOn(S, 'praga') ? R.pragaDay(S, t.due, 1) : null; /* v7.0: a caveira avisa ANTES: o dia em que a tarefa vira TREM RUIM */ if (x) (pd[x] ||= []).push(t.text.replace(/\s*\(\d+\s*XP\)/i, '')); }), (window.__pragaDays = pd), ''))({})}${range(addDays(td, -3), 45).map((d) => {
       const n = load[d] || 0, hol = holidayName(d), we = weekday(d) === 0 || weekday(d) === 6;
       return `<div class="day ${d === td ? 'today' : ''} ${hol ? 'hol off' : we ? 'off' : ''} ${d < td ? 'past' : ''}" data-act="ag-day" data-d="${d}"><small>${DOW[weekday(d)]} ${fmtDM(d)}</small><div class="n ${n >= 6 ? 'l6' : n >= 4 ? 'l4' : n ? 'l1' : ''}">${n || '·'}</div>${window.__pragaDays?.[d] && d >= td && d <= addDays(td, SKULL_DAYS) ? `<i class="pg-skull" title="💀 O inimigo chega aqui. Se ninguém fizer até a véspera, neste dia vira TREM RUIM: ${esc(window.__pragaDays[d].slice(0, 4).join(' · ').slice(0, 160))}">💀${window.__pragaDays[d].length > 1 ? window.__pragaDays[d].length : ''}</i>` : ''}<small>${rit[d] ? `<span title="${esc(rit[d].map((r) => r.name).join(', '))}">🔁${rit[d].length}</span> ` : ''}${hol ? `<b class="holn" title="${esc(hol)}">★ ${esc(hol.split(' ')[0])}</b>` : ''}</small></div>`;

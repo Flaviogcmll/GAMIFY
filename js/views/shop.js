@@ -20,8 +20,6 @@ const FER_ICON = { ARQUITETURA: '📐', CASA: '🏠', EU: '🪞', JOGOS: '🎮',
 const kFer = (it) => (it.icon || FER_ICON[it.cat] ? `<span class="eico">${it.icon || FER_ICON[it.cat]}</span>` : (() => { const [i, sh] = CAT_ICON[it.cat] || [102, 'dungeon']; return kspr(i, sh); })());
 // v7.4: SACOLA (era MOCHILA), CARTEIRA (era BAÚ DE OURO), NOTA FISCAL (era REGISTRO). As chaves internas não mudam.
 const TABS = [['loja', '🎪 BARRACAS'], ['mochila', '🛍 SACOLA'], ['forjados', '⚒ FORJADOS'], ['ouro', '$ CARTEIRA'], ['hist', '🧾 NOTA FISCAL']];
-/** v7.4: bancas (categorias do FERREIRO) que já têm banner próprio em assets/topo/banca-<categoria>-<dia|noite>.webp (o dono gera a arte B-13). Sem arte: banner do ferreiro. */
-export const BANCA_ART = [];
 const slugCat = (c) => String(c).normalize('NFD').replace(/[^A-Za-z0-9]/g, '').toLowerCase();
 const mmss = (ms) => { const s = Math.max(0, Math.round(ms / 1000)); return `${String((s / 60) | 0).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
 
@@ -62,11 +60,18 @@ function mochila() {
       ${using ? `<div class="ip" data-countdown="${p.endsAt}">${mmss(p.endsAt - now)}</div>${segBar((p.endsAt - now) / (p.endsAt - p.startedAt), 'sm')}` : `<small class="dim">${m.min ? `⏱ ${m.min} min` : 'sem tempo'} · desde ${fmtDM(p.date)}</small>`}
       <div class="ia">${using ? `<button class="btn sm" data-act="finish-item" data-id="${p.id}">ENCERRAR</button>` : `<button class="btn sm pri" data-act="use-item" data-id="${p.id}">USAR AGORA</button>`}</div></div>`;
   };
-  return `${bag.length ? `<div class="shop">${bag.map(card).join('')}</div>` : `<div class="card"><p>Sacola vazia. Compre na TAVERNA antes de aproveitar: o prazer comprado tem outro gosto.</p></div>`}
+  return `${bag.length ? `<div class="shop">${bag.map(card).join('')}</div>` : `<div class="card"><p>Sacola vazia. Compre no BARZINHO antes de aproveitar: o prazer comprado tem outro gosto.</p></div>`}
     <div class="card" style="margin-top:16px"><header><h2>Usados recentemente</h2></header><div class="list">${used.map((p) => `<div class="li"><div class="lt">${esc(p.item)}<small>${fmtDM(p.usedAt || p.date)}${p.debt ? ' · 🧾 dívida x2' : ''}</small></div><span class="chip">${p.debt ? 'X2' : 'OK'}</span></div>`).join('') || '<div class="empty">nada ainda.</div>'}</div></div>`;
 }
 
-/** itens do FERREIRO de UMA categoria (v7.4: cada categoria é uma banca da FEIRA) */
+/** v7.7: as BARRACAS do FERREIRO são linhas simples (recolhem como os outros cartões), dentro do banner do FERREIRO */
+function barracas(tot, shop, ui) {
+  return S.loja.cats.filter((c) => S.loja.ferreiro.some((f) => f.cat === c)).map((c) => {
+    const n = S.loja.ferreiro.filter((f) => f.cat === c), open = n.filter((f) => f.nv <= tot.level && !(S.loja.purchases.some((p) => p.kind === 'ferreiro' && p.itemId === f.id) && !f.repeat)).length;
+    return `<div class="card barraca"><header><h2>${FER_ICON[c] || '⚒'} BARRACA ${esc(c)}</h2><span class="meta">${n.length} itens · ${open} no seu nível</span></header>${ferreiro(tot, shop, ui, c)}</div>`;
+  }).join('');
+}
+/** itens do FERREIRO de UMA categoria (v7.4: cada categoria era uma banca; v7.7: uma BARRACA, numa linha) */
 function ferreiro(tot, shop, ui, only) {
   const cats = S.loja.cats.filter((c) => S.loja.ferreiro.some((f) => f.cat === c));
   const cat = only || (cats.includes(ui.fcat) ? ui.fcat : cats[0]);
@@ -119,13 +124,11 @@ export function viewShop(ui) {
   const goalIt = S.loja.taverna.find((i) => i.id === S.loja.goal);
   const nb = R.bag(S).length, dn = lightNow() === 'noite' ? 'noite' : 'dia'; // v7.0: pela hora real
   const fx = shop.mult === 1 ? 'x1' : 'x' + shop.mult.toFixed(2).replace('.', ',');
-  // v6: a FEIRA tem barracas (TAVERNA em cima, FERREIRO embaixo), cada uma com o seu banner; outros vendedores entram aqui
-  const vitrine = (key, title, sub, body) => { const ck = 'c:shop:' + key, shut = isCollapsed(ck), bc = key.startsWith('b:') ? key.slice(2) : null; return `<section class="vitrine ${shut ? 'shut' : ''} ${bc ? 'banca' : ''}" data-v="${key}"><header class="vit-h" data-act="collapse" data-k="${ck}" title="Toque pra recolher ou abrir" style="--img:url('${new URL(`assets/topo/${bc && BANCA_ART.includes(bc) ? 'banca-' + bc : key === 'tav' ? 'shop' : 'ferreiro'}-${dn}.webp`, document.baseURI).href}')"><div><h2><span class="chev">${shut ? '▸' : '▾'}</span> ${title}</h2><p>${sub}</p></div></header>${shut ? '' : `<div class="vit-b">${body}</div>`}</section>`; };
+  // v6: a FEIRA tem barracas (BARZINHO em cima, FERREIRO embaixo), cada uma com o seu banner; outros vendedores entram aqui
+  const vitrine = (key, title, sub, body) => { const ck = 'c:shop:' + key, shut = isCollapsed(ck); return `<section class="vitrine ${shut ? 'shut' : ''}" data-v="${key}"><header class="vit-h" data-act="collapse" data-k="${ck}" title="Toque pra recolher ou abrir" style="--img:url('${new URL(`assets/topo/${key === 'tav' ? 'shop' : 'ferreiro'}-${dn}.webp`, document.baseURI).href}')"><div><h2><span class="chev">${shut ? '▸' : '▾'}</span> ${title}</h2><p>${sub}</p></div></header>${shut ? '' : `<div class="vit-b">${body}</div>`}</section>`; };
   const body = tab === 'mochila' ? mochila() : tab === 'forjados' ? forjados() : tab === 'ouro' ? ouro() : tab === 'hist' ? hist()
-    : vitrine('tav', '🍺 TAVERNA', 'Os prazeres do dia a dia. Compre ANTES de aproveitar: vai pra SACOLA.', taverna(tot, shop))
-      + `<h2 class="sec-h bancas-h" title="Conquistas da vida real: XP + gold. Cada nível destrava itens novos.">⚒ FERREIRO · uma banca por categoria</h2>`
-      + S.loja.cats.filter((c) => S.loja.ferreiro.some((f) => f.cat === c)).map((c) => { const n = S.loja.ferreiro.filter((f) => f.cat === c), open = n.filter((f) => f.nv <= tot.level && !(S.loja.purchases.some((p) => p.kind === 'ferreiro' && p.itemId === f.id) && !f.repeat)).length;
-        return vitrine('b:' + slugCat(c), `${FER_ICON[c] || '⚒'} BANCA ${esc(c)}`, `${n.length} itens · ${open} disponíveis no seu nível`, ferreiro(tot, shop, ui, c)); }).join('');
+    : vitrine('tav', '🍻 BARZINHO', 'Os prazeres do dia a dia. Compre ANTES de aproveitar: vai pra SACOLA.', taverna(tot, shop))
+      + vitrine('fer', '⚒ FERREIRO', 'Conquistas da vida real: XP + gold. Cada nível destrava itens novos. Uma BARRACA por categoria.', barracas(tot, shop, ui));
   const td7 = today(), days7 = Array.from({ length: 7 }, (_, i) => addDays(td7, -i)), xbd = R.idx(S).xpByDay;
   const week = { got: days7.reduce((a, d) => a + (xbd[d] || 0), 0), spent: (S.loja.purchases || []).filter((p) => days7.includes(p.date)).reduce((a, p) => a + (p.xp || 0), 0) };
   return `<div class="page-title"><div><h1><em>feira</em>.</h1></div></div>
@@ -133,9 +136,9 @@ export function viewShop(ui) {
     ${tiles([
       { label: '📥 Ganho 7 dias', value: fmtN(week.got), tone: 'ok', tip: 'XP que você ganhou nos últimos 7 dias' },
       { label: '📤 Gasto 7 dias', value: fmtN(week.spent), tone: week.spent > week.got ? 'urg' : 'neutro', sub: week.got ? `${Math.round((week.spent / week.got) * 100)}% do ganho` : '', tip: 'XP gasto na FEIRA nos últimos 7 dias. Gastar menos do que ganha = saldo crescendo.' },
-      { label: '✨ Saldo', value: fmtN(tot.balance), cls: 'gold', tone: 'premio', tip: 'XP pra gastar na TAVERNA e no FERREIRO' },
+      { label: '✨ Saldo', value: fmtN(tot.balance), cls: 'gold', tone: 'premio', tip: 'XP pra gastar no BARZINHO e no FERREIRO' },
       { label: '$ Gold', value: fmtN(tot.gold), cls: 'gold', tone: 'premio', tip: `Dinheiro de verdade que entrou (${fmtN(tot.goldIn)} no total). Usado no FERREIRO.` },
-      { label: '🎟 Tickets', value: tot.tickets, cls: 'tk', tone: 'premio', tip: 'Cada ticket troca por um item da TAVERNA sem gastar XP (itens caros pedem mais de um).' },
+      { label: '🎟 Tickets', value: tot.tickets, cls: 'tk', tone: 'premio', tip: 'Cada ticket troca por um item do BARZINHO sem gastar XP (itens caros pedem mais de um).' },
       { label: '📈 Preço hoje', value: fx, tone: shop.mult > 1 ? 'urg' : 'ok', tip: `Os preços acompanham o seu ritmo: índice x${shop.econ.toFixed(2).replace('.', ',')} (sua média de 14 dias)${shop.status.list.filter((x) => x.shop).map((x) => ' · ' + x.name).join('')}` },
       goalIt ? { label: '★ Meta', value: `<span class="lastm">${esc(goalIt.name)}</span>`, sub: segBar(tot.balance / R.tavernaPrice(S, goalIt), 'sm'), tone: 'premio', tip: 'O item que você está juntando XP pra comprar' } : { label: '★ Meta', value: '—', tone: 'neutro', tip: 'Toque na ☆ de um item pra marcar como meta' },
     ])}

@@ -261,5 +261,18 @@ export async function pragaDrone(level) {
     drone = { s, g };
   } catch { /* sem som */ }
 }
+/** v7.7: UIVO do LAMBEHOMI, gerado no aparelho (sem arquivo): sobe, segura tremendo e cai, com um eco longe */
+export function uivo(vol = 1) {
+  if (!heard || prefs.sfx <= 0) return;
+  try {
+    if (!ensure()) return; if (ctx.state === 'suspended') ctx.resume();
+    const t = ctx.currentTime + 0.05, v = 0.07 * vol;
+    for (const [d, k] of [[0, 1], [0.32, 0.35]]) { // o uivo e o eco
+      tone(230, t + d, 1.0, { type: 'triangle', vol: v * k, attack: 0.35, slide: 2.25, vib: 5 });
+      tone(515, t + d + 0.95, 1.9, { type: 'triangle', vol: v * k * 0.9, attack: 0.08, slide: 0.58, vib: 10 });
+      tone(258, t + d + 0.95, 1.9, { type: 'sine', vol: v * k * 0.35, attack: 0.1, slide: 0.6, vib: 6 });
+    }
+  } catch { /* sem som */ }
+}
 /** música desafinada (0 = normal; 0.06 = bem torta) */
 export const pragaWarp = (v) => { warp = v || 0; };

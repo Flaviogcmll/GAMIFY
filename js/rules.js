@@ -1364,7 +1364,7 @@ export function neuroRoutine(plan, hours) {
 }
 
 // ───────────────────────── A PRAGA = o SOPRO DO LAMBEHOMI (v6.5; v7.3 com a história nova) ─────────────────────────
-// Cada tarefa é um TREM (inimigo). Atrasou, ele vira assombração: 4 fases, 1 por dia de atraso (rituais começam na 2):
+// Cada tarefa é um TREM (inimigo). Atrasou, ele vira assombração: 4 fases, 1 por dia de atraso (v7.7: rituais também começam no TREM RUIM):
 // 1 TREM RUIM · 2 ENCOSTO (vira o FOCO AGORA, PRIMO paranoico) · 3 DISGRAMA (faixa nas abas, janelas a cada 7 min)
 // · 4 LAMBEHOMI (tela vermelha e preta, a BRASINHA perde 1 fase, loja trancada). v7.3b: sem −10%/−20% de XP (castigos não somam). LUA DE SANGUE = luaN(s) ou mais no LAMBEHOMI ao mesmo tempo (o PRIMO com medo de verdade).
 // Cada atrasada tem a sua fase; o app mostra a PIOR e o castigo NÃO soma. Feriado, dia de DESCANSO e VIAGEM não contam.
@@ -1411,7 +1411,7 @@ function pragaCalc(s, td) {
   for (const r of s.core?.rituals || []) {
     const st = ritualStatus(r, td);
     if (st.left == null || st.left >= 0) continue;
-    add(r.id, 'ritual', '🔁 ' + r.name, addDays(st.next, 1), 1);
+    add(r.id, 'ritual', '🔁 ' + r.name, addDays(st.next, 1)); // v7.7: ritual atrasado começa no TREM RUIM como as tarefas (antes pulava pro ENCOSTO e deixava o app sinistro o tempo todo)
   }
   if (!list.length) return none;
   list.sort((a, b) => b.phase - a.phase || b.days - a.days);

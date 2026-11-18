@@ -40,7 +40,7 @@ export function sceneBanner(route, ui) {
   // v6: a SHOP virou FEIRA, com o cenário da feira (dia, tarde ou noite)
   const src = pph >= 3 && R.PRAGA_TOPOS.includes(key) ? `assets/topo/${key}-praga.webp` : key === 'shop' ? `assets/primo/cena/feira-${night ? 'noite' : tarde ? 'tarde' : 'dia'}.webp` : `assets/topo/${TOPOS.includes(key) ? key : 'survival'}-${night ? 'noite' : 'dia'}.webp`;
   return `<div class="scene pstrip ${tarde ? 'tarde' : ''}" style="--img:url('${new URL(src, document.baseURI).href}')"><canvas id="scene" data-interior="${interiorOf(key) || 'rotina'}" aria-hidden="true"></canvas><img class="topo" src="${src}" alt="" aria-hidden="true">${pph >= 2 ? '<span class="pg-fog" aria-hidden="true"></span><span class="pg-eyes" aria-hidden="true"></span>' : ''}${R.praga(S).lua ? '<span class="pg-moon" aria-hidden="true" title="LUA DE SANGUE"></span>' : ''}
-    <div class="pst-face"><canvas class="pcv" data-portrait="mini" data-act="primo-hub" title="Falar com o PRIMO" aria-label="PRIMO"></canvas></div>
+    <div class="pst-face"><canvas class="pcv" data-portrait="bust" data-act="primo-hub" title="Falar com o PRIMO" aria-label="PRIMO"></canvas></div>
     <div class="pst-txt"><div class="scene-title">${esc(t)}</div><div class="scene-sub">${esc(sub.toUpperCase())}</div><div class="pst-say" data-pspeech="tab:${key}"></div></div></div>`;
 }
 const TOPOS = ['survival', 'agenda', 'shop', 'ferreiro', 'domingo', 'conquistas', 'filtro', 'rotina', 'regras', 'arquivo'];
@@ -240,8 +240,10 @@ export function extend(ACTIONS, render) {
       // v6.4: a página não encolhe enquanto você está na aba (senão, perto do fim, o navegador puxa a tela e o cartão "vai pra baixo")
       const mn = document.getElementById('main'); if (mn) { mn.style.minHeight = Math.max(mn.offsetHeight, parseFloat(mn.style.minHeight) || 0) + 'px'; mn.dataset.keepFor = location.hash; }
       toggleCollapse(d.k); render(); sfx('swish');
-      const h = document.querySelector(`[data-k="${CSS.escape(d.k)}"]`);
-      if (h && y0 != null) { const dy = h.getBoundingClientRect().top - y0; if (Math.abs(dy) > 1) window.scrollBy(0, dy); }
+      // v7.7: corrige já e de novo quando imagens, gráficos e o mapa terminam de assentar (eles mudam a altura DEPOIS do redesenho e empurravam o cartão)
+      const fix = () => { const h = document.querySelector(`[data-k="${CSS.escape(d.k)}"]`); if (!h || y0 == null) return; const dy = h.getBoundingClientRect().top - y0; if (Math.abs(dy) > 1) window.scrollBy(0, dy); };
+      fix(); let moved = false; const off = () => { moved = true; }; addEventListener('wheel', off, { once: true, passive: true }); addEventListener('touchmove', off, { once: true, passive: true });
+      requestAnimationFrame(() => { if (!moved) fix(); }); [150, 450, 900].forEach((ms) => setTimeout(() => { if (!moved) fix(); }, ms));
     },
     qtab: (d) => { const ui = window.__ui; if ((document.querySelector('.qbar .seg button.on')?.dataset.tab || ui.qtab || 'listas') === d.tab && !ui.mm) ui.mm = true; else { ui.mm = false; ui.qtab = d.tab; } render(); sfx('tab'); }, // v6: tocar de novo na janela aberta = memento mori
     'mm-off': () => { window.__ui.mm = false; render(); sfx('tab'); },

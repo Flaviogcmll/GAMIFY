@@ -609,12 +609,7 @@ const ACTIONS = {
   },
   // v7.1: menu ≡ do QUESTS
   qsort: (d) => { const tab = $main.querySelector('.qbar .seg button.on')?.dataset.tab || 'listas'; qsortOf(ui, tab); ui.qsort[tab] = ui.qsort[tab] === d.v ? '' : d.v; try { localStorage.setItem('gamify-ui:qsort', JSON.stringify(ui.qsort)); } catch { /* */ } sfx('tab'); render(); },
-  'done-window': async () => {
-    const ids = [...new Set([...$main.querySelectorAll('.board .lists li.task:not(.done) .check[data-act="toggle"], .board .group li.task:not(.done) .check[data-act="toggle"]')].map((c) => c.dataset.id))]
-      .filter((id) => R.isOpen(S.quests.tasks.find((t) => t.id === id) || {}));
-    if (!ids.length) { toast('Nada aberto aparecendo nesta janela.'); return; }
-    if (await ask('Concluir tudo desta janela?', `Marca as ${ids.length} tarefa(s) abertas que estão aparecendo como feitas. O ↩ desfaz tudo de uma vez.`, `CONCLUIR ${ids.length}`, true)) { const r = A.doneMany(ids); if (r?.error) toast(esc(r.error), 'bad'); else sfx('ready'); }
-  },
+
   // v5.16: a setinha ⤴ pergunta pra qual janela a tarefa vai (vira um bloco lá)
   'to-breakdown': (d) => {
     const wins = [['bd', R.GROUPS.bd.short, '🧩'], ['tr', R.GROUPS.tr.short, '📐'], ['cap', R.GROUPS.cap.short, '🧲'], ['gs', R.GROUPS.gs.short, '🗂'], ...R.windows(S).map((w) => ['w:' + w.id, w.name, '▣'])];
