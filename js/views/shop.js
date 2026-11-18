@@ -114,7 +114,7 @@ export function viewShop(ui) {
   const nb = R.bag(S).length, night = document.documentElement.dataset.mode === 'night', dn = night ? 'noite' : 'dia';
   const fx = shop.mult === 1 ? 'x1' : 'x' + shop.mult.toFixed(2).replace('.', ',');
   // v6: a FEIRA tem barracas (TAVERNA em cima, FERREIRO embaixo), cada uma com o seu banner; outros vendedores entram aqui
-  const vitrine = (key, title, sub, body) => `<section class="vitrine" data-v="${key}"><header class="vit-h" style="background-image:url(assets/topo/${key === 'tav' ? 'shop' : 'ferreiro'}-${dn}.webp)"><div><h2>${title}</h2><p>${sub}</p></div></header><div class="vit-b">${body}</div></section>`;
+  const vitrine = (key, title, sub, body) => `<section class="vitrine" data-v="${key}"><header class="vit-h" style="--img:url('${new URL(`assets/topo/${key === 'tav' ? 'shop' : 'ferreiro'}-${dn}.webp`, document.baseURI).href}')"><div><h2>${title}</h2><p>${sub}</p></div></header><div class="vit-b">${body}</div></section>`;
   const body = tab === 'mochila' ? mochila() : tab === 'forjados' ? forjados() : tab === 'ouro' ? ouro() : tab === 'hist' ? hist()
     : vitrine('tav', '🍺 TAVERNA', 'Os prazeres do dia a dia. Compre ANTES de aproveitar: vai pra mochila.', taverna(tot, shop))
       + vitrine('fer', '⚒ FERREIRO', 'Conquistas da vida real: XP + gold. Cada nível destrava itens novos.', ferreiro(tot, shop, ui));

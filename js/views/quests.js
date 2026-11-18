@@ -26,14 +26,16 @@ function listCard(area, ui) {
   const own = S.quests.tasks.filter((t) => !t.block && t.area === area);
   // AGUARDANDO mostra só as tarefas principais (as das LISTAS). Subtarefas em espera ficam dentro do bloco delas, na janela delas.
   // as tarefas andam pelas listas com o tempo: dentro de cada lista, a ordem é a da data (a mais próxima em cima)
-  const every = [...own].sort(area === 'wait' || area === 'sem' ? sortOrd : (a, b) => (a.due || '9').localeCompare(b.due || '9') || sortOrd(a, b));
+  const winKey = (t) => { const b = t.link && R.findBlock(S, t.link); return b ? (R.winOf(S, b)?.name || (b.group === 'bs' ? 'ZZ' : R.GROUPS[b.group]?.short || '')) : '~'; };
+  const byDate = (a, b) => (a.due || '9').localeCompare(b.due || '9') || sortOrd(a, b);
+  const every = [...own].sort(ui.lsort?.[area] === 'win' ? (a, b) => winKey(a).localeCompare(winKey(b)) || byDate(a, b) : area === 'wait' || area === 'sem' ? sortOrd : byDate);
   const all = every.filter(stalledOff(ui)), stalled = every.length - all.length;
   const open = all.filter(visible), show = ui.showDone ? all : open, nHidden = all.length - open.length;
   const late = area === 'hoje' ? open.filter((t) => t.due && t.due < td).length : 0;
   const sub = (t) => (wait ? [R.waitingOn(S, t).label && '⏳ ' + R.waitingOn(S, t).label, t.link && R.findBlock(S, t.link)?.st === 'wait' && 'o bloco dela está aguardando'].filter(Boolean).join(' · ') : '');
   const rv = R.listReviewed(S, area);
   return `<section class="list-card ${isCollapsed('l:' + area) ? 'collapsed' : ''} ${rv ? 'reviewed' : ''}" data-list="${area}" data-drop-area="${area}"><header><h2 data-act="collapse" data-k="l:${area}" style="cursor:pointer"><span class="chev">${isCollapsed('l:' + area) ? '▸' : '▾'}</span> ${R.AREAS[area]}</h2>
-      <span class="row" style="gap:4px"><span class="meta">${open.length}${late ? ` · <span class="bad">${late} atrasada${late > 1 ? 's' : ''}</span>` : ''}</span><button class="icon-btn" data-act="sort" data-area="${area}" title="Organizar por data">⇅</button></span></header>
+      <span class="row" style="gap:4px"><span class="meta">${open.length}${late ? ` · <span class="bad">${late} atrasada${late > 1 ? 's' : ''}</span>` : ''}</span><button class="icon-btn ${ui.lsort?.[area] === 'win' ? 'on' : ''}" data-act="sort" data-area="${area}" title="${ui.lsort?.[area] === 'win' ? 'Agrupado por janela. Toque: por data' : 'Por data. Toque: agrupar por janela'}">⇅</button></span></header>
     ${area === 'hoje' ? overflowBar() : ''}<ul class="tasks">${show.map((t) => taskRow(t, { list: true, sub: sub(t) })).join('')}${show.length ? '' : `<div class="empty">${wait ? 'ninguém te segurando. 👏' : 'vazio.'}</div>`}</ul>
     ${!ui.showDone && nHidden ? `<button class="more" data-act="toggle-done">✓ ${nHidden} feitas · mostrar</button>` : ''}
     ${stalled ? `<button class="more" data-act="toggle-stalled">⬛ ${stalled} parada(s) · mostrar</button>` : ''}
@@ -112,9 +114,9 @@ function habitsCard(td) {
 }
 
 function filaCard(td) {
-  const q = R.deadlineQueue(S, td).slice(0, 12);
+  const q = R.deadlineQueue(S, td); // v6.1: completa (antes eram só 12); o cartão rola
   const where = (t) => (t.block ? R.findBlock(S, t.block)?.title : R.areaName(t.area)) || '';
-  return `<div class="card"><header><h2>⏰ Fila de prazos</h2><a class="meta" href="#agenda">agenda →</a></header>
+  return `<div class="card fila-q"><header><h2 title="Tudo que tem prazo, do mais perto pro mais longe">⏰ Fila de prazos</h2><span class="meta">${q.length}</span></header>
     <div class="list">${q.map((t) => `<div class="li" data-act="jump" data-id="${t.id}" data-list="${R.listOf(t, td)}" style="cursor:pointer"><div class="lt">${t.st === 'doing' ? '▶ ' : ''}${t.prio ? '<b class="bad">!</b> ' : ''}${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}<small>${esc(where(t))}</small></div><div class="row" style="flex-wrap:nowrap">${dueChip(t.due, false, true)}</div></div>`).join('') || '<div class="empty">nenhuma tarefa com prazo.</div>'}</div></div>`;
 }
 
@@ -236,14 +238,14 @@ export function viewQuests(ui) {
   const ckeys = tab === 'listas' ? R.AREA_KEYS.map((a) => 'l:' + a)
     : tab === 'boss' ? S.quests.bosses.map((b) => 'b:' + (b.block || b.id))
     : R.tabBlocks(S, tab).filter(stalledOff(ui)).map((b) => 'b:' + b.id);
-  void ckeys; void isCollapsed; // v6: "recolher tudo" virou tocar de novo na janela aberta (memento mori)
+  const allCol = ckeys.length > 0 && ckeys.every(isCollapsed); // v6.1: o botão voltou (pedido do dono); tocar de novo na janela aberta continua sendo o memento mori
   const lists = arrange('lists', R.AREA_KEYS.map((a) => [a, R.AREAS[a], listCard(a, ui)]), { button: false, cols: 3 });
   const body = tab === 'listas' ? `<div class="lists six">${lists}</div>`
     : tab === 'boss' ? bossPanel(ui)
     : group(win ? win.base : tab, ui, win).replace('class="group ', 'class="group wide ');
   return `<div class="quests"><div class="board">
       <div class="band qbar"><div class="seg">${QTABS.map(([k, t]) => `<button class="${tab === k ? 'on' : ''} ${k === 'listas' ? 'mae' : 'filha'} ${R.tabReviewed(S, k) ? 'allrev' : ''}" data-act="qtab" data-tab="${k}" ${k === 'listas' ? 'title="Janela mãe: tudo passa por aqui"' : 'draggable="true" title="arraste pra mudar a ordem"'}>${k === 'listas' ? '◆ ' : ''}${esc(t)}${n[k] != null ? ' · ' + n[k] : ''}</button>`).join('')}<button class="qadd" data-act="win-new" title="Criar uma janela nova">＋</button></div>
-        <span class="row" style="gap:6px">
+        <span class="row" style="gap:6px"><button class="btn sm ghost" data-act="collapse-all" title="Recolhe ou abre tudo desta janela de uma vez">${allCol ? '▾ ABRIR TUDO' : '▸ RECOLHER TUDO'}</button>
           <details class="qmenu"><summary class="btn sm ghost" title="Escolha o que aparece nesta tela">MOSTRAR${ui.showDone || ui.showStalled ? ' · ' + (!!ui.showDone + !!ui.showStalled) : ''} ▾</summary><div class="qpop">
             <button class="btn sm ${ui.showDone ? 'pri' : 'ghost'}" data-act="toggle-done">${ui.showDone ? '☑' : '☐'} FEITAS</button>
             <button class="btn sm ${ui.showStalled ? 'pri' : 'ghost'}" data-act="toggle-stalled" title="⬛ parados: blocos e tarefas com a cor PARADO">${ui.showStalled ? '☑' : '☐'} PARADOS</button></div></details></span></div>

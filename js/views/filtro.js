@@ -8,7 +8,8 @@ const COLS = [['text', 'O QUE'], ['where', 'PROJETO / LISTA'], ['cat', 'CATEGORI
 const SQ = { red: '🟥', yellow: '🟨', green: '🟩', orange: '🟧', black: '⬛' };
 const opt = (vals, cur) => ['', ...vals].map((v) => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''}>${v || 'TODOS'}</option>`).join('');
 
-export function viewFiltro(ui) {
+/** v6.1: o corpo do FILTRO (vai dentro da AGENDA, numa vitrine com banner próprio) */
+export function filtroBody(ui) {
   const all = R.filterRows(S, today());
   const f = ui.filtro ||= { q: '', cat: '', bucket: '', status: '', type: '', who: '', sort: 'date', dir: 1 };
   let rows = all.filter((r) => (!f.q || (r.text + ' ' + r.where).toLowerCase().includes(f.q.toLowerCase()))
@@ -26,15 +27,14 @@ export function viewFiltro(ui) {
     { label: '⏰ Atrasadas', value: n((r) => r.bucket === 'ATRASADA'), cls: n((r) => r.bucket === 'ATRASADA') ? 'bad' : '', tone: 'urg', ...pick('bucket', 'ATRASADA') },
     { label: 'Hoje', value: n((r) => r.bucket === 'HOJE'), tone: 'urg', ...pick('bucket', 'HOJE') },
     { label: 'Próx. 7 dias', value: n((r) => r.bucket === 'PRÓX. 7 DIAS'), tone: 'atencao', ...pick('bucket', 'PRÓX. 7 DIAS') },
-    { label: 'Depois', value: n((r) => r.bucket === 'DEPOIS'), tone: 'calma', ...pick('bucket', 'DEPOIS') },
+    { label: 'Depois', value: n((r) => r.bucket === 'DEPOIS'), tone: 'ok', ...pick('bucket', 'DEPOIS') },
     { label: 'Sem data', value: n((r) => r.bucket === 'SEM DATA'), tone: 'neutro', ...pick('bucket', 'SEM DATA') },
     { label: '⏳ Aguardando', value: n((r) => r.status === '⏳ AGUARDANDO'), tone: 'espera', ...pick('status', '⏳ AGUARDANDO') },
-    { label: '▶ Fazendo', value: n((r) => r.status === '▶ FAZENDO'), tone: 'atencao', ...pick('status', '▶ FAZENDO') },
+    { label: '▶ Em andamento', value: n((r) => r.status === '▶ FAZENDO'), tone: 'atencao', ...pick('status', '▶ FAZENDO') },
   ]);
   const BKEY = { ATRASADA: 'late', HOJE: 'today', 'PRÓX. 7 DIAS': 'week', DEPOIS: 'later', 'SEM DATA': 'none' };
   const any = f.q || f.cat || f.bucket || f.status || f.type || f.who;
-  return `<div class="page-title"><div><h1><em>filtro</em>.</h1><p>${all.length} tarefas abertas. Toque num quadrinho pra filtrar; no cabeçalho pra ordenar; na linha pra abrir.</p></div></div>
-    ${strip}
+  return `${strip}
     <div class="card" style="margin-bottom:14px"><div class="row">
       <input class="inp grow" data-input="filtro.q" value="${esc(f.q)}" placeholder="🔍 buscar" aria-label="Buscar">
       <label class="row" style="gap:4px"><span class="px" style="font-size:7px">CATEGORIA</span><select class="inp" style="width:auto" data-change="filtro" data-k="cat">${opt(uniq('cat'), f.cat)}</select></label>
@@ -48,3 +48,5 @@ export function viewFiltro(ui) {
         <td class="ft">${esc(r.text)}</td><td>${esc(r.where)}</td><td>${esc(r.cat)}</td><td>${r.date ? fmtDM(r.date) : ''}</td>
         <td class="${r.left != null && r.left < 0 ? 'bad' : ''}">${r.left ?? ''}</td><td>${esc(r.bucket)}</td><td>${r.status === 'ABERTA' ? esc(r.status) : `<span class="chip ${r.status === '▶ FAZENDO' ? 'doing' : 'wait'}">${esc(r.status)}</span>`}</td><td>${esc(r.who || '')}</td><td>${esc(r.type)}</td><td>${SQ[r.color] || ''}</td><td>${r.marks}</td><td class="gold">${r.xp || ''}</td></tr>`).join('') || `<tr><td colspan="${COLS.length}" class="empty">nada com esse filtro.</td></tr>`}</tbody></table></div>`;
 }
+
+export const viewFiltro = (ui) => filtroBody(ui);

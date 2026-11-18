@@ -1,6 +1,7 @@
 // AGENDA — controle de prazos, linha do tempo de 6 semanas (◄ ► troca a semana), fila com filtro.
 import { S } from '../store.js';
 import { tiles } from '../telas.js';
+import { filtroBody } from './filtro.js';
 
 import * as R from '../rules.js';
 import { esc, today, fmtDM, DOW, addDays, range, weekday, weekStart, holidayName } from '../util.js';
@@ -59,21 +60,18 @@ export function viewAgenda(ui) {
   const blow = R.blowState(S), blowPct = Math.round((R.BLOW_MULT - 1) * 100);
   return `<div class="page-title"><div><h1><em>agenda</em>.</h1></div></div>
     ${tiles([
-      { label: '⏰ Atrasadas', value: over.length, cls: over.length ? 'bad' : '', tone: 'urg', tip: over.length >= 3 ? 'A loja está trancada: resolva ou remarque 1 atrasada pra abrir.' : 'Com 3 ou mais atrasadas a loja tranca (resolver 1 já destranca).' },
-      { label: 'Hoje', value: dueToday.length, tone: 'urg', tip: `${DOW[weekday(td)]} ${fmtDM(td)}` },
-      { label: 'Próx. 7 dias', value: next7.length, tone: 'atencao' },
+      { label: '⏰ Atrasadas', value: over.length, act: 'fpick', data: { k: 'bucket', v: 'ATRASADA', go: '1' }, on: ui.filtro?.bucket === 'ATRASADA', cls: over.length ? 'bad' : '', tone: 'urg', tip: over.length >= 3 ? 'A loja está trancada: resolva ou remarque 1 atrasada pra abrir.' : 'Com 3 ou mais atrasadas a loja tranca (resolver 1 já destranca).' },
+      { label: 'Hoje', value: dueToday.length, act: 'fpick', data: { k: 'bucket', v: 'HOJE', go: '1' }, on: ui.filtro?.bucket === 'HOJE', tone: 'urg', tip: `${DOW[weekday(td)]} ${fmtDM(td)}` },
+      { label: 'Próx. 7 dias', value: next7.length, act: 'fpick', data: { k: 'bucket', v: 'PRÓX. 7 DIAS', go: '1' }, on: ui.filtro?.bucket === 'PRÓX. 7 DIAS', tone: 'atencao' },
       { label: 'Pontualidade 30d', value: punct == null ? '—' : punct + '%', tone: 'ok', tip: 'Das tarefas com prazo concluídas nos últimos 30 dias, quantas saíram no prazo.' },
       { label: '🎯 No prazo seguidas', value: seq, tone: 'ok', tip: seq >= 5 ? 'RELÓGIO SUÍÇO!' : '5 seguidas no prazo = RELÓGIO SUÍÇO' },
       { label: '💥 Estourados', value: `${blow.n % R.BLOW_EVERY}/${R.BLOW_EVERY}`, cls: blow.active ? 'bad' : '', tone: 'urg', tip: blow.active ? `Castigo ativo: loja +${blowPct}%. Resolva 1 atrasada antiga pra cancelar.` : `A cada ${R.BLOW_EVERY} prazos estourados, a loja fica ${blowPct}% mais cara por ${R.BLOW_DAYS} dias.` },
     ])}
     <div class="page-actions"><button class="btn pri" data-act="distribute">📅 DISTRIBUIR PRAZOS</button></div>
     ${dayStrip()}
-    <div class="grid">${timelineCard(ui)}
-      <div class="card c12"><header><h2>⏰ Fila de prazos</h2><span class="meta" title="Arraste uma tarefa até um dia da faixa CARGA DO DIA pra mudar o prazo">arraste pra um dia ↑</span></header>
-        <div class="row" style="margin-bottom:8px"><input class="inp grow" data-input="agQ" value="${esc(ui.agQ || '')}" placeholder="🔍 filtrar por nome, projeto…" aria-label="Filtrar"><div class="seg">${[['', 'TUDO'], ['late', 'ATRASADAS'], ['today', 'HOJE'], ['week', '7 DIAS']].map(([k, n]) => `<button class="fb-${k || 'all'} ${fb === k ? 'on' : ''}" data-act="ag-filter" data-b="${k}">${n}</button>`).join('')}</div></div>
-        <div class="list">${rows.map((x) => x.r ? ritRow(x.r, x.s) : `<div class="li" data-list="${R.listOf(x.t)}" draggable="true" data-tid="${x.t.id}" title="Arraste até um dia da faixa pra mudar o prazo"><div class="lt" data-act="jump" data-id="${x.t.id}" style="cursor:pointer">${x.t.st === 'doing' ? '▶ ' : ''}${x.t.prio ? '<b class="bad">!</b> ' : ''}${esc(x.t.text)}<small>${esc(where(x.t))}</small></div>
-          <div class="row" style="flex-wrap:nowrap;gap:6px">${dueChip(x.t.due, false, true)}<button class="icon-btn" data-act="prio" data-id="${x.t.id}" title="Prioridade">${x.t.prio ? '★' : '☆'}</button></div></div>`).join('') || '<div class="empty">nada encontrado.</div>'}</div></div>
-      </div>`;
+    <div class="grid">${timelineCard(ui)}</div>
+    <section class="vitrine filtro-v" id="filtro-v" data-v="filtro"><header class="vit-h" style="--img:url('${new URL(`assets/topo/filtro-${document.documentElement.dataset.mode === 'night' ? 'noite' : 'dia'}.webp`, document.baseURI).href}')"><div><h2>🔍 FILTRO</h2><p>Tudo em aberto, numa tabela. Toque num quadrinho pra filtrar, no cabeçalho pra ordenar, na linha pra abrir.</p></div></header>
+      <div class="vit-b">${filtroBody(ui)}</div></section>`;
 }
 
 /** faixa de dias (volta na v5.15, a pedido do dono): rola pro lado; o número é a carga do dia e a cor diz se pesa */

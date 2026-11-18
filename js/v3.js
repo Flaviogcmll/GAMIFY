@@ -35,10 +35,10 @@ export function sceneBanner(route, ui) {
   const key = route === 'shop' && ui.ltab === 'ferreiro' ? 'ferreiro' : route;
   const [t, sub] = TITLES[key] || [route + '.', ''];
   // v5.14: cada aba tem a sua imagem (dia e noite); o desenho em código só aparece se a imagem não carregar
-  const night = document.documentElement.dataset.mode === 'night', h = new Date().getHours();
+  const h = new Date().getHours(), night = document.documentElement.dataset.mode === 'night' || h >= 19 || h < 5, tarde = !night && h >= 16; // v6.1: pela hora do dia
   // v6: a SHOP virou FEIRA, com o cenário da feira (dia, tarde ou noite)
   const src = key === 'shop' ? `assets/primo/cena/feira-${night ? 'noite' : h >= 16 ? 'tarde' : 'dia'}.webp` : `assets/topo/${TOPOS.includes(key) ? key : 'survival'}-${night ? 'noite' : 'dia'}.webp`;
-  return `<div class="scene pstrip"><canvas id="scene" data-interior="${interiorOf(key) || 'rotina'}" aria-hidden="true"></canvas><img class="topo" src="${src}" alt="" aria-hidden="true">
+  return `<div class="scene pstrip ${tarde ? 'tarde' : ''}" style="--img:url('${new URL(src, document.baseURI).href}')"><canvas id="scene" data-interior="${interiorOf(key) || 'rotina'}" aria-hidden="true"></canvas><img class="topo" src="${src}" alt="" aria-hidden="true">
     <div class="pst-face"><canvas class="pcv" data-portrait="mini" data-act="primo-hub" title="Falar com o PRIMO" aria-label="PRIMO"></canvas></div>
     <div class="pst-txt"><div class="scene-title">${esc(t)}</div><div class="scene-sub">${esc(sub.toUpperCase())}</div><div class="pst-say" data-pspeech="tab:${key}"></div></div></div>`;
 }
@@ -197,7 +197,7 @@ export function viewArquivo3(ui) {
     { label: '✓ Concluídas', value: fmtN(done.length), tone: 'ok', act: 'arq-st', data: { v: 'done' }, on: f.st === 'done', sub: f.m ? `${f.m.slice(5)}/${f.m.slice(0, 4)}` : 'todos os meses' },
     { label: '✕ Canceladas', value: fmtN(canc), tone: 'neutro', act: 'arq-st', data: { v: 'cancel' }, on: f.st === 'cancel', sub: 'largar também é decidir' },
     { label: '✨ XP', value: fmtN(xpSum), cls: 'gold', tone: 'premio' },
-    best && { label: '🔥 Melhor dia', value: best[1], sub: fmtDM(best[0]), tone: 'ok' },
+    best && { label: '🔥 Melhor dia', value: `${best[1]} <small class="u">tarefas</small>`, sub: `em ${fmtDM(best[0])}`, tone: 'ok', tip: `O dia em que você mais concluiu tarefas: ${best[1]} em ${fmtDM(best[0])}` },
     rounds && { label: '🔁 Vai e volta', value: rounds, sub: 'rodadas enviadas', tone: 'espera' },
   ]);
   const ctx = {}; for (const t of done) { const c = ctxOf(t) || '—'; ctx[c] = (ctx[c] || 0) + 1; }

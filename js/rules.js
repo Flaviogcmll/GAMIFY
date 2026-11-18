@@ -1322,3 +1322,26 @@ export function focusNow(s, td = today(), skip = []) {
   const top = ranked[0];
   return top ? { task: top.t, why: top.r.slice(0, 2).map((x) => x[1]).join(' e '), next: ranked.slice(1, 4).map((x) => x.t.id) } : null;
 }
+
+// ───────────────────────── v6.1: ROTINA "NEURO" (sugestão, a do dono continua igual) ─────────────────────────
+// Base: aulas 093 e 081 (luz natural ao acordar, comer e treinar sempre nos mesmos horários, nada pesado 3 h antes de dormir)
+// e o relógio do corpo (pico de foco nas primeiras horas acordado, vale depois do almoço, segundo pico no fim da tarde).
+const RT_DEEP = /SOFTWARE|PROJETO|ESTUD|CURSO/, RT_LIGHT = /STORIES|REELS|YOUTUBE|FEED|POSTAR|IG|GRAVAR/;
+export function neuroRoutine(plan, hours) {
+  const g = { ...plan.grid }, H = (h) => hours.find((x) => x === h);
+  for (const d of ['seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'dom']) {
+    // 1) luz do sol no primeiro horário do café
+    for (const h of hours) { const v = g[`${d}|${h}`] || ''; if (/CAF[ÉE]/.test(v) && !/LUZ/.test(v)) { g[`${d}|${h}`] = 'LUZ DO SOL + ' + v; break; } }
+    // 2) trabalho pesado no pico de foco (manhã) e o leve no vale da tarde
+    const morning = ['09', '10', '11'].filter(H), after = ['14', '15'].filter(H), late = ['16', '17'].filter(H);
+    const mv = morning.map((h) => g[`${d}|${h}`] || ''), deep = [...after, ...late].map((h) => g[`${d}|${h}`] || '').find((v) => RT_DEEP.test(v));
+    if (deep && mv.length && mv.every((v) => RT_LIGHT.test(v) || !v)) {
+      const light = mv.find(Boolean) || '';
+      morning.forEach((h) => { g[`${d}|${h}`] = deep; });
+      after.forEach((h) => { if (RT_DEEP.test(g[`${d}|${h}`] || '')) g[`${d}|${h}`] = light; });
+    }
+    // 3) jantar sempre no mesmo horário (o relógio do fígado agradece)
+    if (H('20') && /DESCANSO/.test(g[`${d}|20`] || '')) g[`${d}|20`] = 'JANTAR LEVE';
+  }
+  return { name: 'NEURO', grid: g };
+}

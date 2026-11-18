@@ -25,7 +25,7 @@ export function viewRotina(ui) {
   const hh = [...r.hours].reverse().find((h) => toMin(h) <= nowM) || r.hours[0];
   const rows = r.hours.map((h) => `<tr><td class="h">${h}${h.includes(':') ? '' : 'H'}</td>${DAYS.map(([d]) => {
     const v = plan.grid[`${d}|${h}`] || '';
-    return `<td style="${tone(v)}" class="${d === wd ? 'today-col' : ''} ${d === wd && h === hh ? 'now' : ''}" data-act="rot-cell" data-key="${d}|${h}" title="${esc(v)}">${esc(v)}</td>`;
+    return `<td style="${tone(v)}" class="${d === wd ? 'today-col' : ''} ${DAYS.findIndex(([x]) => x === d) < DAYS.findIndex(([x]) => x === wd) ? 'past-col' : ''} ${d === wd && h === hh ? 'now' : ''}" data-act="rot-cell" data-key="${d}|${h}" title="${esc(v)}">${esc(v)}</td>`;
   }).join('')}</tr>`).join('');
   const cur = plan.grid[`${wd}|${hh}`], nxt = r.hours.filter((h) => toMin(h) > toMin(hh)).map((h) => [h, plan.grid[`${wd}|${h}`]]).find(([, v]) => v && v !== cur);
   // v5.16: o dia de hoje numa faixa (blocos iguais seguidos viram um só) + quanto falta do bloco atual
@@ -45,7 +45,7 @@ export function viewRotina(ui) {
       <div class="card c12" data-gk="rot-agora"><header><h2>⏱ Agora · ${hh}${hh.includes(':') ? '' : 'h'}</h2><span class="meta">${plan.name}${pi === r.active ? ' ★' : ''}</span></header>
         <div class="rot-now"><b style="${tone(cur)}">${esc(cur || 'livre')}</b><div class="rn-info">${curSeg ? `<span class="meta">até ${hhmm(curSeg.to)} · falta${leftM > 1 ? 'm' : ''} <b>${hm(leftM)}</b></span>${segBar(pct, 'sm')}` : ''}${nxt ? `<span class="meta">depois, às ${nxt[0]}h: <b>${esc(nxt[1])}</b></span>` : ''}</div></div>
         ${strip}</div>
-      <div class="card c12 rot" data-gk="rot-grade"><header><h2>🗓 Semana-tipo</h2><div class="row" style="gap:8px"><div class="seg">${r.plans.map((p, i) => `<button class="${i === pi ? 'on' : ''}" data-act="rot-plan" data-i="${i}">${esc(p.name)}${i === r.active ? ' ★' : ''}</button>`).join('')}</div><button class="btn sm" data-act="rot-hours" title="Adicionar ou tirar horários (dá pra usar meia hora)">🕐 HORÁRIOS</button></div></header>
+      <div class="card c12 rot" data-gk="rot-grade"><header><h2>🗓 Semana-tipo</h2><div class="row" style="gap:8px"><div class="seg">${r.plans.map((p, i) => `<button class="${i === pi ? 'on' : ''}" data-act="rot-plan" data-i="${i}">${esc(p.name)}${i === r.active ? ' ★' : ''}</button>`).join('')}</div><button class="btn sm" data-act="rot-hours" title="Adicionar ou tirar horários (dá pra usar meia hora)">🕐 HORÁRIOS</button>${r.plans.some((p) => p.name === 'NEURO') ? '' : '<button class="btn sm pri" data-act="rot-neuro" title="Cria uma cópia da sua rotina ajustada pela neurociência (luz da manhã, trabalho pesado no pico de foco, jantar fixo). A sua continua igual.">🧠 VERSÃO NEURO</button>'}</div></header>
         <div class="rot-wrap"><table><thead><tr><th></th>${DAYS.map(([d, n]) => `<th style="${d === wd ? 'color:var(--accent)' : ''}">${n.slice(0, 3)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>
         ${pi !== r.active ? `<div class="row" style="margin-top:10px"><button class="btn sm" data-act="rot-active" data-i="${pi}">★ USAR ESTA COMO PRINCIPAL</button></div>` : ''}</div>
       <div class="card c6" data-gk="rot-ativ"><header><h2>Atividades</h2></header>${chips(r.atividades, 'atividades')}</div>

@@ -48,15 +48,16 @@ import { renderPostit } from './postit.js';
 const ROUTES = [
   ['quests', 'QUESTS', 'quests', viewQuests, 'q'], ['survival', 'SURVIVAL', 'survival', viewSurvival, 's'], ['agenda', 'AGENDA', 'agenda', viewAgenda, 'a'],
   ['shop', 'FEIRA', 'shop', viewShop, 'l'], ['domingo', 'REFLEXÃO', 'domingo', viewDomingo, 'b'], ['conquistas', 'CONQUISTAS', 'conquistas', viewConquistas, ''],
-  ['filtro', 'FILTRO', 'filtro', viewFiltro, 'f'], ['rotina', 'ROTINA', 'rotina', viewRotina, 'r'], ['regras', 'PERKS AND RULES', 'regras', viewRegras, 'p'],
+  ['filtro', 'FILTRO', 'filtro', (u) => { setTimeout(() => { history.replaceState(null, '', '#agenda'); document.getElementById('filtro-v')?.scrollIntoView({ block: 'start' }); }, 80); return viewAgenda(u); }, 'f'], ['rotina', 'ROTINA', 'rotina', viewRotina, 'r'], ['regras', 'PERKS AND RULES', 'regras', viewRegras, 'p'],
   ['arquivo', 'ARQUIVO', 'arquivo', viewArquivo3, ''],
 ];
 /** a ordem das abas de cima é sua: arraste uma aba sobre outra */
+const HIDDEN_TABS = ['filtro']; // v6.1: o FILTRO mora dentro da AGENDA
 function tabOrder() {
   let saved = [];
   try { saved = JSON.parse(localStorage.getItem('gamify-ui:tabs')) || []; } catch { /* */ }
   const ids = ROUTES.map((r) => r[0]);
-  return [...saved.filter((i) => ids.includes(i)), ...ids.filter((i) => !saved.includes(i))].map((i) => ROUTES.find((r) => r[0] === i));
+  return [...saved.filter((i) => ids.includes(i)), ...ids.filter((i) => !saved.includes(i))].filter((i) => !HIDDEN_TABS.includes(i)).map((i) => ROUTES.find((r) => r[0] === i));
 }
 let dragTabK = null;
 document.addEventListener('dragstart', (e) => { const a = e.target.closest?.('#tabs a[data-tabk]'); if (a) { dragTabK = a.dataset.tabk; e.dataTransfer.effectAllowed = 'move'; } });
@@ -146,6 +147,7 @@ function render() {
   try { afterRender4(cur); } catch (err) { console.error(err); }
   try { afterRenderBujo(); } catch (err) { console.error(err); }
   try { renderPostit(); } catch (err) { console.error(err); }
+  tips($main); // v6.1: os afterRender acima ainda acrescentam botões; eles também ganham legenda
   refocus();
   redraft();
   const side = $main.querySelector('.side'); // o painel da direita tem rolagem própria: volta pra onde estava
@@ -219,7 +221,16 @@ document.addEventListener('change', async (e) => { // arquivo de backup escolhid
 });
 const PX_SEL = 'h1,h2,h3,.btn,.px,.tabs a,.chip,.lv,.coin small,.rar,.band,.seg button,.stat small,label.lbl,.hab .hn,.bottom a,.logo,.item .ip,.k,.timer-chip,.ftab th,.tl th,.rot th,.medal .mn';
 const plain = (t) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+const ACT_TIP = { check: 'Marcar como feita', 'edit-task': 'Abrir a tarefa', 'edit-block': 'Abrir o bloco', 'edit-boss': 'Abrir o boss', jump: 'Ir até a tarefa', explain: 'O que é isso? Toque pra ver', del: 'Apagar', close: 'Fechar', 'to-breakdown': 'Mandar pra uma janela', 'go-block': 'Ir até o bloco', habit: 'Toque: ✓ fiz → − folga → vazio', collapse: 'Recolher ou abrir', 'rot-cell': 'Escrever o que fazer nesse horário', 'day-status': 'Ver os buffs e debuffs desse dia' };
+function tips(root) {
+  for (const el of root.querySelectorAll('[data-act], button, .chip')) {
+    if (el.title) continue;
+    const t = el.getAttribute('aria-label') || ACT_TIP[el.dataset.act] || (el.textContent || '').replace(/\s+/g, ' ').trim();
+    if (t && t.length <= 60) el.title = t;
+  }
+}
 function deaccent(root) {
+  tips(root);
   for (const el of root.querySelectorAll(PX_SEL)) {
     const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
     for (let n = w.nextNode(); n; n = w.nextNode()) if (/[\u00C0-\u017F]/.test(n.nodeValue)) n.nodeValue = plain(n.nodeValue);
@@ -581,7 +592,7 @@ const ACTIONS = {
   'cycle-back': (d) => A.cycleBack(d.id),
   'cycle-ok': (d) => { A.cycleApprove(d.id); sfx('level'); confetti(50); },
   prio: (d) => { const t = S.quests.tasks.find((x) => x.id === d.id); A.updateTask(d.id, { prio: !t.prio }); },
-  sort: (d) => { A.sortContainer({ area: d.area, block: d.block }); sfx('tab'); },
+  sort: (d) => { if (d.area) { (ui.lsort ||= {})[d.area] = ui.lsort[d.area] === 'win' ? 'date' : 'win'; toast(ui.lsort[d.area] === 'win' ? '⇅ Agrupado por janela (toque de novo: por data).' : '⇅ Por data.'); render(); } else A.sortContainer({ area: d.area, block: d.block }); sfx('tab'); },
   jump: (d) => jump(d.id),
   'jump-block': (d) => jumpBlock(d.id),
   'edit-block': (d) => editBlock(d.id),
@@ -625,7 +636,7 @@ const ACTIONS = {
   ltab: (d) => { ui.ltab = d.tab; render(); sfx('tab'); },
   fcat: (d) => { ui.fcat = d.cat; render(); },
   fsort: (d) => { const f = ui.filtro; if (f.sort === d.k) f.dir *= -1; else { f.sort = d.k; f.dir = 1; } render(); },
-  fpick: (d) => { const f = ui.filtro; f[d.k] = f[d.k] === d.v ? '' : d.v; sfx('tab'); render(); }, // v5.16: quadrinho do FILTRO liga/desliga o filtro
+  fpick: (d) => { const f = (ui.filtro ||= { q: '', cat: '', bucket: '', status: '', type: '', who: '', sort: 'date', dir: 1 }); f[d.k] = f[d.k] === d.v ? '' : d.v; sfx('tab'); render(); if (d.go) setTimeout(() => document.getElementById('filtro-v')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60); }, // quadrinho liga/desliga o filtro (na AGENDA, rola até a tabela)
   fclear: () => { Object.assign(ui.filtro, { q: '', cat: '', bucket: '', status: '', type: '', who: '' }); sfx('tab'); render(); },
   cq: (d) => { ui.cq = d.v; sfx('tab'); render(); }, // v5.16: filtro das CONQUISTAS
   'perks-go': (d) => perksGo(d.i),
@@ -695,6 +706,7 @@ const ACTIONS = {
     openModal(`<form data-form="rot-cell" data-key="${d.key}" data-p="${pi}" class="mform"><div class="mhead"><span class="mtype">${esc(d.key.replace('|', ' · '))}${d.key.includes(':') ? '' : 'H'}</span></div><input class="inp mtitle" name="v" value="${esc(v)}" autofocus aria-label="Atividade" placeholder="escreva ou toque numa abaixo"><div class="pills rot-sugg" style="margin-top:10px">${sugg.map((s) => `<button type="button" class="pill" data-act="rot-pick" data-v="${esc(s)}"><span>${esc(s)}</span></button>`).join('')}<button type="button" class="pill" data-act="rot-pick" data-v="" title="Deixar este horário vazio"><span>✕ VAZIO</span></button></div><div class="actions"><button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">SALVAR</button></div></form>`);
   },
   'routine-new': () => A.initRoutine(),
+  'rot-neuro': () => { A.addNeuroRoutine(); ui.rplan = S.core.routine.plans.length - 1; sfx('upgrade'); render(); toast('🧠 Criei a rotina NEURO (a sua continua igual). Compare e, se gostar, toque em ★ USAR ESTA COMO PRINCIPAL.', 'good'); },
   'rot-pick': (d, e, el) => { const f = el.closest('form'); f.v.value = d.v; f.requestSubmit(); },
   'rot-hours': () => {
     const hs = S.core.routine?.hours || [];
@@ -713,7 +725,7 @@ const ACTIONS = {
   'local-ok': () => { try { localStorage.setItem('gamify-ui:localok', '1'); } catch { /* */ } render(); },
   mode: () => { const cur = document.documentElement.dataset.mode; setMode(cur === 'night' ? 'day' : 'night'); sfx('tab'); },
   tour: (d) => tour(+d.s || 0),
-  more: () => openModal(`<h2>mais</h2><div class="list"><a class="li" href="#" data-act="primo-hub" data-close style="text-decoration:none;color:var(--ink)"><span class="lt">${px('fire', 16)} PRIMO</span><span class="dim">→</span></a>${ROUTES.filter((r) => !['quests', 'survival', 'shop', 'agenda'].includes(r[0])).map(([k, n, ic]) => `<a class="li" href="#${k}" data-close style="text-decoration:none;color:var(--ink)"><span class="lt">${px(ic, 16)} ${n}</span><span class="dim">→</span></a>`).join('')}</div>`),
+  more: () => openModal(`<h2>mais</h2><div class="list">${ROUTES.filter((r) => !['quests', 'survival', 'shop', 'agenda', ...HIDDEN_TABS].includes(r[0])).map(([k, n, ic]) => `<a class="li" href="#${k}" data-close style="text-decoration:none;color:var(--ink)"><span class="lt">${px(ic, 16)} ${n}</span><span class="dim">→</span></a>`).join('')}</div>`),
   'backup-copy': async () => {
     const json = JSON.stringify(exportAll());
     try { await navigator.clipboard.writeText(json); markBackup(); render(); toast('Backup copiado. Cole num e-mail ou nota.', 'good'); }

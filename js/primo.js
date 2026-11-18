@@ -122,7 +122,7 @@ const OFF = document.createElement('canvas'); OFF.width = PW * K; OFF.height = P
 function scenePick() {
   const es = PS.expState(), d = new Date(), h = d.getHours() + d.getMinutes() / 60, wd = d.getDay();
   const night = document.documentElement.dataset.mode === 'night';
-  const light = night ? 'noite' : h >= 16.5 ? 'tarde' : 'dia';
+  const light = night || h >= 19 || h < 5 ? 'noite' : h >= 16 ? 'tarde' : 'dia'; // v6.1: segue o relógio de verdade (manhã, tarde, noite)
   let place;
   if (es.cur && !es.ready) place = es.cur.id === 'feira' ? 'feira' : 'estrada'; // fora de casa
   else if (night || h >= 19 || h < 5) place = 'fogueira';

@@ -223,6 +223,7 @@ export const COLOR_MEANING = [
   ['--c-calma', 'AZUL', 'ritual e descanso: RITUAIS, fim de semana, feriado, sono, noite, pausa, falha perdoada. O azul baixa a ansiedade.'],
   ['--c-espera', 'ROXO', 'depende de outra pessoa: AGUARDANDO (lista, tarefa e bloco), vai e volta.'],
   ['--c-neutro', 'CINZA', 'SEM PRAZO e PARADO.'],
+  ['--cat-bd', 'FAIXINHA DA JANELA', 'o comecinho colorido de cada tarefa diz de qual janela ela é: ◆ BREAKDOWN (verde-água), ▲ TRABALHO (cobre), ● CAPTAÇÃO (ameixa), ■ GESTÃO (oliva), ✖ BOSS, ▣ janelas suas (lilás). É só categoria: não é urgência.'],
   ['--c-premio', 'DOURADO', 'recompensa: XP, gold, 🎟, conquistas, loja. Dourado = valor.'],
   ['--c-acao', 'MADEIRA', 'a casa do app: botões, títulos e janelas. Neutro, pra não competir com as cores que avisam.'],
 ];

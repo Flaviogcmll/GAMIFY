@@ -1225,6 +1225,11 @@ export function setRoutineHours(list) {
   if (!hs.length) return;
   return commit(['core'], () => { S.core.routine.hours = hs; });
 }
+export function addNeuroRoutine() {
+  const r = S.core.routine;
+  if (!r?.plans?.length || r.plans.some((p) => p.name === 'NEURO')) return;
+  return commit(['core'], () => { r.plans.push(R.neuroRoutine(r.plans[r.active ?? 0], r.hours)); });
+}
 export function initRoutine() {
   return commit(['core'], () => { S.core.routine = { plans: [{ name: 'PRINCIPAL', grid: {} }], active: 0, hours: Array.from({ length: 19 }, (_, i) => String(i + 5).padStart(2, '0')), atividades: [], controle: [] }; });
 }
