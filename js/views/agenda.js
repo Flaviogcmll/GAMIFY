@@ -61,9 +61,6 @@ export function viewAgenda(ui) {
   const blow = R.blowState(S), blowPct = Math.round((R.BLOW_MULT - 1) * 100);
   return `<div class="page-title"><div><h1><em>agenda</em>.</h1></div></div>
     ${tiles([
-      { label: '⏰ Atrasadas', value: over.length, act: 'fpick', data: { k: 'bucket', v: 'ATRASADA', go: '1' }, on: ui.filtro?.bucket === 'ATRASADA', cls: over.length ? 'bad' : '', tone: 'urg', tip: over.length >= 3 ? 'A loja está trancada: resolva ou remarque 1 atrasada pra abrir.' : 'Com 3 ou mais atrasadas a loja tranca (resolver 1 já destranca).' },
-      { label: 'Hoje', value: dueToday.length, act: 'fpick', data: { k: 'bucket', v: 'HOJE', go: '1' }, on: ui.filtro?.bucket === 'HOJE', tone: 'urg', tip: `${DOW[weekday(td)]} ${fmtDM(td)}` },
-      { label: 'Próx. 7 dias', value: next7.length, act: 'fpick', data: { k: 'bucket', v: 'PRÓX. 7 DIAS', go: '1' }, on: ui.filtro?.bucket === 'PRÓX. 7 DIAS', tone: 'atencao' },
       { label: 'Pontualidade 30d', value: punct == null ? '—' : punct + '%', tone: 'ok', tip: 'Das tarefas com prazo concluídas nos últimos 30 dias, quantas saíram no prazo.' },
       { label: '🎯 No prazo seguidas', value: seq, tone: 'ok', tip: seq >= 5 ? 'RELÓGIO SUÍÇO!' : '5 seguidas no prazo = RELÓGIO SUÍÇO' },
       { label: '💥 Estourados', value: `${blow.n % R.BLOW_EVERY}/${R.BLOW_EVERY}`, cls: blow.active ? 'bad' : '', tone: 'urg', tip: blow.active ? `Castigo ativo: loja +${blowPct}%. Resolva 1 atrasada antiga pra cancelar.` : `A cada ${R.BLOW_EVERY} prazos estourados, a loja fica ${blowPct}% mais cara por ${R.BLOW_DAYS} dias.` },

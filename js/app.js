@@ -594,7 +594,9 @@ const ACTIONS = {
   'cycle-ok': (d) => { A.cycleApprove(d.id); sfx('level'); confetti(50); },
   prio: (d) => { const t = S.quests.tasks.find((x) => x.id === d.id); A.updateTask(d.id, { prio: !t.prio }); },
   sort: (d) => { if (d.area) { (ui.lsort ||= {})[d.area] = ui.lsort[d.area] === 'win' ? 'date' : 'win'; toast(ui.lsort[d.area] === 'win' ? '⇅ Agrupado por janela (toque de novo: por data).' : '⇅ Por data.'); render(); } else A.sortContainer({ area: d.area, block: d.block }); sfx('tab'); },
-  jump: (d) => jump(d.id),
+  jump: (d) => { if (ui.mm) ui.mm = false; jump(d.id); },
+  'done-all': async (d) => { const b = S.quests.blocks.find((x) => x.id === d.id), n = S.quests.tasks.filter((t) => t.block === d.id && R.isOpen(t)).length;
+    if (b && n && await ask('Concluir tudo?', `Marca as ${n} tarefa(s) abertas de "${b.title}" como feitas (dá pra desfazer com ↩).`, 'CONCLUIR TUDO')) A.doneAll(d.id); },
   'jump-block': (d) => jumpBlock(d.id),
   'edit-block': (d) => editBlock(d.id),
   'move-block': (d) => A.moveBlock(d.id, +d.dir),
@@ -639,7 +641,7 @@ const ACTIONS = {
   fsort: (d) => { const f = ui.filtro; if (f.sort === d.k) f.dir *= -1; else { f.sort = d.k; f.dir = 1; } render(); },
   fpick: (d) => { const f = (ui.filtro ||= { q: '', cat: '', bucket: '', status: '', type: '', who: '', sort: 'date', dir: 1 }); f[d.k] = f[d.k] === d.v ? '' : d.v; if (d.go && isCollapsed('c:agenda:filtro')) toggleCollapse('c:agenda:filtro'); sfx('tab'); render(); if (d.go) setTimeout(() => document.getElementById('filtro-v')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60); }, // quadrinho liga/desliga o filtro (na AGENDA, rola até a tabela)
   fclear: () => { Object.assign(ui.filtro, { q: '', cat: '', bucket: '', status: '', type: '', who: '' }); sfx('tab'); render(); },
-  cq: (d) => { ui.cq = d.v; sfx('tab'); render(); }, // v5.16: filtro das CONQUISTAS
+  cq: (d) => { ui.cq = ui.cq === d.v ? 'todas' : d.v; sfx('tab'); render(); }, // v6.4: tocar de novo no escolhido volta pro padrão // v5.16: filtro das CONQUISTAS
   'perks-go': (d) => perksGo(d.i),
   'new-chapter': () => {
     const ch = S.core.chapter || {};
@@ -660,7 +662,7 @@ const ACTIONS = {
   'toggle-done': () => { ui.showDone = !ui.showDone; render(); },
   'toggle-stalled': () => { ui.showStalled = !ui.showStalled; try { localStorage.setItem('gamify-ui:stalled', ui.showStalled ? '1' : '0'); } catch { /* */ } render(); sfx('tab'); },
   'collapse-all': () => {
-    const keys = [...new Set([...$main.querySelectorAll('.board [data-act="collapse"][data-k]')].map((x) => x.dataset.k).filter((k) => /^[bl]:/.test(k)))];
+    const keys = [...new Set([...$main.querySelectorAll('.board [data-act="collapse"][data-k]')].map((x) => x.dataset.k).filter((k) => /^([bl]:|c:quests:)/.test(k)))]; // v6.4: inclui MISSÕES e BOSS DO CAPÍTULO
     const close = keys.some((k) => !isCollapsed(k));
     for (const k of keys) if (isCollapsed(k) !== close) toggleCollapse(k);
     render(); sfx('swish');
