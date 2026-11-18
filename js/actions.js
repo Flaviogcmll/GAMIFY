@@ -74,6 +74,35 @@ function pragaCure(before) {
   S._epoch++;
   return { n: gone.length, xp: 0, clean: after.size === 0, names: gone.map((x) => x.text) };
 }
+/** v7.3b: a BRASINHA. 1) fecha os dias que passaram (o CALOR de cada um; viagem não conta) e ela cresce;
+ *  2) cada TREM que chega no LAMBEHOMI tira 1 fase (nunca abaixo de PINTINHO); 3) LUA DE SANGUE = vira OVO (é fênix: renasce).
+ *  Os castigos não somam: a Praga não tira mais XP. Devolve os acontecimentos (pra tela avisar) ou null. */
+export function brasinhaTick() {
+  const b = S.core?.brasinha;
+  if (!b) return null;
+  const td = today(), yd = addDays(td, -1), ev = [];
+  let changed = false;
+  if (!b.upTo || b.upTo < yd) {
+    let d = b.upTo ? addDays(b.upTo, 1) : yd;
+    if (d < addDays(td, -14)) d = addDays(td, -14);
+    for (; d <= yd; d = addDays(d, 1)) {
+      b.calor = Math.max(0, (b.calor || 0) + R.calorOfDay(S, d).gain);
+      while (b.stage < 4 && b.calor >= R.BRAS_NEED[b.stage]) { b.calor -= R.BRAS_NEED[b.stage]; b.stage++; ev.push({ k: b.stage === 1 && b.reborn ? 'reborn' : 'up', stage: b.stage }); b.reborn = false; }
+    }
+    b.upTo = yd; changed = true;
+  }
+  if (R.neuroOn(S, 'praga')) {
+    const pg = R.praga(S), now4 = pg.list.filter((x) => x.kind === 'task' && x.phase >= 4), hit = new Set(b.hit || []);
+    for (const x of now4) if (!hit.has(x.id)) { changed = true; if (b.stage > 1) { b.stage--; b.calor = 0; ev.push({ k: 'down', stage: b.stage, text: x.text }); } }
+    const ids = now4.map((x) => x.id);
+    if (ids.join() !== (b.hit || []).join()) { b.hit = ids; changed = true; } // saiu do LAMBEHOMI e voltou um dia = perde de novo
+    if (pg.lua && !b.lua) { b.lua = td; changed = true; if (b.stage > 0) { b.stage = 0; b.calor = 0; b.reborn = true; ev.push({ k: 'egg' }); } }
+    else if (!pg.lua && b.lua) { b.lua = null; changed = true; }
+  }
+  b.max = Math.max(b.max || 0, b.stage);
+  if (ev.length) { b.hist = [...(b.hist || []), ...ev.map((e) => ({ d: td, ...e }))].slice(-100); S._brasEv = [...(S._brasEv || []), ...ev]; }
+  return changed;
+}
 /** v6.7: anota o último dia com Praga e dá +1 🎟 por semana inteira sem Praga (conta da segunda ao domingo) */
 function pragaWeek(docs, seen) {
   if (!R.neuroOn(S, 'praga') || !S.core.praga?.start) return;
@@ -109,6 +138,7 @@ export function commit(docs, fn, opts = {}) {
   const cured = pgBefore.length ? pragaCure(pgBefore) : null;
   if (cured) docs.push('core', 'loja');
   pragaWeek(docs, pgBefore.length > 0);
+  if (brasinhaTick()) docs.push('core'); // v7.3b
   const extra = sync();
   if (extra.changed) docs.push('core');
   { // v6.4: a loja tranca com 3 atrasadas e só destranca quando não sobrar nenhuma
@@ -261,6 +291,11 @@ export function startup() {
     if (S.core.praga) delete S.core.praga.vac;
     S.core.migrations.push('v7-praga'); changedCore = true;
   }
+  if (!S.core.migrations.includes('v7-bras')) { // v7.3b: nasce a BRASINHA (com o CALOR). Começa na fase que a FAÍSCA já tinha alcançado (8 quadros → 5 fases); quem já está no LAMBEHOMI não tira fase (anistia).
+    const old = Math.max(0, Math.min(7, S.core.primo?.petMax || 0)), map = [1, 1, 1, 2, 2, 3, 3, 4];
+    S.core.brasinha = { stage: map[old], calor: 0, upTo: addDays(td, -1), hit: R.praga(S).list.filter((x) => x.kind === 'task' && x.phase >= 4).map((x) => x.id), max: map[old], hist: [] };
+    S.core.migrations.push('v7-bras'); changedCore = true;
+  }
   if (!S.core.migrations.includes('cores5')) { // v5.9: cores dos blocos = URGENTE, FAZENDO, ESTÁVEL, PARADO (o laranja saiu)
     for (const b of S.quests.blocks) if (b.color === 'orange') { b.color = 'green'; changedQ = true; }
     S.core.migrations.push('cores5'); changedCore = true;
@@ -337,6 +372,7 @@ export function startup() {
   const extra = sync();
   const docs = [...moved];
   if (changedQ) docs.push('quests');
+  if (brasinhaTick()) changedCore = true; // v7.3b: fecha os dias da BRASINHA ao abrir
   if (changedCore || changedCoreV4 || extra.changed) docs.push('core');
   if (S._lojaChanged) { docs.push('loja'); S._lojaChanged = false; }
   if (R.tripNow(S) && fillTrip(td)) docs.push('marks'); // ✈ em viagem: os dias fora entram como folga

@@ -9,7 +9,7 @@ import { openModal, closeModal, ask, toast, modalOpen, segBar } from './ui.js';
 
 import { px } from './icons.js';
 
-import { embers, confetti, floatXp, fireworks } from './fx.js';
+import { embers, confetti, floatXp, fireworks, poof } from './fx.js';
 import { sfx, startAmbience, stopAmbience, ambienceOn, prefs, setVol } from './audio.js';
 
 import { viewQuests, togglePin, curfewSkip, qsortOf } from './views/quests.js';
@@ -268,6 +268,7 @@ function welcome() {
 A.onFeedback((fb) => {
   // 🧠 dopamina sob controle: tarefa fácil (menos de 20 XP, sem ⭐ ⚔) ganha só o "tic"; o número voando e os fogos ficam pro que custou
   const easy = R.neuroOn(S, 'calm') && fb.task && fb.xp < 20 && !/⚔|⭐/.test(fb.task.text || '');
+  if (fb.task && fb.xp > 0 && fb.task.due) poof(fb.at); // v7.3b: o PRIMO deu a marretada, o TREM virou poeira
   if (fb.xp > 0) { if (!easy) floatXp(`+${fmtN(fb.xp)} XP`, fb.at); sfx(fb.task ? 'check' : 'xp'); setTimeout(checkMilestones, 400); }
   // 🎆 fogos pra coisa demorada: boss, bloco fechado, mini-boss ⚔, tarefa chata ⭐ ou tarefa que rendeu 60 XP ou mais
   if (fb.boss || fb.closedBlock || (fb.task && fb.xp > 0 && (fb.xp >= 60 || /⚔|⭐/.test(fb.task.text || '')))) setTimeout(() => { fireworks(); sfx('fireworks'); }, 250);

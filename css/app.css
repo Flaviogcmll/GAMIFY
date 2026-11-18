@@ -1752,3 +1752,25 @@ li.task[data-guia] { outline: 2px solid color-mix(in srgb, #c0392b 70%, transpar
   background: radial-gradient(circle at 38% 35%, #ff9a7a 0 12%, #d43a24 45%, #7a0f0a 100%); box-shadow: 0 0 22px 6px color-mix(in srgb, #d43a24 55%, transparent); }
 .banner.praga-b[data-lua] { border-color: #b3160f; background: color-mix(in srgb, #7a0f0a 35%, var(--panel)); }
 @media (prefers-reduced-motion: reduce) { :root[data-lua] #main, :root[data-lua] .pcv { animation: none !important; } }
+
+/* v7.3b: o TREM virou poeira */
+.poof { position: fixed; z-index: 120; pointer-events: none; width: 0; height: 0; }
+.poof i { position: absolute; left: -3px; top: -3px; width: 6px; height: 6px; background: color-mix(in srgb, #b89a6a 85%, var(--panel)); border-radius: 2px;
+  animation: poof .6s ease-out forwards; transform: rotate(var(--a)) translateX(0); }
+.poof i:nth-child(3n) { background: color-mix(in srgb, #e8c87a 85%, var(--panel)); width: 8px; height: 3px; }
+@keyframes poof { to { transform: rotate(var(--a)) translateX(var(--d)); opacity: 0; } }
+/* v7.3b: os TRENS chegando pela direita do cartão do PRIMO (bolinha de poeira e palha com olhinhos) */
+.pcard .pstage .trens { position: absolute; right: 8px; bottom: 8px; display: flex; align-items: flex-end; gap: 4px; flex-direction: row-reverse; pointer-events: auto; }
+.trem { position: relative; width: calc(22px * var(--s, 1)); height: calc(18px * var(--s, 1)); border-radius: 50% 50% 42% 42%; cursor: pointer;
+  background: radial-gradient(circle at 40% 35%, #d9bf8a 0 18%, #a8865a 55%, #6e5236 100%); box-shadow: inset -2px -2px 0 color-mix(in srgb, #3a2a1a 40%, transparent);
+  animation: trem-bob 1.6s ease-in-out calc(var(--i) * -.3s) infinite; }
+.trem::before, .trem::after { content: ''; position: absolute; top: 38%; width: 3px; height: 3px; border-radius: 1px; background: #241414; }
+.trem::before { left: 32%; } .trem::after { right: 32%; }
+.trem.k-trem::before, .trem.k-trem::after { height: 1px; top: 44%; } /* dormindo */
+.trem.k-bravo::before, .trem.k-bravo::after, .trem.k-praga::before, .trem.k-praga::after { background: var(--c-urg); box-shadow: 0 0 3px var(--c-urg); }
+.trem.k-praga { background: radial-gradient(circle at 40% 35%, #8a7a8a 0 18%, #4a3a4a 60%, #241824 100%); }
+.trem.k-boss { width: calc(30px * var(--s, 1)); height: calc(24px * var(--s, 1)); background: radial-gradient(circle at 40% 35%, #e0c070 0 15%, #9a7038 55%, #5a3a1a 100%); }
+@keyframes trem-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+@media (prefers-reduced-motion: reduce) { .trem { animation: none; } }
+.pbras { display: grid; grid-template-columns: auto minmax(40px, 1fr) auto; gap: 8px; align-items: center; margin: 4px 0 6px; cursor: help; font-size: 12px; }
+.pbras b { color: var(--c-urg); }

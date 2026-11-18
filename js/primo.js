@@ -141,7 +141,7 @@ const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
 function paint(cv) {
   const kind = cv.dataset.portrait, ctx = cv.getContext('2d'), NEW = artOn();
   ctx.setTransform(K, 0, 0, K, 0, 0);
-  if (cv.dataset.mascot != null) { const ps = PS.petState(), happy = R.dailyGoal(S).today >= R.dailyGoal(S).goal; if (NEW) drawMascotNew(ctx, ps.stage, frame, happy); else { ctx.imageSmoothingEnabled = false; drawMascot(ctx, ps.stage, frame, happy); } return; }
+  if (cv.dataset.mascot != null) { const ps = PS.petState(), happy = R.dailyGoal(S).today >= R.dailyGoal(S).goal; if (NEW) drawMascotNew(ctx, ps.frame, frame, happy); else { ctx.imageSmoothingEnabled = false; drawMascot(ctx, ps.stage, frame, happy); } return; }
   const o = { tier: R.companion(S).tier, mood: statusMood(), expr: curExpr(), wear: PS.wearing(), talk: Date.now() < talkUntil, f: frame };
   // v6: no banner do QUESTS ele passeia pelo cenário (quando está reagindo, para e reage onde está)
   if (kind === 'walk') {
@@ -178,8 +178,13 @@ function loop(ts) {
 /** roda depois de cada desenho da tela: liga os desenhos, evolui o mascote, avisa a volta da expedição, gera o diário */
 export function primoAfterRender() {
   mountPortraits();
-  const ev = PS.petSync();
-  if (ev) { toast(`🐣 A BRASINHA cresceu: <b>${esc(ev.name)}</b>!`, 'gold'); sfx('level'); primoReact('mascote'); }
+  // v7.3b: o que aconteceu com a BRASINHA (cresceu de manhã, perdeu fase no LAMBEHOMI, virou ovo na LUA DE SANGUE)
+  const evs = S._brasEv; S._brasEv = null;
+  for (const e of evs || []) {
+    if (e.k === 'up' || e.k === 'reborn') { toast(e.k === 'reborn' ? `🐣 O ovo rachou: a BRASINHA renasceu! <b>${R.BRAS_NAMES[e.stage]}</b>, com um pouco de cinza na cabeça.` : `🐣 A BRASINHA cresceu: <b>${R.BRAS_NAMES[e.stage]}</b>!`, 'gold'); sfx('level'); primoSay(e.k === 'reborn' ? 'Ela voltou, sô. Cinza na cabeça e fogo no peito.' : 'Óia o tamanho dela! Tá ficando braba, uai.', 'orgulhoso'); }
+    if (e.k === 'down') { toast(`🐺 O LAMBEHOMI chegou em <b>${esc(String(e.text).slice(0, 40))}</b>: a BRASINHA perdeu força (agora ${R.BRAS_NAMES[e.stage]}).`, 'bad'); sfx('error'); primoSay('Ele soprou forte. Fica atrás de mim, pequena.', 'suspeito'); }
+    if (e.k === 'egg') { toast('🌕 LUA DE SANGUE: a BRASINHA virou OVO. É fênix: com calor ela renasce.', 'bad'); primoSay('A lua ficou vermelha… guardei o ovo no chapéu. A gente começa de novo.', 'preocupado'); }
+  }
   if (ls.get('gamify-ui:diary') !== today()) { ls.set('gamify-ui:diary', today()); PS.diarySync(); }
 }
 
@@ -230,6 +235,16 @@ const CMD_LINES = {
 };
 /** o PRIMO fala um texto pronto (sem sortear do banco) */
 export function primoSay(text, expr) { rx = { text, expr: expr || lastExpr(), until: Date.now() + 14000, typed: false }; paintSpeech(); }
+/** v7.3b: os TRENS de hoje (e os atrasados) chegando pela direita do cartão. Maior = mais perto do prazo. Tocar leva até a tarefa. */
+function tremsHtml() {
+  const td = today(), list = R.openTasks(S).filter((t) => t.due && t.due <= td && t.st !== 'wait' && !t.who && !t.mother)
+    .map((t) => ({ t, tr: R.tremOf(S, t, td) })).sort((a, b) => (b.tr?.phase || 0) - (a.tr?.phase || 0)).slice(0, 5);
+  return list.length ? `<div class="trens">${list.map(({ t, tr }, i) => `<span class="trem k-${tr.k}" data-act="jump" data-id="${t.id}" style="--i:${i};--s:${tr.k === 'praga' ? 1 + tr.phase * 0.12 : 1}" title="${esc(tr.name)}: ${esc(String(t.text).replace(/\s*\(\d+\s*XP\)/i, '').slice(0, 60))}"></span>`).join('')}</div>` : '';
+}
+/** v7.3b: a BRASINHA e o CALOR 🔥 dela, numa linha */
+function brasLine(p) {
+  return `<div class="pbras" title="${esc(p.title)}" data-act="mascot-info"><span>🐣 <b>${esc(p.name)}</b></span>${p.max ? '<span class="meta">FÊNIX!</span>' : `${segBar(p.pct, 'sm')}<span class="meta">🔥 ${Math.max(0, p.calor + p.hoje)}/${p.need}</span>`}</div>`;
+}
 function statusIcons() {
   const st = R.dayStatus(S, today()), al = R.alerts(S, today());
   const ic = [...(st.event ? [`<button class="sico event" data-act="explain" data-k="event" title="🎲 ${esc(st.event.name)}: ${esc(st.event.desc)}">🎲</button>`] : []),
@@ -242,10 +257,11 @@ function body(big, compact = false) {
   const status = st.act !== 'idle' ? `${esc(c.name)} está ${esc(st.label)}` : `<span title="${esc(m.tip)}">${m.ico} ${esc(c.name)} está <b>${m.label}</b></span>`;
   const trip = R.tripNow(S);
   return `<div class="pcard ${big ? 'big' : ''} ${compact ? 'compact' : ''}" data-mood="${mk}">${compact ? '' : `<div class="pstage"><canvas class="pcv" data-portrait="${big ? 'full' : 'card'}" data-act="comp-poke" aria-label="${esc(c.name)}"></canvas>
-      <canvas class="pcv pmascot" data-mascot title="BRASINHA · ${esc(pet.name)} · ${pet.days} dias na meta${pet.next ? ' · faltam ' + pet.left + ' pra crescer' : ''}" data-act="mascot-info"></canvas></div>`}
+      <canvas class="pcv pmascot" data-mascot title="${esc(pet.title)}" data-act="mascot-info"></canvas>${tremsHtml()}</div>`}
     <div class="pcol">${compact ? '' : '<div class="speech" id="comp-speech" data-pspeech="ambient" data-act="comp-poke" title="toque pra ouvir outra"></div>'}
       <div class="meta pstat">${status}${st.left ? ` · <span data-countdown="${Date.now() + st.left}">${mmss(st.left)}</span>` : ''}</div>
       ${statusIcons()}
+      ${brasLine(pet)}
       ${askHtml()}
       <div class="pcmds">${CMDS.map(([k, i, l, t]) => `<button class="btn sm ${k === 'trip' && trip ? 'pri' : ''}" data-act="pcmd" data-k="${k}" title="${esc(t)}"><span>${i}</span>${k === 'trip' && trip ? 'VOLTEI' : l}</button>`).join('')}</div>
       <div class="row prow"><button class="btn sm pri" data-act="saber" data-g="all">📚 ME CONTA UMA</button><button class="btn sm" data-act="primo-prosa" title="Piada, ditado ou causo da roça">😂 PROSA</button><button class="btn sm" data-act="diary">📖 DIÁRIO</button></div></div></div>`;
@@ -255,7 +271,7 @@ function body(big, compact = false) {
 export function questsBanner() {
   const c = R.companion(S), pet = PS.petState();
   return `<div class="qscene pstage"><canvas class="pcv walker" data-portrait="walk" data-act="comp-poke" title="Toque no ${esc(c.name)}" aria-label="${esc(c.name)}"></canvas>
-    <canvas class="pcv pmascot" data-mascot title="BRASINHA · ${esc(pet.name)}" data-act="mascot-info"></canvas>
+    <canvas class="pcv pmascot" data-mascot title="${esc(pet.title)}" data-act="mascot-info"></canvas>
     <div class="qs-say"><div class="speech" data-pspeech="ambient" data-act="comp-poke" title="toque pra ouvir outra"></div></div></div>`;
 }
 export function primoCard() {
@@ -265,7 +281,7 @@ export function primoCard() {
 export function openPrimoHub() {
   const c = R.companion(S), b = bond(), pet = PS.petState();
   const m = openModal(`<h2>🔥 ${esc(c.name)} <small class="meta">· ${esc(b.name)} ${hearts()}</small></h2>${body(true)}
-    <div class="meta" style="margin-top:8px">BRASINHA: <b>${esc(pet.name)}</b> · ${pet.days} dia(s) na meta${pet.next ? ` · faltam ${pet.left} pra crescer` : ' · evolução máxima'} · ${bankSize()} frases e ${saberCount()} curiosidades verificadas</div>
+    <div class="meta" style="margin-top:8px">BRASINHA: <b>${esc(pet.name)}</b>${pet.max ? ' · FÊNIX!' : ` · 🔥 ${Math.max(0, pet.calor + pet.hoje)}/${pet.need} de calor pra crescer`} · ${bankSize()} frases e ${saberCount()} curiosidades verificadas</div>
     <div class="actions"><button class="btn pri" data-close>FECHAR</button></div>`, { wide: true });
   mountPortraits(m);
   paintSpeech();
@@ -297,7 +313,7 @@ export function extendPrimo(ACTIONS) {
     saber: (d) => { primoReact('saber', { group: d.g || 'all' }); if (!document.querySelector('.modal')) openSaber(d.g || 'all'); },
     'saber-go': (d) => { closeModal(); setTimeout(() => { openSaber(d.g); }, 30); },
     diary: () => openDiary(),
-    'mascot-info': () => { const p = PS.petState(); toast(`🐣 BRASINHA · <b>${esc(p.name)}</b> · ${p.days} dia(s) na meta${p.next ? ` · faltam ${p.left} pra evoluir` : ''}`, 'gold'); primoReact('mascote'); },
+    'mascot-info': () => { const p = PS.petState(); toast(`🐣 <b>${esc(p.title)}</b>. Tarefa no prazo esquenta, dia na meta esquenta mais; atrasada esfria. TREM no LAMBEHOMI tira 1 fase; LUA DE SANGUE vira ovo.`, 'gold'); primoReact('mascote'); },
     'ask-claim': () => { const r = PS.claimAsk(); if (r?.error) { sfx('error'); toast(esc(r.error), 'bad'); return; } sfx('chest'); confetti(40); if (document.querySelector('.modal')) rehub(); },
     // v7.2: comando do cartão do PRIMO = o comando de sempre + uma frase dele
     pcmd: (d, e) => { const f = ACTIONS[d.k]; if (!f) return; const r = f(d, e); const L = CMD_LINES[d.k]; if (L) setTimeout(() => primoSay(L[Math.floor(Math.random() * L.length)], MOODS[primoMood()].expr), 60); return r; },

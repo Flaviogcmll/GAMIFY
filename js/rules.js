@@ -156,7 +156,7 @@ export function completions(t) {
 export function idx(s) {
   const c = cache(s);
   if (c.idx) return c.idx;
-  const doneByDay = {}, buysByDay = {}, xpByDay = {};
+  const doneByDay = {}, buysByDay = {}, xpByDay = {}, onTimeByDay = {}, lateByDay = {};
   const addXp = (d, v) => { if (d && v) xpByDay[d] = (xpByDay[d] || 0) + v; };
   const tasks = allTasks(s);
   const comps = tasks.flatMap(completions);
@@ -165,6 +165,7 @@ export function idx(s) {
     addXp(c.doneAt, c.xp || 0);
   }
   for (const t of tasks) if (t.approved && t.bonusXp) addXp(t.doneAt, t.bonusXp);
+  for (const t of tasks) if (t.st === 'done' && t.doneAt && t.due) { const m = t.doneAt <= t.due ? onTimeByDay : lateByDay; m[t.doneAt] = (m[t.doneAt] || 0) + 1; } // v7.3b: CALOR da BRASINHA
   for (const b of allBlocks(s)) if (b.st === 'done') addXp(b.doneAt, b.xp || 0);
   for (const b of s.quests?.bosses || []) if (b.st === 'done') addXp(b.doneAt, b.xp || 0);
   for (const [d, v] of Object.entries(s.marks?.days || {})) addXp(d, v.xp || 0);
@@ -180,7 +181,7 @@ export function idx(s) {
   for (const p of s.loja?.purchases || []) {
     if (p.kind === 'taverna' || p.kind === 'bau') buysByDay[p.date] = (buysByDay[p.date] || 0) + (p.qty || 1);
   }
-  c.idx = { tasks, comps, doneByDay, buysByDay, xpByDay };
+  c.idx = { tasks, comps, doneByDay, buysByDay, xpByDay, onTimeByDay, lateByDay };
   return c.idx;
 }
 const tasksDoneOn = (s, d) => idx(s).doneByDay[d] || 0;
@@ -373,9 +374,9 @@ export const STATUS_INFO = {
   // v6.7: A PRAGA no STATUS DO DIA (o castigo de XP já vem do praga(); aqui é pra explicar ao tocar)
   // v7.3: a Praga é o SOPRO DO LAMBEHOMI contra a casa do PRIMO. Ele quase nunca tem medo: fica PARANOICO. Medo de verdade só na LUA DE SANGUE.
   paranoico: { icon: '👀', name: 'PARANOICO', kind: 'debuff', desc: 'Tem um TREM rondando: uma tarefa ou ritual atrasado virou ENCOSTO. Ela vira o FOCO AGORA e o PRIMO fica desconfiado, olhando de lado.', cure: '🙏 REZA BRABA: faça a tarefa (ou remarque com motivo, ou cancele). Siga o urubu: ele pousa onde ela está.' },
-  encostado: { icon: '🐾', name: 'DISGRAMA', kind: 'debuff', desc: 'DISGRAMA: o lobo aparece pela metade e a casa racha. O XP das outras tarefas cai 10%, a faixa ERRO NA FITA aparece em todas as abas e a janela pula a cada 7 min.', cure: '🙏 REZA BRABA na tarefa que o urubu mostra.' },
-  amaldicoado: { icon: '🐺', name: 'LAMBEHOMI', kind: 'debuff', desc: 'O LAMBEHOMI chegou e está soprando a casa: XP −20%, loja trancada, tela vermelha e preta.', cure: '🙏 REZA BRABA. Espantar uma no LAMBEHOMI vale a conquista EXORCISTA (sem XP: ninguém fabrica Praga pra ganhar ponto).' },
-  luadesangue: { icon: '🌕', name: 'LUA DE SANGUE', kind: 'debuff', desc: 'Tarefas demais no LAMBEHOMI ao mesmo tempo: eclipse vermelho, três lobisomens nos morros, a tela treme. É a única hora em que o PRIMO tem medo de verdade. O castigo é o mesmo da fase 4 (não soma).', cure: '🙏 REZA BRABA até ficar abaixo do limite (PERKS → 🧠).' },
+  encostado: { icon: '🐾', name: 'DISGRAMA', kind: 'debuff', desc: 'DISGRAMA: o lobo aparece pela metade e a casa racha. A faixa ERRO NA FITA aparece em todas as abas e a janela pula a cada 7 min. Mais um dia e ele vira LAMBEHOMI: a BRASINHA perde uma fase.', cure: '🙏 REZA BRABA na tarefa que o urubu mostra.' },
+  amaldicoado: { icon: '🐺', name: 'LAMBEHOMI', kind: 'debuff', desc: 'O LAMBEHOMI chegou e está soprando a casa: a BRASINHA perdeu uma fase, a loja trancou e a tela ficou vermelha e preta.', cure: '🙏 REZA BRABA. Espantar uma no LAMBEHOMI vale a conquista EXORCISTA (sem XP: ninguém fabrica Praga pra ganhar ponto).' },
+  luadesangue: { icon: '🌕', name: 'LUA DE SANGUE', kind: 'debuff', desc: 'Tarefas demais no LAMBEHOMI ao mesmo tempo: eclipse vermelho, três lobisomens nos morros, a tela treme. É a única hora em que o PRIMO tem medo de verdade, e a BRASINHA vira OVO (é fênix: renasce com calor).', cure: '🙏 REZA BRABA até ficar abaixo do limite (PERKS → 🧠).' },
 };
 
 export function dayStatus(s, d) {
@@ -660,7 +661,7 @@ export const ACHIEVEMENTS = [
   
   ['week700', 'SEMANA DE OURO', 'Faça 700 XP numa única semana', 'bestWeekXp', 700, 150], ['missions4', 'TRÊS PEDRAS', '4 semanas com as 3 missões da semana feitas', 'missionWeeks', 4, 200],
   
-  ['pet3', 'CUIDADOR DA BRASINHA', 'Faça a BRASINHA crescer 3 vezes', 'petStage', 3, 200],
+  ['pet3', 'CUIDADOR DA BRASINHA', 'Leve a BRASINHA até o PÁSSARO DE FOGO', 'petStage', 3, 200],
   // v5.13: com as mecânicas novas (bosses, castigo, revisado, viagem, janelas)
   ['mini1', 'PRIMEIRO GOLPE', 'Derrote 1 mini-boss ⚔', 'miniDone', 1, 30], ['mini10', 'ESPADACHIM', 'Derrote 10 mini-bosses ⚔', 'miniDone', 10, 150], ['mini30', 'LÂMINA LENDÁRIA', 'Derrote 30 mini-bosses ⚔', 'miniDone', 30, 400],
   ['steps50', 'PASSO A PASSO', 'Conclua 50 passos ↳', 'stepsDone', 50, 120], ['bosshalf', 'SANGRANDO', 'Tire metade da vida de um BOSS', 'bossHalf', 1, 80],
@@ -680,7 +681,7 @@ function extraMetrics(s) {
   return {
     bestWeekXp: Math.max(0, ...Object.values(weeks)),
     missionWeeks: (s.core?.bonus || []).filter((b) => b.kind === 'missoes').length,
-    petStage: s.core?.primo?.petMax || 0,
+    petStage: s.core?.brasinha?.max || 0, // v7.3b: maior fase que a BRASINHA já alcançou
     pragaEarly: s.core?.praga?.early || 0, pragaCured: s.core?.praga?.cured || 0,
     pragaExo: s.core?.praga?.exo || 0, pragaGhosts: s.core?.praga?.ghosts || 0, pragaCalm: s.core?.praga?.start ? Math.max(0, diffDays(s.core.praga.lastSeen && s.core.praga.lastSeen > s.core.praga.start ? s.core.praga.lastSeen : s.core.praga.start, today())) : 0,
     ...(() => {
@@ -1364,8 +1365,8 @@ export function neuroRoutine(plan, hours) {
 
 // ───────────────────────── A PRAGA = o SOPRO DO LAMBEHOMI (v6.5; v7.3 com a história nova) ─────────────────────────
 // Cada tarefa é um TREM (inimigo). Atrasou, ele vira assombração: 4 fases, 1 por dia de atraso (rituais começam na 2):
-// 1 TREM RUIM · 2 ENCOSTO (vira o FOCO AGORA, PRIMO paranoico) · 3 DISGRAMA (faixa nas abas, janelas a cada 7 min, −10% de XP nas outras)
-// · 4 LAMBEHOMI (tela vermelha e preta, −20% e loja trancada). LUA DE SANGUE = luaN(s) ou mais no LAMBEHOMI ao mesmo tempo (o PRIMO com medo de verdade).
+// 1 TREM RUIM · 2 ENCOSTO (vira o FOCO AGORA, PRIMO paranoico) · 3 DISGRAMA (faixa nas abas, janelas a cada 7 min)
+// · 4 LAMBEHOMI (tela vermelha e preta, a BRASINHA perde 1 fase, loja trancada). v7.3b: sem −10%/−20% de XP (castigos não somam). LUA DE SANGUE = luaN(s) ou mais no LAMBEHOMI ao mesmo tempo (o PRIMO com medo de verdade).
 // Cada atrasada tem a sua fase; o app mostra a PIOR e o castigo NÃO soma. Feriado, dia de DESCANSO e VIAGEM não contam.
 // Cura (REZA BRABA): fazer, remarcar (custa o de sempre) ou cancelar. Espantar NÃO dá XP (v7.3). Sem CORPO FECHADO e sem vacina: a luta é todo dia.
 export const PRAGA_POP_MS = 7 * 60e3;
@@ -1416,7 +1417,7 @@ function pragaCalc(s, td) {
   list.sort((a, b) => b.phase - a.phase || b.days - a.days);
   const phase = list[0].phase;
   const n4 = list.filter((x) => x.phase >= 4).length;
-  return { list, phase, worst: list[0], mult: phase >= 4 ? 0.8 : phase >= 3 ? 0.9 : 1, n4, lua: n4 >= luaN(s) }; // a LUA DE SANGUE não aumenta o castigo (não soma)
+  return { list, phase, worst: list[0], mult: 1, n4, lua: n4 >= luaN(s) }; // v7.3b: sem −10%/−20% de XP: o castigo é a BRASINHA perder fase (escolha do dono: castigos não somam). A loja ainda tranca no LAMBEHOMI.
 }
 export const pragaOf = (s, id) => praga(s).list.find((x) => x.id === id) || null;
 
@@ -1440,4 +1441,38 @@ export function pragaWhere(s, id) {
   if (!b) return { tab: 'listas' };
   const boss = (s.quests?.bosses || []).some((x) => x.block === b.id);
   return { tab: boss ? 'boss' : b.win ? 'w:' + b.win : b.group, block: b.id };
+}
+
+// ───────────────────────── v7.3b: a BRASINHA (pintinho vermelho de fênix) e o CALOR 🔥 ─────────────────────────
+// Cada tarefa é um TREM atrás da BRASINHA. Ela cresce com o CALOR: tarefa feita NO PRAZO esquenta, dia na meta esquenta mais
+// (e a sequência mais ainda), tarefa feita atrasada esfria. O dia é fechado na virada (o crescimento aparece de manhã).
+// Perde 1 fase por TREM que chega no LAMBEHOMI (nunca abaixo de PINTINHO) e só vira OVO na LUA DE SANGUE. Os números ficam aqui pra ajustar.
+export const BRAS_NAMES = ['OVO', 'PINTINHO', 'CRISTA DE FOGO', 'PÁSSARO DE FOGO', 'FÊNIX'];
+export const BRAS_FRAME = [0, 1, 3, 6, 7]; // quadro da arte de 8 quadros (até chegar a arte nova da BRASINHA)
+export const BRAS_NEED = [15, 45, 80, 110]; // calor pra sair de cada fase: ~1 mês do OVO à FÊNIX num ritmo bom (escolha do dono)
+export const CAL = { task: 1, goal: 3, streak: 1, streakMax: 4, late: 1 };
+/** o calor que um dia rendeu (viagem não conta: o jogo está congelado) */
+export function calorOfDay(s, d) {
+  if (tripDay(s, d)) return { gain: 0, onTime: 0, late: 0, met: false, streak: 0 };
+  const ix = idx(s), onTime = ix.onTimeByDay[d] || 0, late = ix.lateByDay[d] || 0, met = (ix.xpByDay[d] || 0) >= goalAt(s, d);
+  let streak = 0;
+  for (let x = d, i = 0; i < 30 && (ix.xpByDay[x] || 0) >= goalAt(s, x); x = addDays(x, -1), i++) streak++;
+  const gain = onTime * CAL.task + (met ? CAL.goal + Math.min(CAL.streakMax, Math.max(0, streak - 1)) * CAL.streak : 0) - late * CAL.late;
+  return { gain, onTime, late, met, streak };
+}
+/** o que a tela mostra: fase, nome, calor guardado + o de hoje (ainda não fechado), quanto falta */
+export function brasinha(s, td = today()) {
+  const b = s.core?.brasinha || { stage: 1, calor: 0 }, stage = Math.max(0, Math.min(4, b.stage | 0));
+  const hoje = calorOfDay(s, td).gain, need = BRAS_NEED[stage] || 0, cal = Math.max(0, (b.calor || 0) + hoje);
+  return { stage, frame: BRAS_FRAME[stage], name: BRAS_NAMES[stage], calor: b.calor || 0, hoje, need, pct: need ? Math.min(1, cal / need) : 1, left: need ? Math.max(0, need - cal) : 0, max: stage >= 4, egg: stage === 0 };
+}
+/** v7.3b: que tipo de TREM (inimigo) cada tarefa é. Só nome da história (falas, legendas); a lista continua dizendo "tarefa". */
+export function tremOf(s, t, td = today()) {
+  if (!t || !isOpen(t)) return null;
+  const pg = pragaOf(s, t.id);
+  if (pg) return { k: 'praga', name: PRAGA_NAMES[pg.phase], phase: pg.phase };
+  const b = t.block && findBlock(s, t.block);
+  if (b && (s.quests?.bosses || []).some((x) => x.block === b.id)) return { k: 'boss', name: 'TREM BOSS' };
+  if (t.due && diffDays(td, t.due) <= 1) return { k: 'bravo', name: 'TREM BRAVO' };
+  return { k: 'trem', name: 'TREM' };
 }

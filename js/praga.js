@@ -66,7 +66,7 @@ export function pragaBanner() {
   if (pg.phase < 3) return '';
   const w = pg.worst, more = pg.list.length - 1;
   return `<div class="banner praga-b" data-praga="${pg.phase}" ${pg.lua ? 'data-lua="1"' : ''}><span class="pb-tag">${pg.lua ? '🌕 LUA DE SANGUE' : pg.phase >= 4 ? '🐺 ERRO FATAL NA FITA' : '🐾 ERRO NA FITA'}</span>
-    <span class="pb-t"><b>${pg.lua ? `${pg.n4} NO LAMBEHOMI: A LUA FICOU VERMELHA` : pg.phase >= 4 ? 'O LAMBEHOMI TÁ SOPRANDO A CASA' : 'A DISGRAMA TÁ NA PORTA'}</b> · ${esc(w.text.slice(0, 60))} (atrasada há ${w.days} dia${w.days > 1 ? 's' : ''})${more > 0 ? ` e mais ${more}` : ''}. ${pg.lua ? 'O PRIMO está com medo de verdade' : 'O PRIMO tá paranoico'}${pg.phase >= 4 ? ', a loja trancou e o XP caiu 20%' : ' e o XP caiu 10%'}.<i class="pb-cur">▮</i></span>
+    <span class="pb-t"><b>${pg.lua ? `${pg.n4} NO LAMBEHOMI: A LUA FICOU VERMELHA` : pg.phase >= 4 ? 'O LAMBEHOMI TÁ SOPRANDO A CASA' : 'A DISGRAMA TÁ NA PORTA'}</b> · ${esc(w.text.slice(0, 60))} (atrasada há ${w.days} dia${w.days > 1 ? 's' : ''})${more > 0 ? ` e mais ${more}` : ''}. ${pg.lua ? 'O PRIMO está com medo de verdade' : 'O PRIMO tá paranoico'}${pg.lua ? ', a BRASINHA virou ovo e a loja trancou' : pg.phase >= 4 ? ', a BRASINHA perdeu força e a loja trancou' : '. Mais um dia e a BRASINHA perde uma fase'}.<i class="pb-cur">▮</i></span>
     <button class="btn sm pri" data-act="praga-pop" data-id="${w.id}">🙏 REZA BRABA</button></div>`;
 }
 /** o que o PRIMO fala quando está infectado */

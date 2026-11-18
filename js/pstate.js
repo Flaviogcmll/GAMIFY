@@ -48,24 +48,11 @@ export function claimAsk() {
   });
 }
 
-// ───────────────────────── MASCOTE: BRASINHA (v7.2; era a FAÍSCA) (cresce com os dias batendo a meta; nunca volta atrás) ─────────────────────────
-export const PET_STAGES = [[0, 'OVO'], [2, 'PINTINHO'], [5, 'PINTINHO DE BRASA'], [10, 'CRISTA DE BRASA'], [20, 'CRISTA DE FOGO'], [35, 'PÁSSARO DE FOGO'], [60, 'FÊNIX'], [100, 'FÊNIX LENDÁRIA']]; // v7.2: nomes da história (a BRASINHA é pintinho vermelho de fênix)
-export function goalDays(s = S) {
-  const xp = R.idx(s).xpByDay;
-  return Object.entries(xp).filter(([d, v]) => v >= R.goalAt(s, d)).length;
-}
+// ───────────────────────── MASCOTE: a BRASINHA (v7.3b: cresce com o CALOR; regras em rules.js → brasinha, dados em core.brasinha) ─────────────────────────
+/** o que a tela usa: frame = quadro da arte; stage = fase 0 (OVO) a 4 (FÊNIX) */
 export function petState(s = S) {
-  const n = goalDays(s), prev = s.core?.primo?.petMax || 0;
-  let i = 0; PET_STAGES.forEach(([d], j) => { if (n >= d) i = j; });
-  const stage = Math.max(i, prev), next = PET_STAGES[stage + 1];
-  return { days: n, stage, name: PET_STAGES[stage][1], next: next ? next[0] : null, left: next ? Math.max(0, next[0] - n) : 0 };
-}
-/** guarda o maior estágio (se você apagar dados, ela não encolhe) e avisa quando evolui */
-export function petSync() {
-  const st = petState(), p = ensure();
-  if (st.stage > (p.petMax || 0)) { const first = p.petMax == null; p.petMax = st.stage; save('core'); return first ? null : st; }
-  if (p.petMax == null) { p.petMax = st.stage; save('core'); }
-  return null;
+  const b = R.brasinha(s);
+  return { ...b, frame: b.frame, bstage: b.stage, next: !b.max, title: `BRASINHA · ${b.name}${b.max ? '' : ` · 🔥 ${Math.max(0, b.calor + b.hoje)}/${b.need} de calor${b.hoje ? ` (${b.hoje > 0 ? '+' : ''}${b.hoje} hoje)` : ''}`}` };
 }
 
 // ───────────────────────── CHAPÉU DE PALHA ─────────────────────────
