@@ -109,8 +109,9 @@ function sync() {
     }
   }
   S.core.achievements ||= {};
+  const store = S.core.season?.from ? (S.core.seasonAch ||= {}) : S.core.achievements; // v6: capítulo novo = conquistas novas
   for (const a of R.newAchievements(S)) {
-    S.core.achievements[a.key] = { date: td, xp: a.xp };
+    store[a.key] = { date: td, xp: a.xp };
     achievements.push(a);
     changed = true;
   }
@@ -943,7 +944,10 @@ export function updateChapter(ch) {
       S.core.chapters = [...(S.core.chapters || []), closed];
       ch.start = today();
       // v5.16 (1A): recomeçar XP, nível e tickets a partir de hoje (gold, compras, conquistas e histórico ficam)
-      if (ch.reset) S.core.season = { from: today(), n, tickets: 0, minus: R.idx(S).xpByDay[today()] || 0, spentMinus: S.loja.purchases.filter((p) => p.date === today()).reduce((a, p) => a + (p.xp || 0), 0) };
+      if (ch.reset) {
+        S.core.season = { from: today(), n, tickets: 0, minus: R.idx(S).xpByDay[today()] || 0, spentMinus: S.loja.purchases.filter((p) => p.date === today()).reduce((a, p) => a + (p.xp || 0), 0), ladder: S.core.ladder || [] };
+        S.core.ladder = []; S.core.seasonAch = {}; delete S.core.ladderDown; // v6 (1B): escada, chama e conquistas recomeçam; o histórico fica
+      }
     }
     delete ch.reset;
     S.core.chapter = { ...old, ...ch, n };
@@ -1214,6 +1218,18 @@ export function setRoutinePlan(i) {
   return commit(['core'], () => { S.core.routine.active = i; });
 }
 
+/** v6: horários da ROTINA editáveis ("07", "07:30"…), sempre em ordem */
+export function setRoutineHours(list) {
+  const norm = (h) => { const m = /^(\d{1,2})(?::?(\d{2}))?$/.exec(String(h).trim()); if (!m || +m[1] > 23 || +(m[2] || 0) > 59) return null; return m[2] && m[2] !== '00' ? `${m[1].padStart(2, '0')}:${m[2]}` : m[1].padStart(2, '0'); };
+  const hs = [...new Set(list.map(norm).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  if (!hs.length) return;
+  return commit(['core'], () => { S.core.routine.hours = hs; });
+}
+export function addNeuroRoutine() {
+  const r = S.core.routine;
+  if (!r?.plans?.length || r.plans.some((p) => p.name === 'NEURO')) return;
+  return commit(['core'], () => { r.plans.push(R.neuroRoutine(r.plans[r.active ?? 0], r.hours)); });
+}
 export function initRoutine() {
   return commit(['core'], () => { S.core.routine = { plans: [{ name: 'PRINCIPAL', grid: {} }], active: 0, hours: Array.from({ length: 19 }, (_, i) => String(i + 5).padStart(2, '0')), atividades: [], controle: [] }; });
 }
@@ -1442,9 +1458,11 @@ export function addScratch(text) {
 export function delScratch(id) {
   commit(['core'], () => { S.core.scratch = (S.core.scratch || []).filter((x) => x.id !== id); });
 }
-export function setMapa(text) {
-  if ((S.core.mapa?.text || '') === text) return;
-  commit(['core'], () => { S.core.mapa = { text: String(text || '').slice(0, 6000), at: today() }; }, { noUndo: true });
+/** v6: o mapa é de balões e setas ({ nodes, links }); o formato antigo (texto) ainda é aceito e vira balões ao abrir */
+export function setMapa(data) {
+  const v = typeof data === 'string' ? { text: data.slice(0, 6000) } : { nodes: (data.nodes || []).slice(0, 200), links: (data.links || []).slice(0, 400) };
+  if (JSON.stringify(S.core.mapa ? { ...S.core.mapa, at: undefined } : null) === JSON.stringify({ ...v, at: undefined })) return;
+  commit(['core'], () => { S.core.mapa = { ...v, at: today() }; }, { noUndo: true });
 }
 /** o mapa vira trabalho: a raiz vira um bloco no BREAKDOWN, os galhos viram tarefas e os galhos de galho viram passos ↳ */
 export function mapToBlock(tree) {

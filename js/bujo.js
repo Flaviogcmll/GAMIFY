@@ -133,9 +133,6 @@ export function extendBujo(ACTIONS, FORMS) {
       toast(`🦆 ${DUCK_REPLY[new Date().getDate() % DUCK_REPLY.length]}`, 'good');
     },
   });
-  document.addEventListener('keydown', (e) => {
-    if ((e.key === '+' || e.key === '=') && !e.ctrlKey && !e.metaKey && !e.altKey && !modalOpen() && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName) && S.core && R.neuroOn(S, 'quick')) { e.preventDefault(); quickAdd(); }
-  });
   document.addEventListener('pointerdown', swipeStart, { passive: true });
   document.addEventListener('pointermove', swipeMove, { passive: true });
   document.addEventListener('pointerup', (e) => swipeEnd(e, ACTIONS));
@@ -144,4 +141,4 @@ export function extendBujo(ACTIONS, FORMS) {
   document.addEventListener('click', (e) => { if (Date.now() - eatClick < 400 && e.target.closest?.('li.task')) { e.stopPropagation(); e.preventDefault(); } }, true);
 }
 /** chamado a cada redesenho */
-export function afterRenderBujo() { fab(); }
+export function afterRenderBujo() { document.getElementById('qadd')?.remove(); } // v6: o botão + de anotar rápido saiu (pedido do dono)

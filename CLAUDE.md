@@ -49,7 +49,8 @@ O backup do dono NUNCA entra no repositório.
 - `tools/topo_artes.py` — não é do app: prepara as imagens do topo das abas e as poses do PRIMO.
 - `tools/primo_artes.py` — não é do app: prepara as artes do PRIMO (recorta fundo, corta quadros dos vídeos, reduz) quando o dono gera imagens novas.
 - `v3.js`, `v35.js`, `v4.js` — recursos adicionados por versão (legado; têm imports circulares, cuidado).
-- `views/*.js` — uma tela por arquivo. `css/app.css` — todo o visual. `sw.js` — modo offline.
+- `postit.js` — post-it flutuante do bloco fixado (arrasta, minimiza, aparece em todas as abas).
+- `views/*.js` — uma tela por arquivo. O FILTRO não tem aba própria: `filtroBody()` é desenhado dentro da AGENDA (`#filtro-v`); `#filtro` redireciona (`HIDDEN_TABS` em `app.js`). `css/app.css` — todo o visual. `sw.js` — modo offline.
 
 ## Armadilhas
 - Ao REMOVER um tipo de dado salvo, o dado antigo do dono continua existindo: trate valores legados e crie migração idempotente (registrada em `core.migrations`).
@@ -63,7 +64,7 @@ O backup do dono NUNCA entra no repositório.
 - Meses esvaziados do ARQUIVO viram `core.legacy.days`, somados em `R.idx`: ao mexer no histórico de XP por dia, lembre deles.
 - Reorganizar os dados do dono: faça rodando o PRÓPRIO app (Playwright + `actions.js`) sobre um backup dele e entregue um arquivo para IMPORTAR; nunca edite o JSON à mão. Ele não pode mexer no app entre o backup e a importação.
 - O cache de totais depende de `S._epoch++`.
-- Cores têm significado fixo (v5.14): use as variáveis `--c-urg`, `--c-quase`, `--c-atencao`, `--c-ok`, `--c-calma`, `--c-espera`, `--c-neutro`, `--c-premio`, `--c-acao`. Não invente cor nova para enfeitar: cor nova só com significado novo, registrado em `COLOR_MEANING` (v35.js).
+- Cores têm significado fixo (v5.14): use as variáveis `--c-urg`, `--c-quase`, `--c-atencao`, `--c-ok`, `--c-calma`, `--c-espera`, `--c-neutro`, `--c-premio`, `--c-acao`. Não invente cor nova para enfeitar: cor nova só com significado novo, registrado em `COLOR_MEANING` (v35.js). A faixinha da janela no começo da tarefa usa `--cat-*` (`data-cat` em `taskRow`). Paleta do dono (v6.2, bloco no fim do `app.css`): as cores exatas de uma imagem que ele escolheu (11 famílias: escuro/meio/claro). Ajustes só pequenos e dentro da mesma família (teoria das cores, harmonia). De noite o fundo é o marrom escuro antigo (ele preferiu, mais contraste). Nunca `#000`/`#fff`/`black`/`white` no CSS (o teste confere); use `--ink`, `--panel`, `#1f1712` ou `#fffaf1`. Cuidado: trocar `black` por regex quebra seletores como `[data-color="black"]`.
 - A meta diária muda com a escada do esforço: leia sempre por `R.dailyGoal`/`R.goalAt`, nunca `settings.dailyGoal` direto.
 - O topo (`.top` + `.tabs`) só fica preso na primeira tela de rolagem (o `body` tem altura fixa). A variável CSS `--stick`, atualizada em `app.js`, diz onde ele termina; a barra das janelas do QUESTS e o painel da direita usam essa variável.
 - Qualquer redesenho (`render()`) recria a tela: o que estiver digitado nas linhas "+ adicionar" e a rolagem do painel da direita são guardados e devolvidos por `render()`. Campo novo desse tipo precisa entrar em `ADD_SEL`.
@@ -78,6 +79,8 @@ O backup do dono NUNCA entra no repositório.
 - AGUARDANDO virou uma COR nas janelas de tarefa e bloco, mas por baixo continua sendo o estado `st = 'wait'` (a cor guardada em `t.color`/`b.color` não muda). Na tela, item aguardando ganha `data-color="purple"`.
 - Dinheiro: os dados guardam o marcador 💰, mas a tela mostra "$" (troca feita em `deaccent()`, que roda em todo redesenho e em toda janela). O dono escreve `3000$` e `normalizeMoney()` (actions.js) guarda como 💰.
 - NOVO CAPÍTULO (`core.season = { from, minus, spentMinus, tickets }`): XP, nível e tickets de `R.totals` contam só a partir de `from`. Gold, compras, conquistas e histórico continuam inteiros. Não use `totals().earned` como "XP de todos os tempos".
+- Banners (`.scene.pstrip`, `.vit-h`, `.qscene`): largura toda, proporção 2,4 por 1 (igual no celular) com altura máxima no PC. A imagem vai em `style="--img:url('<endereço COMPLETO>')"` (`new URL(src, document.baseURI)`): `url()` relativa dentro de variável CSS é lida a partir de `css/` e dá 404. No QUESTS o PRIMO tem 27% da largura do cenário e a FAÍSCA 7%: ficam na escala da imagem em qualquer tela.
+- Legendas: `tips()` (app.js) dá `title` a tudo que é clicável e não tem (aria-label, `ACT_TIP` ou o texto). Roda em `deaccent()` e no fim do `render()`.
 - Nomes de classe CSS antigos podem colidir (ex.: `.sw` era das paletas que saíram). Antes de criar uma classe nova, procure no `app.css`.
 - Mecânicas do PDF de gamificação (todas com contrapeso): loja destranca com 1 resgate (`core.rescue`), castigo cancela com resgate e tem intensidade (`settings.castigo`), chama aguenta dia com metade da meta (`FLAME_MIN`, sem somar), escada desce numa semana fraca, bônus de volta (`kind: 'volta'`), FOCO AGORA (`R.focusNow`).
 

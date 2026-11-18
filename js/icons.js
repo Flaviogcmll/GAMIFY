@@ -24,6 +24,7 @@ const ICONS = {
   chest: ['.cccccccc.', 'cnnnnnnnnc', 'cnngggnnnc', 'cccccccccc', 'cnnnggnnnc', 'cnnnnnnnnc', 'cnnnnnnnnc', 'cccccccccc', '..........', '..........'],
   potion: ['...cccc...', '....cc....', '...cwwc...', '..cwwwwc..', '.cGGGGGGc.', '.cGwGGGGc.', '.cGGGGGGc.', '..cGGGGc..', '...cccc...', '..........'],
   bag: ['...cccc...', '..c....c..', '.cnnnnnnc.', 'cnnnnnnnnc', 'cnnnggnnnc', 'cnnnggnnnc', 'cnnnnnnnnc', 'cnnnnnnnnc', '.cccccccc.', '..........'],
+  hourglass: ['cccccccccc', '.cwwwwwwc.', '.cyyyyyyc.', '..cyyyyc..', '...cyyc...', '...cwwc...', '..cwwyyc..', '.cwyyyyyc.', '.cyyyyyyc.', 'cccccccccc'],
   lock: ['...cccc...', '..c....c..', '..c....c..', '..c....c..', '.cccccccc.', '.cwwwwwwc.', '.cwwccwwc.', '.cwwccwwc.', '.cwwwwwwc.', '.cccccccc.'],
   hammer: ['.ccccc....', 'cwwwwwc...', 'cwwwwwc...', '.ccccnc...', '....cnc...', '....cnc...', '....cnc...', '....cnc...', '....cnc...', '....ccc...'],
 };

@@ -6,6 +6,7 @@ import { taskRow, segBar, statusChips, dueChip } from '../ui.js';
 import { px } from '../icons.js';
 import { isCollapsed, companionCard } from '../v3.js';
 import { arrange, inColumns } from '../v35.js';
+import { questsBanner } from '../primo.js';
 import { overflowBar } from '../bujo.js';
 
 const sortOrd = (a, b) => a.ord - b.ord;
@@ -25,14 +26,16 @@ function listCard(area, ui) {
   const own = S.quests.tasks.filter((t) => !t.block && t.area === area);
   // AGUARDANDO mostra só as tarefas principais (as das LISTAS). Subtarefas em espera ficam dentro do bloco delas, na janela delas.
   // as tarefas andam pelas listas com o tempo: dentro de cada lista, a ordem é a da data (a mais próxima em cima)
-  const every = [...own].sort(area === 'wait' || area === 'sem' ? sortOrd : (a, b) => (a.due || '9').localeCompare(b.due || '9') || sortOrd(a, b));
+  const winKey = (t) => { const b = t.link && R.findBlock(S, t.link); return b ? (R.winOf(S, b)?.name || (b.group === 'bs' ? 'ZZ' : R.GROUPS[b.group]?.short || '')) : '~'; };
+  const byDate = (a, b) => (a.due || '9').localeCompare(b.due || '9') || sortOrd(a, b);
+  const every = [...own].sort(ui.lsort?.[area] === 'win' ? (a, b) => winKey(a).localeCompare(winKey(b)) || byDate(a, b) : area === 'wait' || area === 'sem' ? sortOrd : byDate);
   const all = every.filter(stalledOff(ui)), stalled = every.length - all.length;
   const open = all.filter(visible), show = ui.showDone ? all : open, nHidden = all.length - open.length;
   const late = area === 'hoje' ? open.filter((t) => t.due && t.due < td).length : 0;
   const sub = (t) => (wait ? [R.waitingOn(S, t).label && '⏳ ' + R.waitingOn(S, t).label, t.link && R.findBlock(S, t.link)?.st === 'wait' && 'o bloco dela está aguardando'].filter(Boolean).join(' · ') : '');
   const rv = R.listReviewed(S, area);
   return `<section class="list-card ${isCollapsed('l:' + area) ? 'collapsed' : ''} ${rv ? 'reviewed' : ''}" data-list="${area}" data-drop-area="${area}"><header><h2 data-act="collapse" data-k="l:${area}" style="cursor:pointer"><span class="chev">${isCollapsed('l:' + area) ? '▸' : '▾'}</span> ${R.AREAS[area]}</h2>
-      <span class="row" style="gap:4px"><span class="meta">${open.length}${late ? ` · <span class="bad">${late} atrasada${late > 1 ? 's' : ''}</span>` : ''}</span><button class="icon-btn" data-act="sort" data-area="${area}" title="Organizar por data">⇅</button></span></header>
+      <span class="row" style="gap:4px"><span class="meta">${open.length}${late ? ` · <span class="bad">${late} atrasada${late > 1 ? 's' : ''}</span>` : ''}</span><button class="icon-btn ${ui.lsort?.[area] === 'win' ? 'on' : ''}" data-act="sort" data-area="${area}" title="${ui.lsort?.[area] === 'win' ? 'Agrupado por janela. Toque: por data' : 'Por data. Toque: agrupar por janela'}">⇅</button></span></header>
     ${area === 'hoje' ? overflowBar() : ''}<ul class="tasks">${show.map((t) => taskRow(t, { list: true, sub: sub(t) })).join('')}${show.length ? '' : `<div class="empty">${wait ? 'ninguém te segurando. 👏' : 'vazio.'}</div>`}</ul>
     ${!ui.showDone && nHidden ? `<button class="more" data-act="toggle-done">✓ ${nHidden} feitas · mostrar</button>` : ''}
     ${stalled ? `<button class="more" data-act="toggle-stalled">⬛ ${stalled} parada(s) · mostrar</button>` : ''}
@@ -91,8 +94,8 @@ function blockCard(b, ui, opts = {}) {
 function group(g, ui, win = null) {
   const blocks = R.tabBlocks(S, win ? 'w:' + win.id : g).sort(sortOrd);
   const active = blocks.filter(stalledOff(ui));
-  return `<div class="group ${isCollapsed('g:' + g) ? 'collapsed' : ''}" data-group="${g}"><div class="band" data-act="collapse" data-k="g:${g}"><span><span class="chev">${isCollapsed('g:' + g) ? '▸' : '▾'}</span> ${win ? esc(win.name) : R.GROUPS[g].name}</span><span class="meta">${blocks.filter((b) => b.st !== 'done').length} blocos${win ? ` · funciona como ${esc(R.GROUPS[g].short)} <button class="btn sm ghost" data-act="win-edit" data-id="${win.id}" title="Renomear, mudar o tipo ou apagar esta janela">✎</button>` : ''}</span></div>
-    <form class="row" data-form="add-block" data-group="${g}" ${win ? `data-win="${win.id}"` : ''} autocomplete="off"><input class="inp grow" name="title" placeholder="+ novo bloco${g === 'bd' ? ' (🎯 meta)' : ' (3000$ · / MES DIA 05)'}" aria-label="Novo bloco"></form>
+  return `<div class="group" data-group="${g}">
+    <form class="row" data-form="add-block" data-group="${g}" ${win ? `data-win="${win.id}"` : ''} autocomplete="off"><input class="inp grow" name="title" placeholder="+ novo bloco${g === 'bd' ? ' (🎯 meta)' : ' (3000$ · / MES DIA 05)'}" aria-label="Novo bloco">${win ? `<button type="button" class="btn sm ghost" data-act="win-edit" data-id="${win.id}" title="Renomear, mudar o tipo ou apagar a janela ${esc(win.name)} (funciona como ${esc(R.GROUPS[g].short)})">✎ JANELA</button>` : ''}</form>
     ${active.length ? `<div class="mcols">${cols3(active.map((b) => blockCard(b, ui)))}</div>` : '<div class="empty">nenhum bloco.</div>'}
     ${blocks.length > active.length ? `<button class="more" data-act="toggle-stalled">⬛ ${blocks.length - active.length} parado(s) · mostrar</button>` : ''}</div>`;
 }
@@ -111,9 +114,9 @@ function habitsCard(td) {
 }
 
 function filaCard(td) {
-  const q = R.deadlineQueue(S, td).slice(0, 12);
+  const q = R.deadlineQueue(S, td); // v6.1: completa (antes eram só 12); o cartão rola
   const where = (t) => (t.block ? R.findBlock(S, t.block)?.title : R.areaName(t.area)) || '';
-  return `<div class="card"><header><h2>⏰ Fila de prazos</h2><a class="meta" href="#agenda">agenda →</a></header>
+  return `<div class="card fila-q"><header><h2 title="Tudo que tem prazo, do mais perto pro mais longe">⏰ Fila de prazos</h2><span class="meta">${q.length}</span></header>
     <div class="list">${q.map((t) => `<div class="li" data-act="jump" data-id="${t.id}" data-list="${R.listOf(t, td)}" style="cursor:pointer"><div class="lt">${t.st === 'doing' ? '▶ ' : ''}${t.prio ? '<b class="bad">!</b> ' : ''}${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}<small>${esc(where(t))}</small></div><div class="row" style="flex-wrap:nowrap">${dueChip(t.due, false, true)}</div></div>`).join('') || '<div class="empty">nenhuma tarefa com prazo.</div>'}</div></div>`;
 }
 
@@ -152,6 +155,7 @@ export function togglePin(id) {
   try { if (pinnedId) localStorage.setItem(PIN_KEY, pinnedId); else localStorage.removeItem(PIN_KEY); } catch { /* */ }
   return !!pinnedId;
 }
+export const pinnedBlockId = () => pinnedId;
 export function sidePanel(ui) {
   const td = today(), tot = R.totals(S), st = R.dayStatus(S, td), al = R.alerts(S, td), ch = S.core.chapter || {};
   const open = R.openTasks(S), over = open.filter((t) => t.due && t.due < td).length, hoje = open.filter((t) => t.due === td).length;
@@ -161,7 +165,9 @@ export function sidePanel(ui) {
   // v3.5: cada cartão do painel pode ser recolhido (toque no título), arrastado (alça ⠿) e escondido (⚙ PERSONALIZAR)
   // um bloco fixado (📌) fica sempre no topo do painel, à mão enquanto você mexe no resto
   const pinB = pinnedId && S.quests.blocks.find((x) => x.id === pinnedId && x.st !== 'done');
-  return `<aside class="side">${clockCard()}${pinB ? `<div class="pinned">${blockCard(pinB, ui, { pinned: true })}</div>` : ''}${arrange('side', [
+  void pinB; // v6: o bloco fixado virou um post-it flutuante (postit.js), visível em todas as abas
+  return `<aside class="side">${arrange('side', [
+    ['relogio', '🕰 Relógio do corpo', clockCard()],
     ['status', '🎭 Status do dia', `<div class="card"><header><h2 title="toque num status pra ver o que é">🎭 Status do dia</h2></header><div class="status-line">${statusChips(st, al) || '<span class="meta">nenhum buff nem debuff hoje.</span>'}</div></div>`],
     ['primo', '🔥 PRIMO', companionCard()],
     ['ouro', '💰 Baú de ouro (quando tem)', goldCard(td)],
@@ -172,6 +178,7 @@ export function sidePanel(ui) {
       <button class="btn" data-act="rest-day" title="Doença ou dia puxado: os hábitos de hoje viram folga">🏕<span>DESCANSO</span></button>
       <button class="btn" data-act="redemption">${px('sword', 14)}<span>REDENÇÃO</span></button>
       <button class="btn" data-act="sos">${px('sos', 14)}<span>SOS TRAVEI</span></button>
+      <button class="btn" data-act="distribute" title="Dá dias novos às atrasadas e às tarefas sem prazo, pelo seu ritmo">📅<span>DISTRIBUIR</span></button>
       <button class="btn" data-act="backup-download" title="Baixa um arquivo com todos os seus dados">⬇<span>BACKUP</span></button>
       <button class="btn" data-act="review" title="O PRIMO revisa o dia com você: hábitos de ontem, atrasadas e a primeira de hoje" style="grid-column:1 / -1">☀<span>REVISAR O DIA COM O PRIMO</span></button></div></div>`],
     ['fila', '⏰ Fila de prazos', filaCard(td)],
@@ -231,18 +238,18 @@ export function viewQuests(ui) {
   const ckeys = tab === 'listas' ? R.AREA_KEYS.map((a) => 'l:' + a)
     : tab === 'boss' ? S.quests.bosses.map((b) => 'b:' + (b.block || b.id))
     : R.tabBlocks(S, tab).filter(stalledOff(ui)).map((b) => 'b:' + b.id);
-  const allCol = ckeys.length > 0 && ckeys.every(isCollapsed);
+  const allCol = ckeys.length > 0 && ckeys.every(isCollapsed); // v6.1: o botão voltou (pedido do dono); tocar de novo na janela aberta continua sendo o memento mori
   const lists = arrange('lists', R.AREA_KEYS.map((a) => [a, R.AREAS[a], listCard(a, ui)]), { button: false, cols: 3 });
   const body = tab === 'listas' ? `<div class="lists six">${lists}</div>`
     : tab === 'boss' ? bossPanel(ui)
     : group(win ? win.base : tab, ui, win).replace('class="group ', 'class="group wide ');
   return `<div class="quests"><div class="board">
       <div class="band qbar"><div class="seg">${QTABS.map(([k, t]) => `<button class="${tab === k ? 'on' : ''} ${k === 'listas' ? 'mae' : 'filha'} ${R.tabReviewed(S, k) ? 'allrev' : ''}" data-act="qtab" data-tab="${k}" ${k === 'listas' ? 'title="Janela mãe: tudo passa por aqui"' : 'draggable="true" title="arraste pra mudar a ordem"'}>${k === 'listas' ? '◆ ' : ''}${esc(t)}${n[k] != null ? ' · ' + n[k] : ''}</button>`).join('')}<button class="qadd" data-act="win-new" title="Criar uma janela nova">＋</button></div>
-        <span class="row" style="gap:6px"><button class="btn sm ghost" data-act="collapse-all" title="Recolhe ou abre tudo desta janela de uma vez">${allCol ? '▾ ABRIR TUDO' : '▸ RECOLHER TUDO'}</button><button class="btn sm" data-act="distribute">📅 DISTRIBUIR</button>
+        <span class="row" style="gap:6px"><button class="btn sm ghost" data-act="collapse-all" title="Recolhe ou abre tudo desta janela de uma vez">${allCol ? '▾ ABRIR TUDO' : '▸ RECOLHER TUDO'}</button>
           <details class="qmenu"><summary class="btn sm ghost" title="Escolha o que aparece nesta tela">MOSTRAR${ui.showDone || ui.showStalled ? ' · ' + (!!ui.showDone + !!ui.showStalled) : ''} ▾</summary><div class="qpop">
             <button class="btn sm ${ui.showDone ? 'pri' : 'ghost'}" data-act="toggle-done">${ui.showDone ? '☑' : '☐'} FEITAS</button>
             <button class="btn sm ${ui.showStalled ? 'pri' : 'ghost'}" data-act="toggle-stalled" title="⬛ parados: blocos e tarefas com a cor PARADO">${ui.showStalled ? '☑' : '☐'} PARADOS</button></div></details></span></div>
-      ${chapterDue()}${focusCard(ui)}${topStrip()}${body}
+      ${ui.mm ? mementoCard() : `${questsBanner()}${chapterDue()}${focusCard(ui)}${topStrip()}${body}`}
     </div>${sidePanel(ui)}</div>`;
 }
 
@@ -260,6 +267,18 @@ function focusCard(ui) {
     <button class="check" data-act="toggle" data-id="${t.id}" aria-label="Concluir">${t.st === 'doing' ? '▶' : ''}</button>
     <div class="fn-t" data-act="jump" data-id="${t.id}" title="Toque pra ir até a tarefa"><b>${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}</b><small>${b ? esc(b.title) + ' · ' : ''}porque ${esc(f.why)}</small></div>
     <span class="chip xp">${R.taskXp(S, t).xp}</span><button class="btn sm ghost" data-act="focus-skip" data-id="${t.id}" title="Agora não: mostra outra sugestão">OUTRA ▸</button></div>`;
+}
+/** v6 MEMENTO MORI: tocar de novo na janela aberta recolhe tudo e mostra o tempo passando (lembra de parar de procrastinar) */
+const MM_LINES = ['Memento mori: o tempo não volta. Faça hoje o que importa.', 'Cada minuto aqui é um minuto a menos lá fora. Escolha UMA coisa.', 'O dia está passando agora, enquanto você lê isto.', 'Você não tem todo o tempo do mundo. Tem o de hoje.'];
+function mementoCard() {
+  const c = R.bodyClock(S), n = R.neuro(S), now = new Date(), wake = R.hm(n.wake), bed = R.hm(n.bed), t = now.getHours() * 60 + now.getMinutes();
+  const awake = (bed - wake + 1440) % 1440 || 960, gone = Math.min(awake, (t - wake + 1440) % 1440), pct = gone / awake;
+  const h = (m) => `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}`;
+  return `<div class="memento card" data-act="mm-off" title="Toque pra voltar"><span class="mm-art">${px('hourglass', 120)}</span>
+    <div class="mm-c"><div class="mm-clock" data-clock>${now.toLocaleTimeString('pt-BR')}</div>
+      <div class="mm-bar">${segBar(pct, 'sm')}</div>
+      <p class="mm-k">${c.key === 'sono' ? 'Hora de dormir.' : `Já se foi ${Math.round(pct * 100)}% do seu dia acordado. Faltam <b>${h(Math.max(0, awake - gone))}</b> pra dormir.`}</p>
+      <p class="mm-l">${MM_LINES[now.getDate() % MM_LINES.length]}</p><p class="meta">toque pra voltar</p></div></div>`;
 }
 function topStrip() {
   const sunday = new Date().getDay() === 0, wm = R.weeklyMissions(S, sunday ? addDays(today(), 1) : today()), boss = R.chapterBoss(S);

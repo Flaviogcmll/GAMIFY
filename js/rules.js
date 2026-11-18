@@ -173,6 +173,7 @@ export function idx(s) {
   for (const b of s.core?.bonus || []) addXp(b.date, b.xp || 0);
   for (const x of s.core?.sundays || []) addXp(x.date, x.xp);
   for (const a of Object.values(s.core?.achievements || {})) addXp(a.date, a.xp);
+  for (const a of Object.values(s.core?.seasonAch || {})) addXp(a.date, a.xp); // v6: conquistas do capítulo novo
   for (const [ws, w] of Object.entries(s.core?.weeks || {})) {
     for (const [k, v] of Object.entries(w)) if (typeof v === 'number') addXp(w._at?.[k] || addDays(ws, 6), v);
   }
@@ -684,8 +685,27 @@ function extraMetrics(s) {
     })(),
   };
 }
+/** v6: o "jogo" visto só a partir do começo do capítulo (pras conquistas recomeçarem sem apagar o histórico) */
+export function seasonView(s) {
+  const from = s.core?.season?.from;
+  if (!from) return s;
+  if (s._sv && s._sv.epoch === s._epoch) return s._sv.view;
+  const keep = (d) => (d || '') >= from;
+  const tasks = (s.quests?.tasks || []).map((t) => (t.st === 'done' && !keep(t.doneAt) ? null : t.rounds?.length ? { ...t, rounds: t.rounds.filter((r) => keep(r.doneAt)) } : t)).filter(Boolean);
+  const view = {
+    _epoch: s._epoch, arq: {},
+    quests: { ...s.quests, tasks, blocks: (s.quests?.blocks || []).filter((b) => b.st !== 'done' || keep(b.doneAt)), bosses: (s.quests?.bosses || []).filter((b) => b.st !== 'done' || keep(b.doneAt)) },
+    marks: { ...s.marks, days: Object.fromEntries(Object.entries(s.marks?.days || {}).filter(([d]) => keep(d))) },
+    loja: { ...s.loja, purchases: (s.loja?.purchases || []).filter((p) => keep(p.date)), goldIn: (s.loja?.goldIn || []).filter((g) => keep(g.date)) },
+    core: { ...s.core, achievements: s.core?.seasonAch || {}, seasonAch: {}, legacy: null, ladder: [], bonus: (s.core?.bonus || []).filter((b) => keep(b.date)), ritualLog: (s.core?.ritualLog || []).filter((r) => keep(r.date)),
+      sundays: (s.core?.sundays || []).filter((x) => keep(x.date)), focus: (s.core?.focus || []).filter((f) => keep(f.date)), weeks: Object.fromEntries(Object.entries(s.core?.weeks || {}).filter(([w]) => keep(w))), season: null },
+  };
+  s._sv = { epoch: s._epoch, view };
+  return view;
+}
 export function achievementList(s) {
-  const st = { ...stats(s), ...extraMetrics(s) }, got = s.core?.achievements || {};
+  // v6 (1B): no capítulo novo as conquistas recomeçam: contam só o que aconteceu a partir dele e ficam em core.seasonAch
+  const sv = seasonView(s), st = { ...stats(sv), ...extraMetrics(sv) }, got = (s.core?.season?.from ? s.core?.seasonAch : s.core?.achievements) || {};
   return ACHIEVEMENTS.map((a) => {
     const value = st[a.metric] || 0;
     return { ...a, value, pct: Math.min(1, value / a.goal), unlocked: !!got[a.key], date: got[a.key]?.date };
@@ -992,7 +1012,9 @@ export const FLAME_MIN = 0.5;
 export function dailyGoal(s, d = today()) {
   const goal = goalAt(s, d), xp = idx(s).xpByDay;
   let streak = 0, x = (xp[d] || 0) >= goal ? d : addDays(d, -1), skips = 0;
+  const from = s.core?.season?.from || '';
   for (let i = 0; i < 400; i++, x = addDays(x, -1)) {
+    if (from && x < from) break; // v6: a chama recomeça no capítulo novo
     if ((xp[x] || 0) >= goalAt(s, x)) streak++;
     else if (tripDay(s, x)) { /* ✈ viagem: não conta e não quebra a sequência */ }
     else if (x !== d && (xp[x] || 0) >= goalAt(s, x) * FLAME_MIN) { /* v5.16 (2C): metade da meta segura a chama, mas não soma */ }
@@ -1299,4 +1321,27 @@ export function focusNow(s, td = today(), skip = []) {
   const ranked = cands.map((t) => ({ t, r: why(t) })).filter((x) => x.r.length).sort((a, b) => b.r.reduce((x, y) => x + y[0], 0) - a.r.reduce((x, y) => x + y[0], 0));
   const top = ranked[0];
   return top ? { task: top.t, why: top.r.slice(0, 2).map((x) => x[1]).join(' e '), next: ranked.slice(1, 4).map((x) => x.t.id) } : null;
+}
+
+// ───────────────────────── v6.1: ROTINA "NEURO" (sugestão, a do dono continua igual) ─────────────────────────
+// Base: aulas 093 e 081 (luz natural ao acordar, comer e treinar sempre nos mesmos horários, nada pesado 3 h antes de dormir)
+// e o relógio do corpo (pico de foco nas primeiras horas acordado, vale depois do almoço, segundo pico no fim da tarde).
+const RT_DEEP = /SOFTWARE|PROJETO|ESTUD|CURSO/, RT_LIGHT = /STORIES|REELS|YOUTUBE|FEED|POSTAR|IG|GRAVAR/;
+export function neuroRoutine(plan, hours) {
+  const g = { ...plan.grid }, H = (h) => hours.find((x) => x === h);
+  for (const d of ['seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'dom']) {
+    // 1) luz do sol no primeiro horário do café
+    for (const h of hours) { const v = g[`${d}|${h}`] || ''; if (/CAF[ÉE]/.test(v) && !/LUZ/.test(v)) { g[`${d}|${h}`] = 'LUZ DO SOL + ' + v; break; } }
+    // 2) trabalho pesado no pico de foco (manhã) e o leve no vale da tarde
+    const morning = ['09', '10', '11'].filter(H), after = ['14', '15'].filter(H), late = ['16', '17'].filter(H);
+    const mv = morning.map((h) => g[`${d}|${h}`] || ''), deep = [...after, ...late].map((h) => g[`${d}|${h}`] || '').find((v) => RT_DEEP.test(v));
+    if (deep && mv.length && mv.every((v) => RT_LIGHT.test(v) || !v)) {
+      const light = mv.find(Boolean) || '';
+      morning.forEach((h) => { g[`${d}|${h}`] = deep; });
+      after.forEach((h) => { if (RT_DEEP.test(g[`${d}|${h}`] || '')) g[`${d}|${h}`] = light; });
+    }
+    // 3) jantar sempre no mesmo horário (o relógio do fígado agradece)
+    if (H('20') && /DESCANSO/.test(g[`${d}|20`] || '')) g[`${d}|20`] = 'JANTAR LEVE';
+  }
+  return { name: 'NEURO', grid: g };
 }

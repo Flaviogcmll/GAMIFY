@@ -19,28 +19,33 @@ export function viewRotina(ui) {
   const r = S.core.routine;
   if (!r?.plans?.length) return `<div class="page-title"><div><h1><em>rotina</em>.</h1></div></div><div class="card"><p>Sem rotina cadastrada ainda.</p><button class="btn pri" data-act="routine-new">CRIAR ROTINA</button></div>`;
   const pi = Math.min(ui.rplan ?? r.active ?? 0, r.plans.length - 1), plan = r.plans[pi];
-  const now = new Date(), hh = String(now.getHours()).padStart(2, '0'), wd = WD[weekday(today())];
-  const rows = r.hours.map((h) => `<tr><td class="h">${h}H</td>${DAYS.map(([d]) => {
+  const now = new Date(), wd = WD[weekday(today())];
+  // v6: horários podem ter minutos ("07:30"); a linha de agora é o último horário que já começou
+  const toMin = (h) => { const [a, b] = String(h).split(':'); return +a * 60 + (+b || 0); }, nowM = now.getHours() * 60 + now.getMinutes();
+  const hh = [...r.hours].reverse().find((h) => toMin(h) <= nowM) || r.hours[0];
+  const rows = r.hours.map((h) => `<tr><td class="h">${h}${h.includes(':') ? '' : 'H'}</td>${DAYS.map(([d]) => {
     const v = plan.grid[`${d}|${h}`] || '';
-    return `<td style="${tone(v)}" class="${d === wd ? 'today-col' : ''} ${d === wd && h === hh ? 'now' : ''}" data-act="rot-cell" data-key="${d}|${h}" title="${esc(v)}">${esc(v)}</td>`;
+    return `<td style="${tone(v)}" class="${d === wd ? 'today-col' : ''} ${DAYS.findIndex(([x]) => x === d) < DAYS.findIndex(([x]) => x === wd) ? 'past-col' : ''} ${d === wd && h === hh ? 'now' : ''}" data-act="rot-cell" data-key="${d}|${h}" title="${esc(v)}">${esc(v)}</td>`;
   }).join('')}</tr>`).join('');
-  const cur = plan.grid[`${wd}|${hh}`], nxt = r.hours.filter((h) => h > hh).map((h) => [h, plan.grid[`${wd}|${h}`]]).find(([, v]) => v && v !== cur);
+  const cur = plan.grid[`${wd}|${hh}`], nxt = r.hours.filter((h) => toMin(h) > toMin(hh)).map((h) => [h, plan.grid[`${wd}|${h}`]]).find(([, v]) => v && v !== cur);
   // v5.16: o dia de hoje numa faixa (blocos iguais seguidos viram um só) + quanto falta do bloco atual
   const segs = [];
-  for (const h of r.hours) { const v = plan.grid[`${wd}|${h}`] || ''; const lastSeg = segs.at(-1); if (lastSeg && lastSeg.v === v) lastSeg.to = +h + 1; else segs.push({ v, from: +h, to: +h + 1 }); }
-  const nowM = now.getHours() * 60 + now.getMinutes(), curSeg = segs.find((g) => nowM >= g.from * 60 && nowM < g.to * 60);
-  const leftM = curSeg ? curSeg.to * 60 - nowM : 0, pct = curSeg ? (nowM - curSeg.from * 60) / ((curSeg.to - curSeg.from) * 60) : 0;
+  const endOf = (i) => (r.hours[i + 1] ? toMin(r.hours[i + 1]) : toMin(r.hours[i]) + 60);
+  r.hours.forEach((h, i) => { const v = plan.grid[`${wd}|${h}`] || ''; const lastSeg = segs.at(-1); if (lastSeg && lastSeg.v === v) lastSeg.to = endOf(i); else segs.push({ v, from: toMin(h), to: endOf(i) }); });
+  const curSeg = segs.find((g) => nowM >= g.from && nowM < g.to);
+  const leftM = curSeg ? curSeg.to - nowM : 0, pct = curSeg ? (nowM - curSeg.from) / (curSeg.to - curSeg.from) : 0;
+  const hhmm = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}${m % 60 ? ':' + String(m % 60).padStart(2, '0') : 'h'}`;
   const hm = (m) => (m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? String(m % 60).padStart(2, '0') : ''}` : `${m} min`);
-  const strip = `<div class="rot-day">${segs.filter((g) => g.v).map((g) => `<span class="rd ${g === curSeg ? 'cur' : g.to * 60 <= nowM ? 'past' : ''}" style="${tone(g.v)};flex-grow:${g.to - g.from}" title="${String(g.from).padStart(2, '0')}h–${String(g.to).padStart(2, '0')}h ${esc(g.v)}"><small>${String(g.from).padStart(2, '0')}h</small>${esc(g.v)}</span>`).join('')}</div>`;
+  const strip = `<div class="rot-day">${segs.filter((g) => g.v).map((g) => `<span class="rd ${g === curSeg ? 'cur' : g.to <= nowM ? 'past' : ''}" style="${tone(g.v)};flex-grow:${Math.max(1, Math.round((g.to - g.from) / 60))}" title="${hhmm(g.from)}–${hhmm(g.to)} ${esc(g.v)}"><small>${hhmm(g.from)}</small>${esc(g.v)}</span>`).join('')}</div>`;
   // v5.16: balõezinhos com × pra tirar e + pra pôr (sem a caixa de texto)
   const chips = (list, k) => `<div class="chips rchips">${(list || []).map((x, i) => `<span class="chip rchip">${esc(x)}<button type="button" class="rx" data-act="rot-chip-del" data-k="${k}" data-i="${i}" aria-label="Tirar ${esc(x)}" title="Tirar">×</button></span>`).join('')}
     <form class="rchip-add" data-form="rot-chip-add" data-k="${k}" autocomplete="off"><input class="inp" name="v" placeholder="+" aria-label="Adicionar" maxlength="40"></form></div>`;
   return `<div class="page-title"><div><h1><em>rotina</em>.</h1></div></div>
     <div class="grid">
-      <div class="card c12" data-gk="rot-agora"><header><h2>⏱ Agora · ${hh}h</h2><span class="meta">${plan.name}${pi === r.active ? ' ★' : ''}</span></header>
-        <div class="rot-now"><b style="${tone(cur)}">${esc(cur || 'livre')}</b><div class="rn-info">${curSeg ? `<span class="meta">até ${String(curSeg.to).padStart(2, '0')}h · falta${leftM > 1 ? 'm' : ''} <b>${hm(leftM)}</b></span>${segBar(pct, 'sm')}` : ''}${nxt ? `<span class="meta">depois, às ${nxt[0]}h: <b>${esc(nxt[1])}</b></span>` : ''}</div></div>
+      <div class="card c12" data-gk="rot-agora"><header><h2>⏱ Agora · ${hh}${hh.includes(':') ? '' : 'h'}</h2><span class="meta">${plan.name}${pi === r.active ? ' ★' : ''}</span></header>
+        <div class="rot-now"><b style="${tone(cur)}">${esc(cur || 'livre')}</b><div class="rn-info">${curSeg ? `<span class="meta">até ${hhmm(curSeg.to)} · falta${leftM > 1 ? 'm' : ''} <b>${hm(leftM)}</b></span>${segBar(pct, 'sm')}` : ''}${nxt ? `<span class="meta">depois, às ${nxt[0]}h: <b>${esc(nxt[1])}</b></span>` : ''}</div></div>
         ${strip}</div>
-      <div class="card c12 rot" data-gk="rot-grade"><header><h2>🗓 Semana-tipo</h2><div class="seg">${r.plans.map((p, i) => `<button class="${i === pi ? 'on' : ''}" data-act="rot-plan" data-i="${i}">${esc(p.name)}${i === r.active ? ' ★' : ''}</button>`).join('')}</div></header>
+      <div class="card c12 rot" data-gk="rot-grade"><header><h2>🗓 Semana-tipo</h2><div class="row" style="gap:8px"><div class="seg">${r.plans.map((p, i) => `<button class="${i === pi ? 'on' : ''}" data-act="rot-plan" data-i="${i}">${esc(p.name)}${i === r.active ? ' ★' : ''}</button>`).join('')}</div><button class="btn sm" data-act="rot-hours" title="Adicionar ou tirar horários (dá pra usar meia hora)">🕐 HORÁRIOS</button>${r.plans.some((p) => p.name === 'NEURO') ? '' : '<button class="btn sm pri" data-act="rot-neuro" title="Cria uma cópia da sua rotina ajustada pela neurociência (luz da manhã, trabalho pesado no pico de foco, jantar fixo). A sua continua igual.">🧠 VERSÃO NEURO</button>'}</div></header>
         <div class="rot-wrap"><table><thead><tr><th></th>${DAYS.map(([d, n]) => `<th style="${d === wd ? 'color:var(--accent)' : ''}">${n.slice(0, 3)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>
         ${pi !== r.active ? `<div class="row" style="margin-top:10px"><button class="btn sm" data-act="rot-active" data-i="${pi}">★ USAR ESTA COMO PRINCIPAL</button></div>` : ''}</div>
       <div class="card c6" data-gk="rot-ativ"><header><h2>Atividades</h2></header>${chips(r.atividades, 'atividades')}</div>

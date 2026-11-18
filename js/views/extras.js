@@ -115,7 +115,7 @@ export function viewConquistas(ui) {
     : f === 'quase' ? sec('🎯 Quase lá', near, 'nenhuma passou da metade ainda.')
     : f === 'faltam' ? sec('🔒 Faltam', left, 'você pegou todas!')
     : `${near.length ? sec('🎯 Quase lá', near.slice(0, 6), '') : ''}${sec('🏆 Ganhas', got, 'nenhuma ainda: a primeira tarefa concluída já vale uma.')}${sec('🔒 Faltam', left.filter((a) => !near.slice(0, 6).includes(a)), 'você pegou todas!')}`;
-  return `<div class="page-title"><div><h1><em>conquistas</em>.</h1><p>Toque num quadrinho pra filtrar.${f !== 'todas' ? ' <a href="#" data-act="cq" data-v="todas">ver todas</a>' : ''}</p></div></div>
+  return `<div class="page-title"><div><h1><em>conquistas</em>.</h1><p>Toque num quadrinho pra filtrar.${f !== 'todas' ? ' <a href="#" data-act="cq" data-v="todas">ver todas</a>' : ''}${S.core.season?.from ? ` · <span title="As do capítulo anterior ficam guardadas">capítulo anterior: ${Object.keys(S.core.achievements || {}).length} conquistas</span>` : ''}</p></div></div>
     ${strip}${body}`;
 }
 
@@ -161,6 +161,7 @@ export function viewRegras() {
         <label class="lbl" for="set-mode">Visual</label><select class="inp" id="set-mode" data-change="mode"><option value="auto" ${mode === 'auto' ? 'selected' : ''}>AUTOMÁTICO (papel 6h–18h · fogueira à noite)</option><option value="day" ${mode === 'day' ? 'selected' : ''}>SEMPRE PAPEL</option><option value="night" ${mode === 'night' ? 'selected' : ''}>SEMPRE FOGUEIRA</option></select>
         <label class="lbl" for="set-primo">Desenho do PRIMO</label><select class="inp" id="set-primo" data-change="primo-art"><option value="novo" ${artWanted() ? 'selected' : ''}>NOVO (arte em alta definição, com cenários)</option><option value="classico" ${artWanted() ? '' : 'selected'}>CLÁSSICO (porquinho em pixel)</option></select>
         ${[['music', 'Música lo-fi'], ['fire', 'Som da fogueira'], ['sfx', 'Efeitos']].map(([k, n]) => `<label class="lbl" for="vol-${k}">${n}</label><input id="vol-${k}" type="range" min="0" max="1" step="0.05" value="${prefs[k]}" data-change="vol" data-k="${k}" style="width:100%">`).join('')}
+        <label class="lbl" for="set-cur">Cursor (neste aparelho)</label><select class="inp" id="set-cur" data-change="cursor">${[['pincel', '🖌 PINCEL MÁGICO'], ['patinha', '🐾 PATINHA DO PORQUINHO'], ['normal', 'NORMAL']].map(([k, n]) => `<option value="${k}" ${((() => { try { return localStorage.getItem('gamify-ui:cursor'); } catch { return null; } })() || 'pincel') === k ? 'selected' : ''}>${n}</option>`).join('')}</select>
         <label class="lbl" for="set-cast" title="A cada ${R.BLOW_EVERY} prazos estourados. Resolver ou remarcar 1 atrasada cancela o castigo.">Castigo por prazos estourados</label><select class="inp" id="set-cast" data-change="setting" data-k="castigo">${[['loja', `LOJA ${Math.round((R.BLOW_MULT - 1) * 100)}% MAIS CARA POR ${R.BLOW_DAYS} DIAS`], ['aviso', 'SÓ UM AVISO'], ['nenhum', 'NENHUM']].map(([k, n]) => `<option value="${k}" ${(S.core.settings?.castigo || 'loja') === k ? 'selected' : ''}>${n}</option>`).join('')}</select>
         <label class="lbl" for="set-max">Máx. de prazos por dia útil</label><input class="inp" id="set-max" type="number" min="1" max="20" value="${S.core.settings?.maxPerDay || R.C.MAX_PER_DAY}" data-change="setting" data-k="maxPerDay">
         <label class="lbl" for="set-ms">Áreas do baú de domingo</label><textarea class="inp" id="set-ms" rows="2" data-change="milestones">${esc((S.core.milestones || []).join(', '))}</textarea>
@@ -198,7 +199,6 @@ function neuroCard() {
       ${ck('box', '⏰ Time box', `Tarefa remarcada ${R.RESCHED_LOCK} vezes trava: pra empurrar de novo, marque horário e duração. Ou cancele.`)}
       ${ck('cheio', '🧠 HOJE cheio demais', 'Passou do limite de tarefas por dia (AJUSTES → máx. prazos por dia), aparece um aviso curto em HOJE e um botão que empurra as menos importantes pra amanhã, sem custo.')}
       ${ck('pato', '🦆 Pato de borracha', 'No SOS TRAVEI: explicar pro PRIMO o que tentou, o que funcionou e o que não. Fica guardado na tarefa.')}
-      ${ck('quick', '✎ Anotar rápido', 'Botão + no canto da tela, em qualquer aba (no PC, a tecla +). Uma linha, Enter, e pronto: vai pra SEM PRAZO.')}
       ${ck('proc', '⚔ Recompensa do processo', 'Cada subtarefa feita num boss mostra quanto de vida ele perdeu. Recompensa que está longe perde valor pro cérebro (desconto temporal): ver o dano agora mantém a motivação no caminho.')}
       ${ck('foco', '🎯 FOCO AGORA', 'No topo do QUESTS, UMA tarefa sugerida pelo PRIMO, com o porquê (atrasada, prazo hoje, boss parado, missão, horário do corpo). OUTRA ▸ mostra a próxima.')}
       ${ck('swipe', '👆 Arrastar no celular', 'Arraste a tarefa pra ESQUERDA = concluir; pra DIREITA = amanhã. O ↩ desfaz.')}
