@@ -10,6 +10,8 @@ export const parseDS = (ds) => {
 let FIXED_TODAY = null; // usado nos testes para "congelar" o dia
 export const setToday = (ds) => { FIXED_TODAY = ds; };
 export const today = () => FIXED_TODAY || toDS(new Date());
+/** v7.0: a LUZ do cenário segue o relógio de verdade (nunca o tema escuro/claro): dia até 16h, tarde 16h-19h, noite 19h-5h */
+export function lightNow(d = new Date()) { const h = d.getHours() + d.getMinutes() / 60; return h >= 19 || h < 5 ? 'noite' : h >= 16 ? 'tarde' : 'dia'; }
 
 export const addDays = (ds, n) => {
   const d = parseDS(ds);

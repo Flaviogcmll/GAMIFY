@@ -3,16 +3,16 @@ import { S, status, init, onChange, replaceAll, exportAll } from './store.js';
 
 import * as A from './actions.js';
 import * as R from './rules.js';
-import { esc, today, addDays, weekday, fmtDM, fmtN, uid, DOW, diffDays } from './util.js';
+import { esc, today, addDays, weekday, fmtDM, fmtN, uid, DOW, diffDays, lightNow } from './util.js';
 
 import { openModal, closeModal, ask, toast, modalOpen, segBar } from './ui.js';
 
 import { px } from './icons.js';
 
-import { embers, confetti, floatXp, fireworks } from './fx.js';
+import { embers, confetti, floatXp, fireworks, poof } from './fx.js';
 import { sfx, startAmbience, stopAmbience, ambienceOn, prefs, setVol } from './audio.js';
 
-import { viewQuests, togglePin, curfewSkip } from './views/quests.js';
+import { viewQuests, togglePin, curfewSkip, qsortOf } from './views/quests.js';
 
 import { viewSurvival } from './views/survival.js';
 
@@ -83,6 +83,7 @@ function applyMode() {
   const p = modePref(), h = new Date().getHours();
   const m = p === 'auto' ? (h >= 6 && h < 18 ? 'day' : 'night') : p;
   if (document.documentElement.dataset.mode !== m) document.documentElement.dataset.mode = m;
+  const lt = lightNow(); if (document.documentElement.dataset.light !== lt) document.documentElement.dataset.light = lt; // v7.0: cenário pela hora real
   embers(m === 'night');
   document.querySelector('meta[name=theme-color]')?.setAttribute('content', m === 'night' ? '#0e0c0a' : '#f7f5f0');
 }
@@ -151,11 +152,23 @@ function render() {
   try { afterRenderBujo(); } catch (err) { console.error(err); }
   try { renderPostit(); } catch (err) { console.error(err); }
   try { pragaGuide(); } catch (err) { console.error(err); } // v6.7: o urubu pousa onde a tarefa infectada está
+  try { tabTools(cur); } catch (err) { console.error(err); }
   tips($main); // v6.1: os afterRender acima ainda acrescentam botões; eles também ganham legenda
   refocus();
   redraft();
   const side = $main.querySelector('.side'); // o painel da direita tem rolagem própria: volta pra onde estava
   if (side && sideY) side.scrollTop = sideY;
+}
+/** v7.1: RECOLHER TUDO discreto nas outras abas (em cima do banner). Vale para todos os cartões recolhíveis da aba. */
+const tabKeys = () => [...new Set([...$main.querySelectorAll('[data-act="collapse"][data-k]')].filter((x) => !x.closest('.modal, .side')).map((x) => x.dataset.k))];
+function tabTools(cur) {
+  if (cur === 'quests') return;
+  const keys = tabKeys();
+  if (keys.length < 2) return;
+  const all = keys.every(isCollapsed);
+  const el = document.createElement('div'); el.className = 'tab-tools';
+  el.innerHTML = `<button class="btn sm ghost" data-act="collapse-tab" title="Recolhe ou abre todos os cartões desta aba">${all ? '▾ ABRIR TUDO' : '▸ RECOLHER TUDO'}</button>`;
+  const at = $main.querySelector('.scene.pstrip'); if (at) at.before(el); else $main.prepend(el);
 }
 /** onde termina o topo (cabeçalho + abas) na tela agora: a barra das janelas do QUESTS e o painel da direita ficam presos logo abaixo.
  *  O topo só acompanha a primeira tela de rolagem; quando ele sai, os dois sobem e aproveitam o espaço. */
@@ -206,6 +219,8 @@ function saveModalText(el) {
   else { const b = S.quests.bosses.find((x) => x.id === id); if (b && v !== b.text) A.updateBoss(id, { text: v }); }
 }
 document.addEventListener('change', (e) => saveModalText(e.target));
+// v7.1: Shift + clique no quadradinho não pinta o texto da tela (só conclui o intervalo)
+document.addEventListener('mousedown', (e) => { if (e.shiftKey && e.target.closest?.('.check[data-act="toggle"]')) e.preventDefault(); });
 // botão direito no quadradinho (ou segurar o dedo, no celular) = CANCELAR a tarefa; de novo = reabrir. O ↩ desfaz.
 document.addEventListener('contextmenu', (e) => {
   const c = e.target.closest?.('.check[data-act="toggle"]');
@@ -253,19 +268,20 @@ function welcome() {
 A.onFeedback((fb) => {
   // 🧠 dopamina sob controle: tarefa fácil (menos de 20 XP, sem ⭐ ⚔) ganha só o "tic"; o número voando e os fogos ficam pro que custou
   const easy = R.neuroOn(S, 'calm') && fb.task && fb.xp < 20 && !/⚔|⭐/.test(fb.task.text || '');
+  if (fb.task && fb.xp > 0 && fb.task.due) poof(fb.at); // v7.3b: o PRIMO deu a marretada, o TREM virou poeira
   if (fb.xp > 0) { if (!easy) floatXp(`+${fmtN(fb.xp)} XP`, fb.at); sfx(fb.task ? 'check' : 'xp'); setTimeout(checkMilestones, 400); }
   // 🎆 fogos pra coisa demorada: boss, bloco fechado, mini-boss ⚔, tarefa chata ⭐ ou tarefa que rendeu 60 XP ou mais
   if (fb.boss || fb.closedBlock || (fb.task && fb.xp > 0 && (fb.xp >= 60 || /⚔|⭐/.test(fb.task.text || '')))) setTimeout(() => { fireworks(); sfx('fireworks'); }, 250);
   // 🧠 recompensa do processo (aulas 021 e 153): cada passo feito num boss mostra o dano, a recompensa longe fica perto
   if (fb.task && fb.xp > 0 && !fb.boss && R.neuroOn(S, 'proc')) { const bk = fb.task.block && S.quests.blocks.find((x) => x.id === fb.task.block), bo = bk?.group === 'bs' && S.quests.bosses.find((x) => x.block === bk.id), hp = bo && R.bossHp(S, bo); if (hp?.total && hp.left > 0) toast(`👹 Dano no boss <b>${esc(bo.text.replace(/:\s*[\d.]+\s*XP.*$/i, '').slice(0, 40))}</b>: faltam ${Math.round(hp.pct * 100)}% da vida.`, 'good'); }
   if (fb.sent) toast(`✉ Rodada concluída e enviada: <b>${esc(fb.task.text)}</b>. Fica aguardando retorno.`, 'good');
-  if (fb.loot) setTimeout(() => { sfx('loot'); toast(`${px('chest', 16)} <b>LOOT!</b> ${esc(fb.loot.label)}${fb.loot.itemId ? ' (foi pra mochila)' : ''}`, 'gold'); }, 350);
+  if (fb.loot) setTimeout(() => { sfx('loot'); toast(`${px('chest', 16)} <b>LOOT!</b> ${esc(fb.loot.label)}${fb.loot.itemId ? ' (foi pra SACOLA)' : ''}`, 'gold'); }, 350);
   if (fb.closedBlock) { toast(`🏁 BLOCO FECHADO: <b>${esc(fb.closedBlock.title)}</b> · +${fb.closedBlock.xp} XP`, 'good'); confetti(60); }
   if (fb.boss) { toast(`👹 BOSS DERROTADO: <b>${esc(fb.boss.text)}</b> · +${fmtN(fb.boss.xp)} XP · +1 🎟`, 'good'); confetti(); sfx('level'); }
   if (fb.sunday) { toast(`🎁 Baú aberto: <b>+${fb.sunday} XP</b>`, 'good'); sfx('chest'); }
   if (fb.built) sfx('ready');
   if (fb.building) sfx('upgrade');
-  if (fb.bought) { sfx('buy'); toast(`🛒 <b>${esc(fb.bought)}</b>${fb.bag ? ' foi pra MOCHILA. Use quando for aproveitar.' : ''}`, 'gold'); }
+  if (fb.bought) { sfx('buy'); toast(`🛒 <b>${esc(fb.bought)}</b>${fb.bag ? ' foi pra SACOLA. Use quando for aproveitar.' : ''}`, 'gold'); }
   if (fb.using) { sfx('xp'); toast(`⏱ <b>${esc(fb.using.item)}</b>: aproveite sem culpa.`, 'gold'); }
   for (const a of fb.achievements || []) { toast(`🏆 CONQUISTA: <b>${esc(a.name)}</b> · +${a.xp} XP`, 'gold'); sfx('chest'); }
   if (fb.msg) toast(esc(fb.msg));
@@ -274,7 +290,7 @@ A.onFeedback((fb) => {
   if (fb.levelUp) levelUp(fb.levelUp);
   if (fb.chapterClosed) chapterCard(fb.chapterClosed);
   if (S._pragaWeek) { S._pragaWeek = false; toast('🌙 Uma semana inteira sem Praga: +1 🎟', 'gold'); }
-  if (fb.praga) { rezaBraba(fb.praga); toast(fb.praga.xp ? `🙏 REZA BRABA! +${fb.praga.xp} XP · ${fb.praga.clean ? 'a Praga foi embora e o PRIMO sarou!' : 'o PRIMO melhorou um pouco'} · 🛡 corpo fechado por 24 h` : `🛡 Encosto espantado (${esc(fb.praga.names[0].slice(0, 40))}) · corpo fechado por 24 h. Fazendo, a reza dá XP.`, 'good'); }
+  if (fb.praga) { rezaBraba(fb.praga); toast(`🙏 REZA BRABA! ${esc(fb.praga.names[0].slice(0, 40))} virou poeira${fb.praga.clean ? ' · a casa tá limpa, o PRIMO desfranziu a testa' : ''}. (Espantar não dá XP: ninguém fabrica Praga pra ganhar ponto.)`, 'good'); } // v7.3
   if (!fb.quiet || fb.xp || fb.achievements?.length || fb.levelUp) render();
 });
 function levelUp(t) {
@@ -439,8 +455,8 @@ function tour(step = 0) {
   const steps = [
     ['bem-vindo ao gamify v2.', 'Igual à planilha, com as mesmas abas: QUESTS é a casa e o painel. De dia ele é papel; à noite vira acampamento com fogueira. O ♪ liga o lo-fi.'],
     ['quests.', 'Listas e BOSS em cima; BREAKDOWN, TRABALHO e CAPTAÇÕES embaixo. Toque no quadradinho pra concluir, no texto pra editar (prazo, cor, ! prioridade, 🔁 vai e volta). No PC dá pra arrastar tarefas.'],
-    ['o primo.', 'O PRIMO é o centro do jogo: ele reage ao que você faz, pede uma missão por dia, sai em expedição e tem um mascote que cresce. Toque no botão PRIMO pra falar com ele.'],
-    ['shop.', 'Compre ANTES de aproveitar: vai pra MOCHILA; na hora, USAR liga o cronômetro. Fez sem comprar? Paga 50% a mais. Gold é a sua metade: o app pergunta quando entra.'],
+    ['o primo.', 'O PRIMO é o centro do jogo: porco arquiteto, de chapéu de palha, que protege a BRASINHA (filhote de fênix) dos TRENS, os inimigos que nascem de cada tarefa. Ele reage ao que você faz, pede uma missão por dia e guarda os comandos no cartão dele.'],
+    ['shop.', 'Compre ANTES de aproveitar: vai pra SACOLA; na hora, USAR liga o cronômetro. Fez sem comprar? Paga 50% a mais. Gold é a sua metade: o app pergunta quando entra.'],
     ['travou?', 'O botão SOS guia uma respiração de 1 minuto, escolhe o menor passo e acende 10 minutos de fogueira. Vale +5 XP de coragem.'],
   ];
   const [t, d] = steps[step];
@@ -578,8 +594,27 @@ function jumpBlock(bid) {
   if (route() !== 'quests') location.hash = '#quests'; else render();
   glow(`[data-drop-block="${bid}"]`);
 }
+let lastCheck = null, lastBoxes = []; // v7.1: a última tarefa clicada e a ordem da tela naquela hora (pro Shift + clique)
 const ACTIONS = {
-  toggle: (d, e) => { const r = A.toggleDone(d.id, at(e)); if (r?.error) { sfx('error'); toast(esc(r.error), 'bad'); } },
+  toggle: (d, e) => {
+    // v7.1: Shift + clique = conclui todas do intervalo (da última clicada até esta), igual selecionar arquivos no Windows
+    // a ordem da tela é guardada no 1º clique: a tarefa concluída pode sumir da tela (MOSTRAR FEITAS desligado)
+    const prev = lastCheck, boxes = lastBoxes.length ? lastBoxes : [];
+    lastCheck = d.id; lastBoxes = [...$main.querySelectorAll('.board .lists li.task .check[data-act="toggle"], .board .group li.task .check[data-act="toggle"]')].map((c) => c.dataset.id);
+    if (e?.shiftKey && prev && prev !== d.id) {
+      const i = boxes.indexOf(prev), j = boxes.indexOf(d.id);
+      if (i >= 0 && j >= 0) { const ids = boxes.slice(Math.min(i, j), Math.max(i, j) + 1); const r = A.doneMany(ids); if (r?.error) { sfx('error'); toast(esc(r.error), 'bad'); } else sfx('ready'); return; }
+    }
+    const r = A.toggleDone(d.id, at(e)); if (r?.error) { sfx('error'); toast(esc(r.error), 'bad'); }
+  },
+  // v7.1: menu ≡ do QUESTS
+  qsort: (d) => { const tab = $main.querySelector('.qbar .seg button.on')?.dataset.tab || 'listas'; qsortOf(ui, tab); ui.qsort[tab] = ui.qsort[tab] === d.v ? '' : d.v; try { localStorage.setItem('gamify-ui:qsort', JSON.stringify(ui.qsort)); } catch { /* */ } sfx('tab'); render(); },
+  'done-window': async () => {
+    const ids = [...new Set([...$main.querySelectorAll('.board .lists li.task:not(.done) .check[data-act="toggle"], .board .group li.task:not(.done) .check[data-act="toggle"]')].map((c) => c.dataset.id))]
+      .filter((id) => R.isOpen(S.quests.tasks.find((t) => t.id === id) || {}));
+    if (!ids.length) { toast('Nada aberto aparecendo nesta janela.'); return; }
+    if (await ask('Concluir tudo desta janela?', `Marca as ${ids.length} tarefa(s) abertas que estão aparecendo como feitas. O ↩ desfaz tudo de uma vez.`, `CONCLUIR ${ids.length}`, true)) { const r = A.doneMany(ids); if (r?.error) toast(esc(r.error), 'bad'); else sfx('ready'); }
+  },
   // v5.16: a setinha ⤴ pergunta pra qual janela a tarefa vai (vira um bloco lá)
   'to-breakdown': (d) => {
     const wins = [['bd', R.GROUPS.bd.short, '🧩'], ['tr', R.GROUPS.tr.short, '📐'], ['cap', R.GROUPS.cap.short, '🧲'], ['gs', R.GROUPS.gs.short, '🗂'], ...R.windows(S).map((w) => ['w:' + w.id, w.name, '▣'])];
@@ -661,11 +696,16 @@ const ACTIONS = {
   'focus-skip': (d) => { (ui.focusSkip ||= []).push(d.id); sfx('tab'); render(); },
   'focus-reset': () => { ui.focusSkip = []; sfx('tab'); render(); },
   'rot-chip-del': (d) => { const l = [...(S.core.routine?.[d.k] || [])]; l.splice(+d.i, 1); A.setRoutineList(d.k, l); sfx('tab'); },
-  credits: () => openModal(`<h2>ⓘ créditos</h2><p class="muted">PRIMO, rostos, acessórios, FAÍSCA, cenários e ícone: arte gerada por IA com direção do autor do app.</p>
+  credits: () => openModal(`<h2>ⓘ créditos</h2><p class="muted">PRIMO, rostos, BRASINHA, cenários e ícone: arte gerada por IA com direção do autor do app.</p>
     <p class="muted">Porquinho clássico em pixel: "Free Pets Pack" por <a href="https://frakassets.itch.io/free-pets-pack" target="_blank" rel="noopener">Frakassets</a> (CC BY 4.0). Ícones da loja: Kenney (CC0). Fogueira: "Fireplace sound loop" (CC0). Lo-fi: gerado no aparelho. Fontes: Press Start 2P e Roboto Mono (licença aberta).</p>
     <div class="actions"><button class="btn" data-close>FECHAR</button></div>`),
   'toggle-done': () => { ui.showDone = !ui.showDone; render(); },
   'toggle-stalled': () => { ui.showStalled = !ui.showStalled; try { localStorage.setItem('gamify-ui:stalled', ui.showStalled ? '1' : '0'); } catch { /* */ } render(); sfx('tab'); },
+  // v7.5: presets do PERKS
+  'preset-apply': async (d) => { if (await ask(`Usar o preset ${d.n}?`, 'Os ajustes de PERKS viram os desse preset (seus horários ficam). O ↩ desfaz.', 'USAR')) { const r = A.applyPreset(d.n); if (r?.error) toast(esc(r.error), 'bad'); else sfx('tab'); } },
+  'preset-del': async (d) => { if (await ask(`Apagar o preset ${d.n}?`, 'Os ajustes de agora não mudam.', 'APAGAR', true)) A.deletePreset(d.n); },
+  'settings-reset': async () => { if (await ask('Voltar ao padrão?', 'Todos os ajustes de PERKS voltam ao padrão do app. Seus horários (acordar, dormir, comer) ficam. Dica: salve antes um preset com o jeito atual. O ↩ desfaz.', 'VOLTAR AO PADRÃO', true)) { A.resetSettings(); sfx('tab'); } },
+  'collapse-tab': () => { const keys = tabKeys(), close = keys.some((k) => !isCollapsed(k)); for (const k of keys) if (isCollapsed(k) !== close) toggleCollapse(k); render(); sfx('swish'); },
   'collapse-all': () => {
     const keys = [...new Set([...$main.querySelectorAll('.board [data-act="collapse"][data-k]')].map((x) => x.dataset.k).filter((k) => /^([bl]:|c:quests:)/.test(k)))]; // v6.4: inclui MISSÕES e BOSS DO CAPÍTULO
     const close = keys.some((k) => !isCollapsed(k));
@@ -780,6 +820,7 @@ document.addEventListener('click', (e) => {
 
 // ───────────────────────── FORMULÁRIOS ─────────────────────────
 const FORMS = {
+  'preset-save': (f) => { const r = A.savePreset(f.name.value); if (r?.error) { toast(esc(r.error), 'bad'); return; } f.name.value = ''; sfx('tab'); },
   'add-task': (f, blur) => {
     const text = f.text.value.trim();
     if (!text) return;

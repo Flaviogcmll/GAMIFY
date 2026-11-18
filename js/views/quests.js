@@ -5,12 +5,29 @@ import { esc, fmtDM, fmtN, today, diffDays, weekday, addDays } from '../util.js'
 import { taskRow, segBar, statusChips, dueChip } from '../ui.js';
 import { px } from '../icons.js';
 import { isCollapsed, companionCard } from '../v3.js';
-import { arrange, inColumns } from '../v35.js';
+import { arrange } from '../v35.js';
 import { overflowBar } from '../bujo.js';
 
 const sortOrd = (a, b) => a.ord - b.ord;
-/** blocos em 3 colunas fixas (o bloco i fica sempre na coluna i % 3: abrir um bloco só empurra os de baixo dele) */
-const cols3 = (items) => inColumns(items.map((h, i) => `<div class="mitem" style="order:${i}">${h}</div>`), 3);
+/** v7.1: ORDENAR pelo menu ≡ (só na tela: a ordem guardada não muda). Uma escolha por janela, lembrada no aparelho.
+ *  'date' = prazo mais perto em cima · 'urg' = pela cor da urgência (vermelho, laranja, amarelo, verde, cinza, roxo) */
+export function qsortOf(ui, tab) {
+  if (!ui.qsort) { try { ui.qsort = JSON.parse(localStorage.getItem('gamify-ui:qsort')) || {}; } catch { ui.qsort = {}; } }
+  return ui.qsort[tab] || '';
+}
+const URG_RANK = { hoje: 0, amanha: 1, semana: 2, depois: 3, sem: 4, wait: 5 };
+const byDue = (a, b) => (a.due || '9').localeCompare(b.due || '9') || sortOrd(a, b);
+const byUrg = (td) => (a, b) => (URG_RANK[R.listOf(a, td)] - URG_RANK[R.listOf(b, td)]) || (!!b.prio - !!a.prio) || byDue(a, b);
+/** ordem das tarefas de um bloco: a escolhida no ≡ (ou a guardada) */
+const taskSorter = (ui) => { const m = qsortOf(ui, ui.qtab || 'listas'); return m === 'date' ? byDue : m === 'urg' ? byUrg(today()) : sortOrd; };
+/** blocos em 3 colunas fixas: abrir um bloco só empurra os de baixo dele.
+ *  v7.0: o bloco guarda a coluna (b.col, 0 a 2) quando você arrasta ele pra outra; sem isso, fica na coluna i % 3 (como antes) */
+const colOf = (b, i) => (Number.isInteger(b?.col) && b.col >= 0 && b.col < 3 ? b.col : i % 3);
+const cols3 = (items, blocks = []) => {
+  const cs = [[], [], []];
+  items.forEach((h, i) => cs[colOf(blocks[i], i)].push(`<div class="mitem" style="order:${i}">${h}</div>`));
+  return cs.map((c, k) => `<div class="mcol" data-col="${k}">${c.join('')}</div>`).join('');
+};
 /** sem MOSTRAR FEITAS: some tudo que foi feito ou cancelado (o ↩ desfaz um clique errado) */
 const visible = (t) => R.isOpen(t) || t.st === 'sent';
 /** botão REVISADO (selo de 24 h) no fim de uma lista ou bloco */
@@ -27,14 +44,17 @@ function listCard(area, ui) {
   // as tarefas andam pelas listas com o tempo: dentro de cada lista, a ordem é a da data (a mais próxima em cima)
   const winKey = (t) => { const b = t.link && R.findBlock(S, t.link); return b ? (R.winOf(S, b)?.name || (b.group === 'bs' ? 'ZZ' : R.GROUPS[b.group]?.short || '')) : '~'; };
   const byDate = (a, b) => (a.due || '9').localeCompare(b.due || '9') || sortOrd(a, b);
-  const every = [...own].sort(ui.lsort?.[area] === 'win' ? (a, b) => winKey(a).localeCompare(winKey(b)) || byDate(a, b) : area === 'wait' || area === 'sem' ? sortOrd : byDate);
+  const qs = qsortOf(ui, 'listas'); // v7.1: o ≡ ORDENAR vale pra todas as listas
+  const every = [...own].sort(qs === 'urg' ? byUrg(td) : qs === 'date' ? byDate : ui.lsort?.[area] === 'win' ? (a, b) => winKey(a).localeCompare(winKey(b)) || byDate(a, b) : area === 'wait' || area === 'sem' ? sortOrd : byDate);
   const all = every.filter(stalledOff(ui)), stalled = every.length - all.length;
   const open = all.filter(visible), show = ui.showDone ? all : open, nHidden = all.length - open.length;
   const late = area === 'hoje' ? open.filter((t) => t.due && t.due < td).length : 0;
   const sub = (t) => (wait ? [R.waitingOn(S, t).label && '⏳ ' + R.waitingOn(S, t).label, t.link && R.findBlock(S, t.link)?.st === 'wait' && 'o bloco dela está aguardando'].filter(Boolean).join(' · ') : '');
   const rv = R.listReviewed(S, area);
+  // v7.0: 💀 = quantas de HOJE viram TREM RUIM amanhã (o aviso vem ANTES do atraso)
+  const coming = area === 'hoje' && R.neuroOn(S, 'praga') ? open.filter((t) => R.isOpen(t) && t.due === td && t.st !== 'wait' && !t.who && !t.mother && R.pragaDay(S, t.due, 1) === addDays(td, 1)).length : 0;
   return `<section class="list-card ${isCollapsed('l:' + area) ? 'collapsed' : ''} ${rv ? 'reviewed' : ''}" data-list="${area}" data-drop-area="${area}"><header><h2 data-act="collapse" data-k="l:${area}" style="cursor:pointer"><span class="chev">${isCollapsed('l:' + area) ? '▸' : '▾'}</span> ${R.AREAS[area]}</h2>
-      <span class="row" style="gap:4px"><span class="meta">${open.length}${late ? ` · <span class="bad">${late} atrasada${late > 1 ? 's' : ''}</span>` : ''}</span><button class="icon-btn ${ui.lsort?.[area] === 'win' ? 'on' : ''}" data-act="sort" data-area="${area}" title="${ui.lsort?.[area] === 'win' ? 'Agrupado por janela. Toque: por data' : 'Por data. Toque: agrupar por janela'}">⇅</button></span></header>
+      <span class="row" style="gap:4px"><span class="meta">${open.length}${late ? ` · <span class="bad">${late} atrasada${late > 1 ? 's' : ''}</span>` : ''}</span>${coming ? `<span class="pg-coming" title="💀 O inimigo está chegando: ${coming} tarefa${coming > 1 ? 's' : ''} de hoje vira${coming > 1 ? 'm' : ''} TREM RUIM amanhã se ficar${coming > 1 ? 'em' : ''} sem fazer">💀${coming}</span>` : ''}<button class="icon-btn ${ui.lsort?.[area] === 'win' ? 'on' : ''}" data-act="sort" data-area="${area}" title="${ui.lsort?.[area] === 'win' ? 'Agrupado por janela. Toque: por data' : 'Por data. Toque: agrupar por janela'}">⇅</button></span></header>
     ${area === 'hoje' ? overflowBar() : ''}<ul class="tasks">${show.map((t) => taskRow(t, { list: true, sub: sub(t) })).join('')}${show.length ? '' : `<div class="empty">${wait ? 'ninguém te segurando. 👏' : 'vazio.'}</div>`}</ul>
     ${!ui.showDone && nHidden ? `<button class="more" data-act="toggle-done">✓ ${nHidden} feitas · mostrar</button>` : ''}
     ${stalled ? `<button class="more" data-act="toggle-stalled">⬛ ${stalled} parada(s) · mostrar</button>` : ''}
@@ -47,7 +67,7 @@ function bossPanel(ui) {
   const ordOf = (b) => R.findBlock(S, b.block)?.ord ?? b.ord, list = [...S.quests.bosses].sort((a, z) => ordOf(a) - ordOf(z)).sort((a, z) => (a.st === 'done') - (z.st === 'done'));
   const card = (b) => {
     const hp = R.bossHp(S, b), blk = hp?.block, done = b.st === 'done', paused = R.bossPaused(b), idle = R.bossIdle(S, b);
-    const items = blk ? S.quests.tasks.filter((t) => t.block === blk.id).sort(sortOrd) : [];
+    const items = blk ? S.quests.tasks.filter((t) => t.block === blk.id).sort(taskSorter(ui)) : [];
     const show = ui.showDone || done ? items : items.filter(visible);
     const ck = blk?.id || b.id;
     return `<article class="block boss-b ${done ? 'closed' : ''} ${paused ? 'paused' : ''} ${isCollapsed('b:' + ck) ? 'collapsed' : ''}" data-color="red" ${blk ? `data-drop-block="${blk.id}"` : ''}>
@@ -63,11 +83,11 @@ function bossPanel(ui) {
   return `<div class="group wide ${col ? 'collapsed' : ''}" data-group="bs"><div class="band" data-act="collapse" data-k="g:bs"><span><span class="chev">${col ? '▸' : '▾'}</span> BOSSES</span><span class="meta">${list.filter((b) => b.st !== 'done').length} em aberto</span></div>
     <details class="bhelp"><summary>❔ como funciona</summary><p>👹 <b>BOSS</b> = uma meta grande, inimigo especial. Não vai pras LISTAS: ele é a própria mãe.<br>❤ <b>Vida (HP)</b> = o que falta fazer nele. Cada item feito é dano; zerou, ele cai (XP + 1🎟).<br>⚔ <b>mini-boss</b> = uma vitória no caminho (vale ${R.C.XP_MINI} XP e solta fogos). ↳ <b>passo</b> = ação pequena embaixo dela.<br>Escreva começando com ⚔ ou &gt;, ou marque o tipo ao editar a tarefa.</p></details>
     <form class="row" data-form="add-boss" autocomplete="off"><input class="inp grow" name="text" placeholder="+ novo boss (ex.: 90 KG SECO)" aria-label="Novo boss"></form>
-    ${list.length ? `<div class="mcols">${cols3(list.map(card))}</div>` : '<div class="empty">nenhum boss. Dê um nome à meta grande e quebre em subtarefas.</div>'}</div>`;
+    ${list.length ? `<div class="mcols">${cols3(list.map(card), list.map((b) => R.findBlock(S, b.block)))}</div>` : '<div class="empty">nenhum boss. Dê um nome à meta grande e quebre em subtarefas.</div>'}</div>`;
 }
 
 function blockCard(b, ui, opts = {}) {
-  const items = S.quests.tasks.filter((t) => t.block === b.id).sort(sortOrd);
+  const items = S.quests.tasks.filter((t) => t.block === b.id).sort(taskSorter(ui));
   const open = items.filter(R.isOpen), done = items.filter((t) => t.st === 'done'), counted = items.filter((t) => t.st !== 'cancel');
   const shown = ui.showDone || b.st === 'done' ? items : items.filter(visible);
   const show = shown.filter(stalledOff(ui)), stalled = shown.length - show.length; // a conta do bloco (feitas/total) não muda ao ocultar parados
@@ -79,7 +99,7 @@ function blockCard(b, ui, opts = {}) {
       <div class="bt" data-act="edit-block" data-id="${b.id}"><h3>${esc(b.title)}</h3>
         <div class="bm"><span>${done.length}/${counted.length}</span>${rev ? `<span class="chip rev" title="Revisado: vale até ${new Date(b.rev + 864e5).toLocaleString('pt-BR', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}">👁 REVISADO</span>` : ''}${b.src && S.quests.tasks.find((x) => x.id === b.src) ? `<button class="lnk-dot" data-g="lista" data-act="jump" data-id="${b.src}" title="Esta tarefa também está nas LISTAS. Toque pra ir lá." aria-label="Ir pra tarefa nas listas"></button>` : ''}${b.st === 'done' ? `<span class="good">FECHADO ${fmtDM(b.doneAt)} · +${b.xp}</span>` : `<span>${b.due ? '◆ ' + fmtDM(b.due) : dues[0] ? 'próx. ' + fmtDM(dues[0]) : 'sem prazo'}</span><span class="acc">${fmtN(xpLeft)} XP</span>`}</div>
         ${segBar(counted.length ? done.length / counted.length : 0, 'good sm')}</div>
-      <div class="bbtns">${b.st !== 'done' && S.quests.tasks.some((t) => t.block === b.id && R.isOpen(t)) ? `<button class="icon-btn done-all" data-act="done-all" data-id="${b.id}" title="Concluir todas as tarefas deste bloco" aria-label="Concluir tudo">✓</button>` : ''}<span class="handle" data-handle="block" data-id="${b.id}" title="Segure e arraste">⠿</span><button class="icon-btn" data-act="sort" data-block="${b.id}" title="Organizar por data">⇅</button><button class="icon-btn ${opts.pinned ? 'on' : ''}" data-act="pin-block" data-id="${b.id}" title="${opts.pinned ? 'Tirar do painel da direita' : 'Fixar no painel da direita (fica sempre à mão)'}" aria-label="Fixar bloco">📌</button><button class="icon-btn" data-act="collapse" data-k="b:${b.id}" aria-label="Recolher bloco"><span class="chev">${isCollapsed('b:' + b.id) ? '▸' : '▾'}</span></button></div>
+      <div class="bbtns">${b.st !== 'done' && S.quests.tasks.some((t) => t.block === b.id && R.isOpen(t)) ? `<button class="icon-btn done-all" data-act="done-all" data-id="${b.id}" title="Concluir todas as tarefas deste bloco" aria-label="Concluir tudo">✓</button>` : ''}<span class="handle" data-handle="block" data-id="${b.id}" title="Segure e arraste">⠿</span><button class="icon-btn" data-act="sort" data-block="${b.id}" title="Organizar por data">⇅</button><button class="icon-btn ${pinned.includes(b.id) ? 'on' : ''}" data-act="pin-block" data-id="${b.id}" title="${pinned.includes(b.id) ? 'Tirar do painel da direita' : 'Fixar no painel da direita (fica sempre à mão)'}" aria-label="Fixar bloco">📌</button><button class="icon-btn" data-act="collapse" data-k="b:${b.id}" aria-label="Recolher bloco"><span class="chev">${isCollapsed('b:' + b.id) ? '▸' : '▾'}</span></button></div>
     </div>
     <div class="bbody"><ul class="tasks">${show.map((t) => taskRow(t, { showPin: true })).join('') || '<div class="empty">sem itens.</div>'}</ul>
       ${!ui.showDone && b.st !== 'done' && items.length > shown.length ? `<button class="more" data-act="toggle-done">✓ ${items.length - shown.length} feitas · mostrar</button>` : ''}
@@ -95,7 +115,7 @@ function group(g, ui, win = null) {
   const active = blocks.filter(stalledOff(ui));
   return `<div class="group" data-group="${g}">
     <form class="row" data-form="add-block" data-group="${g}" ${win ? `data-win="${win.id}"` : ''} autocomplete="off"><input class="inp grow" name="title" placeholder="+ novo bloco${g === 'bd' ? ' (🎯 meta)' : ' (3000$ · / MES DIA 05)'}" aria-label="Novo bloco">${win ? `<button type="button" class="btn sm ghost" data-act="win-edit" data-id="${win.id}" title="Renomear, mudar o tipo ou apagar a janela ${esc(win.name)} (funciona como ${esc(R.GROUPS[g].short)})">✎ JANELA</button>` : ''}</form>
-    ${active.length ? `<div class="mcols">${cols3(active.map((b) => blockCard(b, ui)))}</div>` : '<div class="empty">nenhum bloco.</div>'}
+    ${active.length ? `<div class="mcols">${cols3(active.map((b) => blockCard(b, ui)), active)}</div>` : '<div class="empty">nenhum bloco.</div>'}
     ${blocks.length > active.length ? `<button class="more" data-act="toggle-stalled">⬛ ${blocks.length - active.length} parado(s) · mostrar</button>` : ''}</div>`;
 }
 
@@ -141,44 +161,36 @@ export function legendHtml() {
 function goldCard(td) {
   const prs = R.goldPrompts(S, td);
   if (!prs.length) return '';
-  return `<div class="card" style="background:var(--warn-soft)"><header><h2>💰 Baú de ouro</h2></header>${prs.map((p) => `<div class="li"><div class="lt"><b>${esc(p.title)}</b><small>${esc(p.label)} · sua metade</small></div>
+  return `<div class="card" style="background:var(--warn-soft)"><header><h2>💰 Carteira</h2></header>${prs.map((p) => `<div class="li"><div class="lt"><b>${esc(p.title)}</b><small>${esc(p.label)} · sua metade</small></div>
     <div class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn sm pri" data-act="gold-yes" data-key="${esc(p.key)}">RECEBI ${fmtN(p.amount)}</button><button class="btn sm" data-act="gold-later" data-key="${esc(p.key)}">AINDA NÃO</button></div></div>`).join('')}</div>`;
 }
 
 // ───── bloco fixado no painel da direita (preferência deste aparelho) ─────
 const PIN_KEY = 'gamify-ui:pinblock';
-let pinnedId = (() => { try { return localStorage.getItem(PIN_KEY); } catch { return null; } })();
-/** fixa o bloco no painel (ou tira, se já estava); devolve true se ficou fixado */
+// v7.5: VÁRIOS post-its (até PIN_MAX blocos fixados). Antes era um id só; o formato antigo (texto) vira lista sozinho.
+const PIN_MAX = 4;
+let pinned = (() => { try { const v = localStorage.getItem(PIN_KEY); if (!v) return []; return v.startsWith('[') ? JSON.parse(v) : [v]; } catch { return []; } })();
 export function togglePin(id) {
-  pinnedId = pinnedId === id ? null : id;
-  try { if (pinnedId) localStorage.setItem(PIN_KEY, pinnedId); else localStorage.removeItem(PIN_KEY); } catch { /* */ }
-  return !!pinnedId;
+  pinned = pinned.includes(id) ? pinned.filter((x) => x !== id) : [...pinned, id].slice(-PIN_MAX);
+  try { if (pinned.length) localStorage.setItem(PIN_KEY, JSON.stringify(pinned)); else localStorage.removeItem(PIN_KEY); } catch { /* */ }
+  return pinned.includes(id);
 }
-export const pinnedBlockId = () => pinnedId;
+export const pinnedBlockIds = () => pinned;
+export const pinnedBlockId = () => pinned[0] || null;
 export function sidePanel(ui) {
   const td = today(), tot = R.totals(S), st = R.dayStatus(S, td), al = R.alerts(S, td), ch = S.core.chapter || {};
   const open = R.openTasks(S), over = open.filter((t) => t.due && t.due < td).length, hoje = open.filter((t) => t.due === td).length;
   const w7 = open.filter((t) => t.due > td && t.due <= addDays(td, 7)).length;
   const left = ch.until ? diffDays(td, ch.until) : null;
-  const night = document.documentElement.dataset.mode === 'night';
   // v3.5: cada cartão do painel pode ser recolhido (toque no título), arrastado (alça ⠿) e escondido (⚙ PERSONALIZAR)
   // um bloco fixado (📌) fica sempre no topo do painel, à mão enquanto você mexe no resto
-  const pinB = pinnedId && S.quests.blocks.find((x) => x.id === pinnedId && x.st !== 'done');
-  void pinB; // v6: o bloco fixado virou um post-it flutuante (postit.js), visível em todas as abas
+  // v6: o bloco fixado virou um post-it flutuante (postit.js), visível em todas as abas (v7.5: vários)
   return `<aside class="side">${arrange('side', [
     ['relogio', '🕰 Relógio do corpo', clockCard()],
-    ['status', '🎭 Status do dia', `<div class="card"><header><h2 title="toque num status pra ver o que é">🎭 Status do dia</h2></header><div class="status-line">${statusChips(st, al) || '<span class="meta">nenhum buff nem debuff hoje.</span>'}</div></div>`],
+    // v7.2: STATUS DO DIA (em ícones) e COMANDOS moram dentro do cartão do PRIMO
     ['primo', '🔥 PRIMO', companionCard()],
-    ['ouro', '💰 Baú de ouro (quando tem)', goldCard(td)],
+    ['ouro', '💰 Carteira (quando tem)', goldCard(td)],
     ['habitos', '✓ Hábitos de hoje', habitsCard(td)],
-    ['comandos', '🎮 Comandos', `<div class="card"><header><h2>🎮 Comandos</h2></header><div class="cmds">
-      <button class="btn" data-act="archive-now" title="Arquiva o que já foi feito e recalcula tudo">🔄<span>ATUALIZAR</span></button>
-      <button class="btn ${R.tripNow(S) ? 'pri' : ''}" data-act="trip" title="Viagem ou visitas: congela o jogo enquanto você está fora">✈<span>${R.tripNow(S) ? 'VOLTEI' : 'VIAGEM'}</span></button>
-      <button class="btn" data-act="rest-day" title="Doença ou dia puxado: os hábitos de hoje viram folga">🏕<span>DESCANSO</span></button>
-      <button class="btn" data-act="sos">${px('sos', 14)}<span>SOS TRAVEI</span></button>
-      <button class="btn" data-act="distribute" title="Dá dias novos às atrasadas e às tarefas sem prazo, pelo seu ritmo">📅<span>DISTRIBUIR</span></button>
-      <button class="btn" data-act="backup-download" title="Baixa um arquivo com todos os seus dados">⬇<span>BACKUP</span></button>
-      <button class="btn" data-act="review" title="O PRIMO revisa o dia com você: hábitos de ontem, atrasadas e a primeira de hoje" style="grid-column:1 / -1">☀<span>REVISAR O DIA COM O PRIMO</span></button></div></div>`],
     ['fila', '⏰ Fila de prazos', filaCard(td)],
   ])}
     <p class="meta" style="text-align:center">${weekday(td) === 5 ? '⚠ sexta-feira: o dia em que mais se quebra sequência. marque os hábitos!' : ''}</p>
@@ -238,6 +250,7 @@ export function viewQuests(ui) {
     : R.tabBlocks(S, tab).filter(stalledOff(ui)).map((b) => 'b:' + b.id);
   // v6.4: também recolhe MISSÕES DA SEMANA e BOSS DO CAPÍTULO (cartões do topo)
   ckeys.push(new Date().getDay() === 0 ? 'c:quests:missoes-da-proxima-semana' : 'c:quests:missoes-da-semana'); if (R.chapterBoss(S)) ckeys.push('c:quests:boss-do-capitulo');
+  const qs = qsortOf(ui, tab);
   const allCol = ckeys.length > 0 && ckeys.every(isCollapsed); // v6.1: o botão voltou (pedido do dono); tocar de novo na janela aberta continua sendo o memento mori
   const lists = arrange('lists', R.AREA_KEYS.map((a) => [a, R.AREAS[a], listCard(a, ui)]), { button: false, cols: 3 });
   const body = tab === 'listas' ? `<div class="lists six">${lists}</div>`
@@ -245,10 +258,16 @@ export function viewQuests(ui) {
     : group(win ? win.base : tab, ui, win).replace('class="group ', 'class="group wide ');
   return `<div class="quests"><div class="board">
       <div class="band qbar"><div class="seg">${QTABS.map(([k, t]) => `<button class="${tab === k ? 'on' : ''} ${k === 'listas' ? 'mae' : 'filha'} ${R.tabReviewed(S, k) ? 'allrev' : ''}" data-act="qtab" data-tab="${k}" ${k === 'listas' ? 'title="Janela mãe: tudo passa por aqui"' : 'draggable="true" title="arraste pra mudar a ordem"'}>${k === 'listas' ? '◆ ' : ''}${esc(t)}${n[k] != null ? ' · ' + n[k] : ''}</button>`).join('')}<button class="qadd" data-act="win-new" title="Criar uma janela nova">＋</button></div>
-        <span class="row" style="gap:6px"><button class="btn sm ghost" data-act="collapse-all" title="Recolhe ou abre tudo desta janela de uma vez">${allCol ? '▾ ABRIR TUDO' : '▸ RECOLHER TUDO'}</button>
-          <details class="qmenu"><summary class="btn sm ghost" title="Escolha o que aparece nesta tela">MOSTRAR${ui.showDone || ui.showStalled ? ' · ' + (!!ui.showDone + !!ui.showStalled) : ''} ▾</summary><div class="qpop">
+        <details class="qmenu"><summary class="btn sm ghost qham" title="Abrir/recolher, ordenar, concluir e o que aparece">≡${qs ? ' · ' + (qs === 'urg' ? 'URGÊNCIA' : 'DATA') : ''}${ui.showDone || ui.showStalled ? ' · 👁' : ''}</summary><div class="qpop">
+            <button class="btn sm ghost" data-act="collapse-all" title="Recolhe ou abre tudo desta janela de uma vez">${allCol ? '▾ ABRIR TUDO' : '▸ RECOLHER TUDO'}</button>
+            <small class="qpop-h">ORDENAR (só na tela)</small>
+            <button class="btn sm ${qs === 'date' ? 'pri' : 'ghost'}" data-act="qsort" data-v="date" title="Prazo mais perto em cima">${qs === 'date' ? '☑' : '☐'} POR DATA</button>
+            <button class="btn sm ${qs === 'urg' ? 'pri' : 'ghost'}" data-act="qsort" data-v="urg" title="Vermelho (hoje e atrasadas) primeiro, depois laranja, amarelo, verde, cinza e roxo">${qs === 'urg' ? '☑' : '☐'} POR URGÊNCIA</button>
+            <small class="qpop-h">MOSTRAR</small>
             <button class="btn sm ${ui.showDone ? 'pri' : 'ghost'}" data-act="toggle-done">${ui.showDone ? '☑' : '☐'} FEITAS</button>
-            <button class="btn sm ${ui.showStalled ? 'pri' : 'ghost'}" data-act="toggle-stalled" title="⬛ parados: blocos e tarefas com a cor PARADO">${ui.showStalled ? '☑' : '☐'} PARADOS</button></div></details></span></div>
+            <button class="btn sm ${ui.showStalled ? 'pri' : 'ghost'}" data-act="toggle-stalled" title="⬛ parados: blocos e tarefas com a cor PARADO">${ui.showStalled ? '☑' : '☐'} PARADOS</button>
+            <button class="btn sm danger" data-act="done-window" title="Conclui todas as tarefas abertas que estão aparecendo nesta janela (pergunta antes; ↩ desfaz)">✓ CONCLUIR TUDO</button>
+            <small class="qpop-h">Dica: Shift + clique no ☐ conclui um intervalo inteiro${matchMedia('(pointer: coarse)').matches ? ' · no celular: segure numa tarefa e arraste o dedo' : ''}</small></div></details></div>
       ${ui.mm ? mementoCard(ui) : `${chapterDue()}${focusCard(ui)}${topStrip()}${body}`}
     </div>${sidePanel(ui)}</div>`;
 }
@@ -274,12 +293,14 @@ function mementoCard(ui) {
   const c = R.bodyClock(S), n = R.neuro(S), now = new Date(), wake = R.hm(n.wake), bed = R.hm(n.bed), t = now.getHours() * 60 + now.getMinutes();
   const awake = (bed - wake + 1440) % 1440 || 960, gone = Math.min(awake, (t - wake + 1440) % 1440), pct = gone / awake;
   const h = (m) => `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}`;
-  return `<div class="memento card" data-act="mm-off" title="Toque pra voltar"><span class="mm-art">${px('hourglass', 120)}</span>
+  // v7.1: o FOCO AGORA é o grande (é o que fazer com o tempo que resta); o relógio fica pequeno, embaixo
+  return `<div class="memento v71 card" data-act="mm-off" title="Toque pra voltar">
+    <div class="mm-foco">${focusCard(ui)}</div>
+    <div class="mm-row"><span class="mm-art">${px('hourglass', 56)}</span>
     <div class="mm-col"><div class="mm-clock" data-clock>${now.toLocaleTimeString('pt-BR')}</div>
       <div class="mm-bar">${segBar(pct, 'sm')}</div>
       <p class="mm-k">${c.key === 'sono' ? 'Hora de dormir.' : `Já se foi ${Math.round(pct * 100)}% do seu dia acordado. Faltam <b>${h(Math.max(0, awake - gone))}</b> pra dormir.`}</p>
-      <p class="mm-l">${MM_LINES[now.getDate() % MM_LINES.length]}</p><p class="meta">toque pra voltar</p></div>
-    <div class="mm-foco">${focusCard(ui)}</div></div>`;
+      <p class="mm-l">${MM_LINES[now.getDate() % MM_LINES.length]}</p><p class="meta">toque pra voltar</p></div></div></div>`;
 }
 function topStrip() {
   const sunday = new Date().getDay() === 0, wm = R.weeklyMissions(S, sunday ? addDays(today(), 1) : today()), boss = R.chapterBoss(S);

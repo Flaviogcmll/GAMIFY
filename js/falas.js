@@ -173,8 +173,8 @@ export const BANK = {
     ['orgulhoso', 'Olha esse caimento! Alfaiataria de primeira.'], ['surpreso', 'Eita! Quem é esse bonitão no espelho?'],
   ],
   mascote: [
-    ['surpreso', 'O ovo mexeu! Tá nascendo alguma coisa!'], ['festa', 'A FAÍSCA evoluiu! Olha só como ela cresceu!'], ['apaixonado', 'Cuida dela com sequência e ela cuida da gente.'],
-    ['feliz', 'A FAÍSCA tá feliz porque a meta foi batida.'], ['animado', 'Mais uns dias de sequência e ela evolui de novo!'],
+    ['surpreso', 'O ovo mexeu! Tá nascendo alguma coisa!'], ['festa', 'A BRASINHA cresceu! Olha só a crista dela!'], ['apaixonado', 'Cuida dela com sequência e ela cuida da gente.'],
+    ['feliz', 'A BRASINHA tá quentinha porque a meta foi batida.'], ['animado', 'Mais uns dias de sequência e ela cresce de novo, sô!'],
   ],
   levelup: [
     ['festa', 'SUBIU DE NÍVEL! Eu vi o brilho daqui.'], ['orgulhoso', 'Nível novo, primo. Você tá virando outra pessoa.'], ['animado', 'Isso! Mais um andar e a vista melhora.'], ['apaixonado', 'Cada nível é uma versão sua que eu conheço.'],
@@ -390,7 +390,7 @@ const CAIPIRA = {
   manha: [['feliz', 'Bão dia, sô! O galo cantou, o café coou e o trem já apitou.'], ['debochado', 'Cê levantou ou só mudou de lado, uai?'], ['animado', 'Dia novo na roça: enxada na mão e uma tarefa de cada vez, sô.']],
   tarde: [['pensativo', 'Depois do almoço o trem pesa, uai. Faz a tarefa mais leve primeiro que o resto embala.'], ['piscada', 'Tarde boa pra fechar um trem pendente, sô. Qual vai ser?']],
   noite: [['feliz', 'A lua subiu, sô. Fecha o dia, marca os hábitos e vem prosear na fogueira.'], ['cansado', 'Hoje rendeu ou só cansou, uai? Amanhã a gente ajeita.']],
-  tarefa: [['festa', 'Ô trem bão de ver: mais uma riscada, sô!'], ['feliz', 'Feito! Pode passar um cafezinho de comemoração, uai.'], ['orgulhoso', 'Isso que é capinar o lote, sô. Uma a menos.'], ['piscada', 'Riscou bonito! Desse jeito a lista fica com medo docê, uai.'], ['animado', 'Arreda, tarefa! Passou o trator, sô.']],
+  tarefa: [['orgulhoso', 'Marretada certeira: o TREM virou poeira, sô.'], ['feliz', 'Um TREM a menos atrás da BRASINHA. Bão demais.'], ['debochado', 'Poeira e palha pra todo lado. Próximo TREM, por favor.'], ['festa', 'Ô trem bão de ver: mais uma riscada, sô!'], ['feliz', 'Feito! Pode passar um cafezinho de comemoração, uai.'], ['orgulhoso', 'Isso que é capinar o lote, sô. Uma a menos.'], ['piscada', 'Riscou bonito! Desse jeito a lista fica com medo docê, uai.'], ['animado', 'Arreda, tarefa! Passou o trator, sô.']],
   tarefa_grande: [['festa', 'Nossa Senhora, sô! Esse trem era grande e cê derrubou no braço!'], ['orgulhoso', 'Tarefa parruda no chão, uai. Hoje o jantar é em dobro.']],
   meta_batida: [['festa', 'Meta batida, sô! Pode soltar o foguete e servir o pão de queijo!'], ['orgulhoso', 'Bateu a meta com folga, uai. O resto do dia é lucro.']],
   atrasadas: [['preocupado', 'Uai, tem {n} trem atrasado ali no canto... resolver um só já alivia, sô.'], ['suspeito', 'Tem tarefa atrasada me olhando torto, uai. Bora pegar a menorzinha?']],

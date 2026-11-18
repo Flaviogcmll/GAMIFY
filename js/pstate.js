@@ -1,5 +1,5 @@
-// O PRIMO — estado e regras: expedições, pedido do dia, armário, mascote (FAÍSCA) e diário. Tudo em core.primo.
-// core.primo = { exp:{id,start,end,claimed}, expN, ask:{date,k,n,done}, wear:{hat,eyes,neck,back}, diary:[{wk,text,expr}] }
+// O PRIMO — estado e regras: pedido do dia, a BRASINHA (mascote) e diário. Tudo em core.primo.
+// core.primo = { ask:{date,k,n,done}, petMax, diary:[{wk,text,expr}] }  (exp e wear saíram na v7.2)
 import { S, save } from './store.js';
 import * as R from './rules.js';
 import { commit } from './actions.js';
@@ -8,61 +8,7 @@ import { uid, today, addDays, weekStart, weekday, hash, fmtDM, DOW } from './uti
 export const P = () => S.core?.primo || {};
 const ensure = () => (S.core.primo ||= {});
 
-// ───────────────────────── EXPEDIÇÕES (substituem as obras da vila) ─────────────────────────
-export const EXPS = [
-  { id: 'passeio', ico: '🚶', name: 'Passeio no bairro', min: 30, xp: [10, 20], tk: 0, flavor: ['Dei uma volta no quarteirão e achei uma moeda perto do ponto de ônibus.', 'Vi um cachorro caramelo e conversei com ele. Ele concordou comigo.', 'Passei na padaria. Trouxe a sensação de pão quente.'] },
-  { id: 'feira', ico: '🛒', name: 'Feira livre', min: 120, xp: [30, 60], tk: 0, flavor: ['A feira tava cheia de gente e de pastel. Barganhei um troco pra você.', 'Um senhor me ensinou a escolher abacate. Aprendi, juro.', 'Achei um mapa antigo dentro de uma caixa de laranjas. Parecia de arquiteto.'] },
-  { id: 'viagem', ico: '🚌', name: 'Viagem a trabalho', min: 480, xp: [90, 150], tk: 0.3, flavor: ['Fui até a cidade vizinha ver um terreno. Tinha vista bonita e muito barro.', 'Participei de uma reunião de condomínio sem perder a paciência. Mereço medalha.', 'Visitei uma obra e voltei com ideias novas pro APÊ.'] },
-  { id: 'aventura', ico: '🏔', name: 'Aventura na serra', min: 1440, xp: [250, 400], tk: 1, flavor: ['Subi a serra inteira. A vista do topo faz qualquer prazo parecer pequeno.', 'Acampei sob as estrelas e escrevi três ideias de projeto. Uma é boa.', 'Achei uma cachoeira escondida. Não conto onde fica, é segredo mineiro.'] },
-];
-export const expOf = (id) => EXPS.find((x) => x.id === id);
-export function expState(now = Date.now()) {
-  const e = P().exp;
-  if (!e || e.claimed) return { cur: null };
-  const def = expOf(e.id);
-  if (!def) return { cur: null };
-  return { cur: e, def, left: Math.max(0, e.end - now), ready: now >= e.end, pct: Math.min(1, (now - e.start) / Math.max(1, e.end - e.start)) };
-}
-export function sendExp(id) {
-  const def = expOf(id), es = expState();
-  if (!def) return { error: 'Expedição desconhecida.' };
-  if (es.cur) return { error: 'Ele já está na estrada. Espere ou use um 🎟.' };
-  if (R.shopState(S).locked) return { error: '⏰ ATOLADO: as expedições param até você zerar as atrasadas.' };
-  return commit(['core'], () => { ensure().exp = { id, start: Date.now(), end: Date.now() + def.min * 60000, claimed: false }; return { msg: `${def.ico} O PRIMO partiu: ${def.name} (${fmtMin(def.min)})` }; });
-}
-export function finishExpTicket() {
-  const es = expState(), tot = R.totals(S);
-  if (!es.cur || es.ready) return { error: 'Sem expedição em andamento.' };
-  if (tot.tickets < 1) return { error: 'Você não tem 🎟 ticket.' };
-  return commit(['core', 'loja'], () => {
-    S.loja.purchases.push({ id: uid('p'), date: today(), item: 'EXPEDIÇÃO · acelerar', kind: 'expedicao', qty: 1, xp: 0, gold: 0, tickets: 1, status: 'used', usedAt: today() });
-    P().exp.end = Date.now();
-  });
-}
-/** acontecimento da estrada: o PRIMO pergunta e você escolhe o caminho seguro ou o arriscado */
-export const EVENTS = [
-  ['Achei uma ponte velha no caminho.', 'Dar a volta', 'Atravessar'], ['Um sujeito vendia um "mapa do tesouro" por uns trocados.', 'Ignorar', 'Comprar'],
-  ['Tem uma trilha curta cheia de mato e outra comprida e limpa.', 'Trilha comprida', 'Trilha curta'], ['Vi uma árvore de jabuticaba carregada, mas o dono tava perto.', 'Passar reto', 'Colher'],
-  ['Choveu e o rio subiu um pouco.', 'Esperar secar', 'Vadear'], ['Achei uma caverna escura.', 'Seguir viagem', 'Entrar'],
-];
-export const eventOf = (e) => EVENTS[hash(e.id + e.start) % EVENTS.length];
-/** recompensa: o sorteio é fixo por expedição. choice: 'safe' (XP normal) ou 'risk' (50%: dobro · 50%: metade) */
-export function claimExp(choice = 'safe') {
-  const es = expState();
-  if (!es.cur || !es.ready) return null;
-  const e = es.cur, def = es.def, k = hash(e.id + e.start);
-  let xp = def.xp[0] + (k % (def.xp[1] - def.xp[0] + 1));
-  const win = choice === 'risk' ? hash('r' + e.start) % 2 === 0 : null;
-  if (choice === 'risk') xp = win ? xp * 2 : Math.max(1, Math.round(xp / 2));
-  const tk = def.tk >= 1 ? 1 : def.tk > 0 && (k % 10) / 10 < def.tk ? 1 : 0;
-  const card = def.flavor[k % def.flavor.length] + (choice === 'risk' ? (win ? ' Arrisquei e deu certo, uai!' : ' Arrisquei e deu ruim... mas voltei inteiro.') : '');
-  return commit(['core'], () => {
-    e.claimed = true; e.card = card; e.xp = xp; e.tk = tk;
-    const p = ensure(); p.expN = (p.expN || 0) + 1;
-    (S.core.bonus ||= []).push({ id: uid('ex'), date: today(), kind: 'expedicao', xp, tickets: tk, label: `${def.ico} ${def.name}` });
-    return { feedback: { postcard: e } };
-  });
-}
+// v7.2: a EXPEDIÇÃO saiu (pedido do dono). Os dados antigos (core.primo.exp) são limpos pela migração v7-primo; o XP que ela já deu continua valendo.
 
 // ───────────────────────── PEDIDO DO DIA ─────────────────────────
 const doneToday = (td) => R.allTasks(S).filter((t) => t.st === 'done' && t.doneAt === td && !/^(↳|>)/.test(t.text));
@@ -102,35 +48,16 @@ export function claimAsk() {
   });
 }
 
-// ───────────────────────── MASCOTE: FAÍSCA (cresce com os dias batendo a meta; nunca volta atrás) ─────────────────────────
-export const PET_STAGES = [[0, 'OVO'], [2, 'FAÍSCA'], [5, 'BRASINHA'], [10, 'CHAMINHA'], [20, 'CHAMA'], [35, 'FOGUEIRA'], [60, 'FÊNIX'], [100, 'FÊNIX LENDÁRIA']];
-export function goalDays(s = S) {
-  const xp = R.idx(s).xpByDay;
-  return Object.entries(xp).filter(([d, v]) => v >= R.goalAt(s, d)).length;
-}
+// ───────────────────────── MASCOTE: a BRASINHA (v7.3b: cresce com o CALOR; regras em rules.js → brasinha, dados em core.brasinha) ─────────────────────────
+/** o que a tela usa: frame = quadro da arte; stage = fase 0 (OVO) a 4 (FÊNIX) */
 export function petState(s = S) {
-  const n = goalDays(s), prev = s.core?.primo?.petMax || 0;
-  let i = 0; PET_STAGES.forEach(([d], j) => { if (n >= d) i = j; });
-  const stage = Math.max(i, prev), next = PET_STAGES[stage + 1];
-  return { days: n, stage, name: PET_STAGES[stage][1], next: next ? next[0] : null, left: next ? Math.max(0, next[0] - n) : 0 };
-}
-/** guarda o maior estágio (se você apagar dados, ela não encolhe) e avisa quando evolui */
-export function petSync() {
-  const st = petState(), p = ensure();
-  if (st.stage > (p.petMax || 0)) { const first = p.petMax == null; p.petMax = st.stage; save('core'); return first ? null : st; }
-  if (p.petMax == null) { p.petMax = st.stage; save('core'); }
-  return null;
+  const b = R.brasinha(s);
+  return { ...b, frame: b.frame, bstage: b.stage, next: !b.max, title: `BRASINHA · ${b.name}${b.max ? '' : ` · 🔥 ${Math.max(0, b.calor + b.hoje)}/${b.need} de calor${b.hoje ? ` (${b.hoje > 0 ? '+' : ''}${b.hoje} hoje)` : ''}`}` };
 }
 
 // ───────────────────────── CHAPÉU DE PALHA ─────────────────────────
-// O único acessório do PRIMO: é a identidade caipira dele. O dono tira e põe (o padrão é COM chapéu).
-// Os outros acessórios foram removidos em 17/11/2026 (não encaixavam bem na arte nova).
-export const hatOn = () => P().wear?.hat !== null; // sem registro (undefined) = com chapéu; qualquer chapéu antigo vira o de palha
-export const wearing = () => ({ hat: hatOn() ? 'palha' : null });
-export function toggleHat() {
-  const on = !hatOn();
-  return commit(['core'], () => { ensure().wear = { hat: on ? 'palha' : null }; return { msg: on ? '🤠 Chapéu de palha de volta, sô.' : 'Chapéu tirado. Cabeça fresca, uai.' }; }, { label: 'chapéu' });
-}
+// v7.2: o chapéu é PARTE do desenho do PRIMO (não é acessório): sempre na cabeça. O botão CHAPÉU e core.primo.wear saíram.
+export const wearing = () => ({ hat: 'palha' });
 
 // ───────────────────────── DIÁRIO DO PRIMO (um resumo por semana que terminou) ─────────────────────────
 const CLOSE = {

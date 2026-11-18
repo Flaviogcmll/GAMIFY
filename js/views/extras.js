@@ -7,7 +7,8 @@ import { tiles } from '../telas.js';
 import { scratchCard, mapCard } from '../mapa.js';
 import { sundayTarget } from '../actions.js';
 
-import { esc, today, fmtDM, fmtDMY, weekday, fmtN, DOW, weekStart, addDays } from '../util.js';
+import { esc, today, fmtDM, fmtDMY, weekday, fmtN, DOW, weekStart, addDays, lightNow } from '../util.js';
+import { isCollapsed } from '../v3.js';
 
 import { settingsV35 } from '../v35.js';
 import { weekSummary } from '../pstate.js';
@@ -103,6 +104,18 @@ export function viewDomingo() {
 // ───────────── CONQUISTAS ─────────────
 // v5.16: faixa de resumo, "quase lá" primeiro (a recompensa perto motiva mais: desconto temporal), filtro de 1 toque,
 // dourado = ganha (recompensa) · cinza com cadeado = falta.
+/** v7.4: CONQUISTAS por categoria (cada uma com banner; a arte B-17 entra em CONQ_ART quando existir assets/topo/conq-<categoria>-<dia|noite>.webp) */
+const CONQ_CATS = [['tarefas', '✅ TAREFAS E PRAZOS'], ['bosses', '👹 BOSSES E BLOCOS'], ['habitos', '💪 HÁBITOS E CORPO'], ['praga', '🐺 PRAGA E LAMBEHOMI'], ['feira', '🎪 FEIRA E OURO'], ['jornada', '🧭 JORNADA'], ['outras', '✨ OUTRAS']];
+const CONQ_ART = [];
+const CONQ_OF = {
+  tarefas: ['done', 'onTime', 'withDue', 'maxDone', 'early', 'star', 'legendaryDay', 'approved', 'home', 'people'],
+  bosses: ['bossDone', 'miniDone', 'stepsDone', 'blocksClosed', 'bdClosed', 'trClosed', 'capClosed', 'gsClosed', 'windows', 'reviewedNow'],
+  habitos: ['treino', 'dieta', 'sono', 'selfcare', 'maxStreak', 'perfectRun', 'noPoison', 'cleanDays', 'flame', 'daysRegistered', 'rd'],
+  praga: ['pragaCured', 'pragaEarly', 'pragaExo', 'pragaGhosts', 'pragaCalm'],
+  feira: ['goldIn', 'forged', 'ferreiro'],
+  jornada: ['level', 'maxAttr', 'minAttr', 'focus', 'sundays', 'missionWeeks', 'legendaryWeeks', 'prazoWeeks', 'trips', 'bond', 'petStage'],
+};
+const conqCat = (a) => Object.keys(CONQ_OF).find((k) => CONQ_OF[k].includes(a.metric)) || 'outras';
 export function viewConquistas(ui) {
   const list = R.achievementList(S);
   const got = list.filter((a) => a.unlocked).sort((a, b) => ((a.date || '') < (b.date || '') ? 1 : -1));
@@ -126,7 +139,13 @@ export function viewConquistas(ui) {
   const body = f === 'ganhas' ? sec('🏆 Ganhas', got, 'nenhuma ainda.')
     : f === 'quase' ? sec('🎯 Quase lá', near, 'nenhuma passou da metade ainda.')
     : f === 'faltam' ? sec('🔒 Faltam', left, 'você pegou todas!')
-    : `${near.length ? sec('🎯 Quase lá', near.slice(0, 6), '') : ''}${sec('🏆 Ganhas', got, 'nenhuma ainda: a primeira tarefa concluída já vale uma.')}${sec('🔒 Faltam', left.filter((a) => !near.slice(0, 6).includes(a)), 'você pegou todas!')}`;
+    : `${near.length ? sec('🎯 Quase lá', near.slice(0, 6), '') : ''}${CONQ_CATS.map(([k, t]) => {
+      // v7.4: uma seção (com banner) por categoria: as ganhas primeiro, depois as que faltam (as mais perto na frente)
+      const items = [...got, ...left].filter((a) => conqCat(a) === k);
+      if (!items.length) return '';
+      const ck = 'c:conquistas:cat-' + k, shut = isCollapsed(ck), n = items.filter((a) => a.unlocked).length;
+      return `<section class="vitrine conq-v ${shut ? 'shut' : ''}" data-v="conq-${k}"><header class="vit-h" data-act="collapse" data-k="${ck}" title="Toque pra recolher ou abrir" style="--img:url('${new URL(`assets/topo/${CONQ_ART.includes(k) ? 'conq-' + k : 'conquistas'}-${lightNow() === 'noite' ? 'noite' : 'dia'}.webp`, document.baseURI).href}')"><div><h2><span class="chev">${shut ? '▸' : '▾'}</span> ${t}</h2><p>${n}/${items.length} ganhas</p></div></header>${shut ? '' : `<div class="vit-b"><div class="medals">${items.map(medal).join('')}</div></div>`}</section>`;
+    }).join('')}`;
   return `<div class="page-title"><div><h1><em>conquistas</em>.</h1><p>Toque num quadrinho pra filtrar.${f !== 'todas' ? ' <a href="#" data-act="cq" data-v="todas">ver todas</a>' : ''}${S.core.season?.from ? ` · <span title="As do capítulo anterior ficam guardadas">capítulo anterior: ${Object.keys(S.core.achievements || {}).length} conquistas</span>` : ''}</p></div></div>
     ${strip}${body}`;
 }
@@ -140,7 +159,7 @@ const RULES = [
   ['Alertas', ['⏰ ATOLADO: 3+ atrasadas → loja trancada até zerar.', '💀 ESQUECIDA: atrasada há 7+ dias. Resolva, quebre ou remarque com honestidade.', '🗿 ESTAGNADO: 5 dias sem concluir nada. Use o 🆘 SOS e faça 10 minutos.', '💔 SAUDADE: alguém dos rituais atrasado 3+ dias.', '⚠ SEXTA-FEIRA: é o dia em que mais se quebra sequência. Marque os hábitos.']],
   ['Dicas (suas)', ['YOU NEED TO HAVE A WELL DEFINED "STORY LINE" FOR THIS TO WORK.', 'GAMES ARE LOW RISK HIGH REWARD: CREATE THAT FEELING.', 'BREAK DOWN HIGH RISK GOALS INTO SMALL LOW RISK / HIGH REWARD ONES.', 'SEM DATA NÃO É MISSÃO, É DESEJO. A MAIS CHATA PRIMEIRO.', 'SEMANA-TIPO: SEG/QUA clientes · TER/QUI prefeitura e documentos · SEX escritório, marketing e folga · SÁB casa e pessoas · DOM baú e planejamento.', 'COBRAR ANTES DE CRIAR: dinheiro parado em cliente é a missão mais barata do jogo.', 'META GRANDE = 🎯 BLOCO: ⚔ mini-boss escrito como a vitória → ↳ passos de até 2h. Detalhe só o próximo mini-boss.', 'Sem redes sociais na primeira e na última hora do dia. Scroll é prêmio comprado na taverna, não o padrão.']],
   ['Prazos: consequências (v4.3)', ['⏰ Concluir atrasada paga menos: −20% do XP por dia de atraso, no mínimo 40% (editável em PERKS → Prazos). O bônus de pontualidade some.', '📆 Remarcar custa XP: a 1ª vez que você empurra o prazo de uma tarefa custa 10 XP, a 2ª 20, a 3ª 40… (dobra). Sai do saldo, nunca do nível. Mudar o prazo pra antes não custa.', 'DISTRIBUIR PRAZOS mostra o custo total antes de aplicar. Quanto mais realista o prazo que você põe, menos paga.']],
-  ['O PRIMO (v4.3)', ['🔥 O PRIMO é o centro do jogo: o rosto muda com o seu dia e ele fala (banco com centenas de frases). Toque nele pra ouvir outra.', '🎯 PEDIDO DO DIA: um desafio específico (fechar tarefas, uma ⭐, hábitos, foco…) que dá XP e +1 ♥ quando cumprido.', '🎒 EXPEDIÇÕES: passeio 30 min · feira 2 h · viagem 8 h · aventura 1 dia. Voltam com XP (e às vezes 🎟). Cada tarefa concluída tira 3 min, cada 25 min de foco tira 1 h, 🎟 termina na hora. Com 3+ atrasadas elas param.', '👕 ARMÁRIO: chapéus, óculos, cachecóis e capas que se liberam com nível, expedições, bosses e conquistas. 🔥 FAÍSCA: o mascote nasce de um ovo e evolui com os dias que você bate a meta (3 · 10 · 25 · 60); nunca volta atrás.', '📖 DIÁRIO: todo fim de semana ele escreve um resumo (XP, tarefas, dias na meta, melhor dia). ♥ Amizade: +1 por dia ao afagar, conversar e responder (5 colega · 15 parceiro · 40 amigo · 100 irmão · 250 primo de sangue).']],
+  ['O PRIMO (v7.2)', ['🔥 O PRIMO é o centro do jogo: o rosto muda com o seu dia e ele fala (banco com centenas de frases). Toque nele pra ouvir outra.', '🎯 PEDIDO DO DIA: um desafio específico (fechar tarefas, uma ⭐, hábitos, foco…) que dá XP e +1 ♥ quando cumprido.', '🐣 BRASINHA: pintinho vermelho de fênix que anda atrás do PRIMO. Ela cresce com os dias que você bate a meta. O chapéu de palha é parte dele (não sai).', '🎮 COMANDOS: moram no cartão do PRIMO (foco, revisar o dia, SOS, distribuir, viagem, descanso, atualizar, backup). Todo comando ganha uma frase dele. O STATUS DO DIA aparece ali em ícones: toque pra ver o que é.', '📖 DIÁRIO: todo fim de semana ele escreve um resumo (XP, tarefas, dias na meta, melhor dia). ♥ Amizade: +1 por dia ao afagar, conversar e responder (5 colega · 15 parceiro · 40 amigo · 100 irmão · 250 primo de sangue).']],
   ['Atalhos', ['Q QUESTS · S SURVIVAL · A AGENDA · L SHOP · B baú de domingo · F FILTRO · R ROTINA · P REGRAS', 'ESPAÇO abre o PRIMO · / escreve nos IMEDIATOS · N alterna dia/noite']],
 ];
 const card = ([t, items]) => `<div class="rblock"><h3>${esc(t)}</h3><ul>${items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul></div>`;
@@ -162,6 +181,7 @@ export function viewRegras() {
   ]);
   return `<div class="page-title"><div><h1><em>perks and rules</em>.</h1></div></div>
     ${strip}<div class="grid">
+      ${presetsCard()}
       ${settingsV35()}
       ${neuroCard()}
       <div class="card c12" data-gk="nomes"><header><h2>✏ Nomes das listas e janelas</h2><span class="meta">só o texto muda; as regras continuam as mesmas</span></header>
@@ -199,6 +219,13 @@ export function viewRegras() {
 // ───────────── ARQUIVO ─────────────
 
 /** v5.14: neurociência — o que o app faz por você (cada item liga/desliga) e os seus horários */
+/** v7.5: salvar o jeito atual com um nome ("SEMANA PESADA", "FÉRIAS"…), trocar com 1 toque e VOLTAR AO PADRÃO */
+function presetsCard() {
+  const list = S.core.presets || [];
+  return `<div class="card c12" data-gk="presets"><header><h2>🎛 Presets e padrão</h2><span class="meta">guarda todos os ajustes de PERKS (regras, castigo, 🧠, Praga); seus horários não mudam</span></header>
+    <form class="row" data-form="preset-save" autocomplete="off" style="gap:8px;flex-wrap:wrap"><input class="inp grow" name="name" maxlength="24" placeholder="nome do jeito atual (ex.: SEMANA PESADA, FÉRIAS)" aria-label="Nome do preset"><button class="btn pri">💾 SALVAR O JEITO ATUAL</button><button type="button" class="btn danger" data-act="settings-reset" title="Volta todos os ajustes ao padrão do app (os seus horários de acordar, dormir e comer ficam)">↺ VOLTAR AO PADRÃO</button></form>
+    ${list.length ? `<div class="list" style="margin-top:10px">${list.map((p) => `<div class="li"><div class="lt"><b>${esc(p.name)}</b><small>guardado em ${fmtDM(p.at)}</small></div><span class="row" style="gap:4px"><button class="btn sm pri" data-act="preset-apply" data-n="${esc(p.name)}">USAR</button><button class="icon-btn" data-act="preset-del" data-n="${esc(p.name)}" aria-label="Apagar preset" title="Apagar">✕</button></span></div>`).join('')}</div>` : '<p class="meta" style="margin:8px 0 0">Nenhum preset ainda. Ajuste o PERKS do jeito de uma fase (férias, semana de entrega…) e salve com um nome.</p>'}</div>`;
+}
 function neuroCard() {
   const n = R.neuro(S), c = R.bodyClock(S), ck = (k, t, d) => `<label class="nchk"><input type="checkbox" data-change="neuro" data-k="${k}" ${n[k] !== false ? 'checked' : ''}> <b>${t}</b><span class="meta">${d}</span></label>`;
   const ladder = R.ladderSteps(S);
@@ -220,11 +247,12 @@ function neuroCard() {
       ${ck('why', '💡 Por que esse boss importa', `Dois campos no boss: "por que importa?" e "o que acontece se eu não fizer?". Boss ${R.BOSS_IDLE_DAYS} dias parado → o PRIMO lembra (no máximo 1 vez por semana).`)}
       ${ck('box', '⏰ Time box', `Tarefa remarcada ${R.RESCHED_LOCK} vezes trava: pra empurrar de novo, marque horário e duração. Ou cancele.`)}
       ${ck('cheio', '🧠 HOJE cheio demais', 'Passou do limite de tarefas por dia (AJUSTES → máx. prazos por dia), aparece um aviso curto em HOJE e um botão que empurra as menos importantes pra amanhã, sem custo.')}
-      ${ck('praga', '💀 A Praga (cartucho amaldiçoado)', 'Tarefa ou ritual atrasado vira assombração que corrompe o jogo: 4 fases, 1 por dia (rituais começam na 2). TREM RUIM → ANGUSTIADO (vira o FOCO AGORA, PRIMO doente) → ENCOSTO (faixa nas abas, bichos na tela, janela a cada 7 min, −10% XP) → A PRAGA (tela vermelha e preta, tremendo, −20% XP, loja trancada). Fazer = REZA BRABA (XP); depois, corpo fechado por 24 h. Feriado, descanso e viagem não contam.')}
+      ${ck('praga', '🐺 A Praga (o sopro do LAMBEHOMI)', `Cada tarefa é um TREM. Atrasou, vira assombração: 4 fases, 1 por dia (rituais começam na 2). TREM RUIM → ENCOSTO (vira o FOCO AGORA, PRIMO paranoico) → DISGRAMA (faixa nas abas, janela a cada 7 min) → LAMBEHOMI (tela vermelha, loja trancada, a BRASINHA perde 1 fase). Com ${R.luaN(S)} ou mais no LAMBEHOMI ao mesmo tempo: 🌕 LUA DE SANGUE (o PRIMO com medo de verdade e a BRASINHA vira OVO). Sem perder XP: castigos não somam. REZA BRABA = fazer, remarcar (custa o de sempre) ou cancelar; espantar não dá XP. Feriado, DESCANSO e VIAGEM não contam.`)}
+      <label class="meta" style="grid-column:1 / -1">🌕 LUA DE SANGUE com <input class="inp" type="number" min="1" max="10" data-change="neuro" data-k="luaN" value="${R.luaN(S)}" style="width:64px;display:inline-block"> tarefa(s) no LAMBEHOMI ao mesmo tempo (padrão ${R.LUA_N}; menos = mais difícil)</label>
       ${ck('pato', '🦆 Pato de borracha', 'No SOS TRAVEI: explicar pro PRIMO o que tentou, o que funcionou e o que não. Fica guardado na tarefa.')}
       ${ck('proc', '⚔ Recompensa do processo', 'Cada subtarefa feita num boss mostra quanto de vida ele perdeu. Recompensa que está longe perde valor pro cérebro (desconto temporal): ver o dano agora mantém a motivação no caminho.')}
       ${ck('foco', '🎯 FOCO AGORA', 'No topo do QUESTS, UMA tarefa sugerida pelo PRIMO, com o porquê (atrasada, prazo hoje, boss parado, missão, horário do corpo). OUTRA ▸ mostra a próxima.')}
-      ${ck('swipe', '👆 Arrastar no celular', 'Arraste a tarefa pra ESQUERDA = concluir; pra DIREITA = amanhã. O ↩ desfaz.')}
+      ${ck('swipe', '👆 Segurar e arrastar no celular', 'Segure o dedo numa tarefa e arraste por cima das outras: ao soltar, conclui todas de uma vez. O ↩ desfaz.')}
     </div></div>`;
 }
 

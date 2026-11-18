@@ -1,12 +1,12 @@
 // v5.16 — BULLET JOURNAL (Ryder Carroll) + PRATICIDADE. Tudo liga/desliga em PERKS → 🧠 (settings.neuro).
-// Q1 anotar rápido (botão + e tecla +) · Q2 arrastar a tarefa no celular (← conclui, → amanhã)
+// Q1 anotar rápido (botão + e tecla +) · Q2 v7.1: segurar e arrastar no celular conclui várias
 // F HOJE cheio demais (atenção residual) · G pato de borracha no SOS.
 // A migração do mês e o boss parado ficam na entrevista do dia (review.js); o time box na janela da tarefa (app.js).
 import { S } from './store.js';
 import * as A from './actions.js';
 import * as R from './rules.js';
 import { esc, today, addDays, fmtDM } from './util.js';
-import { openModal, closeModal, modalOpen, toast } from './ui.js';
+import { openModal, closeModal, modalOpen, toast, ask } from './ui.js';
 import { sfx } from './audio.js';
 
 const clean = (t) => String(t || '').replace(/\s*\(\d+\s*XP\)/i, '').trim();
@@ -67,47 +67,41 @@ const DUCK_REPLY = [
   'O que não funcionou já é informação boa. Tenta o contrário, ou pede ajuda pra alguém, uai.',
 ];
 
-// ───────────── Q2: ARRASTAR A TAREFA NO CELULAR ─────────────
-// ← (esquerda) conclui · → (direita) empurra pra amanhã. Só no toque: no PC continua o arrastar pela alça ⠿.
-const SWIPE = 80;
-let sw = null, eatClick = 0;
-function swipeStart(e) {
-  if (e.pointerType !== 'touch' || !S.core || !R.neuroOn(S, 'swipe') || modalOpen()) return;
+// ───────────── v7.1: SEGURAR E ARRASTAR (celular) ─────────────
+// Segure o dedo numa tarefa (~0,4 s), arraste por cima das outras e solte: o app pergunta e conclui todas de uma vez (↩ desfaz).
+// Substitui o arrastar pro lado (← concluía, → mandava pra amanhã), a pedido do dono. Liga/desliga: PERKS → 🧠 (chave 'swipe').
+const HOLD = 420;
+let sel = null, eatClick = 0;
+const selClear = () => { document.querySelectorAll('li.task.sel-on').forEach((x) => x.classList.remove('sel-on')); document.body.classList.remove('selecting'); };
+function selAdd(li) { if (!li || li.classList.contains('done') || !li.dataset.id || sel.ids.has(li.dataset.id)) return; sel.ids.add(li.dataset.id); li.classList.add('sel-on'); }
+function selStart(e) {
+  if (!S.core || !R.neuroOn(S, 'swipe') || modalOpen() || e.touches.length !== 1) return;
   const li = e.target.closest?.('li.task[data-id]');
-  if (!li || e.target.closest('.handle, input, textarea, select, .addline')) return;
-  sw = { li, id: li.dataset.id, x: e.clientX, y: e.clientY, dx: 0, on: false };
+  if (!li || li.classList.contains('done') || e.target.closest('.handle, .check, input, textarea, select, .addline, button, a')) return;
+  const t0 = e.touches[0];
+  sel = { x: t0.clientX, y: t0.clientY, ids: new Set(), on: false };
+  sel.timer = setTimeout(() => { if (!sel) return; sel.on = true; document.body.classList.add('selecting'); selAdd(li); navigator.vibrate?.(15); sfx('pick'); }, HOLD);
 }
-function swipeMove(e) {
-  if (!sw || e.pointerType !== 'touch') return;
-  const dx = e.clientX - sw.x, dy = e.clientY - sw.y;
-  if (!sw.on) {
-    if (Math.abs(dy) > 14 && Math.abs(dy) > Math.abs(dx)) { sw = null; return; } // é rolagem
-    if (Math.abs(dx) < 14 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
-    sw.on = true; sw.li.classList.add('swiping');
-  }
-  sw.dx = Math.max(-140, Math.min(140, dx));
-  sw.li.style.transform = `translateX(${sw.dx}px)`;
-  sw.li.classList.toggle('sw-done', sw.dx <= -SWIPE);
-  sw.li.classList.toggle('sw-next', sw.dx >= SWIPE);
+function selMove(e) {
+  if (!sel) return;
+  const t0 = e.touches[0];
+  if (!sel.on) { if (Math.hypot(t0.clientX - sel.x, t0.clientY - sel.y) > 10) { clearTimeout(sel.timer); sel = null; } return; } // mexeu antes: é rolagem
+  e.preventDefault(); // segurando: o dedo seleciona, a tela não rola
+  selAdd(document.elementFromPoint(t0.clientX, t0.clientY)?.closest?.('li.task[data-id]'));
+  if (t0.clientY < 80) scrollBy(0, -10); else if (t0.clientY > innerHeight - 90) scrollBy(0, 10);
 }
-function swipeEnd(e, ACTIONS) {
-  if (!sw) return;
-  const { li, id, dx, on } = sw;
-  sw = null;
+async function selEnd() {
+  if (!sel) return;
+  const { on, ids, timer } = sel; clearTimeout(timer); sel = null;
   if (!on) return;
   eatClick = Date.now();
-  li.style.transform = ''; li.classList.remove('swiping', 'sw-done', 'sw-next');
-  const t = S.quests.tasks.find((x) => x.id === id);
-  if (!t) return;
-  if (dx <= -SWIPE) { ACTIONS.toggle({ id }, e); return; }
-  if (dx >= SWIPE) {
-    if (!R.isOpen(t)) return;
-    const tm = addDays(today(), 1);
-    if (t.due && t.due >= tm) { toast('Já está pra amanhã ou depois.'); return; }
-    const cost = A.reschedCost(t, tm), r = A.updateTask(id, { due: tm });
-    if (r?.error) { sfx('error'); toast(esc(r.error), 'bad'); if (r.locked) ACTIONS['edit-task']({ id }); return; }
-    sfx('tab'); toast(`→ AMANHÃ: <b>${esc(clean(t.text).slice(0, 50))}</b>${cost ? ` · −${cost} XP` : ''}. ↩ desfaz.`);
-  }
+  const list = [...ids];
+  if (!list.length) { selClear(); return; }
+  const ok = await ask('Concluir?', `Marca ${list.length === 1 ? 'esta tarefa' : `estas ${list.length} tarefas`} como feita${list.length > 1 ? 's' : ''}. O ↩ desfaz.`, `✓ CONCLUIR ${list.length}`);
+  selClear();
+  if (!ok) return;
+  const r = A.doneMany(list);
+  if (r?.error) { sfx('error'); toast(esc(r.error), 'bad'); } else sfx('ready');
 }
 
 // ───────────── liga tudo ─────────────
@@ -133,10 +127,11 @@ export function extendBujo(ACTIONS, FORMS) {
       toast(`🦆 ${DUCK_REPLY[new Date().getDate() % DUCK_REPLY.length]}`, 'good');
     },
   });
-  document.addEventListener('pointerdown', swipeStart, { passive: true });
-  document.addEventListener('pointermove', swipeMove, { passive: true });
-  document.addEventListener('pointerup', (e) => swipeEnd(e, ACTIONS));
-  document.addEventListener('pointercancel', () => { if (sw) { sw.li.style.transform = ''; sw.li.classList.remove('swiping', 'sw-done', 'sw-next'); sw = null; } });
+  document.addEventListener('touchstart', selStart, { passive: true });
+  document.addEventListener('touchmove', selMove, { passive: false });
+  document.addEventListener('touchend', selEnd);
+  document.addEventListener('touchcancel', () => { if (sel) { clearTimeout(sel.timer); sel = null; selClear(); } });
+  document.addEventListener('contextmenu', (e) => { if (sel || document.body.classList.contains('selecting')) e.preventDefault(); }); // segurar não abre o menu do navegador
   // o toque que terminou um arrasto não abre a tarefa
   document.addEventListener('click', (e) => { if (Date.now() - eatClick < 400 && e.target.closest?.('li.task')) { e.stopPropagation(); e.preventDefault(); } }, true);
 }

@@ -1,9 +1,9 @@
 // O PRIMO — o centro do jogo. Rosto e busto desenhados (pdraw.js), expressões e um banco enorme de frases (falas.js),
-// expedições, pedido do dia, armário, mascote FAÍSCA e diário (pstate.js). Aqui ficam a tela, as animações e as reações.
+// pedido do dia, a BRASINHA e diário (pstate.js). Aqui ficam a tela, as animações e as reações.
 import { S } from './store.js';
 import * as R from './rules.js';
 import * as A from './actions.js';
-import { esc, today, fmtDM } from './util.js';
+import { esc, today, fmtDM, lightNow } from './util.js';
 import { openModal, closeModal, toast, segBar } from './ui.js';
 import { sfx } from './audio.js';
 import { confetti } from './fx.js';
@@ -14,7 +14,7 @@ import { primoLine, lastExpr, bankSize } from './falas.js';
 import { GROUPS, saberCount } from './saber.js';
 import * as PS from './pstate.js';
 import { say, bond } from './v35.js';
-import { openClaude, claudeCount, expeditionLetter } from './claude.js';
+import { openClaude, claudeCount } from './claude.js';
 
 const ls = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* */ } } };
 const mmss = (ms) => { const s = Math.max(0, Math.round(ms / 1000)); const h = (s / 3600) | 0; return `${h ? h + ':' : ''}${String(((s % 3600) / 60) | 0).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
@@ -41,11 +41,8 @@ function statusMood() {
 function baseExpr() {
   const c = R.companion(S), st = primoState();
   if (st.expr) return st.expr;
-  if (R.praga(S).phase >= 2) return 'preocupado'; // v6.7: com a Praga o PRIMO fica COM MEDO (não doente)
   if (c.mood === 'envenenado') return 'enjoado';
-  if (c.mood === 'cansado') return 'cansado';
-  if (R.overdueTasks(S).length >= 3) return 'preocupado';
-  return c.mood === 'feliz' ? 'feliz' : 'neutro';
+  return MOODS[primoMood()].expr; // v7.2: o rosto segue o humor (com a Praga ele fica PARANOICO, desconfiado; medo só na LUA DE SANGUE)
 }
 
 // ───────────────────────── expressão e fala atuais ─────────────────────────
@@ -58,14 +55,14 @@ const curExpr = () => {
 };
 // v6: de vez em quando o PRIMO dá uma dica de como usar o app (no banner do QUESTS)
 const TIPS = ['Dica, sô: no rascunho da REFLEXÃO, Enter solta e Shift+Enter pula linha.', 'Toca de novo na janela aberta que eu te mostro o relógio. Memento mori, uai.',
-  'Arrasta uma tarefa da fila da AGENDA até um dia pra mudar o prazo dela.', 'No celular: tarefa arrastada pra esquerda é concluída; pra direita vai pra amanhã.',
+  'Arrasta uma tarefa da fila da AGENDA até um dia pra mudar o prazo dela.', 'No celular: segura o dedo numa tarefa e arrasta por cima das outras pra concluir várias, sô.',
   'Fixa um bloco no 📌 e ele vira post-it em todas as abas. Bom pra anotar ideia, sô.', 'Escreve 3000$ no título do bloco que eu entendo que ele vale dinheiro.',
   'Toca na bolinha do lado da tarefa que eu te levo até o bloco dela.', 'Errou? O ↩ lá em cima desfaz. Sem drama, uai.', 'No FILTRO, toca nos quadrinhos de cima que ele já filtra.',
   'Botão direito no quadradinho cancela a tarefa sem punição. Largar também é decidir.', 'O 🎯 FOCO AGORA escolhe UMA pra você. Não precisa pensar, só fazer.',
   'Na AGENDA, o azul é ritual. Não deixa a amizade esfriar, sô.'];
 function ambient() {
   const now = Date.now();
-  const pl = pragaLine(); if (pl && Math.random() < 0.75) return { text: pl, expr: 'preocupado', at: now }; // v6.7: com medo, só fala dela
+  const pl = pragaLine(); if (pl && Math.random() < 0.75) return { text: pl, expr: R.praga(S).lua ? 'preocupado' : 'suspeito', at: now }; // v7.3: paranoico (medo só na LUA DE SANGUE)
   if (!amb || now - amb.at > 3 * 60000) { const tip = Math.random() < 0.45, text = tip ? TIPS[Math.floor(Math.random() * TIPS.length)] : primoLine('auto'); amb = { text, expr: tip ? 'piscada' : lastExpr(), at: now, shownAt: now, typed: false }; }
   return amb;
 }
@@ -123,12 +120,10 @@ const K = 4;
 const OFF = document.createElement('canvas'); OFF.width = PW * K; OFF.height = PH * K;
 /** cenário atrás do PRIMO novo: o LUGAR segue o contexto (expedição, hora do dia) e a LUZ segue o relógio/modo do app */
 function scenePick() {
-  const es = PS.expState(), d = new Date(), h = d.getHours() + d.getMinutes() / 60, wd = d.getDay();
-  const night = document.documentElement.dataset.mode === 'night';
-  const light = night || h >= 19 || h < 5 ? 'noite' : h >= 16 ? 'tarde' : 'dia'; // v6.1: segue o relógio de verdade (manhã, tarde, noite)
+  const d = new Date(), h = d.getHours() + d.getMinutes() / 60, wd = d.getDay();
+  const light = lightNow(d), night = light === 'noite'; // v7.0: só o relógio (o tema escuro não vira noite)
   let place;
-  if (es.cur && !es.ready) place = es.cur.id === 'feira' ? 'feira' : 'estrada'; // fora de casa
-  else if (night || h >= 19 || h < 5) place = 'fogueira';
+  if (night) place = 'fogueira';
   else if (h < 8 || (h >= 12 && h < 13.5)) place = 'cozinha'; // café da manhã e almoço
   else if (h >= 17.5) place = 'varanda';
   else place = wd === 0 || wd === 6 ? 'varanda' : 'escritorio';
@@ -146,7 +141,7 @@ const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
 function paint(cv) {
   const kind = cv.dataset.portrait, ctx = cv.getContext('2d'), NEW = artOn();
   ctx.setTransform(K, 0, 0, K, 0, 0);
-  if (cv.dataset.mascot != null) { const ps = PS.petState(), happy = R.dailyGoal(S).today >= R.dailyGoal(S).goal; if (NEW) drawMascotNew(ctx, ps.stage, frame, happy); else { ctx.imageSmoothingEnabled = false; drawMascot(ctx, ps.stage, frame, happy); } return; }
+  if (cv.dataset.mascot != null) { const ps = PS.petState(), happy = R.dailyGoal(S).today >= R.dailyGoal(S).goal; if (NEW) drawMascotNew(ctx, ps.frame, frame, happy); else { ctx.imageSmoothingEnabled = false; drawMascot(ctx, ps.stage, frame, happy); } return; }
   const o = { tier: R.companion(S).tier, mood: statusMood(), expr: curExpr(), wear: PS.wearing(), talk: Date.now() < talkUntil, f: frame };
   // v6: no banner do QUESTS ele passeia pelo cenário (quando está reagindo, para e reage onde está)
   if (kind === 'walk') {
@@ -180,14 +175,16 @@ function loop(ts) {
   if (frame % 40 === 0) applyScenes(); // as artes novas podem ter acabado de carregar; e a luz muda com a hora
   for (const cv of MOUNTED) if (VIS ? cv._vis !== false : true) paint(cv);
 }
-let notified = new Set();
 /** roda depois de cada desenho da tela: liga os desenhos, evolui o mascote, avisa a volta da expedição, gera o diário */
 export function primoAfterRender() {
   mountPortraits();
-  const ev = PS.petSync();
-  if (ev) { toast(`🔥 A FAÍSCA evoluiu: <b>${esc(ev.name)}</b>!`, 'gold'); sfx('level'); primoReact('mascote'); }
-  const es = PS.expState();
-  if (es.cur && es.ready && !notified.has(es.cur.start)) { notified.add(es.cur.start); toast(`🎒 O PRIMO voltou: <b>${esc(es.def.name)}</b>. Abra o que ele trouxe!`, 'gold'); sfx('chest'); primoReact('exp_volta'); }
+  // v7.3b: o que aconteceu com a BRASINHA (cresceu de manhã, perdeu fase no LAMBEHOMI, virou ovo na LUA DE SANGUE)
+  const evs = S._brasEv; S._brasEv = null;
+  for (const e of evs || []) {
+    if (e.k === 'up' || e.k === 'reborn') { toast(e.k === 'reborn' ? `🐣 O ovo rachou: a BRASINHA renasceu! <b>${R.BRAS_NAMES[e.stage]}</b>, com um pouco de cinza na cabeça.` : `🐣 A BRASINHA cresceu: <b>${R.BRAS_NAMES[e.stage]}</b>!`, 'gold'); sfx('level'); primoSay(e.k === 'reborn' ? 'Ela voltou, sô. Cinza na cabeça e fogo no peito.' : 'Óia o tamanho dela! Tá ficando braba, uai.', 'orgulhoso'); }
+    if (e.k === 'down') { toast(`🐺 O LAMBEHOMI chegou em <b>${esc(String(e.text).slice(0, 40))}</b>: a BRASINHA perdeu força (agora ${R.BRAS_NAMES[e.stage]}).`, 'bad'); sfx('error'); primoSay('Ele soprou forte. Fica atrás de mim, pequena.', 'suspeito'); }
+    if (e.k === 'egg') { toast('🌕 LUA DE SANGUE: a BRASINHA virou OVO. É fênix: com calor ela renasce.', 'bad'); primoSay('A lua ficou vermelha… guardei o ovo no chapéu. A gente começa de novo.', 'preocupado'); }
+  }
   if (ls.get('gamify-ui:diary') !== today()) { ls.set('gamify-ui:diary', today()); PS.diarySync(); }
 }
 
@@ -199,32 +196,82 @@ function askHtml() {
     <div class="row" style="flex-wrap:nowrap;gap:8px;align-items:center">${segBar(a.target ? a.value / a.target : 0, 'sm')}<span class="meta">${a.value}/${a.target}</span>
     ${a.done ? '<span class="chip soon">✓ pego</span>' : `<button class="btn sm ${a.ok ? 'pri' : 'ghost'}" data-act="ask-claim" ${a.ok ? '' : 'disabled'}>+${a.xp} XP</button>`}</div></div>`;
 }
-function expHtml(big) {
-  const es = PS.expState();
-  if (es.cur) {
-    const d = es.def;
-    return `<div class="pexp"><div class="pask-t">${d.ico} ${esc(d.name.toUpperCase())}</div>${segBar(es.pct, 'sm')}
-      <div class="row" style="flex-wrap:wrap;gap:6px;align-items:center">${es.ready ? '<button class="btn sm pri" data-act="exp-claim">🎒 ABRIR O QUE ELE TROUXE</button>' : `<span class="meta">volta em <b data-countdown="${es.cur.end}">${mmss(es.left)}</b> · tarefas e foco encurtam</span><button class="btn sm" data-act="exp-ticket" title="Gasta 1 ticket e ele volta agora">🎟 TERMINAR</button>`}</div></div>`;
-  }
-  if (!big) return '';
-  return `<div class="pexp"><div class="pask-t">🎒 MANDAR EM EXPEDIÇÃO</div><div class="row" style="flex-wrap:wrap;gap:6px">${PS.EXPS.map((e) => `<button class="btn sm" data-act="exp-send" data-id="${e.id}" title="${e.xp[0]}–${e.xp[1]} XP${e.tk ? ' · chance de 🎟' : ''}">${e.ico} ${esc(e.name)}<small style="display:block;font-size:8px;opacity:.8">${PS.fmtMin(e.min)} · ${e.xp[0]}–${e.xp[1]} XP</small></button>`).join('')}</div></div>`;
+/** v7.2: o HUMOR do PRIMO, um só, que manda no rosto, na cor do cartão e na frase.
+ *  paranoico (Praga ou 3+ atrasadas) · orgulhoso (bateu a meta) · focado (tarefa ▶ fazendo) · cansado (debuff de cansaço) · satisfeito (o resto) */
+export const MOODS = {
+  medo: { label: 'com medo', ico: '😱', expr: 'preocupado', tip: 'LUA DE SANGUE: tarefas demais no LAMBEHOMI. É a única hora em que ele tem medo de verdade.' },
+  paranoico: { label: 'paranoico', ico: '👀', expr: 'suspeito', tip: 'Tem trem rondando: atrasadas ou Praga. Ele fica desconfiado, não com medo.' },
+  orgulhoso: { label: 'orgulhoso', ico: '😤', expr: 'orgulhoso', tip: 'A meta do dia foi batida.' },
+  focado: { label: 'focado', ico: '🎯', expr: 'pensativo', tip: 'Tem tarefa em ▶ FAZENDO.' },
+  cansado: { label: 'cansado', ico: '😮‍💨', expr: 'cansado', tip: 'Cansaço, neblina ou preguiça no status do dia.' },
+  satisfeito: { label: 'satisfeito', ico: '😌', expr: 'feliz', tip: 'Tudo nos trilhos.' },
+};
+export function primoMood() {
+  const g = R.dailyGoal(S), st = R.dayStatus(S, today());
+  const pg = R.praga(S);
+  if (pg.lua) return 'medo';
+  if (pg.phase >= 1 || R.overdueTasks(S).length >= 3) return 'paranoico';
+  if (g.today >= g.goal) return 'orgulhoso';
+  if (S.quests.tasks.some((t) => t.st === 'doing')) return 'focado';
+  if (st.has('neblina') || st.has('fatigado') || st.has('preguica') || R.companion(S).mood === 'cansado') return 'cansado';
+  return 'satisfeito';
+}
+/** v7.2: os COMANDOS moram no cartão do PRIMO. Todo comando gera uma frase dele. */
+const CMDS = [
+  ['focus', '🔥', 'FOCO', 'Fogueira de foco (pomodoro)'], ['review', '☀', 'REVISAR', 'O PRIMO revisa o dia com você: hábitos de ontem, atrasadas e a primeira de hoje'],
+  ['sos', '🆘', 'SOS', 'Travou? Começa pelo menor pedaço'], ['distribute', '📅', 'DISTRIBUIR', 'Dá dias novos às atrasadas e às tarefas sem prazo, pelo seu ritmo'],
+  ['trip', '✈', 'VIAGEM', 'Viagem ou visitas: congela o jogo enquanto você está fora'], ['rest-day', '🏕', 'DESCANSO', 'Doença ou dia puxado: os hábitos de hoje viram folga'],
+  ['archive-now', '🔄', 'ATUALIZAR', 'Arquiva o que já foi feito e recalcula tudo'], ['backup-download', '⬇', 'BACKUP', 'Baixa um arquivo com todos os seus dados'],
+];
+const CMD_LINES = {
+  focus: ['Fogueira acesa. Eu seguro a BRASINHA, cê segura o foco.', 'Vinte e cinco minutinhos, sô. O trem não se derruba sozinho.'],
+  review: ['Bora revisar o dia, uai. Coisa rápida.', 'Senta aqui que a gente olha a lida de hoje.'],
+  sos: ['Travou? Respira. Me fala o menor pedaço que a gente começa por ele.', 'Até casa de tijolo começa com um tijolo só, sô.'],
+  distribute: ['Espalhei os trens pela semana. Um de cada vez, sô.', 'Cada dia com o seu tanto. Assim ninguém atola.'],
+  trip: ['Vai com Deus. Eu fico de olho na casa e na BRASINHA.', 'Mala pronta? A casa fica de pé, pode ir sossegado.'],
+  'rest-day': ['Descanso também é obra: tijolo assenta melhor com a massa curada.', 'Hoje é dia de rede. Amanhã a gente volta pra lida.'],
+  'archive-now': ['Arrumei a mesa, sô. O que tá feito foi pro ARQUIVO.', 'Mesa limpa, cabeça limpa, uai.'],
+  'backup-download': ['Cópia guardada. Casa de tijolo tem planta arquivada.', 'Backup feito. Lobo nenhum sopra isso aqui.'],
+};
+/** o PRIMO fala um texto pronto (sem sortear do banco) */
+export function primoSay(text, expr) { rx = { text, expr: expr || lastExpr(), until: Date.now() + 14000, typed: false }; paintSpeech(); }
+/** v7.3b: os TRENS de hoje (e os atrasados) chegando pela direita do cartão. Maior = mais perto do prazo. Tocar leva até a tarefa. */
+function tremsHtml() {
+  const td = today(), list = R.openTasks(S).filter((t) => t.due && t.due <= td && t.st !== 'wait' && !t.who && !t.mother)
+    .map((t) => ({ t, tr: R.tremOf(S, t, td) })).sort((a, b) => (b.tr?.phase || 0) - (a.tr?.phase || 0)).slice(0, 5);
+  return list.length ? `<div class="trens">${list.map(({ t, tr }, i) => `<span class="trem k-${tr.k}" data-act="jump" data-id="${t.id}" style="--i:${i};--s:${tr.k === 'praga' ? 1 + tr.phase * 0.12 : 1}" title="${esc(tr.name)}: ${esc(String(t.text).replace(/\s*\(\d+\s*XP\)/i, '').slice(0, 60))}"></span>`).join('')}</div>` : '';
+}
+/** v7.3b: a BRASINHA e o CALOR 🔥 dela, numa linha */
+function brasLine(p) {
+  return `<div class="pbras" title="${esc(p.title)}" data-act="mascot-info"><span>🐣 <b>${esc(p.name)}</b></span>${p.max ? '<span class="meta">FÊNIX!</span>' : `${segBar(p.pct, 'sm')}<span class="meta">🔥 ${Math.max(0, p.calor + p.hoje)}/${p.need}</span>`}</div>`;
+}
+function statusIcons() {
+  const st = R.dayStatus(S, today()), al = R.alerts(S, today());
+  const ic = [...(st.event ? [`<button class="sico event" data-act="explain" data-k="event" title="🎲 ${esc(st.event.name)}: ${esc(st.event.desc)}">🎲</button>`] : []),
+    ...st.list.filter((x) => x.key !== 'sabado').map((x) => `<button class="sico ${x.kind}" data-act="explain" data-k="${x.key}" title="${esc(x.name)}: ${esc(x.desc || '')}">${x.icon}</button>`),
+    ...al.map((a) => `<button class="sico alert" data-act="explain-text" data-n="${esc(a.icon + ' ' + a.name)}" data-d="${esc(a.desc)}" title="${esc(a.name)}">${a.icon}</button>`)];
+  return ic.length ? `<div class="pstatus" title="Status do dia: toque num ícone pra ver o que é">${ic.join('')}</div>` : '';
 }
 function body(big, compact = false) {
-  const c = R.companion(S), st = primoState(), es = PS.expState(), pet = PS.petState(), n = claudeCount();
-  const status = es.cur ? `${es.def.ico} em expedição` : `${esc(c.name)} está ${esc(st.label)}`;
-  return `<div class="pcard ${big ? 'big' : ''} ${compact ? 'compact' : ''}">${compact ? '' : `<div class="pstage"><canvas class="pcv" data-portrait="${big ? 'full' : 'card'}" data-act="comp-poke" aria-label="${esc(c.name)}"></canvas>
-      <canvas class="pcv pmascot" data-mascot title="FAÍSCA · ${esc(pet.name)} · ${pet.days} dias na meta${pet.next ? ' · faltam ' + pet.left + ' pra evoluir' : ''}" data-act="mascot-info"></canvas></div>`}
+  const c = R.companion(S), st = primoState(), pet = PS.petState(), mk = primoMood(), m = MOODS[mk];
+  const status = st.act !== 'idle' ? `${esc(c.name)} está ${esc(st.label)}` : `<span title="${esc(m.tip)}">${m.ico} ${esc(c.name)} está <b>${m.label}</b></span>`;
+  const trip = R.tripNow(S);
+  return `<div class="pcard ${big ? 'big' : ''} ${compact ? 'compact' : ''}" data-mood="${mk}">${compact ? '' : `<div class="pstage"><canvas class="pcv" data-portrait="${big ? 'full' : 'card'}" data-act="comp-poke" aria-label="${esc(c.name)}"></canvas>
+      <canvas class="pcv pmascot" data-mascot title="${esc(pet.title)}" data-act="mascot-info"></canvas>${tremsHtml()}</div>`}
     <div class="pcol">${compact ? '' : '<div class="speech" id="comp-speech" data-pspeech="ambient" data-act="comp-poke" title="toque pra ouvir outra"></div>'}
       <div class="meta pstat">${status}${st.left ? ` · <span data-countdown="${Date.now() + st.left}">${mmss(st.left)}</span>` : ''}</div>
-      ${askHtml()}${expHtml(big)}
-      <div class="row prow">${big ? '' : '<button class="btn sm" data-act="primo-hub">🎒 EXPEDIÇÃO</button>'}<button class="btn sm" data-act="focus">🔥 FOCO</button><button class="btn sm pri" data-act="saber" data-g="all">📚 ME CONTA UMA</button><button class="btn sm" data-act="primo-prosa" title="Piada, ditado ou causo da roça">😂 PROSA</button><button class="btn sm ${PS.hatOn() ? '' : 'ghost'}" data-act="hat" title="Pôr ou tirar o chapéu de palha">🤠 CHAPÉU</button><button class="btn sm" data-act="diary">📖 DIÁRIO</button></div></div></div>`;
+      ${statusIcons()}
+      ${brasLine(pet)}
+      ${askHtml()}
+      <div class="pcmds">${CMDS.map(([k, i, l, t]) => `<button class="btn sm ${k === 'trip' && trip ? 'pri' : ''}" data-act="pcmd" data-k="${k}" title="${esc(t)}"><span>${i}</span>${k === 'trip' && trip ? 'VOLTEI' : l}</button>`).join('')}</div>
+      <div class="row prow"><button class="btn sm pri" data-act="saber" data-g="all">📚 ME CONTA UMA</button><button class="btn sm" data-act="primo-prosa" title="Piada, ditado ou causo da roça">😂 PROSA</button><button class="btn sm" data-act="diary">📖 DIÁRIO</button></div></div></div>`;
 }
 /** cartão da aba QUESTS */
-/** v6 (4A): banner do QUESTS com o cenário, o PRIMO passeando, a FAÍSCA e a fala (dicas do app de vez em quando) */
+/** v6 (4A): banner do QUESTS com o cenário, o PRIMO passeando, a BRASINHA e a fala (dicas do app de vez em quando) */
 export function questsBanner() {
   const c = R.companion(S), pet = PS.petState();
   return `<div class="qscene pstage"><canvas class="pcv walker" data-portrait="walk" data-act="comp-poke" title="Toque no ${esc(c.name)}" aria-label="${esc(c.name)}"></canvas>
-    <canvas class="pcv pmascot" data-mascot title="FAÍSCA · ${esc(pet.name)}" data-act="mascot-info"></canvas>
+    <canvas class="pcv pmascot" data-mascot title="${esc(pet.title)}" data-act="mascot-info"></canvas>
     <div class="qs-say"><div class="speech" data-pspeech="ambient" data-act="comp-poke" title="toque pra ouvir outra"></div></div></div>`;
 }
 export function primoCard() {
@@ -234,7 +281,7 @@ export function primoCard() {
 export function openPrimoHub() {
   const c = R.companion(S), b = bond(), pet = PS.petState();
   const m = openModal(`<h2>🔥 ${esc(c.name)} <small class="meta">· ${esc(b.name)} ${hearts()}</small></h2>${body(true)}
-    <div class="meta" style="margin-top:8px">FAÍSCA: <b>${esc(pet.name)}</b> · ${pet.days} dia(s) na meta${pet.next ? ` · faltam ${pet.left} pra evoluir` : ' · evolução máxima'} · ${bankSize()} frases e ${saberCount()} curiosidades verificadas</div>
+    <div class="meta" style="margin-top:8px">BRASINHA: <b>${esc(pet.name)}</b>${pet.max ? ' · FÊNIX!' : ` · 🔥 ${Math.max(0, pet.calor + pet.hoje)}/${pet.need} de calor pra crescer`} · ${bankSize()} frases e ${saberCount()} curiosidades verificadas</div>
     <div class="actions"><button class="btn pri" data-close>FECHAR</button></div>`, { wide: true });
   mountPortraits(m);
   paintSpeech();
@@ -264,32 +311,12 @@ export function extendPrimo(ACTIONS) {
     'claude-no': (d) => { A.claudeReject(d.id); closeModal(); setTimeout(openClaude, 60); },
     'primo-prosa': () => { const r = Math.random(); primoReact(r < 0.6 ? 'piada' : r < 0.82 ? 'ditado' : 'causo'); sfx('tab'); },
     saber: (d) => { primoReact('saber', { group: d.g || 'all' }); if (!document.querySelector('.modal')) openSaber(d.g || 'all'); },
-    hat: () => { PS.toggleHat(); sfx('buy'); primoReact('armario'); },
     'saber-go': (d) => { closeModal(); setTimeout(() => { openSaber(d.g); }, 30); },
     diary: () => openDiary(),
-    'mascot-info': () => { const p = PS.petState(); toast(`🔥 FAÍSCA · <b>${esc(p.name)}</b> · ${p.days} dia(s) na meta${p.next ? ` · faltam ${p.left} pra evoluir` : ''}`, 'gold'); primoReact('mascote'); },
-    'exp-send': (d) => { const r = PS.sendExp(d.id); if (r?.error) { sfx('error'); toast(esc(r.error), 'bad'); return; } sfx('xp'); primoReact('exp_ida'); if (document.querySelector('.modal')) rehub(); },
-    'exp-ticket': () => { const r = PS.finishExpTicket(); if (r?.error) { sfx('error'); toast(esc(r.error), 'bad'); return; } sfx('ready'); if (document.querySelector('.modal')) rehub(); },
+    'mascot-info': () => { const p = PS.petState(); toast(`🐣 <b>${esc(p.title)}</b>. Tarefa no prazo esquenta, dia na meta esquenta mais; atrasada esfria. TREM no LAMBEHOMI tira 1 fase; LUA DE SANGUE vira ovo.`, 'gold'); primoReact('mascote'); },
     'ask-claim': () => { const r = PS.claimAsk(); if (r?.error) { sfx('error'); toast(esc(r.error), 'bad'); return; } sfx('chest'); confetti(40); if (document.querySelector('.modal')) rehub(); },
-    'exp-claim': () => {
-      const es = PS.expState();
-      if (!es.cur || !es.ready) return;
-      const [ev, safe, risk] = PS.eventOf(es.cur);
-      openModal(`<div class="levelup"><div class="px muted" style="font-size:9px">NA ESTRADA</div><h2 style="margin:14px 0">${es.def.ico} ${esc(ev)}</h2><p class="muted">O que o PRIMO faz?</p>
-        <div class="actions" style="justify-content:center;flex-wrap:wrap"><button class="btn" data-act="exp-choose" data-c="safe">🛡 ${esc(safe)}<small style="display:block;font-size:8px">XP normal</small></button><button class="btn pri" data-act="exp-choose" data-c="risk">🎲 ${esc(risk)}<small style="display:block;font-size:8px">50%: dobro · 50%: metade</small></button></div></div>`);
-    },
-    'exp-choose': (d) => {
-      const e = PS.expState().cur, def = PS.expState().def;
-      if (!e) return;
-      const r = PS.claimExp(d.c === 'risk' ? 'risk' : 'safe');
-      if (!r || !e.card) return;
-      closeModal(); sfx('chest'); confetti(60); primoReact('exp_volta');
-      const notes = (S.core.claude?.notes || []).filter((n) => !n.read).map((n) => `<li>📬 ${esc(n.text)}</li>`).join('');
-      openModal(`<div class="levelup"><div class="px muted" style="font-size:9px">CARTA DA EXPEDIÇÃO</div><h2 style="margin:14px 0">${def.ico} ${esc(R.companion(S).name)} voltou.</h2><p id="exp-letter">"${esc(e.card)}"</p>${notes ? `<ul style="text-align:left">${notes}</ul>` : ''}
-        <p class="acc px" style="font-size:10px">+${e.xp} XP${e.tk ? ' · +1 🎟' : ''}</p><div class="actions" style="justify-content:center"><button class="btn pri" data-close>BOA!</button></div></div>`);
-      if ((S.core.claude?.notes || []).some((n) => !n.read)) A.claudeReadAll();
-      expeditionLetter().then((t) => { const el = document.getElementById('exp-letter'); if (el && t) el.innerHTML = esc(t).replace(/\n+/g, '<br>'); });
-    },
+    // v7.2: comando do cartão do PRIMO = o comando de sempre + uma frase dele
+    pcmd: (d, e) => { const f = ACTIONS[d.k]; if (!f) return; const r = f(d, e); const L = CMD_LINES[d.k]; if (L) setTimeout(() => primoSay(L[Math.floor(Math.random() * L.length)], MOODS[primoMood()].expr), 60); return r; },
   });
 }
 export { claudeCount };

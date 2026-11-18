@@ -3,7 +3,7 @@ import { isCollapsed } from '../v3.js';
 // Regra de ouro da loja: COMPRE ANTES DE FAZER. Fez sem comprar? Paga depois com multa (R.DEBT_MULT).
 import { S } from '../store.js';
 import * as R from '../rules.js';
-import { esc, today, fmtDM, fmtN, addDays } from '../util.js';
+import { esc, today, fmtDM, fmtN, addDays, lightNow } from '../util.js';
 import { segBar } from '../ui.js';
 import { px } from '../icons.js';
 import { tiles } from '../telas.js';
@@ -18,7 +18,11 @@ const kTav = (it, m) => (iconOf(it) ? `<span class="eico">${iconOf(it)}</span>` 
 const CAT_ICON = { EU: [101, 'dungeon'], PC: [130, 'dungeon'], MERCADO: [107, 'town'], CASA: [85, 'town'], ARQUITETURA: [117, 'dungeon'] };
 const FER_ICON = { ARQUITETURA: '📐', CASA: '🏠', EU: '🪞', JOGOS: '🎮', MERCADO: '🧺', MOTO: '🏍', PC: '🖥' };
 const kFer = (it) => (it.icon || FER_ICON[it.cat] ? `<span class="eico">${it.icon || FER_ICON[it.cat]}</span>` : (() => { const [i, sh] = CAT_ICON[it.cat] || [102, 'dungeon']; return kspr(i, sh); })());
-const TABS = [['loja', '🎪 BARRACAS'], ['mochila', '🎒 MOCHILA'], ['forjados', '⚒ FORJADOS'], ['ouro', '$ BAÚ DE OURO'], ['hist', '📜 REGISTRO']];
+// v7.4: SACOLA (era MOCHILA), CARTEIRA (era BAÚ DE OURO), NOTA FISCAL (era REGISTRO). As chaves internas não mudam.
+const TABS = [['loja', '🎪 BARRACAS'], ['mochila', '🛍 SACOLA'], ['forjados', '⚒ FORJADOS'], ['ouro', '$ CARTEIRA'], ['hist', '🧾 NOTA FISCAL']];
+/** v7.4: bancas (categorias do FERREIRO) que já têm banner próprio em assets/topo/banca-<categoria>-<dia|noite>.webp (o dono gera a arte B-13). Sem arte: banner do ferreiro. */
+export const BANCA_ART = [];
+const slugCat = (c) => String(c).normalize('NFD').replace(/[^A-Za-z0-9]/g, '').toLowerCase();
 const mmss = (ms) => { const s = Math.max(0, Math.round(ms / 1000)); return `${String((s / 60) | 0).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
 
 function taverna(tot, shop) {
@@ -58,16 +62,17 @@ function mochila() {
       ${using ? `<div class="ip" data-countdown="${p.endsAt}">${mmss(p.endsAt - now)}</div>${segBar((p.endsAt - now) / (p.endsAt - p.startedAt), 'sm')}` : `<small class="dim">${m.min ? `⏱ ${m.min} min` : 'sem tempo'} · desde ${fmtDM(p.date)}</small>`}
       <div class="ia">${using ? `<button class="btn sm" data-act="finish-item" data-id="${p.id}">ENCERRAR</button>` : `<button class="btn sm pri" data-act="use-item" data-id="${p.id}">USAR AGORA</button>`}</div></div>`;
   };
-  return `${bag.length ? `<div class="shop">${bag.map(card).join('')}</div>` : `<div class="card"><p>Mochila vazia. Compre na TAVERNA antes de aproveitar: o prazer comprado tem outro gosto.</p></div>`}
+  return `${bag.length ? `<div class="shop">${bag.map(card).join('')}</div>` : `<div class="card"><p>Sacola vazia. Compre na TAVERNA antes de aproveitar: o prazer comprado tem outro gosto.</p></div>`}
     <div class="card" style="margin-top:16px"><header><h2>Usados recentemente</h2></header><div class="list">${used.map((p) => `<div class="li"><div class="lt">${esc(p.item)}<small>${fmtDM(p.usedAt || p.date)}${p.debt ? ' · 🧾 dívida x2' : ''}</small></div><span class="chip">${p.debt ? 'X2' : 'OK'}</span></div>`).join('') || '<div class="empty">nada ainda.</div>'}</div></div>`;
 }
 
-function ferreiro(tot, shop, ui) {
+/** itens do FERREIRO de UMA categoria (v7.4: cada categoria é uma banca da FEIRA) */
+function ferreiro(tot, shop, ui, only) {
   const cats = S.loja.cats.filter((c) => S.loja.ferreiro.some((f) => f.cat === c));
-  const cat = cats.includes(ui.fcat) ? ui.fcat : cats[0];
+  const cat = only || (cats.includes(ui.fcat) ? ui.fcat : cats[0]);
   const items = S.loja.ferreiro.filter((f) => f.cat === cat).sort((a, b) => a.nv - b.nv);
   const buys = S.loja.purchases.filter((p) => p.kind === 'ferreiro');
-  return `<div class="pills fcats">${cats.map((c) => `<button class="pill ${c === cat ? 'on' : ''}" data-act="fcat" data-cat="${esc(c)}"><span>${FER_ICON[c] || '⚒'} ${esc(c)}</span></button>`).join('')}</div>
+  return `${only ? '' : `<div class="pills fcats">${cats.map((c) => `<button class="pill ${c === cat ? 'on' : ''}" data-act="fcat" data-cat="${esc(c)}"><span>${FER_ICON[c] || '⚒'} ${esc(c)}</span></button>`).join('')}</div>`}
     <div class="shop">${items.map((it) => {
       const xp = R.ferreiroXp(it), locked = it.nv > tot.level, got = buys.filter((p) => p.itemId === it.id), bought = got.length && !it.repeat;
       const can = !locked && !bought && !shop.locked && tot.balance >= xp, m = R.itemMeta({ ...it, xp });
@@ -104,7 +109,7 @@ function forjados() {
 }
 function hist() {
   const list = [...S.loja.purchases].sort((a, b) => (a.date < b.date ? 1 : -1));
-  return `<div class="card" style="max-width:860px"><header><h2>Registro de compras</h2><span class="meta">${list.length} compras</span></header>
+  return `<div class="card" style="max-width:860px"><header><h2>🧾 Nota fiscal</h2><span class="meta">${list.length} compras</span></header>
     <div class="list">${list.map((p) => `<div class="li"><div class="lt">${fmtDM(p.date)} · ${esc(p.item)}<small>${p.kind}${p.tickets ? ' · 🎟' : p.xp ? ` · -${fmtN(p.xp)} XP` : ''}${p.gold ? ` · -${fmtN(p.gold)} gold` : ''}${p.debt ? ' · dívida' : ''}${p.status ? ' · ' + p.status : ''}</small></div>
       <button class="icon-btn" data-act="undo-buy" data-id="${p.id}" title="Desfazer">↺</button></div>`).join('') || '<div class="empty">nenhuma compra.</div>'}</div></div>`;
 }
@@ -112,13 +117,15 @@ function hist() {
 export function viewShop(ui) {
   const tot = R.totals(S), shop = R.shopState(S), tab = TABS.some(([k]) => k === ui.ltab) ? ui.ltab : 'loja';
   const goalIt = S.loja.taverna.find((i) => i.id === S.loja.goal);
-  const nb = R.bag(S).length, night = document.documentElement.dataset.mode === 'night', dn = night ? 'noite' : 'dia';
+  const nb = R.bag(S).length, dn = lightNow() === 'noite' ? 'noite' : 'dia'; // v7.0: pela hora real
   const fx = shop.mult === 1 ? 'x1' : 'x' + shop.mult.toFixed(2).replace('.', ',');
   // v6: a FEIRA tem barracas (TAVERNA em cima, FERREIRO embaixo), cada uma com o seu banner; outros vendedores entram aqui
-  const vitrine = (key, title, sub, body) => { const ck = 'c:shop:' + key, shut = isCollapsed(ck); return `<section class="vitrine ${shut ? 'shut' : ''}" data-v="${key}"><header class="vit-h" data-act="collapse" data-k="${ck}" title="Toque pra recolher ou abrir" style="--img:url('${new URL(`assets/topo/${key === 'tav' ? 'shop' : 'ferreiro'}-${dn}.webp`, document.baseURI).href}')"><div><h2><span class="chev">${shut ? '▸' : '▾'}</span> ${title}</h2><p>${sub}</p></div></header>${shut ? '' : `<div class="vit-b">${body}</div>`}</section>`; };
+  const vitrine = (key, title, sub, body) => { const ck = 'c:shop:' + key, shut = isCollapsed(ck), bc = key.startsWith('b:') ? key.slice(2) : null; return `<section class="vitrine ${shut ? 'shut' : ''} ${bc ? 'banca' : ''}" data-v="${key}"><header class="vit-h" data-act="collapse" data-k="${ck}" title="Toque pra recolher ou abrir" style="--img:url('${new URL(`assets/topo/${bc && BANCA_ART.includes(bc) ? 'banca-' + bc : key === 'tav' ? 'shop' : 'ferreiro'}-${dn}.webp`, document.baseURI).href}')"><div><h2><span class="chev">${shut ? '▸' : '▾'}</span> ${title}</h2><p>${sub}</p></div></header>${shut ? '' : `<div class="vit-b">${body}</div>`}</section>`; };
   const body = tab === 'mochila' ? mochila() : tab === 'forjados' ? forjados() : tab === 'ouro' ? ouro() : tab === 'hist' ? hist()
-    : vitrine('tav', '🍺 TAVERNA', 'Os prazeres do dia a dia. Compre ANTES de aproveitar: vai pra mochila.', taverna(tot, shop))
-      + vitrine('fer', '⚒ FERREIRO', 'Conquistas da vida real: XP + gold. Cada nível destrava itens novos.', ferreiro(tot, shop, ui));
+    : vitrine('tav', '🍺 TAVERNA', 'Os prazeres do dia a dia. Compre ANTES de aproveitar: vai pra SACOLA.', taverna(tot, shop))
+      + `<h2 class="sec-h bancas-h" title="Conquistas da vida real: XP + gold. Cada nível destrava itens novos.">⚒ FERREIRO · uma banca por categoria</h2>`
+      + S.loja.cats.filter((c) => S.loja.ferreiro.some((f) => f.cat === c)).map((c) => { const n = S.loja.ferreiro.filter((f) => f.cat === c), open = n.filter((f) => f.nv <= tot.level && !(S.loja.purchases.some((p) => p.kind === 'ferreiro' && p.itemId === f.id) && !f.repeat)).length;
+        return vitrine('b:' + slugCat(c), `${FER_ICON[c] || '⚒'} BANCA ${esc(c)}`, `${n.length} itens · ${open} disponíveis no seu nível`, ferreiro(tot, shop, ui, c)); }).join('');
   const td7 = today(), days7 = Array.from({ length: 7 }, (_, i) => addDays(td7, -i)), xbd = R.idx(S).xpByDay;
   const week = { got: days7.reduce((a, d) => a + (xbd[d] || 0), 0), spent: (S.loja.purchases || []).filter((p) => days7.includes(p.date)).reduce((a, p) => a + (p.xp || 0), 0) };
   return `<div class="page-title"><div><h1><em>feira</em>.</h1></div></div>

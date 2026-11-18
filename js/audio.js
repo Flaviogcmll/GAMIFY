@@ -247,7 +247,7 @@ export async function playFile(n, { vol = 1, rate = 1 } = {}) {
   } catch { /* sem som */ }
 }
 let drone = null, pendingDrone = null;
-/** zumbido de fundo da Praga: 0 desliga · 1 baixinho (ANGUSTIADO/ENCOSTO) · 2 forte e mais grave (A PRAGA) */
+/** zumbido de fundo da Praga: 0 desliga · 1 baixinho (ENCOSTO/DISGRAMA) · 2 forte e mais grave (LAMBEHOMI) */
 export async function pragaDrone(level) {
   if (!heard) { pendingDrone = level; return; }
   if (!level || prefs.sfx <= 0) { if (drone) { const d = drone; drone = null; try { d.g.gain.setTargetAtTime(0, ctx.currentTime, 0.5); setTimeout(() => { try { d.s.stop(); } catch { /* */ } }, 2500); } catch { /* */ } } return; }

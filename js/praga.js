@@ -1,6 +1,7 @@
 // v6.5/v6.6 — A PRAGA: o "cartucho amaldiçoado". Tarefa ou ritual atrasado vira assombração caipira que corrompe o jogo
 // (glitch de videogame antigo + mau-olhado, encosto, urubu, mariposa). Regras em rules.js → praga(); aqui fica o que se vê e se ouve.
-// Fases (1 por dia): 1 TREM RUIM · 2 ANGUSTIADO · 3 ENCOSTO · 4 A PRAGA. A cura é a REZA BRABA (fazer a tarefa).
+// v7.3: a Praga é o SOPRO DO LAMBEHOMI contra a casa do PRIMO. Fases (1 por dia): 1 TREM RUIM · 2 ENCOSTO · 3 DISGRAMA · 4 LAMBEHOMI.
+// LUA DE SANGUE: R.luaN(S) ou mais no LAMBEHOMI ao mesmo tempo. A cura é a REZA BRABA (fazer, remarcar ou cancelar), sem XP.
 // Janelas: com o app no ENCOSTO ou pior, CADA infectada aparece dentro de 7 minutos. Nunca por cima de outra janela,
 // nunca enquanto você digita, nunca depois da hora de dormir. Tudo que anda na tela deixa o clique passar (pointer-events: none).
 import { S } from './store.js';
@@ -11,14 +12,20 @@ import { openModal, closeModal, toast, modalOpen } from './ui.js';
 import { sfx, playFile, pragaDrone, pragaWarp } from './audio.js';
 import { mountPortraits } from './primo.js';
 
+// v7.3: o PRIMO é destemido. Com a Praga ele fica PARANOICO (desconfiado, olhando de lado). Medo de verdade só na LUA DE SANGUE.
 const LINES = [
-  'Primo… tem um trem ruim aqui. Tô com medo.',
-  'Ouvi um barulho no paiol. É essa atrasada, eu sei que é.',
-  'Segue o urubu, primo. Ele tá pousado onde ela tá.',
-  'Tô tremendo até o chapéu… resolve essa pra mim?',
+  'Hm. Tem um trem rondando a casa. Eu tô de olho, sô.',
+  'Ouvi um uivo longe. Essa atrasada não me engana não.',
+  'Segue o urubu, primo. Ele tá pousado onde o trem tá.',
+  'Não tô com medo não. Só tô olhando de lado. Bem de lado.',
   'Encosto pesado… só uma reza braba espanta isso.',
-  'O cartucho tá chiando. Faz, remarca ou larga, mas não deixa ela aí.',
-  'Vi uma alma passando com lamparina. Mau sinal.',
+  'O vento tá esquisito. Faz, remarca ou larga, mas não deixa ela aí.',
+  'Vi uma sombra de orelha pontuda no mato. Hm. Desconfiado.',
+];
+const LINES_LUA = [
+  'Primo… a lua ficou vermelha. Agora eu tô com medo de verdade.',
+  'Três uivos nos morros. Segura a BRASINHA, que eu seguro a porta.',
+  'O LAMBEHOMI tá soprando a casa! Reza braba, primo, AGORA!',
 ];
 const shown = new Map(); // id → quando apareceu pela última vez
 let lastPop = 0, lastRoute = '', fxPhase = 0;
@@ -45,8 +52,9 @@ const urubuUri = () => `url("data:image/svg+xml,${encodeURIComponent(pxSvg(SPR.u
 export function pragaPaint() {
   const pg = R.praga(S), root = document.documentElement, route = location.hash || '#quests';
   if (pg.phase) root.dataset.praga = pg.phase; else delete root.dataset.praga;
+  if (pg.lua) root.dataset.lua = '1'; else delete root.dataset.lua; // v7.3: LUA DE SANGUE
   root.style.setProperty('--urubu', urubuUri());
-  // A PRAGA: a tela treme ao trocar de aba
+  // LAMBEHOMI: a tela treme ao trocar de aba
   if (pg.phase >= 4 && route !== lastRoute) { const m = document.getElementById('main'); m?.classList.remove('praga-shake'); void m?.offsetWidth; m?.classList.add('praga-shake'); playFile('praga-chiado', { vol: 0.35 }); }
   lastRoute = route;
   if (pg.phase !== fxPhase) { fxPhase = pg.phase; fx(pg); }
@@ -57,15 +65,16 @@ export function pragaBanner() {
   const pg = R.praga(S);
   if (pg.phase < 3) return '';
   const w = pg.worst, more = pg.list.length - 1;
-  return `<div class="banner praga-b" data-praga="${pg.phase}"><span class="pb-tag">${pg.phase >= 4 ? '💀 ERRO FATAL NA FITA' : '👻 ERRO NA FITA'}</span>
-    <span class="pb-t"><b>${pg.phase >= 4 ? 'A PRAGA TOMOU CONTA' : 'TEM UM ENCOSTO NO JOGO'}</b> · ${esc(w.text.slice(0, 60))} (atrasada há ${w.days} dia${w.days > 1 ? 's' : ''})${more > 0 ? ` e mais ${more}` : ''}. O PRIMO está doente${pg.phase >= 4 ? ', a loja trancou e o XP caiu 20%' : ' e o XP caiu 10%'}.<i class="pb-cur">▮</i></span>
+  return `<div class="banner praga-b" data-praga="${pg.phase}" ${pg.lua ? 'data-lua="1"' : ''}><span class="pb-tag">${pg.lua ? '🌕 LUA DE SANGUE' : pg.phase >= 4 ? '🐺 ERRO FATAL NA FITA' : '🐾 ERRO NA FITA'}</span>
+    <span class="pb-t"><b>${pg.lua ? `${pg.n4} NO LAMBEHOMI: A LUA FICOU VERMELHA` : pg.phase >= 4 ? 'O LAMBEHOMI TÁ SOPRANDO A CASA' : 'A DISGRAMA TÁ NA PORTA'}</b> · ${esc(w.text.slice(0, 60))} (atrasada há ${w.days} dia${w.days > 1 ? 's' : ''})${more > 0 ? ` e mais ${more}` : ''}. ${pg.lua ? 'O PRIMO está com medo de verdade' : 'O PRIMO tá paranoico'}${pg.lua ? ', a BRASINHA virou ovo e a loja trancou' : pg.phase >= 4 ? ', a BRASINHA perdeu força e a loja trancou' : '. Mais um dia e a BRASINHA perde uma fase'}.<i class="pb-cur">▮</i></span>
     <button class="btn sm pri" data-act="praga-pop" data-id="${w.id}">🙏 REZA BRABA</button></div>`;
 }
 /** o que o PRIMO fala quando está infectado */
 export function pragaLine() {
   const pg = R.praga(S);
   if (pg.phase < 2) return null;
-  return `${LINES[Math.floor(Date.now() / 60e3) % LINES.length]} (${pg.worst.text.slice(0, 40)})`;
+  const L = pg.lua ? LINES_LUA : LINES;
+  return `${L[Math.floor(Date.now() / 60e3) % L.length]} (${pg.worst.text.slice(0, 40)})`;
 }
 
 // ───── efeitos: bichos andando, títulos corrompidos, o nome da tarefa rastejando, sons de fundo ─────
@@ -134,12 +143,12 @@ function ambient() {
 const item = (id) => R.praga(S).list.find((x) => x.id === id);
 function popHtml(x) {
   const pg = R.praga(S), isT = x.kind === 'task';
-  return `<div class="praga-pop" data-praga="${x.phase}"><div class="pp-bar"><span>${x.phase >= 3 ? '⚠ ERRO NA FITA' : '⚠ TREM RUIM'}</span><span>${String(Math.floor(Math.random() * 0xffff).toString(16)).toUpperCase().padStart(4, '0')}:${x.days}D</span></div>
-    <h2>${x.phase >= 4 ? '💀' : x.phase >= 3 ? '👻' : x.phase >= 2 ? '😰' : '👁'} ${R.PRAGA_NAMES[x.phase]} <small>fase ${x.phase} de 4</small></h2>
+  return `<div class="praga-pop" data-praga="${x.phase}"><div class="pp-bar"><span>${x.phase >= 3 ? '⚠ ERRO NA FITA' : '⚠ ' + R.PRAGA_NAMES[x.phase]}</span><span>${String(Math.floor(Math.random() * 0xffff).toString(16)).toUpperCase().padStart(4, '0')}:${x.days}D</span></div>
+    <h2>${x.phase >= 4 ? '🐺' : x.phase >= 3 ? '🐾' : x.phase >= 2 ? '🌫' : '👁'} ${R.PRAGA_NAMES[x.phase]} <small>fase ${x.phase} de 4</small></h2>
     <div class="pp-row"><canvas class="pcv" data-portrait="mini" aria-hidden="true"></canvas>
       <div><p class="pp-t"><b>${esc(x.text)}</b></p><p class="meta">atrasada há ${x.days} dia${x.days > 1 ? 's' : ''}${pg.list.length > 1 ? ` · ${pg.list.length} com encosto no total` : ''}</p>
-      <p class="speech">${esc(LINES[Math.floor(Math.random() * LINES.length)])}</p></div></div>
-    <p class="meta">Fazer agora é a <b>🙏 REZA BRABA: +${R.PRAGA_XP[x.phase]} XP</b>. Remarcar (com motivo) ou cancelar também espanta, mas sem XP. Depois: 🛡 corpo fechado por 24 h.</p>
+      <p class="speech">${esc((pg.lua ? LINES_LUA : LINES)[Math.floor(Math.random() * (pg.lua ? LINES_LUA : LINES).length)])}</p></div></div>
+    <p class="meta">Fazer agora é a <b>🙏 REZA BRABA</b>: o PRIMO dá a marretada e o trem vira poeira (o XP é o da tarefa; espantar não dá XP extra). Remarcar (com motivo) custa o de sempre; cancelar é grátis.</p>
     <div class="actions">${isT ? `<button class="btn" data-act="praga-cancel" data-id="${x.id}">✕ CANCELAR</button><button class="btn" data-act="praga-resched" data-id="${x.id}">📅 REMARCAR</button><button class="btn pri" data-act="praga-go" data-id="${x.id}">🙏 FAZER AGORA</button>`
       : `<button class="btn" data-close>DEPOIS</button><button class="btn pri" data-act="ritual-done" data-id="${x.id}" data-close>🙏 FIZ O RITUAL</button>`}</div>
     ${isT ? '<p class="meta" style="text-align:right;margin:6px 0 0"><a href="#" data-close>agora não</a></p>' : ''}</div>`;
@@ -173,7 +182,7 @@ export function rezaBraba(info) {
   const el = document.createElement('div'); el.className = 'reza-fx'; el.setAttribute('aria-hidden', 'true');
   let parts = '';
   for (let i = 0; i < 26; i++) parts += `<i class="${i % 3 ? 'sal' : 'arruda'}" style="left:${(Math.random() * 100).toFixed(1)}%;animation-delay:${(Math.random() * 0.8).toFixed(2)}s"></i>`;
-  el.innerHTML = `<div class="rz-luz"></div>${parts}<div class="rz-t">🙏 REZA BRABA${info?.xp ? ` · +${info.xp} XP` : ''}</div>`;
+  el.innerHTML = `<div class="rz-luz"></div>${parts}<div class="rz-t">🙏 REZA BRABA · o trem virou poeira</div>`;
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 2600);
 }

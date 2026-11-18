@@ -47,9 +47,4 @@ export async function primoThink(el) {
     if (document.contains(el) && t) el.textContent = t;
   } catch { /* sem IA: fica a fala de sempre */ }
 }
-/** a carta da expedição: notícias da estrada + recados, escrita pela IA (com plano B sem IA) */
-export async function expeditionLetter() {
-  const base = brain() + '\nVocê voltou de uma expedição. Escreva a carta em 3 linhas curtas: 2 "notícias da estrada" que mostrem o progresso REAL do jogador (nada inventado) e 1 sugestão prática pra hoje.';
-  try { return await ask(base); } catch { return ''; }
-}
 

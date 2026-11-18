@@ -54,25 +54,54 @@ export function redo() {
 
 const touched = new Set();
 const touch = (...d) => d.forEach((x) => touched.add(x));
-/** v6.5: A PRAGA. Saiu da lista de infectadas = curou. Feita hoje → ANTÍDOTO (XP pela fase). Qualquer cura → VACINA de 24 h. */
+/** A PRAGA. Saiu da lista de infectadas = espantou (REZA BRABA). v7.3: espantar NÃO dá XP (ninguém fabrica Praga pra ganhar ponto) e não há mais vacina.
+ *  Conta pras conquistas (EXORCISTA, CAÇA-ALMA…) e marca a tarefa com 🙏 (t.reza) quando foi feita. */
 function pragaCure(before) {
   if (R.tripNow(S) || !R.neuroOn(S, 'praga')) return null;
   const td = today(), after = new Set(R.praga(S).list.map((x) => x.id)), gone = before.filter((x) => !after.has(x.id));
   if (!gone.length) return null;
-  let xp = 0, early = 0, exo = 0;
+  let early = 0, exo = 0, done = 0;
   for (const x of gone) {
-    const done = x.kind === 'task' ? (() => { const t = S.quests.tasks.find((y) => y.id === x.id); return t && (t.st === 'done' || t.st === 'sent') && (t.doneAt === td || t.sentAt === td); })()
+    const ok = x.kind === 'task' ? (() => { const t = S.quests.tasks.find((y) => y.id === x.id); return t && (t.st === 'done' || t.st === 'sent') && (t.doneAt === td || t.sentAt === td); })()
       : (S.core.rituals || []).find((r) => r.id === x.id)?.last === td;
-    if (!done) continue;
-    const v = R.PRAGA_XP[x.phase] || 0; xp += v; if (x.phase < 3) early++; if (x.phase >= 4) exo++;
+    if (!ok) continue;
+    done++; if (x.phase < 3) early++; if (x.phase >= 4) exo++;
     if (x.kind === 'task') { const t = S.quests.tasks.find((y) => y.id === x.id); if (t) t.reza = x.phase; }
-    S.core.bonus.push({ id: uid('pg'), date: td, kind: 'antidoto', xp: v, label: `🙏 reza braba: ${x.text.slice(0, 40)}` });
   }
-  const pv = S.core.praga || {};
-  S.core.praga = { ...pv, vac: { from: td, until: Date.now() + R.PRAGA_VAC_MS }, cured: (pv.cured || 0) + gone.length, early: (pv.early || 0) + early, exo: (pv.exo || 0) + exo,
-    hist: [...(pv.hist || []), ...gone.map((x) => ({ d: td, ph: x.phase, reza: xp > 0 }))].slice(-200) };
+  const pv = { ...(S.core.praga || {}) }; delete pv.vac;
+  S.core.praga = { ...pv, cured: (pv.cured || 0) + gone.length, early: (pv.early || 0) + early, exo: (pv.exo || 0) + exo,
+    hist: [...(pv.hist || []), ...gone.map((x) => ({ d: td, ph: x.phase, reza: done > 0 }))].slice(-200) };
   S._epoch++;
-  return { n: gone.length, xp, clean: after.size === 0, names: gone.map((x) => x.text) };
+  return { n: gone.length, xp: 0, clean: after.size === 0, names: gone.map((x) => x.text) };
+}
+/** v7.3b: a BRASINHA. 1) fecha os dias que passaram (o CALOR de cada um; viagem não conta) e ela cresce;
+ *  2) cada TREM que chega no LAMBEHOMI tira 1 fase (nunca abaixo de PINTINHO); 3) LUA DE SANGUE = vira OVO (é fênix: renasce).
+ *  Os castigos não somam: a Praga não tira mais XP. Devolve os acontecimentos (pra tela avisar) ou null. */
+export function brasinhaTick() {
+  const b = S.core?.brasinha;
+  if (!b) return null;
+  const td = today(), yd = addDays(td, -1), ev = [];
+  let changed = false;
+  if (!b.upTo || b.upTo < yd) {
+    let d = b.upTo ? addDays(b.upTo, 1) : yd;
+    if (d < addDays(td, -14)) d = addDays(td, -14);
+    for (; d <= yd; d = addDays(d, 1)) {
+      b.calor = Math.max(0, (b.calor || 0) + R.calorOfDay(S, d).gain);
+      while (b.stage < 4 && b.calor >= R.BRAS_NEED[b.stage]) { b.calor -= R.BRAS_NEED[b.stage]; b.stage++; ev.push({ k: b.stage === 1 && b.reborn ? 'reborn' : 'up', stage: b.stage }); b.reborn = false; }
+    }
+    b.upTo = yd; changed = true;
+  }
+  if (R.neuroOn(S, 'praga')) {
+    const pg = R.praga(S), now4 = pg.list.filter((x) => x.kind === 'task' && x.phase >= 4), hit = new Set(b.hit || []);
+    for (const x of now4) if (!hit.has(x.id)) { changed = true; if (b.stage > 1) { b.stage--; b.calor = 0; ev.push({ k: 'down', stage: b.stage, text: x.text }); } }
+    const ids = now4.map((x) => x.id);
+    if (ids.join() !== (b.hit || []).join()) { b.hit = ids; changed = true; } // saiu do LAMBEHOMI e voltou um dia = perde de novo
+    if (pg.lua && !b.lua) { b.lua = td; changed = true; if (b.stage > 0) { b.stage = 0; b.calor = 0; b.reborn = true; ev.push({ k: 'egg' }); } }
+    else if (!pg.lua && b.lua) { b.lua = null; changed = true; }
+  }
+  b.max = Math.max(b.max || 0, b.stage);
+  if (ev.length) { b.hist = [...(b.hist || []), ...ev.map((e) => ({ d: td, ...e }))].slice(-100); S._brasEv = [...(S._brasEv || []), ...ev]; }
+  return changed;
 }
 /** v6.7: anota o último dia com Praga e dá +1 🎟 por semana inteira sem Praga (conta da segunda ao domingo) */
 function pragaWeek(docs, seen) {
@@ -109,6 +138,7 @@ export function commit(docs, fn, opts = {}) {
   const cured = pgBefore.length ? pragaCure(pgBefore) : null;
   if (cured) docs.push('core', 'loja');
   pragaWeek(docs, pgBefore.length > 0);
+  if (brasinhaTick()) docs.push('core'); // v7.3b
   const extra = sync();
   if (extra.changed) docs.push('core');
   { // v6.4: a loja tranca com 3 atrasadas e só destranca quando não sobrar nenhuma
@@ -252,6 +282,20 @@ export function startup() {
     (S.core.primo ||= {}).wear = { hat: 'palha' };
     S.core.migrations.push('chapeu5'); changedCore = true;
   }
+  if (!S.core.migrations.includes('v7-primo')) { // v7.2: EXPEDIÇÃO e o tira/põe do chapéu saíram (o chapéu é parte do desenho). Limpa os restos; o XP que eles deram continua.
+    const p = S.core.primo || {};
+    delete p.exp; delete p.expN; delete p.wear;
+    S.core.migrations.push('v7-primo'); changedCore = true;
+  }
+  if (!S.core.migrations.includes('v7-praga')) { // v7.3: sem vacina/CORPO FECHADO. O XP de reza que já foi ganho continua (fica em core.bonus).
+    if (S.core.praga) delete S.core.praga.vac;
+    S.core.migrations.push('v7-praga'); changedCore = true;
+  }
+  if (!S.core.migrations.includes('v7-bras')) { // v7.3b: nasce a BRASINHA (com o CALOR). Começa na fase que a FAÍSCA já tinha alcançado (8 quadros → 5 fases); quem já está no LAMBEHOMI não tira fase (anistia).
+    const old = Math.max(0, Math.min(7, S.core.primo?.petMax || 0)), map = [1, 1, 1, 2, 2, 3, 3, 4];
+    S.core.brasinha = { stage: map[old], calor: 0, upTo: addDays(td, -1), hit: R.praga(S).list.filter((x) => x.kind === 'task' && x.phase >= 4).map((x) => x.id), max: map[old], hist: [] };
+    S.core.migrations.push('v7-bras'); changedCore = true;
+  }
   if (!S.core.migrations.includes('cores5')) { // v5.9: cores dos blocos = URGENTE, FAZENDO, ESTÁVEL, PARADO (o laranja saiu)
     for (const b of S.quests.blocks) if (b.color === 'orange') { b.color = 'green'; changedQ = true; }
     S.core.migrations.push('cores5'); changedCore = true;
@@ -328,6 +372,7 @@ export function startup() {
   const extra = sync();
   const docs = [...moved];
   if (changedQ) docs.push('quests');
+  if (brasinhaTick()) changedCore = true; // v7.3b: fecha os dias da BRASINHA ao abrir
   if (changedCore || changedCoreV4 || extra.changed) docs.push('core');
   if (S._lojaChanged) { docs.push('loja'); S._lojaChanged = false; }
   if (R.tripNow(S) && fillTrip(td)) docs.push('marks'); // ✈ em viagem: os dias fora entram como folga
@@ -496,6 +541,18 @@ export function doneAll(blockId) {
     return { msg: `✓ ${n} tarefa(s) concluída(s) de uma vez.`, feedback: { closedBlock: S._closedBlock, boss: S._bossDown || undefined } };
   }, { label: 'concluir tudo do bloco' });
 }
+/** v7.1: concluir VÁRIAS de uma vez (Shift + clique no PC, segurar e arrastar no celular, ≡ CONCLUIR TUDO). Um commit só: o ↩ desfaz tudo.
+ *  Pula as que só podem ser concluídas em outro lugar (tarefa-mãe de bloco aberto, subtarefa que veio do BREAKDOWN). */
+export function doneMany(ids) {
+  const list = [...new Set(ids)].map(T).filter((t) => t && R.isOpen(t) && !t.linked && !(t.link && B(t.link) && B(t.link).st !== 'done'));
+  if (!list.length) return { error: 'Nenhuma dessas dá pra concluir daqui.' };
+  S._closedBlock = null; S._bossDown = null;
+  return commit(['quests'], () => {
+    const d = today(); let n = 0;
+    for (const t of list) if (R.isOpen(t)) { completeTask(t, d); n++; }
+    return { msg: `✓ ${n} tarefa(s) concluída(s) de uma vez. ↩ desfaz.`, feedback: { closedBlock: S._closedBlock, boss: S._bossDown || undefined } };
+  }, { label: 'concluir várias' });
+}
 export function toggleDone(id, at) {
   const t = T(id);
   if (!t) return;
@@ -506,7 +563,6 @@ export function toggleDone(id, at) {
   return commit(['quests'], () => {
     if (t.st === 'done' || t.st === 'sent') { uncompleteTask(t); return { msg: null }; }
     const d = today();
-    expBoost(R.C.X_TASK);
     const auto = completeTask(t, d);
     const loot = addLoot(t, d);
     const b = S._closedBlock;
@@ -1039,6 +1095,29 @@ export function updateMilestones(list) {
 export function setNeuro(k, v) {
   commit(['core'], () => { S.core.settings ||= {}; S.core.settings.neuro = { ...(S.core.settings.neuro || {}), [k]: v }; }, { noUndo: true });
 }
+// ───── v7.5: PRESETS de ajustes (salvar o jeito atual com um nome) e VOLTAR AO PADRÃO ─────
+// Os horários do corpo (acordar, dormir, refeições) são seus: nunca mudam com preset nem com o padrão.
+const PERSONAL = ['wake', 'bed', 'meals'];
+const personal = () => Object.fromEntries(PERSONAL.filter((k) => S.core.settings?.neuro?.[k] != null).map((k) => [k, S.core.settings.neuro[k]]));
+export function savePreset(name) {
+  const n = String(name || '').trim().toUpperCase().slice(0, 24);
+  if (!n) return { error: 'Dê um nome ao preset (ex.: SEMANA PESADA).' };
+  return commit(['core'], () => {
+    const set = JSON.parse(JSON.stringify(S.core.settings || {}));
+    if (set.neuro) for (const k of PERSONAL) delete set.neuro[k];
+    S.core.presets = [...(S.core.presets || []).filter((p) => p.name !== n), { name: n, at: today(), settings: set }].slice(-8);
+    return { msg: `💾 Preset ${n} guardado.` };
+  });
+}
+export function applyPreset(name) {
+  const p = (S.core.presets || []).find((x) => x.name === name);
+  if (!p) return { error: 'Preset não encontrado.' };
+  return commit(['core'], () => { const mine = personal(), set = JSON.parse(JSON.stringify(p.settings || {})); set.neuro = { ...(set.neuro || {}), ...mine }; S.core.settings = set; return { msg: `🎛 Agora vale o preset ${name}. O ↩ desfaz.` }; });
+}
+export function deletePreset(name) { return commit(['core'], () => { S.core.presets = (S.core.presets || []).filter((x) => x.name !== name); }); }
+export function resetSettings() {
+  return commit(['core'], () => { const mine = personal(); S.core.settings = Object.keys(mine).length ? { neuro: mine } : {}; return { msg: '↺ Ajustes de volta ao padrão (seus horários ficaram). O ↩ desfaz.' }; });
+}
 export function setSetting(k, v) {
   commit(['core'], () => { S.core.settings ||= {}; S.core.settings[k] = v; });
 }
@@ -1293,11 +1372,14 @@ export function initRoutine() {
 }
 
 /** arrastar bloco: reordena na coluna ou muda de coluna (BREAKDOWN / TRABALHO / CAPTAÇÕES) */
-export function dropBlock(id, { group, before }) {
+export function dropBlock(id, { group, before, col, peers }) {
   const b = B(id);
   if (!b || !group) return;
   return commit(['quests'], () => {
     b.group = group;
+    // v7.0: colunas fixas guardadas no bloco (b.col = 0, 1 ou 2). Quem ainda não tinha, fica na coluna em que aparecia na tela.
+    (peers || []).forEach(([pid, c]) => { const x = B(pid); if (x && x !== b && !Number.isInteger(x.col)) x.col = c; });
+    if (Number.isInteger(col) && col >= 0 && col < 3) b.col = col;
     const list = S.quests.blocks.filter((x) => x.group === group && x !== b).sort((x, y) => x.ord - y.ord);
     const i = before ? list.findIndex((x) => x.id === before) : list.length;
     list.splice(i < 0 ? list.length : i, 0, b);
@@ -1318,7 +1400,6 @@ export function focusDone(min, ok, taskId) {
     S.core.focus.push({ date: td, min, ok, taskId: taskId || null });
     if (S.core.focus.length > 400) S.core.focus = S.core.focus.slice(-400);
     if (!ok) return { msg: '🪵 A fogueira apagou: você saiu do app. Sem XP desta vez.' };
-    expBoost(Math.round((min / 25) * R.C.X_FOCUS));
     const today = (S.core.bonus || []).filter((b) => b.kind === 'foco' && b.date === td).reduce((a, b) => a + b.xp, 0);
     const xp = Math.min(Math.round((min / 25) * R.C.FOCUS_XP), Math.max(0, 60 - today));
     S.core.bonus ||= [];
@@ -1430,14 +1511,6 @@ function dropVillage() {
   S._lojaChanged = true;
   return true;
 }
-/** tarefa concluída e foco encurtam a expedição do PRIMO (a regra de quanto está em rules.js: X_TASK, X_FOCUS) */
-function expBoost(mins) {
-  const e = S.core.primo?.exp;
-  if (!e || e.claimed || !(mins > 0)) return;
-  e.end = Math.max(Date.now(), e.end - mins * 60000);
-  touch('core');
-}
-
 // ───────────────────────── PESO (REFLEXÃO) ─────────────────────────
 export function saveWeight(date, kg) {
   const v = Math.round(+String(kg).replace(',', '.') * 10) / 10;

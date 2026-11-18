@@ -88,3 +88,14 @@ export function floatXp(text, at) {
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 1200);
 }
+
+/** v7.3b: o TREM virou poeira (tarefa concluída): uma nuvenzinha de poeira e palha no lugar do clique */
+export function poof(at) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const el = document.createElement('div');
+  el.className = 'poof'; el.setAttribute('aria-hidden', 'true');
+  el.style.left = (at?.x ?? innerWidth / 2) + 'px'; el.style.top = (at?.y ?? innerHeight / 2) + 'px';
+  el.innerHTML = Array.from({ length: 9 }, (_, i) => `<i style="--a:${i * 40 + Math.random() * 20}deg;--d:${18 + Math.random() * 16}px"></i>`).join('');
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 700);
+}
