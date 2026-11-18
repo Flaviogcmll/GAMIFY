@@ -6,3 +6,4 @@ GUIA_SPRITES_IA.md
 gamify-backup-*.json
 *.backup.json
 *.pdf
+.claude/settings.local.json
