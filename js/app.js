@@ -41,7 +41,7 @@ import { maybeReview, extendReview } from './review.js';
 import { extendBujo, afterRenderBujo } from './bujo.js';
 import { perksNav, perksGo, applyCursor, CURSOR_KEY } from './telas.js';
 import { extendMapa, mountMap } from './mapa.js';
-import { extendPraga, pragaPaint, pragaBanner } from './praga.js';
+import { extendPraga, pragaPaint, pragaBanner, rezaBraba } from './praga.js';
 import { renderPostit } from './postit.js';
 
 
@@ -272,7 +272,7 @@ A.onFeedback((fb) => {
   primoFeedback(fb);
   if (fb.levelUp) levelUp(fb.levelUp);
   if (fb.chapterClosed) chapterCard(fb.chapterClosed);
-  if (fb.praga) { toast(fb.praga.xp ? `💉 ANTÍDOTO! +${fb.praga.xp} XP · ${fb.praga.clean ? 'a Praga foi embora e o PRIMO sarou!' : 'o PRIMO melhorou um pouco'} · 🛡 vacina de 24 h` : `🛡 Praga contida (${esc(fb.praga.names[0].slice(0, 40))}) · vacina de 24 h. Fazendo dá antídoto em XP.`, 'good'); sfx(fb.praga.clean ? 'upgrade' : 'ready'); }
+  if (fb.praga) { rezaBraba(fb.praga); toast(fb.praga.xp ? `🙏 REZA BRABA! +${fb.praga.xp} XP · ${fb.praga.clean ? 'a Praga foi embora e o PRIMO sarou!' : 'o PRIMO melhorou um pouco'} · 🛡 corpo fechado por 24 h` : `🛡 Encosto espantado (${esc(fb.praga.names[0].slice(0, 40))}) · corpo fechado por 24 h. Fazendo, a reza dá XP.`, 'good'); }
   if (!fb.quiet || fb.xp || fb.achievements?.length || fb.levelUp) render();
 });
 function levelUp(t) {

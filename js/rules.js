@@ -662,7 +662,7 @@ export const ACHIEVEMENTS = [
   ['eyes10', 'OLHO DE ÁGUIA', 'Deixe 10 blocos 👁 REVISADOS ao mesmo tempo', 'reviewedNow', 10, 80], ['window1', 'DONO DA CASA', 'Crie uma janela sua no QUESTS', 'windows', 1, 40],
   ['trip1', 'MOCHILEIRO', 'Use o ✈ modo VIAGEM e volte', 'trips', 1, 50], ['clean30', 'FICHA LIMPA', '30 dias sem castigo 💥 de prazo estourado', 'cleanDays', 30, 200],
   ['storm10', 'FURACÃO', '10 tarefas num dia só', 'maxDone', 10, 150], ['clock100', 'RELÓGIO SUÍÇO', '100 tarefas feitas no prazo', 'onTime', 100, 400],
-  ['imuno', 'IMUNOLOGISTA', 'Cure 3 tarefas da Praga antes da fase 3', 'pragaEarly', 3, 120], ['imuno10', 'VACINA EM DIA', 'Cure 10 tarefas da Praga', 'pragaCured', 10, 200],
+  ['imuno', 'BENZEDEIRA', 'Espante 3 encostos antes de virarem ENCOSTO (fase 3)', 'pragaEarly', 3, 120], ['imuno10', 'CORPO FECHADO', 'Espante 10 pragas', 'pragaCured', 10, 200],
   ['done500', 'MÃO DE OBRA PESADA', 'Conclua 500 tarefas', 'done', 500, 500], ['done1000', 'MIL E UMA', 'Conclua 1.000 tarefas', 'done', 1000, 1000],
 ].map(([key, name, desc, metric, goal, xp]) => ({ key, name, desc, metric, goal, xp }));
 
@@ -1355,14 +1355,14 @@ export function neuroRoutine(plan, hours) {
 }
 
 // ───────────────────────── v6.5: A PRAGA (tarefa e ritual atrasados viram uma praga que se espalha) ─────────────────────────
-// 4 fases, 1 por dia de atraso (rituais começam na 2): 1 incubação · 2 infecção (vira o FOCO AGORA) · 3 espalhou (faixa em todas
-// as abas, janelas a cada 7 min, −10% de XP nas outras) · 4 surto (tela avermelhada, FAÍSCA doente, −20% e loja trancada).
+// 4 fases, 1 por dia de atraso (rituais começam na 2): 1 TREM RUIM · 2 ANGUSTIADO (vira o FOCO AGORA) · 3 ENCOSTO (faixa em todas
+// as abas, janelas a cada 7 min, −10% de XP nas outras) · 4 A PRAGA (tela vermelha e preta, FAÍSCA doente, −20% e loja trancada).
 // Cada atrasada tem a sua fase; o app mostra a PIOR e o castigo NÃO soma. Feriado, dia de DESCANSO e VIAGEM não contam.
-// Cura: fazer (dá ANTÍDOTO pela fase), remarcar ou cancelar. Depois de curar: VACINA de 24 h (atrasada nova fica presa na fase 1).
+// Cura: fazer = REZA BRABA (XP pela fase), remarcar ou cancelar. Depois: corpo fechado (vacina) 24 h (atrasada nova fica presa na fase 1).
 export const PRAGA_XP = [0, 5, 10, 20, 30];
 export const PRAGA_POP_MS = 7 * 60e3;
 export const PRAGA_VAC_MS = 24 * 3600e3;
-export const PRAGA_NAMES = ['', 'INCUBAÇÃO', 'INFECÇÃO', 'ESPALHOU', 'SURTO'];
+export const PRAGA_NAMES = ['', 'TREM RUIM', 'ANGUSTIADO', 'ENCOSTO', 'A PRAGA']; // v6.6: nomes do dono (cartucho amaldiçoado)
 export function praga(s, td = today()) {
   const c = cache(s), key = td + '|' + Math.floor(Date.now() / 60e3);
   if (c.praga?.key === key) return c.praga.v;

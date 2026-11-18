@@ -65,7 +65,7 @@ function pragaCure(before) {
       : (S.core.rituals || []).find((r) => r.id === x.id)?.last === td;
     if (!done) continue;
     const v = R.PRAGA_XP[x.phase] || 0; xp += v; if (x.phase < 3) early++;
-    S.core.bonus.push({ id: uid('pg'), date: td, kind: 'antidoto', xp: v, label: `💉 antídoto: ${x.text.slice(0, 40)}` });
+    S.core.bonus.push({ id: uid('pg'), date: td, kind: 'antidoto', xp: v, label: `🙏 reza braba: ${x.text.slice(0, 40)}` });
   }
   const pv = S.core.praga || {};
   S.core.praga = { ...pv, vac: { from: td, until: Date.now() + R.PRAGA_VAC_MS }, cured: (pv.cured || 0) + gone.length, early: (pv.early || 0) + early };

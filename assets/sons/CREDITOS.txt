@@ -1,0 +1,8 @@
+Sons da PRAGA (v6.6). Todos CC0 (domínio público), do OpenGameArt.org. Cortados, normalizados e convertidos para mp3 mono.
+- praga-corvo.mp3  ← "Crow caw" (zeroisnotnull)            https://opengameart.org/content/crow-caw
+- praga-chiado.mp3 ← "Frequency Static Sound Effects" (bretbernhoft)  https://opengameart.org/content/frequency-static-sound-effects
+- praga-sino.mp3   ← "Bell dings/chimes" (pwl), afinado mais grave com eco  https://opengameart.org/content/bell-dingschimes
+- praga-drone.mp3  ← "Ambient Horror" (techiew)            https://opengameart.org/content/ambient-horror
+- praga-fita.mp3   ← "Reversing Time / Stuck in Time" (isaiah658)  https://opengameart.org/content/reversing-time-stuck-in-time
+- praga-canto.mp3  ← "Creepy incoherent chanting" (owlishmedia)  https://opengameart.org/content/creepy-incoherent-chanting
+- reza.mp3         ← "ethereal chant" do mesmo pacote (owlishmedia) + "Bell dings/chimes" (pwl)
