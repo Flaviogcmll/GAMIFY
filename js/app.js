@@ -41,6 +41,7 @@ import { maybeReview, extendReview } from './review.js';
 import { extendBujo, afterRenderBujo } from './bujo.js';
 import { perksNav, perksGo, applyCursor, CURSOR_KEY } from './telas.js';
 import { extendMapa, mountMap } from './mapa.js';
+import { extendPraga, pragaPaint, pragaBanner } from './praga.js';
 import { renderPostit } from './postit.js';
 
 
@@ -131,6 +132,7 @@ function render() {
   if (status.mode === 'local' && !status.error && !localStorage.getItem('gamify-ui:localok')) banners.push(typeof window.claude === 'undefined' ? '<div class="banner info">📱 Modo app: seus dados ficam neste aparelho. Conecte o Google Drive em PERKS AND RULES para sincronizar celular e PC, ou baixe um backup. <button class="btn sm ghost" data-act="local-ok">ENTENDI</button></div>' : '<div class="banner info">Modo local: os dados ficam só neste navegador. Abra pelo link do claude.ai pra sincronizar celular e PC.</div>');
   if (!status.error) banners.push(backupBanner());
   banners.push(tripBanner());
+  try { pragaPaint(); banners.push(pragaBanner()); } catch (err) { console.error(err); }
   const y = scrollY, refocus = captureFocus(), sideY = $main.querySelector('.side')?.scrollTop || 0, redraft = captureDrafts();
   let bodyHtml;
   try { bodyHtml = sceneBanner(cur, ui) + ROUTES.find((r) => r[0] === cur)[3](ui); } catch (err) {
@@ -270,6 +272,7 @@ A.onFeedback((fb) => {
   primoFeedback(fb);
   if (fb.levelUp) levelUp(fb.levelUp);
   if (fb.chapterClosed) chapterCard(fb.chapterClosed);
+  if (fb.praga) { toast(fb.praga.xp ? `💉 ANTÍDOTO! +${fb.praga.xp} XP · ${fb.praga.clean ? 'a Praga foi embora e o PRIMO sarou!' : 'o PRIMO melhorou um pouco'} · 🛡 vacina de 24 h` : `🛡 Praga contida (${esc(fb.praga.names[0].slice(0, 40))}) · vacina de 24 h. Fazendo dá antídoto em XP.`, 'good'); sfx(fb.praga.clean ? 'upgrade' : 'ready'); }
   if (!fb.quiet || fb.xp || fb.achievements?.length || fb.levelUp) render();
 });
 function levelUp(t) {
@@ -315,7 +318,7 @@ function editTask(id) {
   openModal(`<form data-form="task" data-id="${id}" autocomplete="off" class="mform">
     <div class="mhead"><span class="mtype">${p.mini ? '⚔ mini-boss' : p.step ? '↳ passo' : 'tarefa'}</span><span class="mwhere">${esc(where)}</span>
       <span class="chip xp" title="${now.parts.length ? esc(now.parts.join(' · ')) : 'XP desta tarefa'}">${t.st === 'done' ? `+${t.xp}` : now.xp} XP</span></div>
-    <textarea class="inp mtitle" id="t-text" name="text" rows="2" aria-label="Texto" autofocus>${esc(t.text.replace(MARK_RE.star, '').replace(MARK_RE.home, '').replace(MARK_RE.xp, '').replace(/💰/g, '$').replace(/^(⚔|↳|>)\s*/, '').trim())}</textarea>
+    <textarea class="inp mtitle" id="t-text" name="text" rows="2" aria-label="Texto" autofocus>${esc(t.text.replace(MARK_RE.star, '').replace(MARK_RE.home, '').replace(MARK_RE.xp, '').replace(/💰/g, '$').replace(/^(⚔|↳|>)\s*/, '').trim())}</textarea>${(t.pragaLog || []).length ? `<p class="meta" title="Motivos que você escreveu ao remarcar pela Praga">🐛 ${t.pragaLog.map((x) => `${esc(x.d.slice(8))}/${esc(x.d.slice(5, 7))}: ${esc(x.why)}`).join(' · ')}</p>` : ''}
     <div class="msplit">
       <div><label class="lbl">Status</label><div class="pills">${[['', '○ ABERTA', 'Ainda por fazer'], ['done', '✓ FEITA', 'Concluída (ganha o XP)'], ['cancel', '✕ CANCELADA', 'Não vale mais: sem XP e sem punição']].map(([k, n, tip]) => `<button type="button" class="pill ${st === k ? 'on' : ''}" data-act="set-status" data-id="${id}" data-st="${k}" title="${tip}"><span>${n}</span></button>`).join('')}</div></div>
       <div><label class="lbl">Cor</label>${swatches(color, true)}</div></div>
@@ -868,6 +871,7 @@ FORMS['new-chapter'] = (f) => { const ch = S.core.chapter || {}; closeModal(); A
 FORMS['rot-hours'] = (f) => { const v = f.h.value; if (!v) return; A.setRoutineHours([...(S.core.routine?.hours || []), v]); ACTIONS['rot-hours'](); };
 extendBujo(ACTIONS, FORMS);
 extendMapa(ACTIONS, FORMS);
+extendPraga(ACTIONS, FORMS, jump);
 document.addEventListener('submit', (e) => { const f = e.target.closest('form[data-form]'); if (!f) return; e.preventDefault(); FORMS[f.dataset.form]?.(f); });
 document.addEventListener('click', () => flushAdd()); // depois do clique tratado: adiciona o texto que ficou numa linha "+ adicionar"
 document.addEventListener('change', (e) => {

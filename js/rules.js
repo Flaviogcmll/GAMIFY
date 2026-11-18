@@ -481,6 +481,7 @@ export function taskXp(s, t, d = today()) {
   }
   if (p.mini && ev?.type === 'mini') { m *= 2; parts.push('⚔ x2'); }
   if ((s.core?.weekly?.[weekStart(d)] || []).includes(t.id)) { m *= 1.5; parts.push('📌 missão da semana x1,5'); }
+  if (d === today()) { const pg = praga(s, d); if (pg.mult < 1 && !pg.list.some((x) => x.id === t.id)) { m *= pg.mult; parts.push(`🐛 A Praga −${Math.round((1 - pg.mult) * 100)}%`); } }
   const tm = dayStatus(s, d).taskMult;
   if (tm !== 1) { m *= tm; parts.push(`${tm > 1 ? '✨' : '⚠'} status ${tm > 1 ? '+' : ''}${Math.round((tm - 1) * 100)}%`); }
   return { xp: Math.round(base * m), base, onTime, early, parts };
@@ -661,6 +662,7 @@ export const ACHIEVEMENTS = [
   ['eyes10', 'OLHO DE ÁGUIA', 'Deixe 10 blocos 👁 REVISADOS ao mesmo tempo', 'reviewedNow', 10, 80], ['window1', 'DONO DA CASA', 'Crie uma janela sua no QUESTS', 'windows', 1, 40],
   ['trip1', 'MOCHILEIRO', 'Use o ✈ modo VIAGEM e volte', 'trips', 1, 50], ['clean30', 'FICHA LIMPA', '30 dias sem castigo 💥 de prazo estourado', 'cleanDays', 30, 200],
   ['storm10', 'FURACÃO', '10 tarefas num dia só', 'maxDone', 10, 150], ['clock100', 'RELÓGIO SUÍÇO', '100 tarefas feitas no prazo', 'onTime', 100, 400],
+  ['imuno', 'IMUNOLOGISTA', 'Cure 3 tarefas da Praga antes da fase 3', 'pragaEarly', 3, 120], ['imuno10', 'VACINA EM DIA', 'Cure 10 tarefas da Praga', 'pragaCured', 10, 200],
   ['done500', 'MÃO DE OBRA PESADA', 'Conclua 500 tarefas', 'done', 500, 500], ['done1000', 'MIL E UMA', 'Conclua 1.000 tarefas', 'done', 1000, 1000],
 ].map(([key, name, desc, metric, goal, xp]) => ({ key, name, desc, metric, goal, xp }));
 
@@ -672,6 +674,7 @@ function extraMetrics(s) {
     bestWeekXp: Math.max(0, ...Object.values(weeks)),
     missionWeeks: (s.core?.bonus || []).filter((b) => b.kind === 'missoes').length,
     petStage: s.core?.primo?.petMax || 0,
+    pragaEarly: s.core?.praga?.early || 0, pragaCured: s.core?.praga?.cured || 0,
     ...(() => {
       const comps = idx(s).comps, closed = allBlocks(s).filter((b) => b.st === 'done'), td = today();
       const lastHit = [...(s.core?.blow?.hits || [])].sort().at(-1) || s.core?.startDate || td;
@@ -748,9 +751,10 @@ export function shopState(s, d = today()) {
   const overdue = overdueTasks(s, d);
   // v6.4: com 3+ atrasadas a loja tranca e só destranca quando TODAS forem resolvidas ou remarcadas (core.shopLock)
   const rescued = false; // v6.4: o resgate não destranca mais a loja (o dono quer: resolva TODAS)
-  const locked = overdue.length >= 3 || (!!s.core?.shopLock && overdue.length > 0);
+  const pragaLock = praga(s, d).phase >= 4;
+  const locked = overdue.length >= 3 || (!!s.core?.shopLock && overdue.length > 0) || pragaLock;
   const econ = econIndex(s, d);
-  return { mult: st.shopMult * econ, econ, locked, rescued: rescued && overdue.length >= 3, overdue: overdue.length, status: st };
+  return { mult: st.shopMult * econ, econ, locked, pragaLock, rescued: rescued && overdue.length >= 3, overdue: overdue.length, status: st };
 }
 export function tavernaPrice(s, item, d = today()) {
   let m = dayStatus(s, d).shopMult;
@@ -766,7 +770,7 @@ export function blowState(s, d = today()) {
   const b = s.core?.blow || {}, n = b.n || 0, hit = (b.hits || []).filter((h) => h <= d).sort().at(-1);
   // v5.16 (2F): o castigo tem saída (resolver ou remarcar 1 atrasada depois dele cancela) e intensidade escolhida em PERKS
   const mode = s.core?.settings?.castigo || 'loja', rescued = !!hit && (s.core?.rescue || '') >= hit;
-  const on = !!hit && diffDays(hit, d) < BLOW_DAYS && !rescued;
+  const on = !!hit && diffDays(hit, d) < BLOW_DAYS && !rescued && praga(s, d).phase < 3; // v6.5: com a Praga ativa o castigo não soma
   return { n, left: BLOW_EVERY - (n % BLOW_EVERY), active: on && mode === 'loja', warn: on && mode === 'aviso', mode, rescued: !!hit && rescued && diffDays(hit, d) < BLOW_DAYS };
 }
 export const ferreiroXp = (item) => C.FERREIRO_XP * item.nv;
@@ -1202,7 +1206,7 @@ export function chapterStats(s, from, to = today()) {
 // Tudo liga/desliga em PERKS (settings.neuro). Os horários são do dono.
 export const NEURO_DEFAULT = { clock: true, curfew: true, calm: true, ladder: true, wake: '07:00', bed: '23:00', meals: ['08:00', '12:30', '19:30'],
   // v5.16: Bullet Journal e praticidade (cada um liga/desliga em PERKS → 🧠)
-  mig: true, why: true, box: true, cheio: true, pato: true, quick: true, swipe: true, proc: true, foco: true };
+  mig: true, why: true, box: true, cheio: true, pato: true, quick: true, swipe: true, proc: true, foco: true, praga: true };
 export const neuro = (s) => ({ ...NEURO_DEFAULT, ...(s.core?.settings?.neuro || {}) });
 export const neuroOn = (s, k) => neuro(s)[k] !== false;
 export const hm = (x) => { const [h, m] = String(x || '0:0').split(':').map(Number); return ((h || 0) * 60 + (m || 0)) % 1440; };
@@ -1300,6 +1304,10 @@ export function comebackDue(s, td = today()) {
 }
 // 2E + 5A FOCO AGORA: uma tarefa só, e o porquê (o "cérebro": junta prazo, boss, missão, horário do corpo e prioridade)
 export function focusNow(s, td = today(), skip = []) {
+  { // v6.5: da fase 2 em diante a tarefa da Praga é o FOCO (sem OUTRA)
+    const pg = praga(s, td), w = pg.list.find((x) => x.kind === 'task' && x.phase >= 2), t = w && (s.quests?.tasks || []).find((x) => x.id === w.id);
+    if (t) return { task: t, why: `🐛 A PRAGA: atrasada há ${w.days} dia(s), fase ${w.phase} de 4`, praga: w.phase };
+  }
   const wm = new Set(weeklyMissions(s, td).ids || []), clock = neuroOn(s, 'clock') ? bodyClock(s).key : '';
   const bossOf = (t) => (t.block && (s.quests?.bosses || []).find((b) => b.block === t.block)) || null;
   const cands = openTasks(s).filter((t) => t.st !== 'wait' && !t.who && !t.dep && !t.mother && !skip.includes(t.id) && (!t.block || findBlock(s, t.block)?.color !== 'black'));
@@ -1345,3 +1353,60 @@ export function neuroRoutine(plan, hours) {
   }
   return { name: 'NEURO', grid: g };
 }
+
+// ───────────────────────── v6.5: A PRAGA (tarefa e ritual atrasados viram uma praga que se espalha) ─────────────────────────
+// 4 fases, 1 por dia de atraso (rituais começam na 2): 1 incubação · 2 infecção (vira o FOCO AGORA) · 3 espalhou (faixa em todas
+// as abas, janelas a cada 7 min, −10% de XP nas outras) · 4 surto (tela avermelhada, FAÍSCA doente, −20% e loja trancada).
+// Cada atrasada tem a sua fase; o app mostra a PIOR e o castigo NÃO soma. Feriado, dia de DESCANSO e VIAGEM não contam.
+// Cura: fazer (dá ANTÍDOTO pela fase), remarcar ou cancelar. Depois de curar: VACINA de 24 h (atrasada nova fica presa na fase 1).
+export const PRAGA_XP = [0, 5, 10, 20, 30];
+export const PRAGA_POP_MS = 7 * 60e3;
+export const PRAGA_VAC_MS = 24 * 3600e3;
+export const PRAGA_NAMES = ['', 'INCUBAÇÃO', 'INFECÇÃO', 'ESPALHOU', 'SURTO'];
+export function praga(s, td = today()) {
+  const c = cache(s), key = td + '|' + Math.floor(Date.now() / 60e3);
+  if (c.praga?.key === key) return c.praga.v;
+  const v = pragaCalc(s, td);
+  c.praga = { key, v };
+  return v;
+}
+function pragaCalc(s, td) {
+  const none = { list: [], phase: 0, worst: null, mult: 1, vac: false };
+  if (!neuroOn(s, 'praga') || tripNow(s)) return none;
+  const pv = s.core?.praga || {}, vacOn = !!pv.vac && Date.now() < pv.vac.until, vacEnd = pv.vac ? new Date(pv.vac.until).toISOString().slice(0, 10) : null;
+  const rests = s.core?.rests || [];
+  const born = pv.start || td; // anistia de estreia: nada conta antes do dia em que a Praga chegou
+  const daysLate = (start) => { // start = 1º dia de atraso
+    if (start < born) start = born;
+    let n = 0;
+    for (let d = start < addDays(td, -40) ? addDays(td, -40) : start; d <= td; d = addDays(d, 1)) {
+      if (holidayName(d) || rests.includes(d) || tripDay(s, d)) continue;
+      if (pv.vac && start >= pv.vac.from && d >= pv.vac.from && d <= vacEnd) continue; // nasceu durante a vacina: os dias da vacina não contam
+      n++;
+    }
+    return n;
+  };
+  const list = [];
+  const add = (id, kind, text, start, extra = 0) => {
+    const days = daysLate(start);
+    if (start < born) start = born;
+    let phase = Math.min(4, Math.max(1, days + extra));
+    if (vacOn && start >= pv.vac.from) phase = 1; // vacina: a nova fica presa na incubação
+    list.push({ id, kind, text, days: Math.max(1, days), phase });
+  };
+  for (const t of openTasks(s)) {
+    if (!t.due || t.due >= td || t.st === 'wait' || t.who || t.dep || t.mother) continue;
+    if (t.block && findBlock(s, t.block)?.color === 'black') continue;
+    add(t.id, 'task', String(t.text).replace(/\s*\(\d+\s*XP\)/i, ''), addDays(t.due, 1));
+  }
+  for (const r of s.core?.rituals || []) {
+    const st = ritualStatus(r, td);
+    if (st.left == null || st.left >= 0) continue;
+    add(r.id, 'ritual', '🔁 ' + r.name, addDays(st.next, 1), 1);
+  }
+  if (!list.length) return { ...none, vac: vacOn };
+  list.sort((a, b) => b.phase - a.phase || b.days - a.days);
+  const phase = list[0].phase;
+  return { list, phase, worst: list[0], mult: phase >= 4 ? 0.8 : phase >= 3 ? 0.9 : 1, vac: vacOn };
+}
+export const pragaOf = (s, id) => praga(s).list.find((x) => x.id === id) || null;

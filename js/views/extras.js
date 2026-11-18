@@ -219,6 +219,7 @@ function neuroCard() {
       ${ck('why', '💡 Por que esse boss importa', `Dois campos no boss: "por que importa?" e "o que acontece se eu não fizer?". Boss ${R.BOSS_IDLE_DAYS} dias parado → o PRIMO lembra (no máximo 1 vez por semana).`)}
       ${ck('box', '⏰ Time box', `Tarefa remarcada ${R.RESCHED_LOCK} vezes trava: pra empurrar de novo, marque horário e duração. Ou cancele.`)}
       ${ck('cheio', '🧠 HOJE cheio demais', 'Passou do limite de tarefas por dia (AJUSTES → máx. prazos por dia), aparece um aviso curto em HOJE e um botão que empurra as menos importantes pra amanhã, sem custo.')}
+      ${ck('praga', '🐛 A Praga', 'Tarefa ou ritual atrasado vira praga: 4 fases, 1 por dia (rituais começam na 2). Fase 2 vira o FOCO AGORA; fase 3 espalha (faixa nas abas, janela a cada 7 min, −10% XP); fase 4 surto (tela vermelha, −20% XP, loja trancada). Fazer dá antídoto; curar dá vacina de 24 h. Feriado, descanso e viagem não contam.')}
       ${ck('pato', '🦆 Pato de borracha', 'No SOS TRAVEI: explicar pro PRIMO o que tentou, o que funcionou e o que não. Fica guardado na tarefa.')}
       ${ck('proc', '⚔ Recompensa do processo', 'Cada subtarefa feita num boss mostra quanto de vida ele perdeu. Recompensa que está longe perde valor pro cérebro (desconto temporal): ver o dano agora mantém a motivação no caminho.')}
       ${ck('foco', '🎯 FOCO AGORA', 'No topo do QUESTS, UMA tarefa sugerida pelo PRIMO, com o porquê (atrasada, prazo hoje, boss parado, missão, horário do corpo). OUTRA ▸ mostra a próxima.')}

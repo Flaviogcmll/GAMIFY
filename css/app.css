@@ -1538,3 +1538,38 @@ html, body, main { overflow-anchor: none; }
 .vitrine.shut .vit-h { height: 64px !important; min-height: 0; aspect-ratio: auto; }
 /* botão CONCLUIR TUDO do bloco */
 .bbtns .done-all { color: var(--c-ok); font-weight: 700; }
+
+/* ═════════════ v6.5 — A PRAGA (tarefa atrasada que se espalha) ═════════════ */
+@keyframes praga-pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c-urg) 0%, transparent); } 50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-urg) 45%, transparent); } }
+@keyframes praga-float { 0% { transform: translateY(6px) rotate(0); opacity: 0; } 20% { opacity: .9; } 100% { transform: translateY(-38px) rotate(30deg); opacity: 0; } }
+/* fase 1 incubação: laranja com 🦠 · fase 2 infecção: vermelho pulsando · fase 3/4: mais forte */
+li.task[data-praga] .txt::before, .li.rit[data-praga] .lt::before { content: '🦠 '; }
+li.task[data-praga="1"] { border-left-color: var(--c-quase) !important; background: color-mix(in srgb, var(--c-quase) 8%, transparent); }
+li.task[data-praga="2"], li.task[data-praga="3"], li.task[data-praga="4"], .li.rit[data-praga="2"], .li.rit[data-praga="3"], .li.rit[data-praga="4"] { border-left-color: var(--c-urg) !important; background: color-mix(in srgb, var(--c-urg) 10%, transparent); animation: praga-pulse 1.6s ease-in-out infinite; border-radius: 6px; }
+li.task[data-praga="4"] { background: color-mix(in srgb, var(--c-urg) 18%, transparent); }
+.li.rit[data-praga="1"] { border-left-color: var(--c-quase) !important; }
+.focus-now.praga { border-left: 6px solid var(--c-urg); animation: praga-pulse 1.6s ease-in-out infinite; }
+.chip.praga-chip { background: color-mix(in srgb, var(--c-urg) 16%, var(--panel)); color: var(--c-urg); border-color: var(--c-urg); }
+/* faixa nas abas (fase 3 e 4) */
+.banner.praga-b { background: color-mix(in srgb, var(--c-urg) 14%, var(--panel)); border-color: var(--c-urg); color: var(--ink); display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; animation: praga-pulse 2.2s ease-in-out infinite; }
+.banner.praga-b .btn { margin-left: auto; }
+/* PRIMO infectado: partículas da praga subindo em volta dele (o verde vem do visual "envenenado") */
+:root[data-praga="2"] .pstage, :root[data-praga="3"] .pstage, :root[data-praga="4"] .pstage, :root[data-praga="2"] .pst-face, :root[data-praga="3"] .pst-face, :root[data-praga="4"] .pst-face { position: relative; }
+:root[data-praga="2"] .pstage::after, :root[data-praga="3"] .pstage::after, :root[data-praga="4"] .pstage::after, :root[data-praga="3"] .pst-face::after, :root[data-praga="4"] .pst-face::after {
+  content: '🦠'; position: absolute; left: 30%; bottom: 20%; font-size: 14px; pointer-events: none; animation: praga-float 2.6s ease-in infinite; }
+:root[data-praga="3"] .pstage::before, :root[data-praga="4"] .pstage::before { content: '🦠'; position: absolute; right: 30%; bottom: 30%; font-size: 11px; pointer-events: none; animation: praga-float 3.1s ease-in 1.2s infinite; z-index: 3; }
+:root[data-praga="2"] .pcv:not(.pmascot), :root[data-praga="3"] .pcv:not(.pmascot) { filter: saturate(.75) hue-rotate(28deg) brightness(.97); }
+:root[data-praga="4"] .pcv:not(.pmascot) { filter: saturate(.6) hue-rotate(45deg) brightness(.92); }
+/* fase 4: a FAÍSCA fica doente */
+:root[data-praga="4"] .pmascot { filter: grayscale(.7) hue-rotate(70deg) brightness(.85); animation: none; }
+/* fase 3 e 4: a tela vai ficando contaminada (bordas avermelhadas; não atrapalha clicar) */
+:root[data-praga="3"] body::after, :root[data-praga="4"] body::after { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 90;
+  background: radial-gradient(120% 90% at 50% 50%, transparent 62%, color-mix(in srgb, var(--c-urg) 16%, transparent) 100%); }
+:root[data-praga="4"] body::after { background: radial-gradient(120% 90% at 50% 50%, transparent 48%, color-mix(in srgb, var(--c-urg) 28%, transparent) 100%), color-mix(in srgb, var(--c-urg) 5%, transparent); }
+/* janela da Praga */
+.praga-pop h2 { color: var(--c-urg); }
+.praga-pop .pp-row { display: grid; grid-template-columns: 76px 1fr; gap: 12px; align-items: center; margin: 8px 0; }
+.praga-pop .pp-row .pcv { width: 76px; filter: saturate(.7) hue-rotate(35deg); }
+.praga-pop .pp-t { font-size: 15px; margin: 0; }
+.praga-pop .speech { margin: 6px 0 0; }
+@media (prefers-reduced-motion: reduce) { li.task[data-praga], .banner.praga-b, .focus-now.praga, .pstage::after, .pstage::before { animation: none !important; } }

@@ -54,9 +54,28 @@ export function redo() {
 
 const touched = new Set();
 const touch = (...d) => d.forEach((x) => touched.add(x));
+/** v6.5: A PRAGA. Saiu da lista de infectadas = curou. Feita hoje → ANTÍDOTO (XP pela fase). Qualquer cura → VACINA de 24 h. */
+function pragaCure(before) {
+  if (R.tripNow(S) || !R.neuroOn(S, 'praga')) return null;
+  const td = today(), after = new Set(R.praga(S).list.map((x) => x.id)), gone = before.filter((x) => !after.has(x.id));
+  if (!gone.length) return null;
+  let xp = 0, early = 0;
+  for (const x of gone) {
+    const done = x.kind === 'task' ? (() => { const t = S.quests.tasks.find((y) => y.id === x.id); return t && (t.st === 'done' || t.st === 'sent') && (t.doneAt === td || t.sentAt === td); })()
+      : (S.core.rituals || []).find((r) => r.id === x.id)?.last === td;
+    if (!done) continue;
+    const v = R.PRAGA_XP[x.phase] || 0; xp += v; if (x.phase < 3) early++;
+    S.core.bonus.push({ id: uid('pg'), date: td, kind: 'antidoto', xp: v, label: `💉 antídoto: ${x.text.slice(0, 40)}` });
+  }
+  const pv = S.core.praga || {};
+  S.core.praga = { ...pv, vac: { from: td, until: Date.now() + R.PRAGA_VAC_MS }, cured: (pv.cured || 0) + gone.length, early: (pv.early || 0) + early };
+  S._epoch++;
+  return { n: gone.length, xp, clean: after.size === 0, names: gone.map((x) => x.text) };
+}
 export function commit(docs, fn, opts = {}) {
   const pre = opts.noUndo ? null : snapNow();
   const before = R.totals(S);
+  const pgBefore = opts.quiet ? [] : R.praga(S).list; // v6.5: o que estava infectado antes desta mudança
   touched.clear();
   const res = fn();
   const lsync = syncLists(); // listas pela data + tarefas que dependiam de outra já concluída
@@ -71,6 +90,8 @@ export function commit(docs, fn, opts = {}) {
     if (dg.streak >= 7 && lad.length < R.LADDER_MAX && (!lad.length || diffDays(lad.at(-1), td) >= 7)) { S.core.ladder = [...lad, td]; S._ladderUp = true; docs.push('core'); S._epoch++; }
     else if (R.ladderShouldDrop(S, td)) { S.core.ladder = lad.slice(0, -1); S.core.ladderDown = td; S._ladderDown = true; docs.push('core'); S._epoch++; }
   }
+  const cured = pgBefore.length ? pragaCure(pgBefore) : null;
+  if (cured) docs.push('core', 'loja');
   const extra = sync();
   if (extra.changed) docs.push('core');
   { // v6.4: a loja tranca com 3 atrasadas e só destranca quando não sobrar nenhuma
@@ -87,7 +108,7 @@ export function commit(docs, fn, opts = {}) {
   feedbackFn({
     xp: after.earned - before.earned, spent: after.spent - before.spent, gold: after.gold - before.gold,
     tickets: after.tickets - before.tickets, levelUp: after.level > before.level ? after : null,
-    achievements: extra.achievements, at: opts.at, msg: res?.msg, released: lsync.released, quiet: !!opts.quiet, ...(res?.feedback || {}),
+    achievements: extra.achievements, at: opts.at, msg: res?.msg, released: lsync.released, quiet: !!opts.quiet, praga: cured, ...(res?.feedback || {}),
   });
   return res;
 }
@@ -200,6 +221,10 @@ export function startup() {
   if (cleanOld()) changedCoreV4 = true;
   // v3.2: aba GESTÃO (blocos laranja do TRABALHO) + boss do capítulo (entrada do apê, R$ 100 mil)
   S.core.migrations ||= [];
+  if (!S.core.migrations.includes('praga1')) { // v6.5: ANISTIA DE ESTREIA da Praga: o que já estava atrasado começa a contar hoje
+    S.core.praga = { ...(S.core.praga || {}), start: td };
+    S.core.migrations.push('praga1'); changedCore = true;
+  }
   if (!S.core.migrations.includes('shop4')) { // v4.2: mais coisas na loja, no seu gosto
     const have = (l, n) => l.some((x) => x.name.toUpperCase() === n);
     for (const [name, xp, icon, min] of NEW_TAVERNA) if (!have(S.loja.taverna, name)) S.loja.taverna.push({ id: uid('v'), name, xp, icon, ...(min ? { min } : {}) });
