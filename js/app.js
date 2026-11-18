@@ -289,7 +289,7 @@ A.onFeedback((fb) => {
   if (fb.levelUp) levelUp(fb.levelUp);
   if (fb.chapterClosed) chapterCard(fb.chapterClosed);
   if (S._pragaWeek) { S._pragaWeek = false; toast('🌙 Uma semana inteira sem Praga: +1 🎟', 'gold'); }
-  if (fb.praga) { rezaBraba(fb.praga); toast(fb.praga.xp ? `🙏 REZA BRABA! +${fb.praga.xp} XP · ${fb.praga.clean ? 'a Praga foi embora e o PRIMO sarou!' : 'o PRIMO melhorou um pouco'} · 🛡 corpo fechado por 24 h` : `🛡 Encosto espantado (${esc(fb.praga.names[0].slice(0, 40))}) · corpo fechado por 24 h. Fazendo, a reza dá XP.`, 'good'); }
+  if (fb.praga) { rezaBraba(fb.praga); toast(`🙏 REZA BRABA! ${esc(fb.praga.names[0].slice(0, 40))} virou poeira${fb.praga.clean ? ' · a casa tá limpa, o PRIMO desfranziu a testa' : ''}. (Espantar não dá XP: ninguém fabrica Praga pra ganhar ponto.)`, 'good'); } // v7.3
   if (!fb.quiet || fb.xp || fb.achievements?.length || fb.levelUp) render();
 });
 function levelUp(t) {

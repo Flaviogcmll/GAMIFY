@@ -1737,3 +1737,18 @@ li.task[data-guia] { outline: 2px solid color-mix(in srgb, #c0392b 70%, transpar
 /* v7.2: a BRASINHA anda ATRÁS do PRIMO, no chão (nunca em cima dele) */
 .pcard .pstage .pmascot, .pcard.big .pstage .pmascot { left: calc(50% - 128px); right: auto; bottom: 6px; }
 @media (max-width: 480px) { .pcard .pstage .pmascot { left: calc(50% - 116px); } }
+
+/* v7.3: PRIMO destemido. Na Praga ele fica parado e desconfiado (sem tremer); tremor e medo só na LUA DE SANGUE */
+:root[data-praga] .pcv:not(.pmascot), :root[data-praga] .pcv:not(.pmascot):not(.walker) { animation: none; }
+:root[data-praga="4"] .pcv:not(.pmascot):not(.walker) { animation: pg-slices 3.4s steps(1) infinite; }
+:root[data-lua] .pcv:not(.pmascot):not(.walker) { animation: pg-fear .2s steps(2) infinite, pg-slices 2.4s steps(1) infinite; }
+.pcard[data-mood="medo"] { --mood: var(--c-urg); } .comp-card:has(.pcard[data-mood="medo"]) { --mood: var(--c-urg); }
+/* LUA DE SANGUE: eclipse vermelho, a tela treme de tempos em tempos (sem sangue) */
+:root[data-lua] body::after { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 90; background: radial-gradient(130% 100% at 50% 40%, transparent 30%, color-mix(in srgb, #2a0303 78%, transparent) 100%), color-mix(in srgb, #9a0c0c 16%, transparent) !important; }
+:root[data-lua] #main { animation: lua-quake 7s steps(1) infinite; }
+@keyframes lua-quake { 0%, 90%, 100% { transform: none; } 91% { transform: translate(-3px, 2px); } 92% { transform: translate(4px, -2px); } 93% { transform: translate(-4px, -1px); } 94% { transform: translate(3px, 3px); } 95% { transform: translate(-2px, 0); } }
+:root[data-lua] .scene.pstrip > img.topo { filter: brightness(.5) sepia(.6) hue-rotate(-28deg) saturate(2.6) !important; }
+.pg-moon { position: absolute; z-index: 2; right: 7%; top: 10%; width: clamp(28px, 5vw, 64px); aspect-ratio: 1; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle at 38% 35%, #ff9a7a 0 12%, #d43a24 45%, #7a0f0a 100%); box-shadow: 0 0 22px 6px color-mix(in srgb, #d43a24 55%, transparent); }
+.banner.praga-b[data-lua] { border-color: #b3160f; background: color-mix(in srgb, #7a0f0a 35%, var(--panel)); }
+@media (prefers-reduced-motion: reduce) { :root[data-lua] #main, :root[data-lua] .pcv { animation: none !important; } }

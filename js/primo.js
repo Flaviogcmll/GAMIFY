@@ -62,7 +62,7 @@ const TIPS = ['Dica, sô: no rascunho da REFLEXÃO, Enter solta e Shift+Enter pu
   'Na AGENDA, o azul é ritual. Não deixa a amizade esfriar, sô.'];
 function ambient() {
   const now = Date.now();
-  const pl = pragaLine(); if (pl && Math.random() < 0.75) return { text: pl, expr: 'preocupado', at: now }; // v6.7: com medo, só fala dela
+  const pl = pragaLine(); if (pl && Math.random() < 0.75) return { text: pl, expr: R.praga(S).lua ? 'preocupado' : 'suspeito', at: now }; // v7.3: paranoico (medo só na LUA DE SANGUE)
   if (!amb || now - amb.at > 3 * 60000) { const tip = Math.random() < 0.45, text = tip ? TIPS[Math.floor(Math.random() * TIPS.length)] : primoLine('auto'); amb = { text, expr: tip ? 'piscada' : lastExpr(), at: now, shownAt: now, typed: false }; }
   return amb;
 }
@@ -194,6 +194,7 @@ function askHtml() {
 /** v7.2: o HUMOR do PRIMO, um só, que manda no rosto, na cor do cartão e na frase.
  *  paranoico (Praga ou 3+ atrasadas) · orgulhoso (bateu a meta) · focado (tarefa ▶ fazendo) · cansado (debuff de cansaço) · satisfeito (o resto) */
 export const MOODS = {
+  medo: { label: 'com medo', ico: '😱', expr: 'preocupado', tip: 'LUA DE SANGUE: tarefas demais no LAMBEHOMI. É a única hora em que ele tem medo de verdade.' },
   paranoico: { label: 'paranoico', ico: '👀', expr: 'suspeito', tip: 'Tem trem rondando: atrasadas ou Praga. Ele fica desconfiado, não com medo.' },
   orgulhoso: { label: 'orgulhoso', ico: '😤', expr: 'orgulhoso', tip: 'A meta do dia foi batida.' },
   focado: { label: 'focado', ico: '🎯', expr: 'pensativo', tip: 'Tem tarefa em ▶ FAZENDO.' },
@@ -202,7 +203,9 @@ export const MOODS = {
 };
 export function primoMood() {
   const g = R.dailyGoal(S), st = R.dayStatus(S, today());
-  if (R.praga(S).phase >= 1 || R.overdueTasks(S).length >= 3) return 'paranoico';
+  const pg = R.praga(S);
+  if (pg.lua) return 'medo';
+  if (pg.phase >= 1 || R.overdueTasks(S).length >= 3) return 'paranoico';
   if (g.today >= g.goal) return 'orgulhoso';
   if (S.quests.tasks.some((t) => t.st === 'doing')) return 'focado';
   if (st.has('neblina') || st.has('fatigado') || st.has('preguica') || R.companion(S).mood === 'cansado') return 'cansado';

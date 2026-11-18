@@ -54,25 +54,25 @@ export function redo() {
 
 const touched = new Set();
 const touch = (...d) => d.forEach((x) => touched.add(x));
-/** v6.5: A PRAGA. Saiu da lista de infectadas = curou. Feita hoje → ANTÍDOTO (XP pela fase). Qualquer cura → VACINA de 24 h. */
+/** A PRAGA. Saiu da lista de infectadas = espantou (REZA BRABA). v7.3: espantar NÃO dá XP (ninguém fabrica Praga pra ganhar ponto) e não há mais vacina.
+ *  Conta pras conquistas (EXORCISTA, CAÇA-ALMA…) e marca a tarefa com 🙏 (t.reza) quando foi feita. */
 function pragaCure(before) {
   if (R.tripNow(S) || !R.neuroOn(S, 'praga')) return null;
   const td = today(), after = new Set(R.praga(S).list.map((x) => x.id)), gone = before.filter((x) => !after.has(x.id));
   if (!gone.length) return null;
-  let xp = 0, early = 0, exo = 0;
+  let early = 0, exo = 0, done = 0;
   for (const x of gone) {
-    const done = x.kind === 'task' ? (() => { const t = S.quests.tasks.find((y) => y.id === x.id); return t && (t.st === 'done' || t.st === 'sent') && (t.doneAt === td || t.sentAt === td); })()
+    const ok = x.kind === 'task' ? (() => { const t = S.quests.tasks.find((y) => y.id === x.id); return t && (t.st === 'done' || t.st === 'sent') && (t.doneAt === td || t.sentAt === td); })()
       : (S.core.rituals || []).find((r) => r.id === x.id)?.last === td;
-    if (!done) continue;
-    const v = R.PRAGA_XP[x.phase] || 0; xp += v; if (x.phase < 3) early++; if (x.phase >= 4) exo++;
+    if (!ok) continue;
+    done++; if (x.phase < 3) early++; if (x.phase >= 4) exo++;
     if (x.kind === 'task') { const t = S.quests.tasks.find((y) => y.id === x.id); if (t) t.reza = x.phase; }
-    S.core.bonus.push({ id: uid('pg'), date: td, kind: 'antidoto', xp: v, label: `🙏 reza braba: ${x.text.slice(0, 40)}` });
   }
-  const pv = S.core.praga || {};
-  S.core.praga = { ...pv, vac: { from: td, until: Date.now() + R.PRAGA_VAC_MS }, cured: (pv.cured || 0) + gone.length, early: (pv.early || 0) + early, exo: (pv.exo || 0) + exo,
-    hist: [...(pv.hist || []), ...gone.map((x) => ({ d: td, ph: x.phase, reza: xp > 0 }))].slice(-200) };
+  const pv = { ...(S.core.praga || {}) }; delete pv.vac;
+  S.core.praga = { ...pv, cured: (pv.cured || 0) + gone.length, early: (pv.early || 0) + early, exo: (pv.exo || 0) + exo,
+    hist: [...(pv.hist || []), ...gone.map((x) => ({ d: td, ph: x.phase, reza: done > 0 }))].slice(-200) };
   S._epoch++;
-  return { n: gone.length, xp, clean: after.size === 0, names: gone.map((x) => x.text) };
+  return { n: gone.length, xp: 0, clean: after.size === 0, names: gone.map((x) => x.text) };
 }
 /** v6.7: anota o último dia com Praga e dá +1 🎟 por semana inteira sem Praga (conta da segunda ao domingo) */
 function pragaWeek(docs, seen) {
@@ -256,6 +256,10 @@ export function startup() {
     const p = S.core.primo || {};
     delete p.exp; delete p.expN; delete p.wear;
     S.core.migrations.push('v7-primo'); changedCore = true;
+  }
+  if (!S.core.migrations.includes('v7-praga')) { // v7.3: sem vacina/CORPO FECHADO. O XP de reza que já foi ganho continua (fica em core.bonus).
+    if (S.core.praga) delete S.core.praga.vac;
+    S.core.migrations.push('v7-praga'); changedCore = true;
   }
   if (!S.core.migrations.includes('cores5')) { // v5.9: cores dos blocos = URGENTE, FAZENDO, ESTÁVEL, PARADO (o laranja saiu)
     for (const b of S.quests.blocks) if (b.color === 'orange') { b.color = 'green'; changedQ = true; }

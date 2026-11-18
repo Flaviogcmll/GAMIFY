@@ -371,10 +371,11 @@ export const STATUS_INFO = {
   devendo: { icon: '💸', name: 'DEVENDO', kind: 'debuff', desc: '2+ compras "fiz sem comprar" na semana: taverna x1,25.', cure: 'Compre ANTES de aproveitar por 7 dias.' },
   vazando: { icon: '🕳', name: 'VAZANDO', kind: 'debuff', desc: 'Mês passado: besteira acima de 40% ou crédito acima de 70% do gasto (planilha): taverna x1,15.', cure: 'Passa quando o mês virar com números melhores.' },
   // v6.7: A PRAGA no STATUS DO DIA (o castigo de XP já vem do praga(); aqui é pra explicar ao tocar)
-  assustado: { icon: '😰', name: 'ASSUSTADO', kind: 'debuff', desc: 'Tem um trem ruim no jogo: uma tarefa ou ritual atrasado virou ANGUSTIADO. Ela vira o FOCO AGORA e o PRIMO fica com medo.', cure: '🙏 REZA BRABA: faça a tarefa (ou remarque com motivo, ou cancele). Siga o urubu: ele pousa onde ela está.' },
-  encostado: { icon: '👻', name: 'ENCOSTADO', kind: 'debuff', desc: 'ENCOSTO: o XP das outras tarefas cai 10%, a faixa ERRO NA FITA aparece em todas as abas e a janela pula a cada 7 min.', cure: '🙏 REZA BRABA na tarefa que o urubu mostra.' },
-  amaldicoado: { icon: '💀', name: 'AMALDIÇOADO', kind: 'debuff', desc: 'A PRAGA tomou conta: XP −20%, loja trancada, tela vermelha e preta.', cure: '🙏 REZA BRABA. Curar uma na fase A PRAGA vale a conquista EXORCISTA.' },
-  corpofechado: { icon: '🛡', name: 'CORPO FECHADO', kind: 'buff', desc: 'Rezou e espantou: por 24 h, atrasada nova fica presa no TREM RUIM (não avança).', cure: 'Some sozinho depois de 24 h.' },
+  // v7.3: a Praga é o SOPRO DO LAMBEHOMI contra a casa do PRIMO. Ele quase nunca tem medo: fica PARANOICO. Medo de verdade só na LUA DE SANGUE.
+  paranoico: { icon: '👀', name: 'PARANOICO', kind: 'debuff', desc: 'Tem um TREM rondando: uma tarefa ou ritual atrasado virou ENCOSTO. Ela vira o FOCO AGORA e o PRIMO fica desconfiado, olhando de lado.', cure: '🙏 REZA BRABA: faça a tarefa (ou remarque com motivo, ou cancele). Siga o urubu: ele pousa onde ela está.' },
+  encostado: { icon: '🐾', name: 'DISGRAMA', kind: 'debuff', desc: 'DISGRAMA: o lobo aparece pela metade e a casa racha. O XP das outras tarefas cai 10%, a faixa ERRO NA FITA aparece em todas as abas e a janela pula a cada 7 min.', cure: '🙏 REZA BRABA na tarefa que o urubu mostra.' },
+  amaldicoado: { icon: '🐺', name: 'LAMBEHOMI', kind: 'debuff', desc: 'O LAMBEHOMI chegou e está soprando a casa: XP −20%, loja trancada, tela vermelha e preta.', cure: '🙏 REZA BRABA. Espantar uma no LAMBEHOMI vale a conquista EXORCISTA (sem XP: ninguém fabrica Praga pra ganhar ponto).' },
+  luadesangue: { icon: '🌕', name: 'LUA DE SANGUE', kind: 'debuff', desc: 'Tarefas demais no LAMBEHOMI ao mesmo tempo: eclipse vermelho, três lobisomens nos morros, a tela treme. É a única hora em que o PRIMO tem medo de verdade. O castigo é o mesmo da fase 4 (não soma).', cure: '🙏 REZA BRABA até ficar abaixo do limite (PERKS → 🧠).' },
 };
 
 export function dayStatus(s, d) {
@@ -431,7 +432,7 @@ export function dayStatus(s, d) {
 
   const ev = eventOfDay(s, d);
   let habitMult = 1, shopMult = 1, taskMult = 1;
-  if (d === today()) { const pg = praga(s, d); if (pg.phase >= 2) add(pg.phase >= 4 ? 'amaldicoado' : pg.phase >= 3 ? 'encostado' : 'assustado'); else if (pg.vac) add('corpofechado'); }
+  if (d === today()) { const pg = praga(s, d); if (pg.lua) add('luadesangue'); else if (pg.phase >= 2) add(pg.phase >= 4 ? 'amaldicoado' : pg.phase >= 3 ? 'encostado' : 'paranoico'); } // v7.3: sem CORPO FECHADO
   for (const x of list) {
     if (x.habit) habitMult *= 1 + x.habit / 100;
     if (x.shop) shopMult *= x.shop;
@@ -667,8 +668,8 @@ export const ACHIEVEMENTS = [
   ['eyes10', 'OLHO DE ÁGUIA', 'Deixe 10 blocos 👁 REVISADOS ao mesmo tempo', 'reviewedNow', 10, 80], ['window1', 'DONO DA CASA', 'Crie uma janela sua no QUESTS', 'windows', 1, 40],
   ['trip1', 'MOCHILEIRO', 'Use o ✈ modo VIAGEM e volte', 'trips', 1, 50], ['clean30', 'FICHA LIMPA', '30 dias sem castigo 💥 de prazo estourado', 'cleanDays', 30, 200],
   ['storm10', 'FURACÃO', '10 tarefas num dia só', 'maxDone', 10, 150], ['clock100', 'RELÓGIO SUÍÇO', '100 tarefas feitas no prazo', 'onTime', 100, 400],
-  ['exo', 'EXORCISTA', 'Espante uma tarefa que já estava na fase A PRAGA', 'pragaExo', 1, 150], ['calma7', 'NOITE TRANQUILA', '7 dias seguidos sem Praga no jogo', 'pragaCalm', 7, 120], ['alma10', 'CAÇA-ALMA', 'Espante a assombração que passa 10 vezes', 'pragaGhosts', 10, 80],
-  ['imuno', 'BENZEDEIRA', 'Espante 3 encostos antes de virarem ENCOSTO (fase 3)', 'pragaEarly', 3, 120], ['imuno10', 'CORPO FECHADO', 'Espante 10 pragas', 'pragaCured', 10, 200],
+  ['exo', 'EXORCISTA', 'Espante uma tarefa que já estava no LAMBEHOMI', 'pragaExo', 1, 150], ['calma7', 'NOITE TRANQUILA', '7 dias seguidos sem Praga no jogo', 'pragaCalm', 7, 120], ['alma10', 'CAÇA-ALMA', 'Espante a assombração que passa 10 vezes', 'pragaGhosts', 10, 80],
+  ['imuno', 'BENZEDEIRA', 'Espante 3 trens antes de virarem DISGRAMA (fase 3)', 'pragaEarly', 3, 120], ['imuno10', 'CASA DE TIJOLO', 'Espante 10 pragas', 'pragaCured', 10, 200],
   ['done500', 'MÃO DE OBRA PESADA', 'Conclua 500 tarefas', 'done', 500, 500], ['done1000', 'MIL E UMA', 'Conclua 1.000 tarefas', 'done', 1000, 1000],
 ].map(([key, name, desc, metric, goal, xp]) => ({ key, name, desc, metric, goal, xp }));
 
@@ -1313,7 +1314,7 @@ export function comebackDue(s, td = today()) {
 export function focusNow(s, td = today(), skip = []) {
   { // v6.5: da fase 2 em diante a tarefa da Praga é o FOCO (sem OUTRA)
     const pg = praga(s, td), w = pg.list.find((x) => x.kind === 'task' && x.phase >= 2), t = w && (s.quests?.tasks || []).find((x) => x.id === w.id);
-    if (t) return { task: t, why: `🐛 A PRAGA: atrasada há ${w.days} dia(s), fase ${w.phase} de 4`, praga: w.phase };
+    if (t) return { task: t, why: `${w.phase >= 4 ? '🐺' : '👀'} ${PRAGA_NAMES[w.phase]}: atrasada há ${w.days} dia(s), fase ${w.phase} de 4`, praga: w.phase };
   }
   const wm = new Set(weeklyMissions(s, td).ids || []), clock = neuroOn(s, 'clock') ? bodyClock(s).key : '';
   const bossOf = (t) => (t.block && (s.quests?.bosses || []).find((b) => b.block === t.block)) || null;
@@ -1361,15 +1362,17 @@ export function neuroRoutine(plan, hours) {
   return { name: 'NEURO', grid: g };
 }
 
-// ───────────────────────── v6.5: A PRAGA (tarefa e ritual atrasados viram uma praga que se espalha) ─────────────────────────
-// 4 fases, 1 por dia de atraso (rituais começam na 2): 1 TREM RUIM · 2 ANGUSTIADO (vira o FOCO AGORA) · 3 ENCOSTO (faixa em todas
-// as abas, janelas a cada 7 min, −10% de XP nas outras) · 4 A PRAGA (tela vermelha e preta, FAÍSCA doente, −20% e loja trancada).
+// ───────────────────────── A PRAGA = o SOPRO DO LAMBEHOMI (v6.5; v7.3 com a história nova) ─────────────────────────
+// Cada tarefa é um TREM (inimigo). Atrasou, ele vira assombração: 4 fases, 1 por dia de atraso (rituais começam na 2):
+// 1 TREM RUIM · 2 ENCOSTO (vira o FOCO AGORA, PRIMO paranoico) · 3 DISGRAMA (faixa nas abas, janelas a cada 7 min, −10% de XP nas outras)
+// · 4 LAMBEHOMI (tela vermelha e preta, −20% e loja trancada). LUA DE SANGUE = luaN(s) ou mais no LAMBEHOMI ao mesmo tempo (o PRIMO com medo de verdade).
 // Cada atrasada tem a sua fase; o app mostra a PIOR e o castigo NÃO soma. Feriado, dia de DESCANSO e VIAGEM não contam.
-// Cura: fazer = REZA BRABA (XP pela fase), remarcar ou cancelar. Depois: corpo fechado (vacina) 24 h (atrasada nova fica presa na fase 1).
-export const PRAGA_XP = [0, 5, 10, 20, 30];
+// Cura (REZA BRABA): fazer, remarcar (custa o de sempre) ou cancelar. Espantar NÃO dá XP (v7.3). Sem CORPO FECHADO e sem vacina: a luta é todo dia.
 export const PRAGA_POP_MS = 7 * 60e3;
-export const PRAGA_VAC_MS = 24 * 3600e3;
-export const PRAGA_NAMES = ['', 'TREM RUIM', 'ANGUSTIADO', 'ENCOSTO', 'A PRAGA']; // v6.6: nomes do dono (cartucho amaldiçoado)
+export const PRAGA_NAMES = ['', 'TREM RUIM', 'ENCOSTO', 'DISGRAMA', 'LAMBEHOMI']; // v7.3: compare sempre pelo NÚMERO da fase, nunca pelo nome
+/** v7.3: quantas tarefas no LAMBEHOMI ao mesmo tempo viram LUA DE SANGUE. Ajustável em PERKS → 🧠 (o dono tem medo de ficar fácil demais). */
+export const LUA_N = 3;
+export const luaN = (s) => Math.max(1, Math.min(10, Math.round(+(s.core?.settings?.neuro?.luaN) || LUA_N)));
 export function praga(s, td = today()) {
   const c = cache(s), key = td + '|' + Math.floor(Date.now() / 60e3);
   if (c.praga?.key === key) return c.praga.v;
@@ -1378,9 +1381,9 @@ export function praga(s, td = today()) {
   return v;
 }
 function pragaCalc(s, td) {
-  const none = { list: [], phase: 0, worst: null, mult: 1, vac: false };
+  const none = { list: [], phase: 0, worst: null, mult: 1, n4: 0, lua: false };
   if (!neuroOn(s, 'praga') || tripNow(s)) return none;
-  const pv = s.core?.praga || {}, vacOn = !!pv.vac && Date.now() < pv.vac.until, vacEnd = pv.vac ? new Date(pv.vac.until).toISOString().slice(0, 10) : null;
+  const pv = s.core?.praga || {};
   const rests = s.core?.rests || [];
   const born = pv.start || td; // anistia de estreia: nada conta antes do dia em que a Praga chegou
   const daysLate = (start) => { // start = 1º dia de atraso
@@ -1388,7 +1391,6 @@ function pragaCalc(s, td) {
     let n = 0;
     for (let d = start < addDays(td, -40) ? addDays(td, -40) : start; d <= td; d = addDays(d, 1)) {
       if (holidayName(d) || rests.includes(d) || tripDay(s, d)) continue;
-      if (pv.vac && start >= pv.vac.from && d >= pv.vac.from && d <= vacEnd) continue; // nasceu durante a vacina: os dias da vacina não contam
       n++;
     }
     return n;
@@ -1397,8 +1399,7 @@ function pragaCalc(s, td) {
   const add = (id, kind, text, start, extra = 0) => {
     const days = daysLate(start);
     if (start < born) start = born;
-    let phase = Math.min(4, Math.max(1, days + extra));
-    if (vacOn && start >= pv.vac.from) phase = 1; // vacina: a nova fica presa na incubação
+    const phase = Math.min(4, Math.max(1, days + extra));
     list.push({ id, kind, text, days: Math.max(1, days), phase });
   };
   for (const t of openTasks(s)) {
@@ -1411,10 +1412,11 @@ function pragaCalc(s, td) {
     if (st.left == null || st.left >= 0) continue;
     add(r.id, 'ritual', '🔁 ' + r.name, addDays(st.next, 1), 1);
   }
-  if (!list.length) return { ...none, vac: vacOn };
+  if (!list.length) return none;
   list.sort((a, b) => b.phase - a.phase || b.days - a.days);
   const phase = list[0].phase;
-  return { list, phase, worst: list[0], mult: phase >= 4 ? 0.8 : phase >= 3 ? 0.9 : 1, vac: vacOn };
+  const n4 = list.filter((x) => x.phase >= 4).length;
+  return { list, phase, worst: list[0], mult: phase >= 4 ? 0.8 : phase >= 3 ? 0.9 : 1, n4, lua: n4 >= luaN(s) }; // a LUA DE SANGUE não aumenta o castigo (não soma)
 }
 export const pragaOf = (s, id) => praga(s).list.find((x) => x.id === id) || null;
 
