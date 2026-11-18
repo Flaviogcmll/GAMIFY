@@ -1501,7 +1501,7 @@ body { background-color: var(--bg); color: var(--ink); }
 
 /* banners mais baixos no PC (cortando a imagem como era antes); o rosto do PRIMO pequeno, na escala do banner */
 @media (min-width: 861px) {
-  .scene.pstrip { aspect-ratio: auto; height: clamp(112px, 10vw, 150px); max-height: none; padding: 8px 18px; }
+  .scene.pstrip { aspect-ratio: auto; height: clamp(128px, 12vw, 185px); /* v7.4: um pouco mais alto (pedido do dono) */ max-height: none; padding: 8px 18px; }
   .scene.pstrip > img.topo { object-position: center 55%; }
   .scene.pstrip .pst-face, .scene.pstrip .pst-face .pcv { width: clamp(52px, 4.4vw, 66px); }
   .scene.pstrip .pst-txt .scene-title { font-size: clamp(13px, 1.1vw, 16px); }
@@ -1774,3 +1774,16 @@ li.task[data-guia] { outline: 2px solid color-mix(in srgb, #c0392b 70%, transpar
 @media (prefers-reduced-motion: reduce) { .trem { animation: none; } }
 .pbras { display: grid; grid-template-columns: auto minmax(40px, 1fr) auto; gap: 8px; align-items: center; margin: 4px 0 6px; cursor: help; font-size: 12px; }
 .pbras b { color: var(--c-urg); }
+
+/* v7.4: DESAFIOS DA SEMANA dentro da janela SEMANA */
+.wk-ch { margin-top: 14px; padding-top: 12px; border-top: 2px dashed var(--line); }
+.wk-ch > h3 { font: 9px/1.4 var(--f-pixel); color: var(--c-premio); margin: 0 0 8px; }
+
+/* v7.4: ARQUIVO recolhível (cada dia; o RECOLHER TUDO em cima do banner fecha todos) */
+.arq-daycard.shut > .list { display: none; }
+.arq-daycard.shut .arq-day { opacity: .85; }
+
+/* v7.4: REFLEXÃO em banners: o título do MAPA MENTAL e do DESCARREGAR A CABEÇA vira faixa com imagem */
+.card.bann > header { min-height: clamp(70px, 9vw, 130px); align-items: flex-end; background: linear-gradient(0deg, rgba(12, 9, 7, .82) 0, rgba(12, 9, 7, .2) 70%), var(--bimg) center 58% / cover; image-rendering: pixelated; border-radius: calc(var(--rad) - 2px) calc(var(--rad) - 2px) 0 0; }
+.card.bann > header h2, .card.bann > header .meta { color: #fffaf1; text-shadow: 0 1px 0 rgba(12, 9, 7, .8); }
+.card.bann.collapsed > header { border-radius: calc(var(--rad) - 2px); }

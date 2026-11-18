@@ -161,7 +161,7 @@ export function legendHtml() {
 function goldCard(td) {
   const prs = R.goldPrompts(S, td);
   if (!prs.length) return '';
-  return `<div class="card" style="background:var(--warn-soft)"><header><h2>💰 Baú de ouro</h2></header>${prs.map((p) => `<div class="li"><div class="lt"><b>${esc(p.title)}</b><small>${esc(p.label)} · sua metade</small></div>
+  return `<div class="card" style="background:var(--warn-soft)"><header><h2>💰 Carteira</h2></header>${prs.map((p) => `<div class="li"><div class="lt"><b>${esc(p.title)}</b><small>${esc(p.label)} · sua metade</small></div>
     <div class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn sm pri" data-act="gold-yes" data-key="${esc(p.key)}">RECEBI ${fmtN(p.amount)}</button><button class="btn sm" data-act="gold-later" data-key="${esc(p.key)}">AINDA NÃO</button></div></div>`).join('')}</div>`;
 }
 
@@ -188,7 +188,7 @@ export function sidePanel(ui) {
     ['relogio', '🕰 Relógio do corpo', clockCard()],
     // v7.2: STATUS DO DIA (em ícones) e COMANDOS moram dentro do cartão do PRIMO
     ['primo', '🔥 PRIMO', companionCard()],
-    ['ouro', '💰 Baú de ouro (quando tem)', goldCard(td)],
+    ['ouro', '💰 Carteira (quando tem)', goldCard(td)],
     ['habitos', '✓ Hábitos de hoje', habitsCard(td)],
     ['fila', '⏰ Fila de prazos', filaCard(td)],
   ])}

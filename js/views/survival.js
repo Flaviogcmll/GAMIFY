@@ -40,6 +40,7 @@ function grid(ui) {
     <div class="grid2w"><table class="hg"><thead><tr><th></th>${head}<th></th></tr></thead><tbody>${body}
       <tr><th class="hn dim">XP DO DIA</th>${xpRow}<td></td></tr><tr><th class="hn dim">STATUS <span class="meta">(toque)</span></th>${stRow}<td></td></tr></tbody></table></div>
     <div class="hleg" title="Toque na casinha: ✓ fiz → – folga → vazio"><span class="chip soon">✓ fez</span><span class="chip late">✕ falhou</span><span class="chip calm">🛡 perdoada</span><span class="chip">🔥 sequência · 🏆 recorde</span></div>
+  ${weekCard(today(), ui, true)}
   </div>`;
 }
 
@@ -57,13 +58,14 @@ export function viewSurvival(ui) {
     ])}
     <div class="page-actions"><button class="btn" data-act="rest-day">🏕 DESCANSO HOJE</button><button class="btn ${R.tripNow(S) ? 'pri' : ''}" data-act="trip" title="Viagem ou visitas: congela o jogo enquanto você está fora">✈ ${R.tripNow(S) ? 'VOLTEI' : 'VIAGEM'}</button><button class="btn" data-act="edit-habits">✎ HÁBITOS</button></div>
     <div class="card status-sv"><header><h2 title="Toque num status pra ver o que é e como resolver">🎭 Status do dia</h2></header><div class="status-line">${statusChips(st, R.alerts(S, td)) || '<span class="meta">nenhum buff nem debuff hoje.</span>'}</div></div>
-    <div class="grid">${grid(ui)}${weekCard(td, ui)}${ritualsMini(td)}</div>`;
+    <div class="grid">${grid(ui)}${ritualsMini(td)}</div>`;
 }
 
-function weekCard(td, ui) {
+/** v7.4: os DESAFIOS DA SEMANA moram DENTRO da janela SEMANA (inside = sem cartão próprio) */
+function weekCard(td, ui, inside = false) {
   const ws = addDays(weekStart(td), (ui.hweek || 0) * 7), wc = R.weekChallenges(S, ws, td), g = R.dailyGoal(S), wm = R.weeklyMissions(S, td);
   const xpd = R.idx(S).xpByDay, hit = range(ws, 7).filter((d) => d <= td && (xpd[d] || 0) >= g.goal).length;
-  return `<div class="card c12"><header><h2 title="Os 5 desafios = 🏆 semana LENDÁRIA (+50 XP). Semana passada lendária = 👑 +25% nos hábitos.">Desafios da semana</h2></header>
+  return `<div class="${inside ? 'wk-ch' : 'card c12'}"><${inside ? 'h3' : 'header><h2'} title="Os 5 desafios = 🏆 semana LENDÁRIA (+50 XP). Semana passada lendária = 👑 +25% nos hábitos.">🏆 Desafios da semana</${inside ? 'h3' : 'h2></header'}>
     <div class="bars">${wc.list.map((c) => c.key === 'prazo'
       ? `<div class="bar-row"><span>${c.icon} ${c.name}</span><b class="num ${c.done ? 'good' : ''}" style="font-size:8px">${c.done ? '✓ +50' : esc(c.live || '—')}</b>${segBar(wc.dueTotal ? wc.dueOk / wc.dueTotal : 0, c.done ? 'good sm' : 'sm')}</div>`
       : pbar(`${c.icon} ${c.name} · +${c.xp}`, c.value, c.goal)).join('')}${pbar('🏆 LENDÁRIA · +50', wc.n, 5)}

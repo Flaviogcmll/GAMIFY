@@ -7,7 +7,8 @@ import { tiles } from '../telas.js';
 import { scratchCard, mapCard } from '../mapa.js';
 import { sundayTarget } from '../actions.js';
 
-import { esc, today, fmtDM, fmtDMY, weekday, fmtN, DOW, weekStart, addDays } from '../util.js';
+import { esc, today, fmtDM, fmtDMY, weekday, fmtN, DOW, weekStart, addDays, lightNow } from '../util.js';
+import { isCollapsed } from '../v3.js';
 
 import { settingsV35 } from '../v35.js';
 import { weekSummary } from '../pstate.js';
@@ -103,6 +104,18 @@ export function viewDomingo() {
 // ───────────── CONQUISTAS ─────────────
 // v5.16: faixa de resumo, "quase lá" primeiro (a recompensa perto motiva mais: desconto temporal), filtro de 1 toque,
 // dourado = ganha (recompensa) · cinza com cadeado = falta.
+/** v7.4: CONQUISTAS por categoria (cada uma com banner; a arte B-17 entra em CONQ_ART quando existir assets/topo/conq-<categoria>-<dia|noite>.webp) */
+const CONQ_CATS = [['tarefas', '✅ TAREFAS E PRAZOS'], ['bosses', '👹 BOSSES E BLOCOS'], ['habitos', '💪 HÁBITOS E CORPO'], ['praga', '🐺 PRAGA E LAMBEHOMI'], ['feira', '🎪 FEIRA E OURO'], ['jornada', '🧭 JORNADA'], ['outras', '✨ OUTRAS']];
+const CONQ_ART = [];
+const CONQ_OF = {
+  tarefas: ['done', 'onTime', 'withDue', 'maxDone', 'early', 'star', 'legendaryDay', 'approved', 'home', 'people'],
+  bosses: ['bossDone', 'miniDone', 'stepsDone', 'blocksClosed', 'bdClosed', 'trClosed', 'capClosed', 'gsClosed', 'windows', 'reviewedNow'],
+  habitos: ['treino', 'dieta', 'sono', 'selfcare', 'maxStreak', 'perfectRun', 'noPoison', 'cleanDays', 'flame', 'daysRegistered', 'rd'],
+  praga: ['pragaCured', 'pragaEarly', 'pragaExo', 'pragaGhosts', 'pragaCalm'],
+  feira: ['goldIn', 'forged', 'ferreiro'],
+  jornada: ['level', 'maxAttr', 'minAttr', 'focus', 'sundays', 'missionWeeks', 'legendaryWeeks', 'prazoWeeks', 'trips', 'bond', 'petStage'],
+};
+const conqCat = (a) => Object.keys(CONQ_OF).find((k) => CONQ_OF[k].includes(a.metric)) || 'outras';
 export function viewConquistas(ui) {
   const list = R.achievementList(S);
   const got = list.filter((a) => a.unlocked).sort((a, b) => ((a.date || '') < (b.date || '') ? 1 : -1));
@@ -126,7 +139,13 @@ export function viewConquistas(ui) {
   const body = f === 'ganhas' ? sec('🏆 Ganhas', got, 'nenhuma ainda.')
     : f === 'quase' ? sec('🎯 Quase lá', near, 'nenhuma passou da metade ainda.')
     : f === 'faltam' ? sec('🔒 Faltam', left, 'você pegou todas!')
-    : `${near.length ? sec('🎯 Quase lá', near.slice(0, 6), '') : ''}${sec('🏆 Ganhas', got, 'nenhuma ainda: a primeira tarefa concluída já vale uma.')}${sec('🔒 Faltam', left.filter((a) => !near.slice(0, 6).includes(a)), 'você pegou todas!')}`;
+    : `${near.length ? sec('🎯 Quase lá', near.slice(0, 6), '') : ''}${CONQ_CATS.map(([k, t]) => {
+      // v7.4: uma seção (com banner) por categoria: as ganhas primeiro, depois as que faltam (as mais perto na frente)
+      const items = [...got, ...left].filter((a) => conqCat(a) === k);
+      if (!items.length) return '';
+      const ck = 'c:conquistas:cat-' + k, shut = isCollapsed(ck), n = items.filter((a) => a.unlocked).length;
+      return `<section class="vitrine conq-v ${shut ? 'shut' : ''}" data-v="conq-${k}"><header class="vit-h" data-act="collapse" data-k="${ck}" title="Toque pra recolher ou abrir" style="--img:url('${new URL(`assets/topo/${CONQ_ART.includes(k) ? 'conq-' + k : 'conquistas'}-${lightNow() === 'noite' ? 'noite' : 'dia'}.webp`, document.baseURI).href}')"><div><h2><span class="chev">${shut ? '▸' : '▾'}</span> ${t}</h2><p>${n}/${items.length} ganhas</p></div></header>${shut ? '' : `<div class="vit-b"><div class="medals">${items.map(medal).join('')}</div></div>`}</section>`;
+    }).join('')}`;
   return `<div class="page-title"><div><h1><em>conquistas</em>.</h1><p>Toque num quadrinho pra filtrar.${f !== 'todas' ? ' <a href="#" data-act="cq" data-v="todas">ver todas</a>' : ''}${S.core.season?.from ? ` · <span title="As do capítulo anterior ficam guardadas">capítulo anterior: ${Object.keys(S.core.achievements || {}).length} conquistas</span>` : ''}</p></div></div>
     ${strip}${body}`;
 }

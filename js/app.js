@@ -275,13 +275,13 @@ A.onFeedback((fb) => {
   // 🧠 recompensa do processo (aulas 021 e 153): cada passo feito num boss mostra o dano, a recompensa longe fica perto
   if (fb.task && fb.xp > 0 && !fb.boss && R.neuroOn(S, 'proc')) { const bk = fb.task.block && S.quests.blocks.find((x) => x.id === fb.task.block), bo = bk?.group === 'bs' && S.quests.bosses.find((x) => x.block === bk.id), hp = bo && R.bossHp(S, bo); if (hp?.total && hp.left > 0) toast(`👹 Dano no boss <b>${esc(bo.text.replace(/:\s*[\d.]+\s*XP.*$/i, '').slice(0, 40))}</b>: faltam ${Math.round(hp.pct * 100)}% da vida.`, 'good'); }
   if (fb.sent) toast(`✉ Rodada concluída e enviada: <b>${esc(fb.task.text)}</b>. Fica aguardando retorno.`, 'good');
-  if (fb.loot) setTimeout(() => { sfx('loot'); toast(`${px('chest', 16)} <b>LOOT!</b> ${esc(fb.loot.label)}${fb.loot.itemId ? ' (foi pra mochila)' : ''}`, 'gold'); }, 350);
+  if (fb.loot) setTimeout(() => { sfx('loot'); toast(`${px('chest', 16)} <b>LOOT!</b> ${esc(fb.loot.label)}${fb.loot.itemId ? ' (foi pra SACOLA)' : ''}`, 'gold'); }, 350);
   if (fb.closedBlock) { toast(`🏁 BLOCO FECHADO: <b>${esc(fb.closedBlock.title)}</b> · +${fb.closedBlock.xp} XP`, 'good'); confetti(60); }
   if (fb.boss) { toast(`👹 BOSS DERROTADO: <b>${esc(fb.boss.text)}</b> · +${fmtN(fb.boss.xp)} XP · +1 🎟`, 'good'); confetti(); sfx('level'); }
   if (fb.sunday) { toast(`🎁 Baú aberto: <b>+${fb.sunday} XP</b>`, 'good'); sfx('chest'); }
   if (fb.built) sfx('ready');
   if (fb.building) sfx('upgrade');
-  if (fb.bought) { sfx('buy'); toast(`🛒 <b>${esc(fb.bought)}</b>${fb.bag ? ' foi pra MOCHILA. Use quando for aproveitar.' : ''}`, 'gold'); }
+  if (fb.bought) { sfx('buy'); toast(`🛒 <b>${esc(fb.bought)}</b>${fb.bag ? ' foi pra SACOLA. Use quando for aproveitar.' : ''}`, 'gold'); }
   if (fb.using) { sfx('xp'); toast(`⏱ <b>${esc(fb.using.item)}</b>: aproveite sem culpa.`, 'gold'); }
   for (const a of fb.achievements || []) { toast(`🏆 CONQUISTA: <b>${esc(a.name)}</b> · +${a.xp} XP`, 'gold'); sfx('chest'); }
   if (fb.msg) toast(esc(fb.msg));
@@ -456,7 +456,7 @@ function tour(step = 0) {
     ['bem-vindo ao gamify v2.', 'Igual à planilha, com as mesmas abas: QUESTS é a casa e o painel. De dia ele é papel; à noite vira acampamento com fogueira. O ♪ liga o lo-fi.'],
     ['quests.', 'Listas e BOSS em cima; BREAKDOWN, TRABALHO e CAPTAÇÕES embaixo. Toque no quadradinho pra concluir, no texto pra editar (prazo, cor, ! prioridade, 🔁 vai e volta). No PC dá pra arrastar tarefas.'],
     ['o primo.', 'O PRIMO é o centro do jogo: porco arquiteto, de chapéu de palha, que protege a BRASINHA (filhote de fênix) dos TRENS, os inimigos que nascem de cada tarefa. Ele reage ao que você faz, pede uma missão por dia e guarda os comandos no cartão dele.'],
-    ['shop.', 'Compre ANTES de aproveitar: vai pra MOCHILA; na hora, USAR liga o cronômetro. Fez sem comprar? Paga 50% a mais. Gold é a sua metade: o app pergunta quando entra.'],
+    ['shop.', 'Compre ANTES de aproveitar: vai pra SACOLA; na hora, USAR liga o cronômetro. Fez sem comprar? Paga 50% a mais. Gold é a sua metade: o app pergunta quando entra.'],
     ['travou?', 'O botão SOS guia uma respiração de 1 minuto, escolhe o menor passo e acende 10 minutos de fogueira. Vale +5 XP de coragem.'],
   ];
   const [t, d] = steps[step];

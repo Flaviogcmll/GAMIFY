@@ -216,7 +216,7 @@ export function viewArquivo3(ui) {
   const groups = []; for (const t of page) { const d = dayOf(t); if (groups.at(-1)?.d !== d) groups.push({ d, items: [] }); groups.at(-1).items.push(t); }
   const rows = groups.map(({ d, items }) => {
     const dd = shown.filter((x) => dayOf(x) === d), nDone = dd.filter((x) => x.st !== 'cancel').length, xpD = dd.reduce((a, x) => a + (x.st === 'cancel' ? 0 : xpOf(x)), 0);
-    return `<section class="arq-daycard"><div class="arq-day"><span class="ad-n">${d ? d.slice(8) : '—'}</span><span class="ad-m">${d ? `${DOWN[new Date(d + 'T12:00').getDay()]}<br>${fmtDM(d).slice(3)}` : 'sem data'}</span><span class="ad-s"><b>${nDone}</b> feita(s)<br><span class="gold">+${fmtN(xpD)} XP</span></span></div>
+    return `<section class="arq-daycard ${isCollapsed('a:' + d) ? 'shut' : ''}"><div class="arq-day" data-act="collapse" data-k="a:${d}" title="Toque pra recolher ou abrir este dia" style="cursor:pointer"><span class="ad-n">${d ? d.slice(8) : '—'}</span><span class="ad-m">${d ? `${DOWN[new Date(d + 'T12:00').getDay()]}<br>${fmtDM(d).slice(3)}` : 'sem data'}</span><span class="ad-s"><b>${nDone}</b> feita(s)<br><span class="gold">+${fmtN(xpD)} XP</span></span></div>
       <div class="list">${items.map((t) => `<div class="li ${t.st === 'cancel' ? 'canc' : ''}"><div class="lt">${t.st === 'cancel' ? '✕' : '✓'} ${esc(t.text)}${t.reza ? ' <span title="Espantada com REZA BRABA (estava em ' + R.PRAGA_NAMES[t.reza] + ')">🙏</span>' : ''}<small>${esc(ctxOf(t))}${(t.rounds || []).length ? ` · 🔁 ${t.rounds.length}` : ''}</small></div><span class="chip xp">+${xpOf(t)}</span></div>`).join('')}</div></section>`;
   }).join('');
   const L = S.core.legacy;
