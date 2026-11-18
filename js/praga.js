@@ -12,12 +12,13 @@ import { sfx, playFile, pragaDrone, pragaWarp } from './audio.js';
 import { mountPortraits } from './primo.js';
 
 const LINES = [
-  'Tô passando mal, primo… essa aqui tá me deixando doente.',
-  'Cof, cof… tem um trem ruim nessa tarefa. Resolve pra mim?',
-  'Tá dando um aperto no peito. É essa atrasada aí.',
-  'Encosto pesado… só uma reza braba tira isso de mim.',
+  'Primo… tem um trem ruim aqui. Tô com medo.',
+  'Ouvi um barulho no paiol. É essa atrasada, eu sei que é.',
+  'Segue o urubu, primo. Ele tá pousado onde ela tá.',
+  'Tô tremendo até o chapéu… resolve essa pra mim?',
+  'Encosto pesado… só uma reza braba espanta isso.',
   'O cartucho tá chiando. Faz, remarca ou larga, mas não deixa ela aí.',
-  'Vi um urubu na janela. Mau sinal, primo.',
+  'Vi uma alma passando com lamparina. Mau sinal.',
 ];
 const shown = new Map(); // id → quando apareceu pela última vez
 let lastPop = 0, lastRoute = '', fxPhase = 0;
@@ -34,6 +35,8 @@ const SPR = {
   mariposa: [['m......m', 'mm.bb.mm', 'mmmbbmmm', '.mmbbmm.', '...bb...', '........'], ['........', '..mbbm..', '.mmbbmm.', 'mmmbbmmm', 'm..bb..m', '........']],
   mosca: [['.w..w.', 'wwkkww', '.kkkk.', '.kkkk.', '..kk..'], ['w....w', '.wkkw.', '.kkkk.', '.kkkk.', '..kk..']],
   urubu: [['..kkk.....', '.kkrkk....', 'kkkkkkk...', '..kkkkkkk.', '..kkkkkkkk', '...kkkkk..', '....k.k...', '....k.k...']],
+  alma: [['....yyyy....', '...ybbbby...', '..yyyyyyyy..', '...wwwwww...', '..wwkwwkww..', '..wwwwwwww..', '.wwwwkkwwww.', '.wwwwwwwwwwr', 'wwwwwwwwwwwy', 'wwwwwwwwww..', '.ww.www.ww..', '..w..w...w..'],
+    ['....yyyy....', '...ybbbby...', '..yyyyyyyy..', '...wwwwww...', '..wwkwwkww..', '..wwwwwwww..', '.wwwwkkwwww.', '.wwwwwwwwwwy', 'wwwwwwwwwwwr', 'wwwwwwwwww..', 'w.ww.ww.w...', '.w..w..w....']],
   barata: [['.k....k.', '..kbbk..', '.kbbbbk.', 'kbbbbbbk', '.kbbbbk.', 'k.kbbk.k', '..k..k..'], ['k......k', '..kbbk..', '.kbbbbk.', '.bbbbbb.', 'kkbbbbkk', '..kbbk..', '.k....k.']],
 };
 const urubuUri = () => `url("data:image/svg+xml,${encodeURIComponent(pxSvg(SPR.urubu[0], 2).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" '))}")`;
@@ -73,7 +76,7 @@ function fx(pg) {
   pragaWarp(ph >= 4 ? 0.06 : ph >= 3 ? 0.02 : 0);
   clearInterval(loop); clearInterval(glitchT); clearInterval(crawlT); clearInterval(ambT);
   layer?.remove(); layer = null; bugs = [];
-  if (ph >= 2) ambT = setInterval(ambient, 38e3);
+  if (ph >= 2) { ambT = setInterval(ambient, 38e3); scheduleGhost(); } else clearTimeout(ghostT);
   if (ph < 3) return;
   layer = document.createElement('div'); layer.id = 'praga-fx'; layer.setAttribute('aria-hidden', 'true');
   document.body.appendChild(layer);
@@ -199,4 +202,70 @@ export function extendPraga(ACTIONS, FORMS, jump) {
     if (r?.error) { toast(r.error, 'bad'); return; }
     closeModal();
   };
+}
+
+// ───── v6.7: A ASSOMBRAÇÃO QUE PASSA (alma penada de chapéu de palha e lamparina). Tocar nela espanta e mostra a tarefa ─────
+let ghostT = 0;
+function scheduleGhost() {
+  clearTimeout(ghostT);
+  const ph = R.praga(S).phase;
+  if (ph < 2) return;
+  const wait = (ph >= 4 ? 70 : ph >= 3 ? 120 : 200) * 1e3 * (0.6 + Math.random() * 0.8);
+  ghostT = setTimeout(() => { passGhost(); scheduleGhost(); }, wait);
+}
+export function passGhost() {
+  const pg = R.praga(S);
+  if (pg.phase < 2 || document.hidden || modalOpen()) return;
+  document.querySelector('.pfx-alma')?.remove();
+  const el = document.createElement('button');
+  el.className = 'pfx-alma'; el.type = 'button'; el.dataset.act = 'praga-ghost'; el.title = 'Espantar a assombração'; el.setAttribute('aria-label', 'Assombração: toque pra espantar');
+  const dir = Math.random() < 0.5 ? 1 : -1;
+  el.innerHTML = SPR.alma.map((f, i) => pxSvg(f, 4, `f${i}`)).join('');
+  el.style.top = `${18 + Math.random() * 50}vh`;
+  el.style.setProperty('--dir', dir);
+  el.classList.add(dir > 0 ? 'ltr' : 'rtl');
+  document.body.appendChild(el);
+  let f = 0; const bob = setInterval(() => { f ^= 1; el.dataset.f = f; }, 260);
+  playFile('praga-alma', { vol: 0.7 });
+  setTimeout(() => { clearInterval(bob); el.remove(); }, 9500);
+}
+// ───── v6.7: O URUBU GUIA. Pousa onde a tarefa infectada está; as cores vão puxando até lá; tocar nele leva até ela ─────
+export function pragaGuide() {
+  document.querySelectorAll('.urubu-guia').forEach((x) => x.remove());
+  document.querySelectorAll('[data-guia]').forEach((x) => x.removeAttribute('data-guia'));
+  const pg = R.praga(S), w = pg.list.find((x) => x.kind === 'task');
+  if (!w || pg.phase < 1) return;
+  const route = (location.hash || '#quests').slice(1), ui = window.__ui || {};
+  const where = R.pragaWhere(S, w.id); if (!where) return;
+  let target = null;
+  if (route !== 'quests' || ui.mm) target = [...document.querySelectorAll('#tabs a[href="#quests"], #bottom a[href="#quests"]')].find((a) => a.offsetParent);
+  else {
+    const tab = ui.qtab || 'listas';
+    if (tab !== where.tab) target = document.querySelector(`.qbar [data-act="qtab"][data-tab="${CSS.escape(where.tab)}"]`);
+    else {
+      const li = document.querySelector(`li.task[data-id="${CSS.escape(w.id)}"]`);
+      target = li && li.offsetParent ? null : document.querySelector(where.block ? `[data-k="b:${CSS.escape(where.block)}"]` : `[data-k="l:${CSS.escape(where.area || '')}"]`);
+      if (li) li.dataset.guia = '1';
+    }
+  }
+  if (!target) return;
+  target.dataset.guia = '1';
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'urubu-guia'; b.dataset.act = 'praga-guide'; b.dataset.id = w.id;
+  b.title = `O urubu pousou aqui: "${w.text.slice(0, 50)}" está com ${R.PRAGA_NAMES[w.phase]}. Toque pra ir até ela.`;
+  b.innerHTML = pxSvg(SPR.urubu[0], 2);
+  if (getComputedStyle(target).position === 'static') target.style.position = 'relative';
+  target.appendChild(b);
+}
+export function extendPraga2(ACTIONS, jump) {
+  Object.assign(ACTIONS, {
+    'praga-guide': (d) => { playFile('praga-corvo', { vol: 0.6 }); if (window.__ui) window.__ui.mm = false; jump(d.id); },
+    'praga-ghost': (d, e, el) => {
+      el?.classList.add('gone'); setTimeout(() => el?.remove(), 400);
+      playFile('praga-sino', { vol: 0.5 }); sfx('swish');
+      A.commit(['core'], () => { S.core.praga = { ...(S.core.praga || {}), ghosts: (S.core.praga?.ghosts || 0) + 1 }; }, { noUndo: true, quiet: true });
+      toast('👻 Espantou a assombração! Mas ela veio por causa daquela atrasada…');
+      setTimeout(() => pragaPop(R.praga(S).worst?.id), 900);
+    },
+  });
 }

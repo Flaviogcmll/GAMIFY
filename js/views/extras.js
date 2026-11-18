@@ -93,6 +93,7 @@ export function viewDomingo() {
     { label: '📖 Nota da semana', value: nf(a0), sub: hist[0] ? `baú de ${fmtDM(hist[0].date)}` : 'abra o 1º baú', tone: a0 == null ? 'neutro' : a0 >= 8 ? 'ok' : a0 < 5 ? 'urg' : 'atencao', tip: 'Média das notas do último baú de domingo' },
     { label: '⏮ Semana anterior', value: nf(a1), sub: hist[1] ? fmtDM(hist[1].date) : '', tone: 'neutro' },
     { label: diff == null ? '↕ Diferença' : diff >= 0 ? '▲ Melhorou' : '▼ Caiu', value: diff == null ? '—' : `${diff >= 0 ? '+' : ''}${diff.toFixed(1).replace('.', ',')}`, tone: diff == null ? 'neutro' : diff >= 0 ? 'ok' : 'quase', tip: 'Nota desta semana menos a da anterior' },
+    (() => { const ws = weekStart(td), h = (S.core.praga?.hist || []).filter((x) => x.d >= ws); return { label: '🐛 Pragas da semana', value: h.length, sub: h.length ? `${h.filter((x) => x.reza).length} com reza braba` : (S.core.praga?.lastSeen >= ws ? 'tem praga ativa' : 'semana limpa 🌙'), tone: h.length ? 'quase' : 'ok', tip: 'Quantas tarefas atrasadas viraram praga e foram espantadas nesta semana' }; })(),
     { label: '🎁 Baús abertos', value: hist.length, sub: `${fmtN(hist.reduce((s, x) => s + (x.xp || 0), 0))} XP`, tone: 'premio' },
   ]);
   return `<div class="page-title"><div><h1><em>domingo</em>.</h1></div></div>

@@ -1642,3 +1642,53 @@ li.task[data-praga="2"], li.task[data-praga="3"], li.task[data-praga="4"] { anim
 @media (prefers-reduced-motion: reduce) { .pfx-bug, .pfx-crawl { display: none; } li.task[data-praga], :root[data-praga] .pcv { animation: none !important; } }
 /* o tremor e os bichos nunca criam rolagem pro lado */
 :root[data-praga], :root[data-praga] body { overflow-x: clip; }
+
+/* ═════════════ v6.7 — refinamento da PRAGA ═════════════ */
+@keyframes pg-fear { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(-1px, 0); } 50% { transform: translate(1px, -1px); } 75% { transform: translate(0, 1px); } }
+@keyframes pg-urubu { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-3px) rotate(4deg); } }
+@keyframes pg-guia { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, #c0392b 0%, transparent); } 50% { box-shadow: 0 0 0 3px color-mix(in srgb, #c0392b 60%, transparent), 0 0 18px color-mix(in srgb, #c0392b 45%, transparent); } }
+@keyframes pg-alma-ltr { from { transform: translateX(-140px) translateY(0); } 25% { transform: translateX(25vw) translateY(-14px); } 50% { transform: translateX(50vw) translateY(6px); } 75% { transform: translateX(75vw) translateY(-10px); } to { transform: translateX(calc(100vw + 40px)) translateY(0); } }
+@keyframes pg-alma-rtl { from { transform: translateX(calc(100vw + 40px)) scaleX(-1); } 25% { transform: translateX(75vw) translateY(-12px) scaleX(-1); } 50% { transform: translateX(50vw) translateY(8px) scaleX(-1); } 75% { transform: translateX(25vw) translateY(-8px) scaleX(-1); } to { transform: translateX(-140px) scaleX(-1); } }
+@keyframes pg-fog { from { background-position: 0 0, 0 0; } to { background-position: 400px 0, -300px 0; } }
+@keyframes pg-eyes { 0%, 86%, 100% { opacity: 0; } 88%, 96% { opacity: .95; } 92% { opacity: .1; } }
+
+/* PRIMO COM MEDO (não doente): sem verde, rosto preocupado, tremendo, gota de suor; no ENCOSTO um "!" */
+:root[data-praga] .pcv:not(.pmascot), :root[data-praga="2"] .pcv:not(.pmascot), :root[data-praga="3"] .pcv:not(.pmascot) { filter: none; }
+:root[data-praga="2"] .pcv:not(.pmascot):not(.walker), :root[data-praga="3"] .pcv:not(.pmascot):not(.walker) { animation: pg-fear .35s steps(2) infinite; }
+:root[data-praga="4"] .pcv:not(.pmascot) { filter: brightness(.9) contrast(1.1); animation: pg-fear .25s steps(2) infinite, pg-slices 3.4s steps(1) infinite; }
+:root[data-praga="2"] .pstage::after, :root[data-praga="3"] .pstage::after, :root[data-praga="4"] .pstage::after, :root[data-praga="3"] .pst-face::after, :root[data-praga="4"] .pst-face::after { content: '💧'; left: 58%; bottom: 62%; font-size: 13px; animation: praga-float 1.8s ease-in infinite; }
+:root[data-praga="3"] .pstage::before, :root[data-praga="4"] .pstage::before { content: '❗'; right: 30%; bottom: 72%; font-size: 14px; animation: pg-urubu 1s steps(2) infinite; }
+.praga-pop .pp-row .pcv { filter: none; animation: pg-fear .35s steps(2) infinite; }
+
+/* URUBU GUIA: pousa onde a tarefa está (aba, janela ou lista) e a cor puxa até lá */
+[data-guia] { animation: pg-guia 1.4s ease-in-out infinite; }
+.urubu-guia { position: absolute; top: -15px; right: -4px; z-index: 6; width: 24px; height: 20px; padding: 0; border: 0; background: none; cursor: pointer; animation: pg-urubu 1.6s steps(2) infinite; image-rendering: pixelated; filter: drop-shadow(1px 1px 0 color-mix(in srgb, #241414 50%, transparent)); }
+.urubu-guia svg { width: 20px; height: 16px; display: block; }
+.bottom a .urubu-guia { top: -12px; right: 6px; }
+li.task[data-guia] { outline: 2px solid color-mix(in srgb, #c0392b 70%, transparent); outline-offset: 1px; }
+
+/* A ASSOMBRAÇÃO QUE PASSA (tocar espanta) */
+.pfx-alma { position: fixed; left: 0; z-index: 96; padding: 0; border: 0; background: none; cursor: pointer; opacity: .82; filter: drop-shadow(0 0 10px color-mix(in srgb, #fff4ce 55%, transparent)) drop-shadow(0 0 4px color-mix(in srgb, #e3763b 50%, transparent)); }
+.pfx-alma.ltr { animation: pg-alma-ltr 9.5s linear forwards; } .pfx-alma.rtl { animation: pg-alma-rtl 9.5s linear forwards; }
+.pfx-alma svg { display: block; } .pfx-alma .f1 { display: none; } .pfx-alma[data-f="1"] .f0 { display: none; } .pfx-alma[data-f="1"] .f1 { display: block; }
+.pfx-alma.gone { opacity: 0; transition: opacity .35s; }
+
+/* DIA = ECLIPSE (o banner escurece aos poucos) · NOITE = névoa e olhinhos no escuro · A PRAGA força a noite */
+:root:not([data-mode="night"])[data-praga="2"] .scene.pstrip > img.topo { filter: brightness(.82) saturate(.85); }
+:root:not([data-mode="night"])[data-praga="3"] .scene.pstrip > img.topo { filter: brightness(.58) sepia(.35) hue-rotate(-14deg) saturate(1.2); }
+:root[data-mode="night"][data-praga="3"] .scene.pstrip > img.topo { filter: brightness(.8) sepia(.3) hue-rotate(-14deg); }
+:root[data-praga="4"] .scene.pstrip > img.topo { filter: brightness(.65) sepia(.5) hue-rotate(-22deg) saturate(1.5) contrast(1.1); }
+:root[data-praga="3"] .vit-h, :root[data-praga="4"] .vit-h { box-shadow: inset 0 0 0 999px color-mix(in srgb, #2a0c0c 38%, transparent); }
+.pg-fog { position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: .55;
+  background: radial-gradient(40% 60% at 20% 80%, color-mix(in srgb, #d8c8b0 45%, transparent), transparent 70%), radial-gradient(35% 50% at 70% 90%, color-mix(in srgb, #d8c8b0 35%, transparent), transparent 70%);
+  background-size: 400px 100%, 300px 100%; animation: pg-fog 26s linear infinite; }
+:root:not([data-mode="night"]):not([data-praga="4"]) .pg-fog { opacity: .3; }
+.pg-eyes { position: absolute; z-index: 1; pointer-events: none; width: 3px; height: 3px; left: 72%; top: 46%; background: #ff3a2a; border-radius: 1px; display: none; animation: pg-eyes 6s steps(1) infinite;
+  box-shadow: 7px 0 0 #ff3a2a, -180px 22px 0 #e04a3a, -173px 22px 0 #e04a3a, 90px -18px 0 #ff5a3a, 96px -18px 0 #ff5a3a; }
+:root[data-mode="night"] .pg-eyes, :root[data-praga="4"] .pg-eyes { display: block; }
+/* AGENDA: caveirinha no dia em que a tarefa vira A PRAGA */
+.daystrip .day { position: relative; }
+.pg-skull { position: absolute; top: 2px; right: 3px; font-style: normal; font-size: 10px; line-height: 1; filter: drop-shadow(0 0 3px color-mix(in srgb, #c0392b 60%, transparent)); }
+@media (prefers-reduced-motion: reduce) { .pfx-alma { display: none; } :root[data-praga] .pcv { animation: none !important; } }
+.tabs a[data-guia], .bottom a[data-guia], .qbar button[data-guia] { overflow: visible; }
+.tabs { overflow: visible; }

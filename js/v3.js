@@ -35,10 +35,11 @@ export function sceneBanner(route, ui) {
   const key = route === 'shop' && ui.ltab === 'ferreiro' ? 'ferreiro' : route;
   const [t, sub] = TITLES[key] || [route + '.', ''];
   // v5.14: cada aba tem a sua imagem (dia e noite); o desenho em código só aparece se a imagem não carregar
-  const h = new Date().getHours(), night = document.documentElement.dataset.mode === 'night' || h >= 19 || h < 5, tarde = !night && h >= 16; // v6.1: pela hora do dia
+  const pph = R.praga(S).phase; // v6.7: A PRAGA força a noite; no ENCOSTO/A PRAGA usa o cenário assombrado (se a arte já existir)
+  const h = new Date().getHours(), night = document.documentElement.dataset.mode === 'night' || h >= 19 || h < 5 || pph >= 4, tarde = !night && h >= 16; // v6.1: pela hora do dia
   // v6: a SHOP virou FEIRA, com o cenário da feira (dia, tarde ou noite)
-  const src = key === 'shop' ? `assets/primo/cena/feira-${night ? 'noite' : h >= 16 ? 'tarde' : 'dia'}.webp` : `assets/topo/${TOPOS.includes(key) ? key : 'survival'}-${night ? 'noite' : 'dia'}.webp`;
-  return `<div class="scene pstrip ${tarde ? 'tarde' : ''}" style="--img:url('${new URL(src, document.baseURI).href}')"><canvas id="scene" data-interior="${interiorOf(key) || 'rotina'}" aria-hidden="true"></canvas><img class="topo" src="${src}" alt="" aria-hidden="true">
+  const src = pph >= 3 && R.PRAGA_TOPOS.includes(key) ? `assets/topo/${key}-praga.webp` : key === 'shop' ? `assets/primo/cena/feira-${night ? 'noite' : h >= 16 ? 'tarde' : 'dia'}.webp` : `assets/topo/${TOPOS.includes(key) ? key : 'survival'}-${night ? 'noite' : 'dia'}.webp`;
+  return `<div class="scene pstrip ${tarde ? 'tarde' : ''}" style="--img:url('${new URL(src, document.baseURI).href}')"><canvas id="scene" data-interior="${interiorOf(key) || 'rotina'}" aria-hidden="true"></canvas><img class="topo" src="${src}" alt="" aria-hidden="true">${pph >= 2 ? '<span class="pg-fog" aria-hidden="true"></span><span class="pg-eyes" aria-hidden="true"></span>' : ''}
     <div class="pst-face"><canvas class="pcv" data-portrait="mini" data-act="primo-hub" title="Falar com o PRIMO" aria-label="PRIMO"></canvas></div>
     <div class="pst-txt"><div class="scene-title">${esc(t)}</div><div class="scene-sub">${esc(sub.toUpperCase())}</div><div class="pst-say" data-pspeech="tab:${key}"></div></div></div>`;
 }
@@ -210,7 +211,7 @@ export function viewArquivo3(ui) {
   const rows = groups.map(({ d, items }) => {
     const dd = shown.filter((x) => dayOf(x) === d), nDone = dd.filter((x) => x.st !== 'cancel').length, xpD = dd.reduce((a, x) => a + (x.st === 'cancel' ? 0 : xpOf(x)), 0);
     return `<section class="arq-daycard"><div class="arq-day"><span class="ad-n">${d ? d.slice(8) : '—'}</span><span class="ad-m">${d ? `${DOWN[new Date(d + 'T12:00').getDay()]}<br>${fmtDM(d).slice(3)}` : 'sem data'}</span><span class="ad-s"><b>${nDone}</b> feita(s)<br><span class="gold">+${fmtN(xpD)} XP</span></span></div>
-      <div class="list">${items.map((t) => `<div class="li ${t.st === 'cancel' ? 'canc' : ''}"><div class="lt">${t.st === 'cancel' ? '✕' : '✓'} ${esc(t.text)}<small>${esc(ctxOf(t))}${(t.rounds || []).length ? ` · 🔁 ${t.rounds.length}` : ''}</small></div><span class="chip xp">+${xpOf(t)}</span></div>`).join('')}</div></section>`;
+      <div class="list">${items.map((t) => `<div class="li ${t.st === 'cancel' ? 'canc' : ''}"><div class="lt">${t.st === 'cancel' ? '✕' : '✓'} ${esc(t.text)}${t.reza ? ' <span title="Espantada com REZA BRABA (estava em ' + R.PRAGA_NAMES[t.reza] + ')">🙏</span>' : ''}<small>${esc(ctxOf(t))}${(t.rounds || []).length ? ` · 🔁 ${t.rounds.length}` : ''}</small></div><span class="chip xp">+${xpOf(t)}</span></div>`).join('')}</div></section>`;
   }).join('');
   const L = S.core.legacy;
   return `<div class="page-title"><div><h1><em>arquivo</em>.</h1><p>Tudo que você já fechou mora aqui. Toque num quadrinho pra filtrar.</p></div></div>

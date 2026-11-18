@@ -6,3 +6,4 @@ Sons da PRAGA (v6.6). Todos CC0 (domínio público), do OpenGameArt.org. Cortado
 - praga-fita.mp3   ← "Reversing Time / Stuck in Time" (isaiah658)  https://opengameart.org/content/reversing-time-stuck-in-time
 - praga-canto.mp3  ← "Creepy incoherent chanting" (owlishmedia)  https://opengameart.org/content/creepy-incoherent-chanting
 - reza.mp3         ← "ethereal chant" do mesmo pacote (owlishmedia) + "Bell dings/chimes" (pwl)
+- praga-alma.mp3   ← "Air whoosh" (pyranostudios) + "Ghost" (ogrebane), misturados  https://opengameart.org/content/air-whoosh · https://opengameart.org/content/ghost
