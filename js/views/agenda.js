@@ -1,3 +1,4 @@
+import { isCollapsed } from '../v3.js';
 // AGENDA — controle de prazos, linha do tempo de 6 semanas (◄ ► troca a semana), fila com filtro.
 import { S } from '../store.js';
 import { tiles } from '../telas.js';
@@ -70,8 +71,8 @@ export function viewAgenda(ui) {
     <div class="page-actions"><button class="btn pri" data-act="distribute">📅 DISTRIBUIR PRAZOS</button></div>
     ${dayStrip()}
     <div class="grid">${timelineCard(ui)}</div>
-    <section class="vitrine filtro-v" id="filtro-v" data-v="filtro"><header class="vit-h" style="--img:url('${new URL(`assets/topo/filtro-${document.documentElement.dataset.mode === 'night' ? 'noite' : 'dia'}.webp`, document.baseURI).href}')"><div><h2>🔍 FILTRO</h2><p>Tudo em aberto, numa tabela. Toque num quadrinho pra filtrar, no cabeçalho pra ordenar, na linha pra abrir.</p></div></header>
-      <div class="vit-b">${filtroBody(ui)}</div></section>`;
+    <section class="vitrine filtro-v ${isCollapsed('c:agenda:filtro') ? 'shut' : ''}" id="filtro-v" data-v="filtro"><header class="vit-h" data-act="collapse" data-k="c:agenda:filtro" title="Toque pra recolher ou abrir o FILTRO" style="--img:url('${new URL(`assets/topo/filtro-${document.documentElement.dataset.mode === 'night' ? 'noite' : 'dia'}.webp`, document.baseURI).href}')"><div><h2><span class="chev">${isCollapsed('c:agenda:filtro') ? '▸' : '▾'}</span> 🔍 FILTRO</h2><p>Tudo em aberto, numa tabela. Toque num quadrinho pra filtrar, no cabeçalho pra ordenar, na linha pra abrir.</p></div></header>
+      ${isCollapsed('c:agenda:filtro') ? '' : `<div class="vit-b">${filtroBody(ui)}</div>`}</section>`;
 }
 
 /** faixa de dias (volta na v5.15, a pedido do dono): rola pro lado; o número é a carga do dia e a cor diz se pesa */

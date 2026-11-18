@@ -1286,22 +1286,37 @@ li.task.glow[data-color="black"] { --gl: var(--c-neutro); } li.task.glow[data-co
 .pcard.compact .pcol { padding-top: 0; }
 @media (max-width: 600px) { .qscene .qs-say { width: 92%; } .qscene .qs-say .speech { font-size: 11.5px; } }
 /* v6 (5C) cursor próprio (pincel ou patinha); campos de texto continuam com o cursor de texto */
-:root[data-cursor] body, :root[data-cursor] a, :root[data-cursor] button, :root[data-cursor] [data-act], :root[data-cursor] label, :root[data-cursor] summary, :root[data-cursor] select { cursor: var(--cur); }
+:root[data-cursor] body { cursor: var(--cur); }
+:root[data-cursor] a, :root[data-cursor] button, :root[data-cursor] [data-act], :root[data-cursor] label, :root[data-cursor] summary, :root[data-cursor] select { cursor: var(--cur-hand, var(--cur)); }
 :root[data-cursor] input, :root[data-cursor] textarea { cursor: text; }
-/* v6 MAPA MENTAL de montar */
+/* v6.3 MAPA MENTAL num quadro infinito (zoom, mover, caixa de seleção). Classes próprias: .mnode e .mmap-sw
+   (antes eram .mn e .mm-c, que batiam com o nome da medalha nas CONQUISTAS e com a coluna do MEMENTO) */
 .mm-tools { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; }
-.mm-cols { display: inline-flex; gap: 4px; padding: 0 6px; }
-.mm-c { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--edge); background: var(--mc); cursor: pointer; padding: 0; }
-.mm-box { border: 2px solid var(--line); border-radius: 10px; background: var(--bg); height: clamp(320px, 52vh, 560px); overflow: auto; }
-.mm-canvas { position: relative; width: 1800px; height: 1000px; background-image: radial-gradient(color-mix(in srgb, var(--line) 70%, transparent) 1px, transparent 1px); background-size: 22px 22px; }
-.mm-links { position: absolute; inset: 0; overflow: visible; }
-.mm-links .ln { fill: none; stroke: var(--c-acao); stroke-width: 2; }
+.mm-tools .mm-sp { flex: 1; }
+.mm-tools .mm-zl { min-width: 40px; text-align: center; font-size: 11px; }
+.mmap-cols { display: inline-flex; gap: 4px; padding: 0 6px; }
+.mmap-sw { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--edge); background: var(--mc); cursor: pointer; padding: 0; }
+.mm-box { position: relative; overflow: hidden; border: 2px solid var(--line); border-radius: 10px; height: clamp(360px, 62vh, 680px); touch-action: none; user-select: none; outline: none; overscroll-behavior: contain;
+  background-color: var(--bg); background-image: radial-gradient(color-mix(in srgb, var(--line) 75%, transparent) 1px, transparent 1px); background-size: 22px 22px; }
+.mm-box:focus-visible { border-color: var(--c-acao); }
+.mm-world { position: absolute; left: 0; top: 0; width: 1px; height: 1px; transform-origin: 0 0; }
+.mm-links { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+.mm-links .ln { fill: none; stroke-width: 2; }
 .mm-links .hit { fill: none; stroke: transparent; stroke-width: 14; cursor: pointer; pointer-events: stroke; }
-.mm-links g.on .ln { stroke: var(--c-premio); stroke-width: 3; }
-.mn { position: absolute; min-height: 38px; display: grid; place-items: center; padding: 6px 12px; text-align: center; border-radius: 12px; background: var(--panel); border: 3px solid var(--mc, var(--c-acao)); font: 700 12px/1.25 var(--f-mono); color: var(--ink); box-shadow: 3px 3px 0 var(--shadow); cursor: grab; user-select: none; touch-action: none; overflow-wrap: anywhere; }
-.mn.on { outline: 3px solid var(--c-premio); outline-offset: 2px; }
-.mn[contenteditable] { cursor: text; user-select: text; outline: 3px dashed var(--c-premio); }
+.mm-links g.on .ln { stroke-width: 4; filter: drop-shadow(0 0 3px color-mix(in srgb, var(--c-premio) 70%, transparent)); }
+.mm-links .mm-temp { fill: none; stroke: var(--c-premio); stroke-width: 2; stroke-dasharray: 5 5; }
+.mnode { position: absolute; height: 40px; display: grid; place-items: center; padding: 4px 12px; text-align: center; border-radius: 12px; background: var(--panel); border: 3px solid var(--mc, var(--c-acao));
+  font: 700 12px/1.25 var(--f-mono); color: var(--ink); cursor: grab; overflow: hidden; white-space: normal; word-break: break-word; box-shadow: 2px 3px 0 var(--shadow); }
+.mnode.on { outline: 3px solid var(--c-premio); outline-offset: 2px; overflow: visible; }
+.mnode[contenteditable="true"] { cursor: text; user-select: text; outline: 3px dashed var(--c-premio); height: auto; min-height: 40px; }
+.mnode .mm-h { position: absolute; right: -9px; top: 50%; width: 14px; height: 14px; margin-top: -7px; border-radius: 50%; background: var(--c-premio); border: 2px solid var(--edge); cursor: crosshair; }
+.mm-marq { position: absolute; border: 2px dashed var(--c-calma); background: color-mix(in srgb, var(--c-calma) 12%, transparent); pointer-events: none; }
 .mm-empty { position: absolute; left: 40px; top: 40px; color: var(--dim); font-size: 13px; pointer-events: none; }
+.mm-help { position: absolute; right: 10px; bottom: 6px; font-size: 10px; pointer-events: none; opacity: .75; }
+.mm-boxbtn { display: none; }
+.mm-help-t { display: none; }
+@media (hover: none) { .mm-help { display: none; } .mm-help-t { display: block; } }
+.mm-box, .mm-box * { scrollbar-width: none; } .mm-box::-webkit-scrollbar { display: none; }
 /* ───────── v6 PROPORÇÕES (botões e respiro) ─────────
    Escala de 8 px (8·16·24·32), alturas fixas por tamanho e área de toque de 44 px no celular (lei de Fitts e as diretrizes
    de acessibilidade): o que é mais importante é maior, o resto é discreto. Texto dos botões sempre no meio. */
@@ -1457,3 +1472,54 @@ body { background-color: var(--bg); color: var(--ink); }
   background: linear-gradient(180deg, var(--panel-2) 0%, var(--panel) 70%); border-color: var(--edge); }
 /* ajuste de harmonia (permitido pelo dono): "quase" ficava colado no "urgente"; vai pro meio dos dois laranjas da paleta (#c8563e e #e0783b) */
 :root { --c-quase: #d4683a; }
+
+/* ═════════════ v6.3 — reajustes pedidos pelo dono ═════════════ */
+/* Paleta MISTURADA: a base cozy pastel da v6.1 (papel creme, cabeçalhos rosinha cor de pele, que nem o PRIMO)
+   + as cores da paleta escolhida, cada uma puxada meio a meio pro tom antigo (mesma família, mais harmonia).
+   O roxo do AGUARDANDO voltou a ser o antigo (lavanda), que ele gostava. */
+:root, :root[data-theme] {
+  --bg: #f3eadc; --panel: #fbf5ea; --panel-2: #efe3cf; --line: #ddcdb5; --edge: #4d3526; --ink: #3a2a20; --muted: #6f5b4b; --dim: #a08b77;
+  --shadow: rgba(77, 53, 38, .22); --sky-a: #6aaad6; --sky-b: #f1e4c8; --sky-m: #a9cfe2;
+  --c-urg: #bd4d3f; --c-quase: #d47642; --c-atencao: #d59b34; --c-ok: #5a9862; --c-calma: #5383a8; --c-espera: #8a77b6; --c-neutro: #8a8780; --c-premio: #c79236; --c-acao: #9a5744;
+  --accent: var(--c-acao); --accent-2: #b0765a;
+  --accent-soft: #f3dfd2; --good-soft: #e3eedf; --bad-soft: #f5dfd9; --warn-soft: #ece5f4; --info-soft: #e0ebf1;
+  --cat-bd: #4fa196; --cat-tr: #d9783f; --cat-cap: #b8607a; --cat-gs: #8a9454; --cat-bs: #bd4d3f; --cat-win: #8a77b6; }
+:root[data-mode="night"], :root[data-theme][data-mode="night"] {
+  --c-urg: #e47868; --c-quase: #ea9058; --c-atencao: #edc95c; --c-ok: #97ca8c; --c-calma: #7fb3cc; --c-espera: #b9a6e4; --c-neutro: #c6b8a6; --c-premio: #eec668; --c-acao: #e8b68e;
+  --accent-2: #f0c9a2; --accent-soft: #3b2a22; --cat-win: #b9a6e4; --cat-cap: #d58aa0; }
+/* cabeçalho das janelas (cartões) com o rosinha cor de pele do PRIMO */
+.card > header, .list-card > header { background: linear-gradient(180deg, color-mix(in srgb, #f2c4b4 34%, transparent), transparent); }
+:root[data-mode="night"] .card > header { background: linear-gradient(180deg, color-mix(in srgb, #f2c4b4 8%, transparent), transparent); }
+/* barra das janelas do QUESTS de volta ao escuro neutro de antes, com detalhes da paleta */
+:root { --anth: #2e2a2c; }
+.qbar .seg button { color: #d8cbb8; border-color: #4b4650; }
+.qbar .seg button.on { background: #f3eadc; color: #2e2a2c; border-color: #f3eadc; }
+.qbar .btn { background: #3a3438; color: #f3eadc; border-color: #5b545c; box-shadow: 2px 2px 0 #1f1712; }
+.qbar .btn:hover { background: #4b4048; }
+
+/* setinha de recolher: a fonte pixel não tem ▸ ▾ (virava um pontinho). Agora ela aparece em tamanho certo */
+.chev, .card > header h2 .chev, .band .chev, .list-card .chev, .block .chev { font: 700 12px/1 system-ui, 'Segoe UI Symbol', sans-serif; display: inline-block; width: 12px; text-align: center; vertical-align: 1px; }
+
+/* banners mais baixos no PC (cortando a imagem como era antes); o rosto do PRIMO pequeno, na escala do banner */
+@media (min-width: 861px) {
+  .scene.pstrip { aspect-ratio: auto; height: clamp(112px, 10vw, 150px); max-height: none; padding: 8px 18px; }
+  .scene.pstrip > img.topo { object-position: center 55%; }
+  .scene.pstrip .pst-face, .scene.pstrip .pst-face .pcv { width: clamp(52px, 4.4vw, 66px); }
+  .scene.pstrip .pst-txt .scene-title { font-size: clamp(13px, 1.1vw, 16px); }
+  .vit-h { aspect-ratio: auto; height: clamp(96px, 9vw, 130px); max-height: none; }
+}
+/* FILTRO recolhido: só a faixa do banner */
+.vitrine.shut .vit-h { height: 64px; min-height: 0; }
+.vit-h[data-act] { cursor: pointer; }
+.vit-h h2 .chev { color: #f6e7c8; }
+
+/* CONQUISTAS: dourado mais calmo (recompensa sem gritar) */
+.medal.on { border-color: color-mix(in srgb, var(--c-premio) 55%, var(--line)); }
+.medal.on .mi { background: color-mix(in srgb, var(--c-premio) 10%, var(--panel)); border-color: color-mix(in srgb, var(--c-premio) 55%, var(--line)); color: color-mix(in srgb, var(--c-premio) 80%, var(--ink)); }
+
+/* LINHA DO TEMPO: degradê suave e meio transparente, igual ao cabeçalho das listas */
+.tl td.span { --hc: var(--c-acao); background: linear-gradient(180deg, color-mix(in srgb, var(--hc) 34%, transparent), color-mix(in srgb, var(--hc) 10%, transparent)) !important; border-top: 2px solid color-mix(in srgb, var(--hc) 60%, transparent); }
+.tl td.span.h-ok { --hc: var(--c-ok); } .tl td.span.h-atencao { --hc: var(--c-atencao); } .tl td.span.h-quase { --hc: var(--c-quase); } .tl td.span.h-urg { --hc: var(--c-urg); }
+
+/* MEMENTO: coluna de texto do jeito certo */
+.memento .mm-col { min-width: 0; }

@@ -2,7 +2,7 @@
 // Regra de ouro da loja: COMPRE ANTES DE FAZER. Fez sem comprar? Paga depois com multa (R.DEBT_MULT).
 import { S } from '../store.js';
 import * as R from '../rules.js';
-import { esc, today, fmtDM, fmtN } from '../util.js';
+import { esc, today, fmtDM, fmtN, addDays } from '../util.js';
 import { segBar } from '../ui.js';
 import { px } from '../icons.js';
 import { tiles } from '../telas.js';
@@ -118,9 +118,13 @@ export function viewShop(ui) {
   const body = tab === 'mochila' ? mochila() : tab === 'forjados' ? forjados() : tab === 'ouro' ? ouro() : tab === 'hist' ? hist()
     : vitrine('tav', '🍺 TAVERNA', 'Os prazeres do dia a dia. Compre ANTES de aproveitar: vai pra mochila.', taverna(tot, shop))
       + vitrine('fer', '⚒ FERREIRO', 'Conquistas da vida real: XP + gold. Cada nível destrava itens novos.', ferreiro(tot, shop, ui));
+  const td7 = today(), days7 = Array.from({ length: 7 }, (_, i) => addDays(td7, -i)), xbd = R.idx(S).xpByDay;
+  const week = { got: days7.reduce((a, d) => a + (xbd[d] || 0), 0), spent: (S.loja.purchases || []).filter((p) => days7.includes(p.date)).reduce((a, p) => a + (p.xp || 0), 0) };
   return `<div class="page-title"><div><h1><em>feira</em>.</h1></div></div>
     ${shop.locked ? `<div class="banner bad">🔒 Loja trancada: ${shop.overdue} tarefas atrasadas. Resolva ou remarque UMA e ela abre. <a href="#agenda">ver prazos →</a></div>` : ''}
     ${tiles([
+      { label: '📥 Ganho 7 dias', value: fmtN(week.got), tone: 'ok', tip: 'XP que você ganhou nos últimos 7 dias' },
+      { label: '📤 Gasto 7 dias', value: fmtN(week.spent), tone: week.spent > week.got ? 'urg' : 'neutro', sub: week.got ? `${Math.round((week.spent / week.got) * 100)}% do ganho` : '', tip: 'XP gasto na FEIRA nos últimos 7 dias. Gastar menos do que ganha = saldo crescendo.' },
       { label: '✨ Saldo', value: fmtN(tot.balance), cls: 'gold', tone: 'premio', tip: 'XP pra gastar na TAVERNA e no FERREIRO' },
       { label: '$ Gold', value: fmtN(tot.gold), cls: 'gold', tone: 'premio', tip: `Dinheiro de verdade que entrou (${fmtN(tot.goldIn)} no total). Usado no FERREIRO.` },
       { label: '🎟 Tickets', value: tot.tickets, cls: 'tk', tone: 'premio', tip: 'Cada ticket troca por um item da TAVERNA sem gastar XP (itens caros pedem mais de um).' },

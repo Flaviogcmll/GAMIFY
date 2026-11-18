@@ -226,7 +226,7 @@ export function questsBanner() {
 }
 export function primoCard() {
   const c = R.companion(S), n = claudeCount();
-  return `<div class="card comp-card"><header><h2>${esc(c.name)}</h2><span class="row" style="gap:6px;flex-wrap:nowrap">${hearts()}<button class="icon-btn" data-act="comp-rename" title="Nome" aria-label="Renomear">✎</button></span></header>${body(false, true)}</div>`; void n;
+  return `<div class="card comp-card"><header><h2>${esc(c.name)}</h2><span class="row" style="gap:6px;flex-wrap:nowrap">${hearts()}<button class="icon-btn" data-act="comp-rename" title="Nome" aria-label="Renomear">✎</button></span></header>${body(false)}</div>`; void n; // v6.3: o PRIMO voltou pro cantinho dele (pedido do dono)
 }
 export function openPrimoHub() {
   const c = R.companion(S), b = bond(), pet = PS.petState();

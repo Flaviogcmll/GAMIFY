@@ -38,20 +38,26 @@ export function perksGo(i) {
 
 // ───── v6 (5C) CURSOR PRÓPRIO: pincel mágico ou patinha do porquinho (escolha em PERKS → Ajustes; fica neste aparelho) ─────
 // desenhados em pixel art aqui mesmo (originais): cada letra é uma cor, "." é transparente. A ponta (onde o clique acontece) é o canto de cima à esquerda.
-const CUR_PAL = { k: '#2b1d14', w: '#fff7e0', y: '#f2c14e', o: '#e8793a', b: '#8a5a2b', d: '#5a3a1e', g: '#cfd6dd', p: '#f4a7b9', P: '#d9788f', s: '#ffe98a' };
+const CUR_PAL = { K: '#3d2a20', W: '#fff4ce', C: '#e8c49a', k: '#2b1d14', w: '#fff7e0', y: '#f2c14e', o: '#e8793a', b: '#8a5a2b', d: '#5a3a1e', g: '#cfd6dd', p: '#f4a7b9', P: '#d9788f', s: '#ffe98a' };
 const CURSORS = {
+  // v6.3: SETA e MÃO do jogo (iguais às do sistema, em pixel, sem preto puro). A seta é o padrão; a mão aparece no que dá pra tocar.
+  seta: ['K...............', 'KK..............', 'KWK.............', 'KWWK............', 'KWWCK...........', 'KWWWCK..........', 'KWWWWCK.........',
+    'KWWWWWCK........', 'KWWWWWWCK.......', 'KWWWWKKKKK......', 'KWWKWWK.........', 'KWK.KWCK........', 'KK..KWCK........', 'K....KWCK.......', '.....KWCK.......', '......KK........'],
+  mao: ['....KK..........', '...KWWK.........', '...KWWK.........', '...KWWK.........', '...KWWKKK.......', '...KWWKWWKKK....', '.KKKWWKWWKWWKK..', 'KWWKWWWWWWWWKWK.',
+    'KWWKWWWWWWWWWWK.', '.KWWWWWWWWWWWCK.', '..KWWWWWWWWWWCK.', '..KWWWWWWWWWCK..', '...KWWWWWWWCK...', '...KWWWWWWWCK...', '....KKKKKKKK....', '................'],
   pincel: ['kk..............', 'kwyk...s........', '.kyok..........s', '..kook.....s....', '...kook.........', '....kgk.........', '.....kgk........', '......kbk.......', '.......kbk......', '........kbk.....', '.........kbk....', '..........kbk...', '...........kdk..', '............kdk.', '.............kk.', '................'],
   patinha: ['.kk..kk.........', 'kPPkkPPk........', 'kPpkkpPk........', 'kPpkkpPk........', '.kppppk.........', '.kppppk.........', 'kppppppk........', 'kppwwppk........', 'kpppppppk.......', '.kpppppppk......', '..kppppppk......', '...kpppppk......', '....kkkkk.......', '................', '................', '................'],
 };
-const curUrl = (rows) => {
+const curUrl = (rows, hx = 1, hy = 1) => {
   let r = ''; rows.forEach((row, y) => [...row].forEach((ch, x) => { if (CUR_PAL[ch]) r += `<rect x="${x * 2}" y="${y * 2}" width="2" height="2" fill="${CUR_PAL[ch]}"/>`; }));
-  return `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" shape-rendering="crispEdges">${r}</svg>`)}") 1 1`;
+  return `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" shape-rendering="crispEdges">${r}</svg>`)}") ${hx} ${hy}`;
 };
 export const CURSOR_KEY = 'gamify-ui:cursor';
 export function applyCursor() {
-  let k = 'pincel'; try { k = localStorage.getItem(CURSOR_KEY) || 'pincel'; } catch { /* */ }
+  let k = 'seta'; try { k = localStorage.getItem(CURSOR_KEY) || 'seta'; } catch { /* */ }
   const root = document.documentElement;
-  if (!CURSORS[k]) { root.style.removeProperty('--cur'); delete root.dataset.cursor; return; }
+  if (!CURSORS[k] || k === 'mao') { root.style.removeProperty('--cur'); root.style.removeProperty('--cur-hand'); delete root.dataset.cursor; return; }
   root.style.setProperty('--cur', curUrl(CURSORS[k]) + ', auto');
+  root.style.setProperty('--cur-hand', k === 'seta' ? curUrl(CURSORS.mao, 9, 1) + ', pointer' : curUrl(CURSORS[k]) + ', pointer');
   root.dataset.cursor = k;
 }

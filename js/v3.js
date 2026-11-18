@@ -228,7 +228,12 @@ export function viewArquivo3(ui) {
 export function extend(ACTIONS, render) {
   window.__weeklyPick = () => ACTIONS['weekly-pick']();
   Object.assign(ACTIONS, {
-    collapse: (d) => { toggleCollapse(d.k); render(); sfx('swish'); },
+    collapse: (d, e, el) => { // v6.3: o título que você tocou fica parado no mesmo lugar da tela (o cartão não "pula")
+      const y0 = (el || document.querySelector(`[data-k="${CSS.escape(d.k)}"]`))?.getBoundingClientRect().top;
+      toggleCollapse(d.k); render(); sfx('swish');
+      const h = document.querySelector(`[data-k="${CSS.escape(d.k)}"]`);
+      if (h && y0 != null) { const dy = h.getBoundingClientRect().top - y0; if (Math.abs(dy) > 1) window.scrollBy(0, dy); }
+    },
     qtab: (d) => { const ui = window.__ui; if ((document.querySelector('.qbar .seg button.on')?.dataset.tab || ui.qtab || 'listas') === d.tab && !ui.mm) ui.mm = true; else { ui.mm = false; ui.qtab = d.tab; } render(); sfx('tab'); }, // v6: tocar de novo na janela aberta = memento mori
     'mm-off': () => { window.__ui.mm = false; render(); sfx('tab'); },
     'ag-day': (d) => { const list = R.openTasks(S).filter((t) => t.due === d.d); openModal(`<h2>${fmtDM(d.d)}</h2><div class="list">${list.map((t) => `<div class="li" data-list="${R.listOf(t)}"><div class="lt" data-act="jump" data-id="${t.id}" style="cursor:pointer">${esc(t.text)}<small>${esc(t.block ? R.findBlock(S, t.block)?.title || '' : R.areaName(t.area))}</small></div><span class="chip xp">${R.taskXp(S, t).xp}</span></div>`).join('') || '<div class="empty">nada vence nesse dia.</div>'}</div><div class="actions"><button class="btn" data-close>FECHAR</button></div>`); },
