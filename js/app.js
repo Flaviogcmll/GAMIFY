@@ -3,7 +3,7 @@ import { S, status, init, onChange, replaceAll, exportAll } from './store.js';
 
 import * as A from './actions.js';
 import * as R from './rules.js';
-import { esc, today, addDays, weekday, fmtDM, fmtN, uid, DOW, diffDays } from './util.js';
+import { esc, today, addDays, weekday, fmtDM, fmtN, uid, DOW, diffDays, lightNow } from './util.js';
 
 import { openModal, closeModal, ask, toast, modalOpen, segBar } from './ui.js';
 
@@ -83,6 +83,7 @@ function applyMode() {
   const p = modePref(), h = new Date().getHours();
   const m = p === 'auto' ? (h >= 6 && h < 18 ? 'day' : 'night') : p;
   if (document.documentElement.dataset.mode !== m) document.documentElement.dataset.mode = m;
+  const lt = lightNow(); if (document.documentElement.dataset.light !== lt) document.documentElement.dataset.light = lt; // v7.0: cenário pela hora real
   embers(m === 'night');
   document.querySelector('meta[name=theme-color]')?.setAttribute('content', m === 'night' ? '#0e0c0a' : '#f7f5f0');
 }

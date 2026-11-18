@@ -1293,11 +1293,14 @@ export function initRoutine() {
 }
 
 /** arrastar bloco: reordena na coluna ou muda de coluna (BREAKDOWN / TRABALHO / CAPTAÇÕES) */
-export function dropBlock(id, { group, before }) {
+export function dropBlock(id, { group, before, col, peers }) {
   const b = B(id);
   if (!b || !group) return;
   return commit(['quests'], () => {
     b.group = group;
+    // v7.0: colunas fixas guardadas no bloco (b.col = 0, 1 ou 2). Quem ainda não tinha, fica na coluna em que aparecia na tela.
+    (peers || []).forEach(([pid, c]) => { const x = B(pid); if (x && x !== b && !Number.isInteger(x.col)) x.col = c; });
+    if (Number.isInteger(col) && col >= 0 && col < 3) b.col = col;
     const list = S.quests.blocks.filter((x) => x.group === group && x !== b).sort((x, y) => x.ord - y.ord);
     const i = before ? list.findIndex((x) => x.id === before) : list.length;
     list.splice(i < 0 ? list.length : i, 0, b);

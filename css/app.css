@@ -62,6 +62,7 @@
 
 * { box-sizing: border-box; }
 html, body { height: 100%; }
+html { scrollbar-gutter: stable; } /* v7.0: a página não muda de largura quando a barra de rolagem aparece ou some */
 body {
   margin: 0; background: var(--bg); color: var(--ink); font: 400 13.5px/1.5 var(--f-mono);
   -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent;
@@ -164,7 +165,7 @@ label.lbl { display: block; font: 7.5px/1.4 var(--f-pixel); color: var(--dim); m
 /* barra das janelas do QUESTS fica presa abaixo do topo (só em tela grande: no celular o topo já ocupa muito) */
 /* v5.9 ── listas de 3 em 3; blocos em mosaico ("ímãs": um bloco aberto não deixa buraco) */
 .lists.six, .mcols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: start; }
-.mcol { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.mcol { display: flex; flex-direction: column; gap: 12px; min-width: 0; min-height: 80px; } /* v7.0: coluna vazia também recebe bloco arrastado */
 .group.wide > .mcols { grid-column: 1 / -1; }
 @media (max-width: 860px) { .lists.six, .mcols { display: flex; flex-direction: column; align-items: stretch; } .mcol { display: contents; } }
 /* REVISADO nas listas e janela toda revisada (verde na barra) */
@@ -235,7 +236,7 @@ article.block.reviewed .bh { opacity: .82; }
 .groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: start; }
 .group { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .side > * { flex-shrink: 0; }
-.side { display: flex; flex-direction: column; gap: 14px; position: sticky; top: calc(var(--stick, 100px) + 12px); max-height: calc(100vh - var(--stick, 100px) - 24px); overflow-y: auto; padding: 0 6px 8px 0; scrollbar-width: thin; }
+.side { display: flex; flex-direction: column; gap: 14px; position: sticky; top: calc(var(--stick, 100px) + 12px); max-height: calc(100vh - var(--stick, 100px) - 24px); overflow-y: auto; padding: 0 6px 8px 0; scrollbar-width: thin; scrollbar-gutter: stable; } /* v7.0: o espaço da barra fica reservado: abrir a FILA não estreita o painel (os hábitos pulavam de linha) */
 
 /* tarefas */
 .tasks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
@@ -1372,7 +1373,7 @@ li.task[data-cat="gs"] { --cc: var(--cat-gs); } li.task[data-cat="bs"] { --cc: v
   --shadow: rgba(10, 6, 4, .45);
   --c-urg: #e88a7c; --c-quase: #f0a874; --c-atencao: #e6c66e; --c-ok: #8fc79a; --c-calma: #8db8d3; --c-espera: #b9a6e4; --c-neutro: #b8b0a5; --c-premio: #ecc67a; --c-acao: #e0b893;
   --accent-2: #f0cfae; --accent-soft: #3b2c21; --good-soft: #223326; --bad-soft: #3c221d; --warn-soft: #2c2440; --info-soft: #1b2b38; }
-:root[data-mode="night"] body { background: radial-gradient(110% 70% at 50% 115%, rgba(236, 160, 100, .16), transparent 62%), var(--bg); }
+:root[data-mode="night"] body { background: radial-gradient(110% 70% at 50% 115%, rgba(236, 160, 100, .16), transparent 62%) no-repeat fixed, var(--bg); } /* v7.0: preso à tela e sem repetir (a repetição fazia uma faixa reta a cada altura de tela) */
 :root[data-mode="night"] .card, :root[data-mode="night"] .list-card, :root[data-mode="night"] .block, :root[data-mode="night"] .item, :root[data-mode="night"] .stat, :root[data-mode="night"] .modal {
   background: linear-gradient(180deg, var(--panel-2) 0%, var(--panel) 70%); border-color: var(--edge); }
 body { background-color: var(--bg); color: var(--ink); }
@@ -1447,7 +1448,7 @@ body { background-color: var(--bg); color: var(--ink); }
   --accent-soft: color-mix(in srgb, #e0783b 20%, #493f3e); --good-soft: color-mix(in srgb, #5aa062 26%, #493f3e); --bad-soft: color-mix(in srgb, #b84030 30%, #493f3e);
   --warn-soft: color-mix(in srgb, #734c81 34%, #493f3e); --info-soft: color-mix(in srgb, #477bab 30%, #493f3e);
   --cat-bd: #50a69d; --cat-tr: #e3763b; --cat-cap: #c95d74; --cat-gs: #c3c772; --cat-bs: #df624c; --cat-win: #c95d74; }
-:root[data-mode="night"] body { background: radial-gradient(110% 70% at 50% 115%, rgba(224, 120, 59, .18), transparent 62%), var(--bg); }
+:root[data-mode="night"] body { background: radial-gradient(110% 70% at 50% 115%, rgba(224, 120, 59, .18), transparent 62%) no-repeat fixed, var(--bg); }
 :root[data-mode="night"] .card, :root[data-mode="night"] .list-card, :root[data-mode="night"] .block, :root[data-mode="night"] .item, :root[data-mode="night"] .stat, :root[data-mode="night"] .modal {
   background: linear-gradient(180deg, color-mix(in srgb, #653b51 45%, #493f3e) 0%, #493f3e 70%); border-color: var(--edge); }
 /* barra das janelas do QUESTS com as cores da paleta (contorno escuro, vinho do baú) */
@@ -1467,7 +1468,7 @@ body { background-color: var(--bg); color: var(--ink); }
   --bg: #1c1612; --panel: #271e18; --panel-2: #30251d; --line: #4a3a2e; --edge: #6a4f3c; --ink: #f0e4d3; --muted: #c4b19c; --dim: #8e7b69; --anth: #241b16;
   --accent-soft: color-mix(in srgb, #e0783b 20%, #271e18); --good-soft: color-mix(in srgb, #5aa062 26%, #271e18); --bad-soft: color-mix(in srgb, #b84030 30%, #271e18);
   --warn-soft: color-mix(in srgb, #734c81 34%, #271e18); --info-soft: color-mix(in srgb, #477bab 30%, #271e18); }
-:root[data-mode="night"] body { background: radial-gradient(110% 70% at 50% 115%, rgba(236, 160, 100, .16), transparent 62%), var(--bg); }
+:root[data-mode="night"] body { background: radial-gradient(110% 70% at 50% 115%, rgba(236, 160, 100, .16), transparent 62%) no-repeat fixed, var(--bg); } /* v7.0: preso à tela e sem repetir (a repetição fazia uma faixa reta a cada altura de tela) */
 :root[data-mode="night"] .card, :root[data-mode="night"] .list-card, :root[data-mode="night"] .block, :root[data-mode="night"] .item, :root[data-mode="night"] .stat, :root[data-mode="night"] .modal {
   background: linear-gradient(180deg, var(--panel-2) 0%, var(--panel) 70%); border-color: var(--edge); }
 /* ajuste de harmonia (permitido pelo dono): "quase" ficava colado no "urgente"; vai pro meio dos dois laranjas da paleta (#c8563e e #e0783b) */
@@ -1674,21 +1675,24 @@ li.task[data-guia] { outline: 2px solid color-mix(in srgb, #c0392b 70%, transpar
 .pfx-alma.gone { opacity: 0; transition: opacity .35s; }
 
 /* DIA = ECLIPSE (o banner escurece aos poucos) · NOITE = névoa e olhinhos no escuro · A PRAGA força a noite */
-:root:not([data-mode="night"])[data-praga="2"] .scene.pstrip > img.topo { filter: brightness(.82) saturate(.85); }
-:root:not([data-mode="night"])[data-praga="3"] .scene.pstrip > img.topo { filter: brightness(.58) sepia(.35) hue-rotate(-14deg) saturate(1.2); }
-:root[data-mode="night"][data-praga="3"] .scene.pstrip > img.topo { filter: brightness(.8) sepia(.3) hue-rotate(-14deg); }
+:root:not([data-light="noite"])[data-praga="2"] .scene.pstrip > img.topo { filter: brightness(.82) saturate(.85); }
+:root:not([data-light="noite"])[data-praga="3"] .scene.pstrip > img.topo { filter: brightness(.58) sepia(.35) hue-rotate(-14deg) saturate(1.2); }
+:root[data-light="noite"][data-praga="3"] .scene.pstrip > img.topo { filter: brightness(.8) sepia(.3) hue-rotate(-14deg); }
 :root[data-praga="4"] .scene.pstrip > img.topo { filter: brightness(.65) sepia(.5) hue-rotate(-22deg) saturate(1.5) contrast(1.1); }
 :root[data-praga="3"] .vit-h, :root[data-praga="4"] .vit-h { box-shadow: inset 0 0 0 999px color-mix(in srgb, #2a0c0c 38%, transparent); }
 .pg-fog { position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: .55;
   background: radial-gradient(40% 60% at 20% 80%, color-mix(in srgb, #d8c8b0 45%, transparent), transparent 70%), radial-gradient(35% 50% at 70% 90%, color-mix(in srgb, #d8c8b0 35%, transparent), transparent 70%);
   background-size: 400px 100%, 300px 100%; animation: pg-fog 26s linear infinite; }
-:root:not([data-mode="night"]):not([data-praga="4"]) .pg-fog { opacity: .3; }
+:root:not([data-light="noite"]):not([data-praga="4"]) .pg-fog { opacity: .3; }
 .pg-eyes { position: absolute; z-index: 1; pointer-events: none; width: 3px; height: 3px; left: 72%; top: 46%; background: #ff3a2a; border-radius: 1px; display: none; animation: pg-eyes 6s steps(1) infinite;
   box-shadow: 7px 0 0 #ff3a2a, -180px 22px 0 #e04a3a, -173px 22px 0 #e04a3a, 90px -18px 0 #ff5a3a, 96px -18px 0 #ff5a3a; }
-:root[data-mode="night"] .pg-eyes, :root[data-praga="4"] .pg-eyes { display: block; }
+:root[data-light="noite"] .pg-eyes, :root[data-praga="4"] .pg-eyes { display: block; }
 /* AGENDA: caveirinha no dia em que a tarefa vira A PRAGA */
 .daystrip .day { position: relative; }
-.pg-skull { position: absolute; top: 2px; right: 3px; font-style: normal; font-size: 10px; line-height: 1; filter: drop-shadow(0 0 3px color-mix(in srgb, #c0392b 60%, transparent)); }
+.pg-skull { position: absolute; top: 1px; right: 2px; font-style: normal; font-size: 14px; cursor: help; line-height: 1; filter: drop-shadow(0 0 3px color-mix(in srgb, #c0392b 60%, transparent)); }
 @media (prefers-reduced-motion: reduce) { .pfx-alma { display: none; } :root[data-praga] .pcv { animation: none !important; } }
 .tabs a[data-guia], .bottom a[data-guia], .qbar button[data-guia] { overflow: visible; }
 .tabs { overflow: visible; }
+
+/* v7.0: 💀 no título da lista HOJE: quantas viram TREM RUIM amanhã */
+.pg-coming { font-size: 11px; font-weight: 700; color: var(--c-urg); padding: 0 6px; border: 1px solid color-mix(in srgb, var(--c-urg) 45%, transparent); border-radius: 999px; cursor: help; }

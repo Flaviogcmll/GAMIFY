@@ -162,7 +162,7 @@ export function arrange(key, sections, { button = true, cols = 0 } = {}) {
 export function inColumns(items, cols = 3) {
   const cs = Array.from({ length: cols }, () => []);
   items.forEach((h, i) => cs[i % cols].push(h));
-  return cs.map((c) => `<div class="mcol">${c.join('')}</div>`).join('');
+  return cs.map((c, k) => `<div class="mcol" data-col="${k}">${c.join('')}</div>`).join('');
 }
 function arrangeModal(key) {
   const pref = orderOf(key), labels = LABELS[key] || [], ids = labels.map((l) => l[0]);

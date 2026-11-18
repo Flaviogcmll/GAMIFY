@@ -5,12 +5,18 @@ import { esc, fmtDM, fmtN, today, diffDays, weekday, addDays } from '../util.js'
 import { taskRow, segBar, statusChips, dueChip } from '../ui.js';
 import { px } from '../icons.js';
 import { isCollapsed, companionCard } from '../v3.js';
-import { arrange, inColumns } from '../v35.js';
+import { arrange } from '../v35.js';
 import { overflowBar } from '../bujo.js';
 
 const sortOrd = (a, b) => a.ord - b.ord;
-/** blocos em 3 colunas fixas (o bloco i fica sempre na coluna i % 3: abrir um bloco só empurra os de baixo dele) */
-const cols3 = (items) => inColumns(items.map((h, i) => `<div class="mitem" style="order:${i}">${h}</div>`), 3);
+/** blocos em 3 colunas fixas: abrir um bloco só empurra os de baixo dele.
+ *  v7.0: o bloco guarda a coluna (b.col, 0 a 2) quando você arrasta ele pra outra; sem isso, fica na coluna i % 3 (como antes) */
+const colOf = (b, i) => (Number.isInteger(b?.col) && b.col >= 0 && b.col < 3 ? b.col : i % 3);
+const cols3 = (items, blocks = []) => {
+  const cs = [[], [], []];
+  items.forEach((h, i) => cs[colOf(blocks[i], i)].push(`<div class="mitem" style="order:${i}">${h}</div>`));
+  return cs.map((c, k) => `<div class="mcol" data-col="${k}">${c.join('')}</div>`).join('');
+};
 /** sem MOSTRAR FEITAS: some tudo que foi feito ou cancelado (o ↩ desfaz um clique errado) */
 const visible = (t) => R.isOpen(t) || t.st === 'sent';
 /** botão REVISADO (selo de 24 h) no fim de uma lista ou bloco */
@@ -33,8 +39,10 @@ function listCard(area, ui) {
   const late = area === 'hoje' ? open.filter((t) => t.due && t.due < td).length : 0;
   const sub = (t) => (wait ? [R.waitingOn(S, t).label && '⏳ ' + R.waitingOn(S, t).label, t.link && R.findBlock(S, t.link)?.st === 'wait' && 'o bloco dela está aguardando'].filter(Boolean).join(' · ') : '');
   const rv = R.listReviewed(S, area);
+  // v7.0: 💀 = quantas de HOJE viram TREM RUIM amanhã (o aviso vem ANTES do atraso)
+  const coming = area === 'hoje' && R.neuroOn(S, 'praga') ? open.filter((t) => R.isOpen(t) && t.due === td && t.st !== 'wait' && !t.who && !t.mother && R.pragaDay(S, t.due, 1) === addDays(td, 1)).length : 0;
   return `<section class="list-card ${isCollapsed('l:' + area) ? 'collapsed' : ''} ${rv ? 'reviewed' : ''}" data-list="${area}" data-drop-area="${area}"><header><h2 data-act="collapse" data-k="l:${area}" style="cursor:pointer"><span class="chev">${isCollapsed('l:' + area) ? '▸' : '▾'}</span> ${R.AREAS[area]}</h2>
-      <span class="row" style="gap:4px"><span class="meta">${open.length}${late ? ` · <span class="bad">${late} atrasada${late > 1 ? 's' : ''}</span>` : ''}</span><button class="icon-btn ${ui.lsort?.[area] === 'win' ? 'on' : ''}" data-act="sort" data-area="${area}" title="${ui.lsort?.[area] === 'win' ? 'Agrupado por janela. Toque: por data' : 'Por data. Toque: agrupar por janela'}">⇅</button></span></header>
+      <span class="row" style="gap:4px"><span class="meta">${open.length}${late ? ` · <span class="bad">${late} atrasada${late > 1 ? 's' : ''}</span>` : ''}</span>${coming ? `<span class="pg-coming" title="💀 O inimigo está chegando: ${coming} tarefa${coming > 1 ? 's' : ''} de hoje vira${coming > 1 ? 'm' : ''} TREM RUIM amanhã se ficar${coming > 1 ? 'em' : ''} sem fazer">💀${coming}</span>` : ''}<button class="icon-btn ${ui.lsort?.[area] === 'win' ? 'on' : ''}" data-act="sort" data-area="${area}" title="${ui.lsort?.[area] === 'win' ? 'Agrupado por janela. Toque: por data' : 'Por data. Toque: agrupar por janela'}">⇅</button></span></header>
     ${area === 'hoje' ? overflowBar() : ''}<ul class="tasks">${show.map((t) => taskRow(t, { list: true, sub: sub(t) })).join('')}${show.length ? '' : `<div class="empty">${wait ? 'ninguém te segurando. 👏' : 'vazio.'}</div>`}</ul>
     ${!ui.showDone && nHidden ? `<button class="more" data-act="toggle-done">✓ ${nHidden} feitas · mostrar</button>` : ''}
     ${stalled ? `<button class="more" data-act="toggle-stalled">⬛ ${stalled} parada(s) · mostrar</button>` : ''}
@@ -63,7 +71,7 @@ function bossPanel(ui) {
   return `<div class="group wide ${col ? 'collapsed' : ''}" data-group="bs"><div class="band" data-act="collapse" data-k="g:bs"><span><span class="chev">${col ? '▸' : '▾'}</span> BOSSES</span><span class="meta">${list.filter((b) => b.st !== 'done').length} em aberto</span></div>
     <details class="bhelp"><summary>❔ como funciona</summary><p>👹 <b>BOSS</b> = uma meta grande, inimigo especial. Não vai pras LISTAS: ele é a própria mãe.<br>❤ <b>Vida (HP)</b> = o que falta fazer nele. Cada item feito é dano; zerou, ele cai (XP + 1🎟).<br>⚔ <b>mini-boss</b> = uma vitória no caminho (vale ${R.C.XP_MINI} XP e solta fogos). ↳ <b>passo</b> = ação pequena embaixo dela.<br>Escreva começando com ⚔ ou &gt;, ou marque o tipo ao editar a tarefa.</p></details>
     <form class="row" data-form="add-boss" autocomplete="off"><input class="inp grow" name="text" placeholder="+ novo boss (ex.: 90 KG SECO)" aria-label="Novo boss"></form>
-    ${list.length ? `<div class="mcols">${cols3(list.map(card))}</div>` : '<div class="empty">nenhum boss. Dê um nome à meta grande e quebre em subtarefas.</div>'}</div>`;
+    ${list.length ? `<div class="mcols">${cols3(list.map(card), list.map((b) => R.findBlock(S, b.block)))}</div>` : '<div class="empty">nenhum boss. Dê um nome à meta grande e quebre em subtarefas.</div>'}</div>`;
 }
 
 function blockCard(b, ui, opts = {}) {
@@ -95,7 +103,7 @@ function group(g, ui, win = null) {
   const active = blocks.filter(stalledOff(ui));
   return `<div class="group" data-group="${g}">
     <form class="row" data-form="add-block" data-group="${g}" ${win ? `data-win="${win.id}"` : ''} autocomplete="off"><input class="inp grow" name="title" placeholder="+ novo bloco${g === 'bd' ? ' (🎯 meta)' : ' (3000$ · / MES DIA 05)'}" aria-label="Novo bloco">${win ? `<button type="button" class="btn sm ghost" data-act="win-edit" data-id="${win.id}" title="Renomear, mudar o tipo ou apagar a janela ${esc(win.name)} (funciona como ${esc(R.GROUPS[g].short)})">✎ JANELA</button>` : ''}</form>
-    ${active.length ? `<div class="mcols">${cols3(active.map((b) => blockCard(b, ui)))}</div>` : '<div class="empty">nenhum bloco.</div>'}
+    ${active.length ? `<div class="mcols">${cols3(active.map((b) => blockCard(b, ui)), active)}</div>` : '<div class="empty">nenhum bloco.</div>'}
     ${blocks.length > active.length ? `<button class="more" data-act="toggle-stalled">⬛ ${blocks.length - active.length} parado(s) · mostrar</button>` : ''}</div>`;
 }
 
@@ -160,7 +168,6 @@ export function sidePanel(ui) {
   const open = R.openTasks(S), over = open.filter((t) => t.due && t.due < td).length, hoje = open.filter((t) => t.due === td).length;
   const w7 = open.filter((t) => t.due > td && t.due <= addDays(td, 7)).length;
   const left = ch.until ? diffDays(td, ch.until) : null;
-  const night = document.documentElement.dataset.mode === 'night';
   // v3.5: cada cartão do painel pode ser recolhido (toque no título), arrastado (alça ⠿) e escondido (⚙ PERSONALIZAR)
   // um bloco fixado (📌) fica sempre no topo do painel, à mão enquanto você mexe no resto
   const pinB = pinnedId && S.quests.blocks.find((x) => x.id === pinnedId && x.st !== 'done');

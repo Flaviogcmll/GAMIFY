@@ -15,15 +15,8 @@ const toHex = (a) => '#' + a.map((v) => Math.max(0, Math.min(255, Math.round(v))
 export function mix(a, b, t) { const x = hex(a), y = hex(b); return toHex(x.map((v, i) => v + (y[i] - v) * t)); }
 export const rgba = (c, a) => { const [r, g, b] = hex(c); return `rgba(${r},${g},${b},${a})`; };
 
-/** hora "do cenário": segue o relógio, mas respeita se você forçou dia/noite no botão ☀/☾ */
-export function sceneHour(d = new Date()) {
-  let h = d.getHours() + d.getMinutes() / 60;
-  let pref = 'auto';
-  try { pref = localStorage.getItem('gamify-ui:mode') || 'auto'; } catch { /* */ }
-  const mode = document.documentElement.dataset.mode;
-  if (pref !== 'auto') { if (mode === 'night' && h >= 6 && h < 18) h = 21; if (mode === 'day' && (h < 6 || h >= 18.5)) h = 10; }
-  return h;
-}
+/** hora "do cenário": v7.0 segue só o relógio. O botão ☀/☾ muda as CORES do app, não o céu. */
+export function sceneHour(d = new Date()) { return d.getHours() + d.getMinutes() / 60; }
 export function skyAt(h) {
   let i = 0;
   while (i < KEYS.length - 2 && KEYS[i + 1][0] <= h) i++;

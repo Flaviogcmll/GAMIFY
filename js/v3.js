@@ -6,7 +6,7 @@ import { S } from './store.js';
 import * as A from './actions.js';
 import * as R from './rules.js';
 import { tiles } from './telas.js';
-import { esc, today, fmtDM, fmtN, addDays } from './util.js';
+import { esc, today, fmtDM, fmtN, addDays, lightNow } from './util.js';
 
 import { openModal, closeModal, toast, ask, segBar } from './ui.js';
 import { mountInterior, interiorOf } from './interiors.js';
@@ -36,9 +36,9 @@ export function sceneBanner(route, ui) {
   const [t, sub] = TITLES[key] || [route + '.', ''];
   // v5.14: cada aba tem a sua imagem (dia e noite); o desenho em código só aparece se a imagem não carregar
   const pph = R.praga(S).phase; // v6.7: A PRAGA força a noite; no ENCOSTO/A PRAGA usa o cenário assombrado (se a arte já existir)
-  const h = new Date().getHours(), night = document.documentElement.dataset.mode === 'night' || h >= 19 || h < 5 || pph >= 4, tarde = !night && h >= 16; // v6.1: pela hora do dia
+  const lt = lightNow(), night = lt === 'noite' || pph >= 4, tarde = !night && lt === 'tarde'; // v7.0: pela hora real (o tema escuro não muda o cenário); fase 4 da Praga força a noite
   // v6: a SHOP virou FEIRA, com o cenário da feira (dia, tarde ou noite)
-  const src = pph >= 3 && R.PRAGA_TOPOS.includes(key) ? `assets/topo/${key}-praga.webp` : key === 'shop' ? `assets/primo/cena/feira-${night ? 'noite' : h >= 16 ? 'tarde' : 'dia'}.webp` : `assets/topo/${TOPOS.includes(key) ? key : 'survival'}-${night ? 'noite' : 'dia'}.webp`;
+  const src = pph >= 3 && R.PRAGA_TOPOS.includes(key) ? `assets/topo/${key}-praga.webp` : key === 'shop' ? `assets/primo/cena/feira-${night ? 'noite' : tarde ? 'tarde' : 'dia'}.webp` : `assets/topo/${TOPOS.includes(key) ? key : 'survival'}-${night ? 'noite' : 'dia'}.webp`;
   return `<div class="scene pstrip ${tarde ? 'tarde' : ''}" style="--img:url('${new URL(src, document.baseURI).href}')"><canvas id="scene" data-interior="${interiorOf(key) || 'rotina'}" aria-hidden="true"></canvas><img class="topo" src="${src}" alt="" aria-hidden="true">${pph >= 2 ? '<span class="pg-fog" aria-hidden="true"></span><span class="pg-eyes" aria-hidden="true"></span>' : ''}
     <div class="pst-face"><canvas class="pcv" data-portrait="mini" data-act="primo-hub" title="Falar com o PRIMO" aria-label="PRIMO"></canvas></div>
     <div class="pst-txt"><div class="scene-title">${esc(t)}</div><div class="scene-sub">${esc(sub.toUpperCase())}</div><div class="pst-say" data-pspeech="tab:${key}"></div></div></div>`;
@@ -137,7 +137,9 @@ function targetAt(x, y, kind) {
     return zone ? { li: li && li.dataset.id !== drag.id ? li : null, zone } : null;
   }
   const art = el.closest('article.block'), col = el.closest('.group[data-group]');
-  return col ? { li: art && art.dataset.dropBlock !== drag.id ? art : null, zone: col } : null;
+  // v7.0: a coluna (0 a 2) onde o bloco vai cair. No celular as colunas viram uma só: aí não muda a coluna, só a ordem
+  const mc = matchMedia('(max-width: 860px)').matches ? null : el.closest('.mcol[data-col]');
+  return col ? { li: art && art.dataset.dropBlock !== drag.id ? art : null, zone: col, mc } : null;
 }
 document.addEventListener('pointerdown', (e) => {
   const h = e.target.closest('[data-handle]');
@@ -163,7 +165,7 @@ document.addEventListener('pointermove', (e) => {
   const t = targetAt(e.clientX, e.clientY, drag.kind);
   drag.ghost.style.display = '';
   drag.target = t;
-  if (t) (t.li || t.zone).classList.add(t.li ? 'drop-before' : 'drop-zone');
+  if (t) (t.li || t.mc || t.zone).classList.add(t.li ? 'drop-before' : 'drop-zone');
   if (e.clientY < 70) scrollBy(0, -12); else if (e.clientY > innerHeight - 70) scrollBy(0, 12);
 });
 document.addEventListener('pointerup', () => {
@@ -174,7 +176,11 @@ document.addEventListener('pointerup', () => {
   if (!d.on || !d.target) return;
   const z = d.target.zone;
   if (d.kind === 'task') dropTaskSmart(d.id, { area: z.dataset.dropArea, block: z.dataset.dropBlock, before: d.target.li?.dataset.id });
-  else A.dropBlock(d.id, { group: z.dataset.group, before: d.target.li?.dataset.dropBlock });
+  else {
+    // v7.0: guarda a coluna de destino e "congela" a coluna dos vizinhos (assim ninguém troca de lugar sozinho)
+    const mc = d.target.mc, peers = mc ? [...mc.parentElement.querySelectorAll(':scope > .mcol[data-col]')].flatMap((c) => [...c.querySelectorAll('article.block[data-drop-block]')].map((a) => [a.dataset.dropBlock, +c.dataset.col])) : null;
+    A.dropBlock(d.id, { group: z.dataset.group, before: d.target.li?.dataset.dropBlock, col: mc ? +mc.dataset.col : undefined, peers });
+  }
   sfx('drop');
 });
 
@@ -239,7 +245,7 @@ export function extend(ACTIONS, render) {
     },
     qtab: (d) => { const ui = window.__ui; if ((document.querySelector('.qbar .seg button.on')?.dataset.tab || ui.qtab || 'listas') === d.tab && !ui.mm) ui.mm = true; else { ui.mm = false; ui.qtab = d.tab; } render(); sfx('tab'); }, // v6: tocar de novo na janela aberta = memento mori
     'mm-off': () => { window.__ui.mm = false; render(); sfx('tab'); },
-    'ag-day': (d) => { const list = R.openTasks(S).filter((t) => t.due === d.d); openModal(`<h2>${fmtDM(d.d)}</h2><div class="list">${list.map((t) => `<div class="li" data-list="${R.listOf(t)}"><div class="lt" data-act="jump" data-id="${t.id}" style="cursor:pointer">${esc(t.text)}<small>${esc(t.block ? R.findBlock(S, t.block)?.title || '' : R.areaName(t.area))}</small></div><span class="chip xp">${R.taskXp(S, t).xp}</span></div>`).join('') || '<div class="empty">nada vence nesse dia.</div>'}</div><div class="actions"><button class="btn" data-close>FECHAR</button></div>`); },
+    'ag-day': (d) => { const list = R.openTasks(S).filter((t) => t.due === d.d), pg = window.__pragaDays?.[d.d]; openModal(`<h2>${fmtDM(d.d)}</h2>${pg?.length && d.d >= today() && d.d <= addDays(today(), 3) ? `<p class="pg-coming" style="display:block;border-radius:8px;padding:6px 10px;margin:0 0 10px">💀 O inimigo chega aqui: se ninguém fizer até a véspera, neste dia vira TREM RUIM: ${esc(pg.slice(0, 6).join(' · '))}</p>` : ''}<div class="list">${list.map((t) => `<div class="li" data-list="${R.listOf(t)}"><div class="lt" data-act="jump" data-id="${t.id}" style="cursor:pointer">${esc(t.text)}<small>${esc(t.block ? R.findBlock(S, t.block)?.title || '' : R.areaName(t.area))}</small></div><span class="chip xp">${R.taskXp(S, t).xp}</span></div>`).join('') || '<div class="empty">nada vence nesse dia.</div>'}</div><div class="actions"><button class="btn" data-close>FECHAR</button></div>`); },
     'comp-talk': () => talk(),
     'comp-rename': () => openModal(`<form data-v3form="rename"><h2>nome do companheiro</h2><input class="inp" name="n" value="${esc(R.companion(S).name)}" maxlength="12" autofocus aria-label="Nome"><div class="actions"><button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">SALVAR</button></div></form>`),
     'take-money': () => openModal(`<form data-v3form="take"><h2>↩ retirei</h2><p class="muted">Quanto você TIROU do que estava guardado? O boss do capítulo recupera essa vida. Fica anotado no histórico, sem multa.</p><input class="inp" name="v" type="number" min="1" step="1" placeholder="R$" autofocus aria-label="Valor"><input class="inp" name="n" placeholder="pra quê (ex.: CONSERTO DO CARRO)" style="margin-top:8px" aria-label="Motivo"><div class="actions"><button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">RETIRAR</button></div></form>`),

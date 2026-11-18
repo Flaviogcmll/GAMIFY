@@ -1419,12 +1419,13 @@ function pragaCalc(s, td) {
 }
 export const pragaOf = (s, id) => praga(s).list.find((x) => x.id === id) || null;
 
-/** v6.7: em que dia uma tarefa com prazo `due` vira A PRAGA (fase 4) se ninguém fizer nada (feriado, descanso e viagem não contam) */
-export function pragaDay(s, due) {
+/** v6.7: em que dia uma tarefa com prazo `due` chega na fase `phase` da Praga se ninguém fizer nada (feriado, descanso e viagem não contam).
+ *  v7.0: phase = 1 é o dia em que ela vira TREM RUIM ("o inimigo chega"); o padrão (4) é a fase final. */
+export function pragaDay(s, due, phase = 4) {
   if (!due) return null;
   const rests = s.core?.rests || [], born = s.core?.praga?.start || today();
   let d = due < born ? addDays(born, -1) : due, n = 0;
-  for (let i = 0; i < 40 && n < 4; i++) { d = addDays(d, 1); if (!holidayName(d) && !rests.includes(d) && !tripDay(s, d)) n++; }
+  for (let i = 0; i < 40 && n < phase; i++) { d = addDays(d, 1); if (!holidayName(d) && !rests.includes(d) && !tripDay(s, d)) n++; }
   return d;
 }
 /** v6.7: cenários assombrados que já existem (o dono gera no Higgsfield, #101). Nome da aba → assets/topo/<aba>-praga.webp */

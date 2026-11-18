@@ -3,7 +3,7 @@ import { isCollapsed } from '../v3.js';
 // Regra de ouro da loja: COMPRE ANTES DE FAZER. Fez sem comprar? Paga depois com multa (R.DEBT_MULT).
 import { S } from '../store.js';
 import * as R from '../rules.js';
-import { esc, today, fmtDM, fmtN, addDays } from '../util.js';
+import { esc, today, fmtDM, fmtN, addDays, lightNow } from '../util.js';
 import { segBar } from '../ui.js';
 import { px } from '../icons.js';
 import { tiles } from '../telas.js';
@@ -112,7 +112,7 @@ function hist() {
 export function viewShop(ui) {
   const tot = R.totals(S), shop = R.shopState(S), tab = TABS.some(([k]) => k === ui.ltab) ? ui.ltab : 'loja';
   const goalIt = S.loja.taverna.find((i) => i.id === S.loja.goal);
-  const nb = R.bag(S).length, night = document.documentElement.dataset.mode === 'night', dn = night ? 'noite' : 'dia';
+  const nb = R.bag(S).length, dn = lightNow() === 'noite' ? 'noite' : 'dia'; // v7.0: pela hora real
   const fx = shop.mult === 1 ? 'x1' : 'x' + shop.mult.toFixed(2).replace('.', ',');
   // v6: a FEIRA tem barracas (TAVERNA em cima, FERREIRO embaixo), cada uma com o seu banner; outros vendedores entram aqui
   const vitrine = (key, title, sub, body) => { const ck = 'c:shop:' + key, shut = isCollapsed(ck); return `<section class="vitrine ${shut ? 'shut' : ''}" data-v="${key}"><header class="vit-h" data-act="collapse" data-k="${ck}" title="Toque pra recolher ou abrir" style="--img:url('${new URL(`assets/topo/${key === 'tav' ? 'shop' : 'ferreiro'}-${dn}.webp`, document.baseURI).href}')"><div><h2><span class="chev">${shut ? '▸' : '▾'}</span> ${title}</h2><p>${sub}</p></div></header>${shut ? '' : `<div class="vit-b">${body}</div>`}</section>`; };

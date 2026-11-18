@@ -3,7 +3,7 @@
 import { S } from './store.js';
 import * as R from './rules.js';
 import * as A from './actions.js';
-import { esc, today, fmtDM } from './util.js';
+import { esc, today, fmtDM, lightNow } from './util.js';
 import { openModal, closeModal, toast, segBar } from './ui.js';
 import { sfx } from './audio.js';
 import { confetti } from './fx.js';
@@ -124,11 +124,10 @@ const OFF = document.createElement('canvas'); OFF.width = PW * K; OFF.height = P
 /** cenário atrás do PRIMO novo: o LUGAR segue o contexto (expedição, hora do dia) e a LUZ segue o relógio/modo do app */
 function scenePick() {
   const es = PS.expState(), d = new Date(), h = d.getHours() + d.getMinutes() / 60, wd = d.getDay();
-  const night = document.documentElement.dataset.mode === 'night';
-  const light = night || h >= 19 || h < 5 ? 'noite' : h >= 16 ? 'tarde' : 'dia'; // v6.1: segue o relógio de verdade (manhã, tarde, noite)
+  const light = lightNow(d), night = light === 'noite'; // v7.0: só o relógio (o tema escuro não vira noite)
   let place;
   if (es.cur && !es.ready) place = es.cur.id === 'feira' ? 'feira' : 'estrada'; // fora de casa
-  else if (night || h >= 19 || h < 5) place = 'fogueira';
+  else if (night) place = 'fogueira';
   else if (h < 8 || (h >= 12 && h < 13.5)) place = 'cozinha'; // café da manhã e almoço
   else if (h >= 17.5) place = 'varanda';
   else place = wd === 0 || wd === 6 ? 'varanda' : 'escritorio';
