@@ -302,7 +302,7 @@ export function extendMapa(ACTIONS, FORMS) {
       if (G?.t === 'move' && G.moved) { const d = JSON.parse(G.pre); D.nodes = d.nodes; D.links = d.links; paint(); }
       if (G?.t === 'marq') { box.querySelector('.mm-marq').hidden = true; selN = new Set(G.base); selL = new Set(G.baseL); paint(); }
       const [p1, p2] = [...touches.values()]; G = { t: 'pinch', d0: Math.hypot(p1.x - p2.x, p1.y - p2.y) || 1, v0: { ...view }, c: { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 } }; return; } }
-    box.setPointerCapture?.(e.pointerId);
+    try { box.setPointerCapture?.(e.pointerId); } catch { /* ponteiro já solto */ }
     const nodeEl = e.target.closest('[data-mnode]'), handle = e.target.closest('[data-mhandle]'), linkEl = e.target.closest('[data-mlink]');
     if (e.button === 1 || e.button === 2 || space || false) { G = { t: 'pan', s: pt, v0: { ...view } }; e.preventDefault(); return; }
     if (handle) { G = { t: 'link', from: handle.closest('[data-mnode]').dataset.mnode, s: pt }; e.preventDefault(); return; }
