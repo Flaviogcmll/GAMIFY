@@ -1843,3 +1843,17 @@ li.task[data-praga], .banner.praga-b, .praga-pop, .praga-modal .modal, .chip.lat
 .card.conq-l { margin: 0 0 10px; }
 .card.conq-l .medals { margin-top: 8px; }
 .medals + .card.conq-l, .medals + .sec-h { margin-top: 14px; }
+
+/* ───────────── v7.8: CHARACTER DESIGN aplicado no app (pesquisa de 18/11) ─────────────
+   · Acessibilidade: CALMA e ESPERA se confundiam no daltonismo; PRÊMIO e ATENÇÃO eram quase a mesma cor.
+     Ajustes pequenos dentro da mesma família (regra do dono): CALMA mais escura/fria, PRÊMIO mais "moeda" (âmbar-bronze).
+   · BRASINHA = "brasa, não sangue": a cor dela é laranja-dourado (--brasa), nunca o vermelho do perigo.
+   · Contorno do elenco #2e2430 (roxo-amarronzado) também nas sombras duras dos cartões de perigo. */
+:root, :root[data-theme] { --c-calma: #3f6f9a; --c-premio: #a8742a; --brasa: #e07a26; --brasa-luz: #f8bd52; --plum: #2e2430; }
+:root[data-mode="night"], :root[data-theme][data-mode="night"] { --c-premio: #eeb35a; --brasa: #f0913a; --brasa-luz: #fde58a; }
+.pbras b { color: var(--brasa); }
+.pcard .pmascot { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--brasa-luz) 45%, transparent)); }
+/* medo de 1 pixel: na LUA DE SANGUE o PRIMO NÃO treme (ele é destemido); só o rosto muda */
+:root[data-lua] .pcv:not(.pmascot):not(.walker) { animation: pg-slices 3.4s steps(1) infinite; }
+/* perigo com sombra dura de pixel (escada do perigo, degrau 3); o seguro continua com sombra macia */
+.list-card[data-list="hoje"], .banner.praga-b, .praga-pop { box-shadow: 4px 4px 0 var(--plum); }
