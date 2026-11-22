@@ -2,6 +2,7 @@
 import { esc, fmtDM, diffDays, today, fmtN, addDays } from './util.js';
 import * as R from './rules.js';
 import { S } from './store.js';
+import { moscasHtml, quedaHtml, moscaMortaHtml } from './moscas.js';
 
 // ───── modal ─────
 let modalClose = null;
@@ -118,10 +119,9 @@ export function taskRow(t, opts = {}) {
   const col = t.st === 'wait' ? 'purple' : t.color; // v5.16: AGUARDANDO = roxo (a mesma cor da lista)
   const cat = lb ? (lb.group === 'bs' ? 'bs' : lw ? 'win' : lb.group) : ''; // v6.1: de qual janela a tarefa é (faixinha de cor no começo da linha)
   const pg = R.isOpen(t) ? R.pragaOf(S, t.id) : null; // v6.5: A PRAGA
-  // v8: moscas = podridão. TREM FEI 1 · TREM CUSTOSO 2 · TREM TRAPAIADO 3 · LAMBEHOMI auréola de moscas (só tarefa com prazo, fora de espera)
-  const tr = R.isOpen(t) && t.due && t.st !== 'wait' && !t.who && !t.dep ? R.tremOf(S, t) : null;
-  const ms = tr ? (tr.aureola ? 'aur' : tr.moscas) : 0;
-  return `<li class="${cls}" data-id="${t.id}" ${col ? `data-color="${col}"` : ''} ${cat ? `data-cat="${cat}"` : ''} ${ms ? `data-moscas="${ms}"` : ''} ${pg ? `data-praga="${pg.phase}" title="🪰 ${R.PRAGA_NAMES[pg.phase]}${tr?.boss ? ' 👹' : ''}: atrasada há ${pg.days} dia(s) · fase ${pg.phase} de 4"` : tr ? `title="🪰 ${tr.name}${tr.boss ? ' 👹' : ''}"` : ''}><span class="handle" data-handle="task" data-id="${t.id}" title="Segure e arraste">⠿</span>
+  // v9: moscas = podridão, no próprio card (0 em dia · 1 FEI · 2 CUSTOSO · 3 TRAPAIADO · auréola = LAMBEHOMI). Os dias são do dono (PERKS → 🧠).
+  const ms = R.moscasOf(S, t);
+  return `<li class="${cls}" data-id="${t.id}" ${col ? `data-color="${col}"` : ''} ${cat ? `data-cat="${cat}"` : ''} ${ms.n ? `data-moscas="${ms.n}"` : ''} ${pg ? `data-praga="${pg.phase}" title="🪰 ${R.PRAGA_NAMES[pg.phase]}: atrasada há ${pg.days} dia(s) · fase ${pg.phase} de 4"` : ''}>${pg ? quedaHtml(t.id, today()) : ''}${t.color === 'black' && R.isOpen(t) ? moscaMortaHtml(undefined, true) : moscasHtml(ms.n, ms.title, true)}<span class="handle" data-handle="task" data-id="${t.id}" title="Segure e arraste">⠿</span>
     <button class="check" data-act="toggle" data-id="${t.id}" aria-label="Concluir ${esc(t.text)}">${CHECK[t.st] || ''}</button>
     <div class="txt" data-act="${opts.go ? 'jump' : 'edit-task'}" data-id="${t.id}" ${opts.go ? 'title="Toque pra ir até a tarefa"' : ''}>${t.link ? `<button class="lnk-dot" data-g="${lb?.group === 'bs' ? 'bs' : lw ? 'win' : lb?.group || 'bd'}" data-act="jump-block" data-id="${t.link}" title="Está na janela ${esc(wname || 'BREAKDOWN')}. Toque pra ir lá." aria-label="Ir pro bloco em ${esc(wname || 'BREAKDOWN')}"></button>` : ''}${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}${sub}${sent}</div>
     <div class="info">${!t.link && opts.list && !p.step && R.isOpen(t) ? `<button class="icon-btn mini" data-act="to-breakdown" data-id="${t.id}" title="Mandar pra uma janela (BREAKDOWN, TRABALHO, GESTÃO…)" aria-label="Mandar pra uma janela">⤴</button>` : ''}${t.who || t.dep ? `<span class="chip wait" title="aguardando: ${esc(R.waitingOn(S, t).label)}">⏳ ${esc((t.who || '🔗').slice(0, 14))}</span>` : ''}${t.prio ? '<span class="chip prio">!</span>' : ''}${t.box && R.isOpen(t) ? `<span class="chip box" title="time box: horário e duração combinados">⏰ ${esc(t.box.at || '')}${t.box.min ? ' · ' + t.box.min + 'min' : ''}</span>` : ''}${t.cycle ? `<span class="chip cyc" title="vai e volta">🔁${rounds ? ' ' + rounds : ''}</span>` : ''}${t.imgs?.length ? `<span class="chip" title="${t.imgs.length} imagem(ns): abra a tarefa pra ver">🖼${t.imgs.length > 1 ? ' ' + t.imgs.length : ''}</span>` : ''}${t.pin && opts.showPin ? '<span class="chip">↗</span>' : ''}${opts.list && (t.due === today() || t.due === addDays(today(), 1)) && R.isOpen(t) ? '' : dueChip(t.due, !R.isOpen(t))}${xp ? `<span class="chip xp">${xp}</span>` : ''}</div>

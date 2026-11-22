@@ -7,6 +7,7 @@ import { px } from '../icons.js';
 import { isCollapsed, companionCard } from '../v3.js';
 import { arrange } from '../v35.js';
 import { overflowBar } from '../bujo.js';
+import { moscasHtml, moscaMortaHtml } from '../moscas.js';
 
 const sortOrd = (a, b) => a.ord - b.ord;
 /** v7.1: ORDENAR pelo menu ≡ (só na tela: a ordem guardada não muda). Uma escolha por janela, lembrada no aparelho.
@@ -106,7 +107,7 @@ function blockCard(b, ui, opts = {}) {
   return `<article class="block ${b.st === 'done' ? 'closed' : ''} ${isCollapsed('b:' + b.id) ? 'collapsed' : ''} ${rev ? 'reviewed' : ''}" data-color="${b.st === 'wait' ? 'purple' : b.color}" data-drop-block="${b.id}">
     <div class="bh"><div class="stripe"></div>
       <div class="bt" data-act="edit-block" data-id="${b.id}"><h3>${esc(b.title)}</h3>
-        <div class="bm"><span>${done.length}/${counted.length}</span>${rev ? `<span class="chip rev" title="Revisado: vale até ${new Date(b.rev + 864e5).toLocaleString('pt-BR', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}">👁 REVISADO</span>` : ''}${b.src && S.quests.tasks.find((x) => x.id === b.src) ? `<button class="lnk-dot" data-g="lista" data-act="jump" data-id="${b.src}" title="Esta tarefa também está nas LISTAS. Toque pra ir lá." aria-label="Ir pra tarefa nas listas"></button>` : ''}${b.st === 'done' ? `<span class="good">FECHADO ${fmtDM(b.doneAt)} · +${b.xp}</span>` : `<span>${b.due ? '◆ ' + fmtDM(b.due) : dues[0] ? 'próx. ' + fmtDM(dues[0]) : 'sem prazo'}</span><span class="acc">${fmtN(xpLeft)} XP</span>`}</div>
+        <div class="bm">${b.color === 'black' && b.st !== 'done' ? moscaMortaHtml('Mosca morta: este bloco está PARADO (o PRIMO lembra dele a cada 7 dias)') : ''}<span>${done.length}/${counted.length}</span>${rev ? `<span class="chip rev" title="Revisado: vale até ${new Date(b.rev + 864e5).toLocaleString('pt-BR', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}">👁 REVISADO</span>` : ''}${b.src && S.quests.tasks.find((x) => x.id === b.src) ? `<button class="lnk-dot" data-g="lista" data-act="jump" data-id="${b.src}" title="Esta tarefa também está nas LISTAS. Toque pra ir lá." aria-label="Ir pra tarefa nas listas"></button>` : ''}${b.st === 'done' ? `<span class="good">FECHADO ${fmtDM(b.doneAt)} · +${b.xp}</span>` : `<span>${b.due ? '◆ ' + fmtDM(b.due) : dues[0] ? 'próx. ' + fmtDM(dues[0]) : 'sem prazo'}</span><span class="acc">${fmtN(xpLeft)} XP</span>`}</div>
         ${segBar(counted.length ? done.length / counted.length : 0, 'good sm')}</div>
       <div class="bbtns">${b.st !== 'done' && S.quests.tasks.some((t) => t.block === b.id && R.isOpen(t)) ? `<button class="icon-btn done-all" data-act="done-all" data-id="${b.id}" title="Concluir todas as tarefas deste bloco" aria-label="Concluir tudo">✓</button>` : ''}<span class="handle" data-handle="block" data-id="${b.id}" title="Segure e arraste">⠿</span><button class="icon-btn" data-act="sort" data-block="${b.id}" title="Organizar por data">⇅</button><button class="icon-btn ${pinned.includes(b.id) ? 'on' : ''}" data-act="pin-block" data-id="${b.id}" title="${pinned.includes(b.id) ? 'Tirar do painel da direita' : 'Fixar no painel da direita (fica sempre à mão)'}" aria-label="Fixar bloco">📌</button><button class="icon-btn" data-act="collapse" data-k="b:${b.id}" aria-label="Recolher bloco"><span class="chev">${isCollapsed('b:' + b.id) ? '▸' : '▾'}</span></button></div>
     </div>
@@ -145,7 +146,7 @@ function filaCard(td) {
   const q = R.deadlineQueue(S, td); // v6.1: completa (antes eram só 12); o cartão rola
   const where = (t) => (t.block ? R.findBlock(S, t.block)?.title : R.areaName(t.area)) || '';
   return `<div class="card fila-q"><header><h2 title="Tudo que tem prazo, do mais perto pro mais longe">⏰ Fila de prazos</h2><span class="meta">${q.length}</span></header>
-    <div class="list">${q.map((t) => `<div class="li" data-act="jump" data-id="${t.id}" data-list="${R.listOf(t, td)}" style="cursor:pointer"><div class="lt">${t.st === 'doing' ? '▶ ' : ''}${t.prio ? '<b class="bad">!</b> ' : ''}${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}<small>${esc(where(t))}</small></div><div class="row" style="flex-wrap:nowrap">${dueChip(t.due, false, true)}</div></div>`).join('') || '<div class="empty">nenhuma tarefa com prazo.</div>'}</div></div>`;
+    <div class="list">${q.map((t) => `<div class="li" data-act="jump" data-id="${t.id}" data-list="${R.listOf(t, td)}" style="cursor:pointer"><div class="lt">${t.st === 'doing' ? '▶ ' : ''}${t.prio ? '<b class="bad">!</b> ' : ''}${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}<small>${esc(where(t))}</small></div><div class="row" style="flex-wrap:nowrap">${dueChip(t.due, false, true)}</div>${((m) => moscasHtml(m.n, m.title, true))(R.moscasOf(S, t, td))}</div>`).join('') || '<div class="empty">nenhuma tarefa com prazo.</div>'}</div></div>`;
 }
 
 export function legendHtml() {
@@ -292,7 +293,7 @@ function focusCard(ui) {
   return `<div class="focus-now card ${f.praga ? 'praga' : ''}" ${f.praga ? `data-praga="${f.praga}"` : ''}><span class="fn-k" title="O PRIMO escolhe UMA tarefa pra você não perder tempo decidindo">🎯 FOCO AGORA</span>
     <button class="check" data-act="toggle" data-id="${t.id}" aria-label="Concluir">${t.st === 'doing' ? '▶' : ''}</button>
     <div class="fn-t" data-act="jump" data-id="${t.id}" title="Toque pra ir até a tarefa"><b>${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}</b><small>${b ? esc(b.title) + ' · ' : ''}porque ${esc(f.why)}</small></div>
-    <span class="chip xp">${R.taskXp(S, t).xp}</span>${f.praga ? `<span class="chip praga-chip" title="Enquanto ela estiver infectada, não dá pra trocar">🪰 FASE ${f.praga}</span>` : `<button class="btn sm ghost" data-act="focus-skip" data-id="${t.id}" title="Agora não: mostra outra sugestão">OUTRA ▸</button>`}${clockLine()}</div>`;
+    ${((m) => moscasHtml(m.n, m.title))(R.moscasOf(S, t))}<span class="chip xp">${R.taskXp(S, t).xp}</span>${f.praga ? `<span class="chip praga-chip" title="Enquanto ela estiver infectada, não dá pra trocar">🪰 FASE ${f.praga}</span>` : `<button class="btn sm ghost" data-act="focus-skip" data-id="${t.id}" title="Agora não: mostra outra sugestão">OUTRA ▸</button>`}${clockLine()}</div>`;
 }
 /** v6 MEMENTO MORI: tocar de novo na janela aberta recolhe tudo e mostra o tempo passando (lembra de parar de procrastinar) */
 const MM_LINES = ['Memento mori: o tempo não volta. Faça hoje o que importa.', 'Cada minuto aqui é um minuto a menos lá fora. Escolha UMA coisa.', 'O dia está passando agora, enquanto você lê isto.', 'Você não tem todo o tempo do mundo. Tem o de hoje.'];

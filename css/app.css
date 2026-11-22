@@ -1589,7 +1589,7 @@ li.task[data-praga="4"] { background: color-mix(in srgb, var(--c-urg) 18%, trans
 
 /* TREM TRAPAIADO (1): teia no canto, mofo por dentro, 3 moscas pousadas, a linha "chia" de vez em quando */
 li.task[data-praga], .li.rit[data-praga] { position: relative; }
-li.task[data-praga]::after, .li.rit[data-praga]::after { content: ''; position: absolute; right: 4px; top: -9px; width: 20px; height: 16px; background: var(--m3) no-repeat center / contain; image-rendering: pixelated; pointer-events: none; }
+.li.rit[data-praga]::after { content: ''; position: absolute; right: 4px; top: -9px; width: 20px; height: 16px; background: var(--m3) no-repeat center / contain; image-rendering: pixelated; pointer-events: none; }
 li.task[data-praga] { box-shadow: inset 0 0 14px color-mix(in srgb, #6f7a3a 35%, transparent); background-image: linear-gradient(135deg, transparent 88%, color-mix(in srgb, #8a8780 45%, transparent) 88.5%, transparent 89.5%), linear-gradient(110deg, transparent 92%, color-mix(in srgb, #8a8780 35%, transparent) 92.5%, transparent 93.5%); animation: pg-flick 5.5s steps(1) infinite; }
 /* fase 2 do TREM TRAPAIADO: treme, borda vermelha, PRIMO com linhas de TV */
 li.task[data-praga="2"], li.task[data-praga="3"], li.task[data-praga="4"] { animation: pg-flick 4.5s steps(1) infinite, pg-jitter 3.2s steps(1) infinite, praga-pulse 1.6s ease-in-out infinite; }
@@ -1862,14 +1862,6 @@ li.task[data-praga], .banner.praga-b, .praga-pop, .praga-modal .modal, .chip.lat
 .list-card[data-list="hoje"], .banner.praga-b, .praga-pop { box-shadow: 4px 4px 0 var(--plum); }
 
 /* ═════════════ v8 — vFINAL: moscas, GUARANÁ ⇄ LAMBEHOMI ═════════════ */
-/* moscas = podridão: TREM FEI 1 · TREM CUSTOSO 2 · TREM TRAPAIADO 3 · LAMBEHOMI auréola (sutil: o dono prefere tudo discreto) */
-li.task[data-moscas] { position: relative; }
-li.task[data-moscas]:not([data-praga])::after { content: ''; position: absolute; right: 4px; top: -6px; height: 10px; background: no-repeat right center / contain; image-rendering: pixelated; pointer-events: none; }
-li.task[data-moscas="1"]:not([data-praga])::after { width: 8px; background-image: var(--m1); opacity: .45; }
-li.task[data-moscas="2"]:not([data-praga])::after { width: 17px; background-image: var(--m2); opacity: .7; }
-li.task[data-moscas="aur"]::after { background-image: var(--maur) !important; width: 30px !important; height: 12px !important; top: -7px !important; }
-li.task[data-moscas]:not([data-praga])::after { animation: pg-mosca 1.8s steps(2) infinite; }
-@media (prefers-reduced-motion: reduce) { li.task[data-moscas]::after { animation: none !important; } }
 /* o LOBO no cartão do PRIMO (uma linha, como a da BRASINHA) */
 .plobo { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 4px 8px; border-radius: var(--rad); cursor: pointer; background: color-mix(in srgb, var(--c-calma) 10%, transparent); }
 .plobo .meta { font-size: 11px; }
@@ -1881,3 +1873,28 @@ li.task[data-moscas]:not([data-praga])::after { animation: pg-mosca 1.8s steps(2
 .focus-now .fn-clock b { font: 7px/1.5 var(--f-pixel); color: var(--c-calma); white-space: nowrap; }
 .focus-now .fn-clock span { flex: 1 1 200px; min-width: 0; }
 .focus-now .fn-clock small { opacity: .8; }
+
+/* ═════════════ v9 — guia de interface, etapa 1: MOSCAS NO CARD (podridão como informação) ═════════════ */
+/* ícones na grade de 7 (7×7 pixels de arte) mostrados em ×2; o corpo usa currentColor pra aparecer de dia e de noite */
+.moscas, .mosca-morta { display: inline-flex; align-items: center; gap: 0; flex: none; line-height: 0; color: var(--plum, #2e2430); image-rendering: pixelated; vertical-align: middle; }
+:root[data-mode="night"] .moscas, :root[data-mode="night"] .mosca-morta { color: #cbb8d6; }
+.moscas svg, .mosca-morta svg { display: block; }
+.moscas[data-n="1"] { opacity: .55; }
+.moscas[data-n="1"] svg, .moscas[data-n="2"] svg, .moscas[data-n="3"] svg { animation: mosca-voo 1.4s steps(2) infinite; }
+.moscas svg:nth-child(2) { animation-delay: -.5s; } .moscas svg:nth-child(3) { animation-delay: -.9s; }
+.moscas[data-n="aur"] svg { animation: mosca-aur 2.2s steps(4) infinite; }
+@keyframes mosca-voo { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(1px, -2px); } }
+@keyframes mosca-aur { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+.mosca-morta { opacity: .75; margin-right: 6px; }
+/* pousadas na borda de cima do card, do lado direito (no lugar do antigo urubu): não espremem o texto */
+.moscas.ov, .mosca-morta.ov { position: absolute; right: 14px; top: -8px; z-index: 2; pointer-events: auto; margin: 0; }
+.fila-q .li { position: relative; }
+.mosca-cfg label { display: block; margin-top: 7px; }
+.mosca-cfg .inp { width: 64px; display: inline-block; }
+.focus-now .moscas { margin-left: auto; }
+/* o objeto que cai do card no dia em que a tarefa atrasa (uma vez por tarefa por dia, neste aparelho) */
+li.task { position: relative; }
+.queda { position: absolute; left: 30%; top: 50%; z-index: 3; pointer-events: none; line-height: 0; animation: queda 1.3s cubic-bezier(.5, 0, .9, .6) .3s both; }
+@keyframes queda { 0% { transform: translateY(-6px) rotate(0); opacity: 0; } 12% { opacity: 1; } 80% { opacity: 1; } 100% { transform: translateY(46px) rotate(200deg); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .moscas svg, .queda { animation: none !important; } .queda { display: none; } }
+.fila-q .moscas.ov { top: 2px; right: 7px; }
