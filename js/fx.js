@@ -89,7 +89,7 @@ export function floatXp(text, at) {
   setTimeout(() => el.remove(), 1200);
 }
 
-/** v7.3b: o TREM virou poeira (tarefa concluída): uma nuvenzinha de poeira e palha no lugar do clique */
+/** v7.3b/v8: o TREM se resolveu (tarefa concluída): uma nuvenzinha de poeira e palha no lugar do clique */
 export function poof(at) {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const el = document.createElement('div');

@@ -1583,21 +1583,21 @@ li.task[data-praga="4"] { background: color-mix(in srgb, var(--c-urg) 18%, trans
 @keyframes pg-cursor { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
 @keyframes pg-crawl { from { transform: translateX(105vw); } to { transform: translateX(-120%); } }
 @keyframes pg-pop { 0% { transform: scale(.9) skewX(4deg); filter: contrast(2) hue-rotate(-40deg); } 20% { transform: scale(1.03) skewX(-3deg); } 40% { transform: translateX(-6px); filter: none; } 60% { transform: translateX(5px); } 100% { transform: none; } }
-@keyframes rz-up { from { transform: translateY(0) rotate(0); opacity: 0; } 15% { opacity: 1; } to { transform: translateY(-105vh) rotate(260deg); opacity: 0; } }
-@keyframes rz-luz { from { transform: translateY(100%); } 55% { transform: translateY(0); opacity: 1; } to { transform: translateY(-30%); opacity: 0; } }
-@keyframes rz-t { 0% { opacity: 0; transform: scale(.7); } 25% { opacity: 1; transform: scale(1.08); } 80% { opacity: 1; transform: scale(1); } 100% { opacity: 0; } }
+@keyframes sg-up { from { transform: translateY(0) rotate(0); opacity: 0; } 15% { opacity: 1; } to { transform: translateY(-105vh) rotate(260deg); opacity: 0; } }
+@keyframes sg-luz { from { transform: translateY(100%); } 55% { transform: translateY(0); opacity: 1; } to { transform: translateY(-30%); opacity: 0; } }
+@keyframes sg-t { 0% { opacity: 0; transform: scale(.7); } 25% { opacity: 1; transform: scale(1.08); } 80% { opacity: 1; transform: scale(1); } 100% { opacity: 0; } }
 
-/* TREM RUIM (1): teia no canto, mofo por dentro, urubu pousado, a linha "chia" de vez em quando */
+/* TREM TRAPAIADO (1): teia no canto, mofo por dentro, 3 moscas pousadas, a linha "chia" de vez em quando */
 li.task[data-praga], .li.rit[data-praga] { position: relative; }
-li.task[data-praga]::after, .li.rit[data-praga]::after { content: ''; position: absolute; right: 4px; top: -9px; width: 20px; height: 16px; background: var(--urubu) no-repeat center / contain; image-rendering: pixelated; pointer-events: none; }
+li.task[data-praga]::after, .li.rit[data-praga]::after { content: ''; position: absolute; right: 4px; top: -9px; width: 20px; height: 16px; background: var(--m3) no-repeat center / contain; image-rendering: pixelated; pointer-events: none; }
 li.task[data-praga] { box-shadow: inset 0 0 14px color-mix(in srgb, #6f7a3a 35%, transparent); background-image: linear-gradient(135deg, transparent 88%, color-mix(in srgb, #8a8780 45%, transparent) 88.5%, transparent 89.5%), linear-gradient(110deg, transparent 92%, color-mix(in srgb, #8a8780 35%, transparent) 92.5%, transparent 93.5%); animation: pg-flick 5.5s steps(1) infinite; }
-/* ANGUSTIADO (2): treme, borda vermelha, PRIMO com linhas de TV */
+/* fase 2 do TREM TRAPAIADO: treme, borda vermelha, PRIMO com linhas de TV */
 li.task[data-praga="2"], li.task[data-praga="3"], li.task[data-praga="4"] { animation: pg-flick 4.5s steps(1) infinite, pg-jitter 3.2s steps(1) infinite, praga-pulse 1.6s ease-in-out infinite; }
 :root[data-praga="2"] .comp-card .pstage::before, :root[data-praga="3"] .comp-card .pstage::before, :root[data-praga="4"] .comp-card .pstage::before {
   content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 2; border-radius: inherit;
   background: repeating-linear-gradient(0deg, color-mix(in srgb, #241414 22%, transparent) 0 1px, transparent 1px 3px); }
 :root[data-praga] .focus-now.praga { background: linear-gradient(90deg, color-mix(in srgb, #241414 10%, var(--panel)), var(--panel)); }
-/* ENCOSTO (3): linhas de TV na tela toda, cores separando nos títulos, cantos escuros, bichos andando */
+/* fase 3 do TREM TRAPAIADO: linhas de TV na tela toda, cores separando nos títulos, cantos escuros, bichos andando */
 :root[data-praga="3"] body::before, :root[data-praga="4"] body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 89;
   background: repeating-linear-gradient(0deg, color-mix(in srgb, #241414 9%, transparent) 0 1px, transparent 1px 3px); }
 :root[data-praga="3"] main h1, :root[data-praga="3"] main h2, :root[data-praga="4"] main h1, :root[data-praga="4"] main h2, :root[data-praga="3"] .logo, :root[data-praga="4"] .logo { animation: pg-rgb 2.4s ease-in-out infinite; }
@@ -1630,43 +1630,46 @@ li.task[data-praga="2"], li.task[data-praga="3"], li.task[data-praga="4"] { anim
 .praga-pop .speech { background: #2a1416; color: #f0d8c8; border-color: #8a2a22; }
 .praga-pop .btn { background: #2a1416; color: #f0d8c8; border-color: #6b1d18; } .praga-pop .btn.pri { background: #8a2a22; border-color: #c0392b; color: #fff4ce; }
 .praga-pop a { color: #ff8a6a; }
-/* a cura: REZA BRABA (luz dourada sobe, arruda e sal grosso voando) */
-.reza-fx { position: fixed; inset: 0; z-index: 300; pointer-events: none; overflow: hidden; }
-.reza-fx .rz-luz { position: absolute; inset: 0; background: linear-gradient(0deg, color-mix(in srgb, #f5cd49 55%, transparent), color-mix(in srgb, #fff4ce 35%, transparent) 40%, transparent 75%); animation: rz-luz 1.9s ease-out forwards; }
-.reza-fx i { position: absolute; bottom: -12px; width: 8px; height: 8px; animation: rz-up 2.2s ease-out forwards; }
-.reza-fx i.sal { background: #fffaf1; box-shadow: 1px 1px 0 #d8c8b0; }
-.reza-fx i.arruda { width: 10px; height: 6px; background: #5a9862; border-radius: 0 6px 0 6px; box-shadow: 1px 1px 0 #3d654b; }
-.reza-fx .rz-t { position: absolute; left: 50%; top: 42%; translate: -50% 0; font: 22px/1.2 var(--f-pixel); color: #fff4ce; text-shadow: 3px 3px 0 #8a5a3c, 0 0 18px #f5cd49; animation: rz-t 2.2s ease-out forwards; white-space: nowrap; }
-@media (max-width: 600px) { .reza-fx .rz-t { font-size: 15px; } .pfx-crawl { font-size: 13px; } .banner.praga-b { font-size: 12px; } }
+/* a cura: BANHO DE SAL GROSSO (luz dourada sobe, sal grosso e arruda voando) */
+.sal-fx { position: fixed; inset: 0; z-index: 300; pointer-events: none; overflow: hidden; }
+.sal-fx .sg-luz { position: absolute; inset: 0; background: linear-gradient(0deg, color-mix(in srgb, #f5cd49 55%, transparent), color-mix(in srgb, #fff4ce 35%, transparent) 40%, transparent 75%); animation: sg-luz 1.9s ease-out forwards; }
+.sal-fx i { position: absolute; bottom: -12px; width: 8px; height: 8px; animation: sg-up 2.2s ease-out forwards; }
+.sal-fx i.sal { background: #fffaf1; box-shadow: 1px 1px 0 #d8c8b0; }
+.sal-fx i.arruda { width: 10px; height: 6px; background: #5a9862; border-radius: 0 6px 0 6px; box-shadow: 1px 1px 0 #3d654b; }
+.sal-fx .sg-t { position: absolute; left: 50%; top: 42%; translate: -50% 0; font: 22px/1.2 var(--f-pixel); color: #fff4ce; text-shadow: 3px 3px 0 #8a5a3c, 0 0 18px #f5cd49; animation: sg-t 2.2s ease-out forwards; text-align: center; width: max-content; max-width: calc(100vw - 32px); white-space: normal; }
+.sal-fx .sg-t small { display: block; margin-top: 6px; font-size: .55em; }
+@media (max-width: 600px) { .sal-fx .sg-t { font-size: 15px; } .pfx-crawl { font-size: 13px; } .banner.praga-b { font-size: 12px; } }
 @media (prefers-reduced-motion: reduce) { .pfx-bug, .pfx-crawl { display: none; } li.task[data-praga], :root[data-praga] .pcv { animation: none !important; } }
 /* o tremor e os bichos nunca criam rolagem pro lado */
 :root[data-praga], :root[data-praga] body { overflow-x: clip; }
 
 /* ═════════════ v6.7 — refinamento da PRAGA ═════════════ */
 @keyframes pg-fear { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(-1px, 0); } 50% { transform: translate(1px, -1px); } 75% { transform: translate(0, 1px); } }
-@keyframes pg-urubu { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-3px) rotate(4deg); } }
+@keyframes pg-mosca { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-3px) rotate(4deg); } }
 @keyframes pg-guia { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, #c0392b 0%, transparent); } 50% { box-shadow: 0 0 0 3px color-mix(in srgb, #c0392b 60%, transparent), 0 0 18px color-mix(in srgb, #c0392b 45%, transparent); } }
 @keyframes pg-alma-ltr { from { transform: translateX(-140px) translateY(0); } 25% { transform: translateX(25vw) translateY(-14px); } 50% { transform: translateX(50vw) translateY(6px); } 75% { transform: translateX(75vw) translateY(-10px); } to { transform: translateX(calc(100vw + 40px)) translateY(0); } }
 @keyframes pg-alma-rtl { from { transform: translateX(calc(100vw + 40px)) scaleX(-1); } 25% { transform: translateX(75vw) translateY(-12px) scaleX(-1); } 50% { transform: translateX(50vw) translateY(8px) scaleX(-1); } 75% { transform: translateX(25vw) translateY(-8px) scaleX(-1); } to { transform: translateX(-140px) scaleX(-1); } }
 @keyframes pg-fog { from { background-position: 0 0, 0 0; } to { background-position: 400px 0, -300px 0; } }
 @keyframes pg-eyes { 0%, 86%, 100% { opacity: 0; } 88%, 96% { opacity: .95; } 92% { opacity: .1; } }
 
-/* PRIMO COM MEDO (não doente): sem verde, rosto preocupado, tremendo, gota de suor; no ENCOSTO um "!" */
+/* PRIMO COM MEDO (não doente): sem verde, rosto preocupado, tremendo, gota de suor; na fase 3 um "!" */
 :root[data-praga] .pcv:not(.pmascot), :root[data-praga="2"] .pcv:not(.pmascot), :root[data-praga="3"] .pcv:not(.pmascot) { filter: none; }
 :root[data-praga="2"] .pcv:not(.pmascot):not(.walker), :root[data-praga="3"] .pcv:not(.pmascot):not(.walker) { animation: pg-fear .35s steps(2) infinite; }
 :root[data-praga="4"] .pcv:not(.pmascot) { filter: brightness(.9) contrast(1.1); animation: pg-fear .25s steps(2) infinite, pg-slices 3.4s steps(1) infinite; }
 :root[data-praga="2"] .pstage::after, :root[data-praga="3"] .pstage::after, :root[data-praga="4"] .pstage::after, :root[data-praga="3"] .pst-face::after, :root[data-praga="4"] .pst-face::after { content: '💧'; left: 58%; bottom: 62%; font-size: 13px; animation: praga-float 1.8s ease-in infinite; }
-:root[data-praga="3"] .pstage::before, :root[data-praga="4"] .pstage::before { content: '❗'; right: 30%; bottom: 72%; font-size: 14px; animation: pg-urubu 1s steps(2) infinite; }
+:root[data-praga="3"] .pstage::before, :root[data-praga="4"] .pstage::before { content: '❗'; right: 30%; bottom: 72%; font-size: 14px; animation: pg-mosca 1s steps(2) infinite; }
 .praga-pop .pp-row .pcv { filter: none; animation: pg-fear .35s steps(2) infinite; }
 
-/* URUBU GUIA: pousa onde a tarefa está (aba, janela ou lista) e a cor puxa até lá */
+/* MOSCA GUIA: pousa onde a tarefa está (aba, janela ou lista) e a cor puxa até lá */
 [data-guia] { animation: pg-guia 1.4s ease-in-out infinite; }
-.urubu-guia { position: absolute; top: -15px; right: -4px; z-index: 6; width: 24px; height: 20px; padding: 0; border: 0; background: none; cursor: pointer; animation: pg-urubu 1.6s steps(2) infinite; image-rendering: pixelated; filter: drop-shadow(1px 1px 0 color-mix(in srgb, #241414 50%, transparent)); }
-.urubu-guia svg { width: 20px; height: 16px; display: block; }
-.bottom a .urubu-guia { top: -12px; right: 6px; }
+.mosca-guia { position: absolute; top: -15px; right: -4px; z-index: 6; width: 24px; height: 20px; padding: 0; border: 0; background: none; cursor: pointer; animation: pg-mosca 1.6s steps(2) infinite; image-rendering: pixelated; filter: drop-shadow(1px 1px 0 color-mix(in srgb, #241414 50%, transparent)); }
+.mosca-guia svg { width: 20px; height: 16px; display: block; }
+.mosca-guia svg.f1 { position: absolute; left: 0; top: 0; animation: mg-asa .22s steps(1) infinite; }
+@keyframes mg-asa { 0% { opacity: 0; } 50% { opacity: 1; } }
+.bottom a .mosca-guia { top: -12px; right: 6px; }
 li.task[data-guia] { outline: 2px solid color-mix(in srgb, #c0392b 70%, transparent); outline-offset: 1px; }
 
-/* A ASSOMBRAÇÃO QUE PASSA (tocar espanta) */
+/* A ASSOMBRAÇÃO QUE PASSA (tocar = xô!) */
 .pfx-alma { position: fixed; left: 0; z-index: 96; padding: 0; border: 0; background: none; cursor: pointer; opacity: .82; filter: drop-shadow(0 0 10px color-mix(in srgb, #fff4ce 55%, transparent)) drop-shadow(0 0 4px color-mix(in srgb, #e3763b 50%, transparent)); }
 .pfx-alma.ltr { animation: pg-alma-ltr 9.5s linear forwards; } .pfx-alma.rtl { animation: pg-alma-rtl 9.5s linear forwards; }
 .pfx-alma svg { display: block; } .pfx-alma .f1 { display: none; } .pfx-alma[data-f="1"] .f0 { display: none; } .pfx-alma[data-f="1"] .f1 { display: block; }
@@ -1692,7 +1695,7 @@ li.task[data-guia] { outline: 2px solid color-mix(in srgb, #c0392b 70%, transpar
 .tabs a[data-guia], .bottom a[data-guia], .qbar button[data-guia] { overflow: visible; }
 .tabs { overflow: visible; }
 
-/* v7.0: 💀 no título da lista HOJE: quantas viram TREM RUIM amanhã */
+/* v7.0: 💀 no título da lista HOJE: quantas viram TREM TRAPAIADO amanhã */
 .pg-coming { font-size: 11px; font-weight: 700; color: var(--c-urg); padding: 0 6px; border: 1px solid color-mix(in srgb, var(--c-urg) 45%, transparent); border-radius: 999px; cursor: help; }
 
 /* v7.1: menu ≡ do QUESTS */
@@ -1738,22 +1741,22 @@ li.task[data-guia] { outline: 2px solid color-mix(in srgb, #c0392b 70%, transpar
 .pcard .pstage .pmascot, .pcard.big .pstage .pmascot { left: calc(50% - 128px); right: auto; bottom: 6px; }
 @media (max-width: 480px) { .pcard .pstage .pmascot { left: calc(50% - 116px); } }
 
-/* v7.3: PRIMO destemido. Na Praga ele fica parado e desconfiado (sem tremer); tremor e medo só na LUA DE SANGUE */
+/* v7.3: PRIMO destemido. Na Praga ele fica parado e desconfiado (sem tremer); tremor e medo só na NOITE DA DISGRAMA */
 :root[data-praga] .pcv:not(.pmascot), :root[data-praga] .pcv:not(.pmascot):not(.walker) { animation: none; }
 :root[data-praga="4"] .pcv:not(.pmascot):not(.walker) { animation: pg-slices 3.4s steps(1) infinite; }
-:root[data-lua] .pcv:not(.pmascot):not(.walker) { animation: pg-fear .2s steps(2) infinite, pg-slices 2.4s steps(1) infinite; }
+:root[data-noite] .pcv:not(.pmascot):not(.walker) { animation: pg-fear .2s steps(2) infinite, pg-slices 2.4s steps(1) infinite; }
 .pcard[data-mood="medo"] { --mood: var(--c-urg); } .comp-card:has(.pcard[data-mood="medo"]) { --mood: var(--c-urg); }
-/* LUA DE SANGUE: eclipse vermelho, a tela treme de tempos em tempos (sem sangue) */
-:root[data-lua] body::after { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 90; background: radial-gradient(130% 100% at 50% 40%, transparent 30%, color-mix(in srgb, #2a0303 78%, transparent) 100%), color-mix(in srgb, #9a0c0c 16%, transparent) !important; }
-:root[data-lua] #main { animation: lua-quake 7s steps(1) infinite; }
-@keyframes lua-quake { 0%, 90%, 100% { transform: none; } 91% { transform: translate(-3px, 2px); } 92% { transform: translate(4px, -2px); } 93% { transform: translate(-4px, -1px); } 94% { transform: translate(3px, 3px); } 95% { transform: translate(-2px, 0); } }
-:root[data-lua] .scene.pstrip > img.topo { filter: brightness(.5) sepia(.6) hue-rotate(-28deg) saturate(2.6) !important; }
+/* NOITE DA DISGRAMA: noite vermelha, a tela treme de tempos em tempos (nunca sangue) */
+:root[data-noite] body::after { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 90; background: radial-gradient(130% 100% at 50% 40%, transparent 30%, color-mix(in srgb, #2a0303 78%, transparent) 100%), color-mix(in srgb, #9a0c0c 16%, transparent) !important; }
+:root[data-noite] #main { animation: noite-quake 7s steps(1) infinite; }
+@keyframes noite-quake { 0%, 90%, 100% { transform: none; } 91% { transform: translate(-3px, 2px); } 92% { transform: translate(4px, -2px); } 93% { transform: translate(-4px, -1px); } 94% { transform: translate(3px, 3px); } 95% { transform: translate(-2px, 0); } }
+:root[data-noite] .scene.pstrip > img.topo { filter: brightness(.5) sepia(.6) hue-rotate(-28deg) saturate(2.6) !important; }
 .pg-moon { position: absolute; z-index: 2; right: 7%; top: 10%; width: clamp(28px, 5vw, 64px); aspect-ratio: 1; border-radius: 50%; pointer-events: none;
   background: radial-gradient(circle at 38% 35%, #ff9a7a 0 12%, #d43a24 45%, #7a0f0a 100%); box-shadow: 0 0 22px 6px color-mix(in srgb, #d43a24 55%, transparent); }
-.banner.praga-b[data-lua] { border-color: #b3160f; background: color-mix(in srgb, #7a0f0a 35%, var(--panel)); }
-@media (prefers-reduced-motion: reduce) { :root[data-lua] #main, :root[data-lua] .pcv { animation: none !important; } }
+.banner.praga-b[data-noite] { border-color: #b3160f; background: color-mix(in srgb, #7a0f0a 35%, var(--panel)); }
+@media (prefers-reduced-motion: reduce) { :root[data-noite] #main, :root[data-noite] .pcv { animation: none !important; } }
 
-/* v7.3b: o TREM virou poeira */
+/* v7.3b/v8: o TREM se resolveu (nuvenzinha) */
 .poof { position: fixed; z-index: 120; pointer-events: none; width: 0; height: 0; }
 .poof i { position: absolute; left: -3px; top: -3px; width: 6px; height: 6px; background: color-mix(in srgb, #b89a6a 85%, var(--panel)); border-radius: 2px;
   animation: poof .6s ease-out forwards; transform: rotate(var(--a)) translateX(0); }
@@ -1766,8 +1769,8 @@ li.task[data-guia] { outline: 2px solid color-mix(in srgb, #c0392b 70%, transpar
   animation: trem-bob 1.6s ease-in-out calc(var(--i) * -.3s) infinite; }
 .trem::before, .trem::after { content: ''; position: absolute; top: 38%; width: 3px; height: 3px; border-radius: 1px; background: #241414; }
 .trem::before { left: 32%; } .trem::after { right: 32%; }
-.trem.k-trem::before, .trem.k-trem::after { height: 1px; top: 44%; } /* dormindo */
-.trem.k-bravo::before, .trem.k-bravo::after, .trem.k-praga::before, .trem.k-praga::after { background: var(--c-urg); box-shadow: 0 0 3px var(--c-urg); }
+.trem.k-fei::before, .trem.k-fei::after { height: 1px; top: 44%; } /* dormindo */
+.trem.k-custoso::before, .trem.k-custoso::after, .trem.k-praga::before, .trem.k-praga::after { background: var(--c-urg); box-shadow: 0 0 3px var(--c-urg); }
 .trem.k-praga { background: radial-gradient(circle at 40% 35%, #8a7a8a 0 18%, #4a3a4a 60%, #241824 100%); }
 .trem.k-boss { width: calc(30px * var(--s, 1)); height: calc(24px * var(--s, 1)); background: radial-gradient(circle at 40% 35%, #e0c070 0 15%, #9a7038 55%, #5a3a1a 100%); }
 @keyframes trem-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
@@ -1796,7 +1799,7 @@ li.task[data-guia] { outline: 2px solid color-mix(in srgb, #c0392b 70%, transpar
    Regras de UX usadas (refs 07/08 do dono):
    · Efeito estética-usabilidade: cantos redondos = amigável, "cozy" (tudo que é do dia a dia).
    · Efeito Von Restorff (isolamento): só o PERIGO tem ponta e canto reto, então ele salta aos olhos
-     (assombração, TREM RUIM em diante, prazo de HOJE/atrasado, LUA DE SANGUE).
+     (assombração, TREM TRAPAIADO em diante, prazo de HOJE/atrasado, NOITE DA DISGRAMA).
    · Lei de Jakob: a barra de rolagem continua onde as pessoas esperam; só ganha a cara de madeira do app. */
 :root { --rad: 12px; --rad-sm: 8px; }
 /* barra de rolagem de madeira (Firefox usa scrollbar-color; Chrome/Edge/Android usam ::-webkit-scrollbar) */
@@ -1815,7 +1818,7 @@ html, .side, .modal, aside.postit .tasks, .fila-q .list { scrollbar-color: color
 /* PERIGO = canto reto e uma ponta (triângulo) no canto: só aqui */
 li.task[data-praga], .banner.praga-b, .praga-pop, .praga-modal .modal, .chip.late, .list-card[data-list="hoje"], .pcard[data-mood="paranoico"] .pstage, .pcard[data-mood="medo"] .pstage, .trem.k-praga { border-radius: 0; }
 .list-card[data-list="hoje"], .banner.praga-b { position: relative; }
-.list-card[data-list="hoje"]::after, .banner.praga-b::after { /* as tarefas da Praga já têm o urubu como sinal de perigo */
+.list-card[data-list="hoje"]::after, .banner.praga-b::after { /* as tarefas da Praga já têm as moscas como sinal de perigo */
   content: ''; position: absolute; top: -2px; right: -2px; width: 12px; height: 12px; pointer-events: none;
   background: var(--c-urg); clip-path: polygon(0 0, 100% 0, 100% 100%); }
 
@@ -1853,7 +1856,28 @@ li.task[data-praga], .banner.praga-b, .praga-pop, .praga-modal .modal, .chip.lat
 :root[data-mode="night"], :root[data-theme][data-mode="night"] { --c-premio: #eeb35a; --brasa: #f0913a; --brasa-luz: #fde58a; }
 .pbras b { color: var(--brasa); }
 .pcard .pmascot { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--brasa-luz) 45%, transparent)); }
-/* medo de 1 pixel: na LUA DE SANGUE o PRIMO NÃO treme (ele é destemido); só o rosto muda */
-:root[data-lua] .pcv:not(.pmascot):not(.walker) { animation: pg-slices 3.4s steps(1) infinite; }
+/* medo de 1 pixel: na NOITE DA DISGRAMA o PRIMO NÃO treme (ele é destemido); só o rosto muda */
+:root[data-noite] .pcv:not(.pmascot):not(.walker) { animation: pg-slices 3.4s steps(1) infinite; }
 /* perigo com sombra dura de pixel (escada do perigo, degrau 3); o seguro continua com sombra macia */
 .list-card[data-list="hoje"], .banner.praga-b, .praga-pop { box-shadow: 4px 4px 0 var(--plum); }
+
+/* ═════════════ v8 — vFINAL: moscas, GUARANÁ ⇄ LAMBEHOMI ═════════════ */
+/* moscas = podridão: TREM FEI 1 · TREM CUSTOSO 2 · TREM TRAPAIADO 3 · LAMBEHOMI auréola (sutil: o dono prefere tudo discreto) */
+li.task[data-moscas] { position: relative; }
+li.task[data-moscas]:not([data-praga])::after { content: ''; position: absolute; right: 4px; top: -6px; height: 10px; background: no-repeat right center / contain; image-rendering: pixelated; pointer-events: none; }
+li.task[data-moscas="1"]:not([data-praga])::after { width: 8px; background-image: var(--m1); opacity: .45; }
+li.task[data-moscas="2"]:not([data-praga])::after { width: 17px; background-image: var(--m2); opacity: .7; }
+li.task[data-moscas="aur"]::after { background-image: var(--maur) !important; width: 30px !important; height: 12px !important; top: -7px !important; }
+li.task[data-moscas]:not([data-praga])::after { animation: pg-mosca 1.8s steps(2) infinite; }
+@media (prefers-reduced-motion: reduce) { li.task[data-moscas]::after { animation: none !important; } }
+/* o LOBO no cartão do PRIMO (uma linha, como a da BRASINHA) */
+.plobo { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 4px 8px; border-radius: var(--rad); cursor: pointer; background: color-mix(in srgb, var(--c-calma) 10%, transparent); }
+.plobo .meta { font-size: 11px; }
+.plobo[data-mood="emburrado"] { background: color-mix(in srgb, var(--c-quase) 12%, transparent); }
+.plobo[data-mood="lambehomi"] { background: color-mix(in srgb, var(--c-urg) 14%, transparent); border-radius: 0; } /* perigo = canto reto */
+/* v8: o relógio do corpo virou uma linha dentro do FOCO AGORA (o cartão separado repetia a mesma tarefa) */
+.focus-now { flex-wrap: wrap; }
+.focus-now .fn-clock { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin-top: -2px; padding-top: 8px; border-top: 1px dashed color-mix(in srgb, var(--ink) 18%, transparent); font-size: 12px; color: var(--muted, var(--ink)); }
+.focus-now .fn-clock b { font: 7px/1.5 var(--f-pixel); color: var(--c-calma); white-space: nowrap; }
+.focus-now .fn-clock span { flex: 1 1 200px; min-width: 0; }
+.focus-now .fn-clock small { opacity: .8; }

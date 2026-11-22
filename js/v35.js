@@ -63,7 +63,7 @@ export function say(el, text, { voice = true } = {}) {
 }
 
 // ───────────────────────── AMIZADE ─────────────────────────
-const BOND = [[0, 'CONHECIDO'], [5, 'COLEGA DE ESTRADA'], [15, 'PARCEIRO'], [40, 'AMIGO DE FOGUEIRA'], [100, 'IRMÃO DE ESTRADA'], [250, 'PRIMO DE SANGUE']];
+const BOND = [[0, 'CONHECIDO'], [5, 'COLEGA DE ESTRADA'], [15, 'PARCEIRO'], [40, 'AMIGO DE FOGUEIRA'], [100, 'IRMÃO DE ESTRADA'], [250, 'PRIMO DE CONSIDERAÇÃO']];
 export function bond() {
   const pts = S.core?.bond?.pts || 0;
   let i = 0;
@@ -88,7 +88,7 @@ const QS = ['O que faria hoje valer a pena?', 'Qual tarefa você está evitando?
   'Do que você quer se orgulhar no fim deste capítulo?', 'O que dá pra delegar, cortar ou simplificar?', 'Qual projeto mais te anima agora? Por quê?', 'Pra onde foi o seu tempo ontem?',
   'O que você aprendeu essa semana?', 'Uma coisa pela qual você é grato hoje:', 'Como está o corpo hoje, de 1 a 10? O que ajudaria?', 'Qual conversa difícil você está adiando?',
   'Se a semana tivesse um título, qual seria?', 'Quanto dá pra guardar a mais esse mês pro APÊ?', 'Qual o próximo passo concreto pro APÊ?', 'O que você faria hoje se não tivesse medo de errar?',
-  'Qual vício roubou tempo essa semana? Como cortar 10%?', 'Que conteúdo você pode publicar essa semana?', 'Quem do seu network você não fala há tempo?', 'Qual tarefa de 2 minutos dá pra matar agora?',
+  'Qual vício roubou tempo essa semana? Como cortar 10%?', 'Que conteúdo você pode publicar essa semana?', 'Quem do seu network você não fala há tempo?', 'Qual tarefa de 2 minutos dá pra resolver agora?',
   'Como você quer se sentir às 18h de hoje?', 'Qual decisão você está empurrando?', 'Do que você precisa descansar?', 'Que ideia de projeto apareceu essa semana?',
   'O que você fez hoje só por você?', 'Qual foi o melhor momento de ontem?', 'Se o PRIMO pudesse te ajudar em uma coisa hoje, qual seria?', 'O que a PRIMOS precisa de você essa semana?',
   'O que você quer que digam do seu trabalho daqui a 5 anos?', 'Que hábito novo valeria testar por 7 dias?', 'Qual foi a última vez que você se divertiu de verdade?'];

@@ -42,7 +42,7 @@ function baseExpr() {
   const c = R.companion(S), st = primoState();
   if (st.expr) return st.expr;
   if (c.mood === 'envenenado') return 'enjoado';
-  return MOODS[primoMood()].expr; // v7.2: o rosto segue o humor (com a Praga ele fica PARANOICO, desconfiado; medo só na LUA DE SANGUE)
+  return MOODS[primoMood()].expr; // v7.2: o rosto segue o humor (com a Praga ele fica PARANOICO, desconfiado; medo só na NOITE DA DISGRAMA)
 }
 
 // ───────────────────────── expressão e fala atuais ─────────────────────────
@@ -62,7 +62,7 @@ const TIPS = ['Dica, sô: no rascunho da REFLEXÃO, Enter solta e Shift+Enter pu
   'Na AGENDA, o azul é ritual. Não deixa a amizade esfriar, sô.'];
 function ambient() {
   const now = Date.now();
-  const pl = pragaLine(); if (pl && Math.random() < 0.75) return { text: pl, expr: R.praga(S).lua ? 'preocupado' : 'suspeito', at: now }; // v7.3: paranoico (medo só na LUA DE SANGUE)
+  const pl = pragaLine(); if (pl && Math.random() < 0.75) return { text: pl, expr: R.praga(S).noite ? 'preocupado' : 'suspeito', at: now }; // v7.3: paranoico (medo só na NOITE DA DISGRAMA)
   if (!amb || now - amb.at > 3 * 60000) { const tip = Math.random() < 0.45, text = tip ? TIPS[Math.floor(Math.random() * TIPS.length)] : primoLine('auto'); amb = { text, expr: tip ? 'piscada' : lastExpr(), at: now, shownAt: now, typed: false }; }
   return amb;
 }
@@ -73,7 +73,9 @@ export function primoReact(kind, ctx) {
   paintSpeech();
 }
 /** liga as reações às recompensas que o app mostra */
+const TREM_NOVO = ['Que trem é esse, sô? Anotei. Agora é resolver.', 'Uai, chegou mais um TREM. Tá com cara de TREM FEI ainda, sossega.', 'Que trem é esse, sô? Bota no prazo que a gente dá conta.'];
 export function primoFeedback(fb) {
+  if (fb.newTrem && !fb.xp && Math.random() < 0.4) return primoSay(TREM_NOVO[Math.floor(Math.random() * TREM_NOVO.length)], 'pensativo'); // v8: TREM novo (só às vezes, pra não cansar)
   if (fb.boss) return primoReact('boss');
   if (fb.levelUp) return primoReact('levelup');
   if (fb.achievements?.length) return primoReact('conquista');
@@ -178,12 +180,14 @@ function loop(ts) {
 /** roda depois de cada desenho da tela: liga os desenhos, evolui o mascote, avisa a volta da expedição, gera o diário */
 export function primoAfterRender() {
   mountPortraits();
-  // v7.3b: o que aconteceu com a BRASINHA (cresceu de manhã, perdeu fase no LAMBEHOMI, virou ovo na LUA DE SANGUE)
+  // v7.3b/v8: o que aconteceu com a BRASINHA e com o LOBO (cresceu de manhã, perdeu fase no LAMBEHOMI, roubada na NOITE, antídoto)
   const evs = S._brasEv; S._brasEv = null;
   for (const e of evs || []) {
-    if (e.k === 'up' || e.k === 'reborn') { toast(e.k === 'reborn' ? `🐣 O ovo rachou: a BRASINHA renasceu! <b>${R.BRAS_NAMES[e.stage]}</b>, com um pouco de cinza na cabeça.` : `🐣 A BRASINHA cresceu: <b>${R.BRAS_NAMES[e.stage]}</b>!`, 'gold'); sfx('level'); primoSay(e.k === 'reborn' ? 'Ela voltou, sô. Cinza na cabeça e fogo no peito.' : 'Óia o tamanho dela! Tá ficando braba, uai.', 'orgulhoso'); }
+    if (e.k === 'up' || e.k === 'reborn') { toast(e.k === 'reborn' ? `🐣 Valeu a PENA! A MEGG DE FÁTIMA chocou e o ovo rachou: a BRASINHA renasceu! <b>${R.BRAS_NAMES[e.stage]}</b>, com um pouco de cinza na cabeça.` : `🐣 A BRASINHA cresceu: <b>${R.BRAS_NAMES[e.stage]}</b>! Bão demais da conta!`, 'gold'); sfx('level'); primoSay(e.k === 'reborn' ? 'Valeu a pena, sô. Cinza na cabeça e fogo no peito.' : 'Óia o tamanho dela! Tá ficando braba, uai.', 'orgulhoso'); }
     if (e.k === 'down') { toast(`🐺 O LAMBEHOMI chegou em <b>${esc(String(e.text).slice(0, 40))}</b>: a BRASINHA perdeu força (agora ${R.BRAS_NAMES[e.stage]}).`, 'bad'); sfx('error'); primoSay('Ele soprou forte. Fica atrás de mim, pequena.', 'suspeito'); }
-    if (e.k === 'egg') { toast('🌕 LUA DE SANGUE: a BRASINHA virou OVO. É fênix: com calor ela renasce.', 'bad'); primoSay('A lua ficou vermelha… guardei o ovo no chapéu. A gente começa de novo.', 'preocupado'); }
+    if (e.k === 'roubo' || e.k === 'egg') { toast('🌕 NOITE DA DISGRAMA: o LAMBEHOMI roubou a BRASINHA. A chama dela curou ele, que voltou a ser GUARANÁ (trégua até amanhã). Ela virou OVO e a MEGG DE FÁTIMA já tá chocando: com calor ela renasce.', 'bad'); primoSay('Ele levou a chama dela… e se curou. A MEGG tá chocando o ovo. A gente começa de novo, sô.', 'preocupado'); }
+    if (e.k === 'lobo-vira') { toast('🐺 Uma tarefa apodreceu (mais de 3 dias): o GUARANÁ se isolou e virou LAMBEHOMI. Resolve TODAS as atrasadas que a CAJULINA e a EVE LÃ acham o antídoto.', 'bad'); sfx('error'); primoSay('Uai… o GUARANÁ sumiu no mato. Quem voltou foi o outro.', 'suspeito'); }
+    if (e.k === 'antidoto') { toast('🧪 ANTÍDOTO! Sem nenhuma atrasada, a CAJULINA achou a receita nos livros e a EVE LÃ fez a garrafada: o LAMBEHOMI voltou a ser GUARANÁ e a BRASINHA ficou com a gente. Trégua até amanhã.', 'gold'); sfx('level'); confetti(40); primoSay('Nó! Curou sem levar a pequena. Trem bão demais, sô.', 'orgulhoso'); }
   }
   if (ls.get('gamify-ui:diary') !== today()) { ls.set('gamify-ui:diary', today()); PS.diarySync(); }
 }
@@ -199,8 +203,8 @@ function askHtml() {
 /** v7.2: o HUMOR do PRIMO, um só, que manda no rosto, na cor do cartão e na frase.
  *  paranoico (Praga ou 3+ atrasadas) · orgulhoso (bateu a meta) · focado (tarefa ▶ fazendo) · cansado (debuff de cansaço) · satisfeito (o resto) */
 export const MOODS = {
-  medo: { label: 'com medo', ico: '😱', expr: 'preocupado', tip: 'LUA DE SANGUE: tarefas demais no LAMBEHOMI. É a única hora em que ele tem medo de verdade.' },
-  paranoico: { label: 'paranoico', ico: '👀', expr: 'suspeito', tip: 'Tem trem rondando: atrasadas ou Praga. Ele fica desconfiado, não com medo.' },
+  medo: { label: 'com medo', ico: '😱', expr: 'preocupado', tip: 'NOITE DA DISGRAMA: tarefas demais no LAMBEHOMI. É a única hora em que ele tem medo de verdade.' },
+  paranoico: { label: 'paranoico', ico: '👀', expr: 'suspeito', tip: 'Tem TREM TRAPAIADO rondando: atrasadas ou Praga. Ele fica desconfiado, não com medo.' },
   orgulhoso: { label: 'orgulhoso', ico: '😤', expr: 'orgulhoso', tip: 'A meta do dia foi batida.' },
   focado: { label: 'focado', ico: '🎯', expr: 'pensativo', tip: 'Tem tarefa em ▶ FAZENDO.' },
   cansado: { label: 'cansado', ico: '😮‍💨', expr: 'cansado', tip: 'Cansaço, neblina ou preguiça no status do dia.' },
@@ -209,7 +213,7 @@ export const MOODS = {
 export function primoMood() {
   const g = R.dailyGoal(S), st = R.dayStatus(S, today());
   const pg = R.praga(S);
-  if (pg.lua) return 'medo';
+  if (pg.noite) return 'medo';
   if (pg.phase >= 1 || R.overdueTasks(S).length >= 3) return 'paranoico';
   if (g.today >= g.goal) return 'orgulhoso';
   if (S.quests.tasks.some((t) => t.st === 'doing')) return 'focado';
@@ -239,6 +243,17 @@ export function primoSay(text, expr) { rx = { text, expr: expr || lastExpr(), un
 function brasLine(p) {
   return `<div class="pbras" title="${esc(p.title)}" data-act="mascot-info"><span>🐣 <b>${esc(p.name)}</b></span>${p.max ? '<span class="meta">FÊNIX!</span>' : `${segBar(p.pct, 'sm')}<span class="meta">🔥 ${Math.max(0, p.calor + p.hoje)}/${p.need}</span>`}</div>`;
 }
+/** v8: o LOBO numa linha (GUARANÁ calmo · emburrado · de trégua · LAMBEHOMI). Tocar mostra o que é e ele fala uma. */
+const LOBO_FALAS = {
+  calmo: ['Tô na minha. Não me chama pra festa não.', 'Manga madura é a única coisa que presta nessa vila.', 'Repara nessas garras. Feitas à mão, sô.', 'Esse guaraná é Fanta, e daí?', 'Grrr… essa mosca de novo não.', 'Cheirei o chão inteiro. Tudo em dia. Que tédio.'],
+  tregua: ['Não me olha assim. Eu tô curado… por enquanto.', 'Um dia de paz. Aproveita, que eu não prometo nada.', 'Essa cicatriz coça. Sinal de que a raiva tá dormindo.'],
+  emburrado: ['Tô sentindo cheiro de coisa podre. Resolve isso antes que eu me irrite.', 'Me deixa quieto. Esse trem trapaiado tá me dando nos nervos.', 'Grrr. Mosca. Muita mosca. Isso nunca é bom sinal.'],
+  lambehomi: ['…', 'Shhh. Tá sentindo o cheiro? Eu tô.', 'Fica tranquilo. É só a raiva falando. Bem baixinho.'],
+};
+function loboLine() {
+  const l = R.lobo(S); if (!l.on) return '';
+  return `<div class="plobo" data-mood="${l.mood}" data-act="lobo-info" title="${esc(l.tip)}"><span>${l.ico} <b>${l.name}</b> <span class="meta">${esc(l.sub)}</span></span></div>`;
+}
 function statusIcons() {
   const st = R.dayStatus(S, today()), al = R.alerts(S, today());
   const ic = [...(st.event ? [`<button class="sico event" data-act="explain" data-k="event" title="🎲 ${esc(st.event.name)}: ${esc(st.event.desc)}">🎲</button>`] : []),
@@ -256,6 +271,7 @@ function body(big, compact = false) {
       <div class="meta pstat">${status}${st.left ? ` · <span data-countdown="${Date.now() + st.left}">${mmss(st.left)}</span>` : ''}</div>
       ${statusIcons()}
       ${brasLine(pet)}
+      ${loboLine()}
       ${askHtml()}
       <div class="pcmds">${CMDS.map(([k, i, l, t]) => `<button class="btn sm ${k === 'trip' && trip ? 'pri' : ''}" data-act="pcmd" data-k="${k}" title="${esc(t)}"><span>${i}</span>${k === 'trip' && trip ? 'VOLTEI' : l}</button>`).join('')}</div>
       <div class="pcmds pcmds3"><button class="btn sm" data-act="saber" data-g="all" title="Uma curiosidade verdadeira, com fonte"><span>📚</span>ME CONTA</button><button class="btn sm" data-act="primo-prosa" title="Piada, ditado ou causo da roça"><span>😂</span>PROSA</button><button class="btn sm" data-act="diary" title="O diário que ele escreve toda semana"><span>📖</span>DIÁRIO</button></div></div></div>`; // v7.7: tudo na mesma grade
@@ -307,7 +323,8 @@ export function extendPrimo(ACTIONS) {
     saber: (d) => { primoReact('saber', { group: d.g || 'all' }); if (!document.querySelector('.modal')) openSaber(d.g || 'all'); },
     'saber-go': (d) => { closeModal(); setTimeout(() => { openSaber(d.g); }, 30); },
     diary: () => openDiary(),
-    'mascot-info': () => { const p = PS.petState(); toast(`🐣 <b>${esc(p.title)}</b>. Tarefa no prazo esquenta, dia na meta esquenta mais; atrasada esfria. TREM no LAMBEHOMI tira 1 fase; LUA DE SANGUE vira ovo.`, 'gold'); primoReact('mascote'); },
+    'mascot-info': () => { const p = PS.petState(); toast(`🐣 <b>${esc(p.title)}</b>. Tarefa no prazo esquenta, dia na meta esquenta mais; atrasada esfria. TREM no LAMBEHOMI tira 1 fase; na NOITE DA DISGRAMA o lobo rouba ela (vira ovo e a MEGG DE FÁTIMA choca de novo).`, 'gold'); primoReact('mascote'); },
+    'lobo-info': () => { const l = R.lobo(S), F = LOBO_FALAS[l.mood], c = l.curas; toast(`${l.ico} <b>${l.name}</b> (${esc(l.sub)}): “${esc(F[Math.floor(Math.random() * F.length)])}”<br><small>${esc(l.tip)} Curas até hoje: ${c.noite || 0} pela NOITE, ${c.antidoto || 0} pelo ANTÍDOTO.</small>`, l.st === 'lambehomi' ? 'bad' : 'gold'); },
     'ask-claim': () => { const r = PS.claimAsk(); if (r?.error) { sfx('error'); toast(esc(r.error), 'bad'); return; } sfx('chest'); confetti(40); if (document.querySelector('.modal')) rehub(); },
     // v7.2: comando do cartão do PRIMO = o comando de sempre + uma frase dele
     pcmd: (d, e) => { const f = ACTIONS[d.k]; if (!f) return; const r = f(d, e); const L = CMD_LINES[d.k]; if (L) setTimeout(() => primoSay(L[Math.floor(Math.random() * L.length)], MOODS[primoMood()].expr), 60); return r; },

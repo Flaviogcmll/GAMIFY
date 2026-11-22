@@ -54,8 +54,8 @@ export function redo() {
 
 const touched = new Set();
 const touch = (...d) => d.forEach((x) => touched.add(x));
-/** A PRAGA. Saiu da lista de infectadas = espantou (REZA BRABA). v7.3: espantar NÃO dá XP (ninguém fabrica Praga pra ganhar ponto) e não há mais vacina.
- *  Conta pras conquistas (EXORCISTA, CAÇA-ALMA…) e marca a tarefa com 🙏 (t.reza) quando foi feita. */
+/** A PRAGA. Saiu da lista de infectadas = limpou (BANHO DE SAL GROSSO). v7.3: limpar NÃO dá XP (ninguém fabrica Praga pra ganhar ponto) e não há mais vacina.
+ *  Conta pras conquistas (BANHO TOMADO, BENZEDEIRA…) e marca a tarefa com 🧂 (t.sal = a fase em que estava) quando foi resolvida. */
 function pragaCure(before) {
   if (R.tripNow(S) || !R.neuroOn(S, 'praga')) return null;
   const td = today(), after = new Set(R.praga(S).list.map((x) => x.id)), gone = before.filter((x) => !after.has(x.id));
@@ -66,16 +66,17 @@ function pragaCure(before) {
       : (S.core.rituals || []).find((r) => r.id === x.id)?.last === td;
     if (!ok) continue;
     done++; if (x.phase < 3) early++; if (x.phase >= 4) exo++;
-    if (x.kind === 'task') { const t = S.quests.tasks.find((y) => y.id === x.id); if (t) t.reza = x.phase; }
+    if (x.kind === 'task') { const t = S.quests.tasks.find((y) => y.id === x.id); if (t) t.sal = x.phase; }
   }
   const pv = { ...(S.core.praga || {}) }; delete pv.vac;
   S.core.praga = { ...pv, cured: (pv.cured || 0) + gone.length, early: (pv.early || 0) + early, exo: (pv.exo || 0) + exo,
-    hist: [...(pv.hist || []), ...gone.map((x) => ({ d: td, ph: x.phase, reza: done > 0 }))].slice(-200) };
+    hist: [...(pv.hist || []), ...gone.map((x) => ({ d: td, ph: x.phase, sal: done > 0 }))].slice(-200) };
   S._epoch++;
   return { n: gone.length, xp: 0, clean: after.size === 0, names: gone.map((x) => x.text) };
 }
 /** v7.3b: a BRASINHA. 1) fecha os dias que passaram (o CALOR de cada um; viagem não conta) e ela cresce;
- *  2) cada TREM que chega no LAMBEHOMI tira 1 fase (nunca abaixo de PINTINHO); 3) LUA DE SANGUE = vira OVO (é fênix: renasce).
+ *  2) cada TREM que chega no LAMBEHOMI tira 1 fase (nunca abaixo de PINTINHO); 3) NOITE DA DISGRAMA = o lobo rouba e ela vira OVO (é fênix: renasce).
+ *  v8: depois cuida do LOBO (GUARANÁ ⇄ LAMBEHOMI, regras em rules.js → lobo()).
  *  Os castigos não somam: a Praga não tira mais XP. Devolve os acontecimentos (pra tela avisar) ou null. */
 export function brasinhaTick() {
   const b = S.core?.brasinha;
@@ -96,11 +97,29 @@ export function brasinhaTick() {
     for (const x of now4) if (!hit.has(x.id)) { changed = true; if (b.stage > 1) { b.stage--; b.calor = 0; ev.push({ k: 'down', stage: b.stage, text: x.text }); } }
     const ids = now4.map((x) => x.id);
     if (ids.join() !== (b.hit || []).join()) { b.hit = ids; changed = true; } // saiu do LAMBEHOMI e voltou um dia = perde de novo
-    if (pg.lua && !b.lua) { b.lua = td; changed = true; if (b.stage > 0) { b.stage = 0; b.calor = 0; b.reborn = true; ev.push({ k: 'egg' }); } }
-    else if (!pg.lua && b.lua) { b.lua = null; changed = true; }
+    let roubou = false;
+    if (pg.noite && !b.noite) { b.noite = td; changed = true; if (b.stage > 0) { b.stage = 0; b.calor = 0; b.reborn = true; roubou = true; } }
+    else if (!pg.noite && b.noite) { b.noite = null; changed = true; }
+    if (loboTick(pg, roubou, ev)) changed = true;
   }
   b.max = Math.max(b.max || 0, b.stage);
   if (ev.length) { b.hist = [...(b.hist || []), ...ev.map((e) => ({ d: td, ...e }))].slice(-100); S._brasEv = [...(S._brasEv || []), ...ev]; }
+  return changed;
+}
+/** v8: o LOBO. GUARANÁ → LAMBEHOMI quando uma tarefa apodrece (fora da trégua). LAMBEHOMI → GUARANÁ pela NOITE (roubou a BRASINHA)
+ *  ou pelo ANTÍDOTO (nenhuma atrasada sobrando; a BRASINHA fica). Depois de qualquer cura: trégua até o fim de amanhã. */
+function loboTick(pg, roubou, ev) {
+  const td = today(), L = (S.core.lobo ||= { st: 'guarana', since: td, curas: { noite: 0, antidoto: 0 }, hist: [] });
+  L.curas ||= { noite: 0, antidoto: 0 };
+  const tregua = L.tregua && L.tregua >= td, log = (k) => { L.hist = [...(L.hist || []), { d: td, k }].slice(-100); };
+  let changed = false;
+  if (L.tregua && !tregua) { delete L.tregua; changed = true; }
+  if (L.st !== 'lambehomi' && !tregua && pg.n4 >= 1) { L.st = 'lambehomi'; L.since = td; log('vira'); ev.push({ k: 'lobo-vira' }); changed = true; }
+  if (L.st === 'lambehomi') {
+    const cura = roubou ? 'noite' : pg.list.length === 0 ? 'antidoto' : null;
+    if (cura) { L.st = 'guarana'; L.since = td; L.tregua = addDays(td, 1); L.curas[cura] = (L.curas[cura] || 0) + 1; log(cura); ev.push({ k: cura === 'noite' ? 'roubo' : 'antidoto' }); changed = true; }
+  } else if (roubou) { ev.push({ k: 'roubo' }); } // (não acontece: a NOITE só chega com ele LAMBEHOMI, mas o ovo precisa ser avisado)
+  if (changed) S._epoch++;
   return changed;
 }
 /** v6.7: anota o último dia com Praga e dá +1 🎟 por semana inteira sem Praga (conta da segunda ao domingo) */
@@ -296,6 +315,19 @@ export function startup() {
     S.core.brasinha = { stage: map[old], calor: 0, upTo: addDays(td, -1), hit: R.praga(S).list.filter((x) => x.kind === 'task' && x.phase >= 4).map((x) => x.id), max: map[old], hist: [] };
     S.core.migrations.push('v7-bras'); changedCore = true;
   }
+  if (!S.core.migrations.includes('v8-nomes')) { // v8 (vFINAL): REZA BRABA → BANHO DE SAL GROSSO e LUA DE SANGUE → NOITE DA DISGRAMA também nos dados salvos
+    for (const t of q.tasks) if (t.reza != null) { t.sal = t.reza; delete t.reza; changedQ = true; }
+    for (const [m, doc] of Object.entries(S.arq)) for (const t of doc.tasks || []) if (t.reza != null) { t.sal = t.reza; delete t.reza; moved.add('arq-' + m); }
+    for (const h of S.core.praga?.hist || []) if ('reza' in h) { h.sal = h.reza; delete h.reza; }
+    const b = S.core.brasinha; if (b && 'lua' in b) { if (b.lua) b.noite = b.lua; delete b.lua; }
+    const n = S.core.settings?.neuro; if (n && 'luaN' in n) { if (n.noiteN == null) n.noiteN = n.luaN; delete n.luaN; }
+    for (const p of S.core.presets || []) { const pn = p.settings?.neuro; if (pn && 'luaN' in pn) { if (pn.noiteN == null) pn.noiteN = pn.luaN; delete pn.luaN; } }
+    S.core.migrations.push('v8-nomes'); changedCore = true;
+  }
+  if (!S.core.migrations.includes('v8-lobo')) { // v8: nasce o LOBO (GUARANÁ ⇄ LAMBEHOMI). Começa GUARANÁ; se já tem tarefa apodrecida, o tick vira ele na hora.
+    S.core.lobo ||= { st: 'guarana', since: td, curas: { noite: 0, antidoto: 0 }, hist: [] };
+    S.core.migrations.push('v8-lobo'); changedCore = true;
+  }
   if (!S.core.migrations.includes('cores5')) { // v5.9: cores dos blocos = URGENTE, FAZENDO, ESTÁVEL, PARADO (o laranja saiu)
     for (const b of S.quests.blocks) if (b.color === 'orange') { b.color = 'green'; changedQ = true; }
     S.core.migrations.push('cores5'); changedCore = true;
@@ -445,7 +477,7 @@ export function addTask({ text, area = 'hoje', block = null, due = null, parent 
       t.ord = (anchor.ord + nextOrd) / 2;
     }
     S.quests.tasks.push(t);
-    return { task: t };
+    return { task: t, feedback: { newTrem: t.due ? t : null } }; // v8: "Que trem é esse, sô?"
   });
 }
 
@@ -491,7 +523,7 @@ function checkBlock(id, d) {
   if (items.length && items.every((t) => t.st === 'done' || t.st === 'cancel') && items.some((t) => t.st === 'done')) {
     Object.assign(b, { st: 'done', doneAt: d, xp: R.blockXp(b) });
     S._closedBlock = b;
-    const boss = S.quests.bosses.find((x) => x.block === id && x.st !== 'done'); // v4: fechar o bloco do boss = boss derrotado
+    const boss = S.quests.bosses.find((x) => x.block === id && x.st !== 'done'); // v4: fechar o bloco do boss = boss resolvido
     if (boss) { Object.assign(boss, { st: 'done', doneAt: d, auto: true }); S._bossDown = boss; }
     const src = b.src && T(b.src); // v4: tarefa da lista ligada a este bloco conclui junto (sem XP: o XP é o do bloco)
     if (src && src.st !== 'done') Object.assign(src, { st: 'done', doneAt: d, xp: 0, linked: true });
@@ -951,7 +983,7 @@ export function buyMystery(useTicket) {
   if (useTicket ? tot.tickets < 1 : tot.balance < R.C.MYSTERY) return { error: useTicket ? 'Você não tem 🎟 ticket.' : `O baú custa ${R.C.MYSTERY} XP.` };
   const pool = S.loja.taverna.filter((x) => !/ANT[IÍ]DOTO/i.test(x.name));
   const it = pool[Math.floor(Math.random() * pool.length)];
-  if (!it) return { error: 'A taverna está vazia.' };
+  if (!it) return { error: 'A ALQUIMISTA está vazia.' };
   return commit(['loja'], () => {
     S.loja.purchases.push({ id: uid('p'), date: today(), item: it.name, itemId: it.id, kind: 'bau', qty: 1, xp: useTicket ? 0 : R.C.MYSTERY, gold: 0, tickets: useTicket ? 1 : 0, status: 'bag' });
     return { prize: it };
@@ -1092,6 +1124,16 @@ export function updateMilestones(list) {
   commit(['core'], () => { S.core.milestones = list.filter(Boolean); });
 }
 /** v5.14: liga/desliga e horários da neurociência (settings.neuro) */
+/** v8: 🪰 MOSCA MORTA. "ainda parado" = lembra de novo em 7 dias; "voltar a andar" = sai do PARADO (vira FAZENDO). */
+export function moscaSeen(ids) {
+  commit(['core'], () => { const m = (S.core.moscaMorta ||= {}), td = today(); for (const id of ids) m[id] = td; }, { noUndo: true, quiet: true });
+}
+export function moscaWake(id) {
+  const b = S.quests.blocks.find((x) => x.id === id);
+  if (b) return updateBlock(id, { color: 'yellow' });
+  const t = S.quests.tasks.find((x) => x.id === id);
+  if (t) return commit(['quests'], () => { delete t.color; });
+}
 export function setNeuro(k, v) {
   commit(['core'], () => { S.core.settings ||= {}; S.core.settings.neuro = { ...(S.core.settings.neuro || {}), [k]: v }; }, { noUndo: true });
 }

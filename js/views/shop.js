@@ -42,7 +42,7 @@ function taverna(tot, shop) {
       <button class="link-btn" data-act="confess" data-id="${it.id}" title="Aproveitou sem comprar antes? Paga agora com multa de x${String(R.DEBT_MULT).replace('.', ',')}">fiz sem comprar</button></div>`;
   }).join('');
   const canM = !shop.locked && tot.balance >= R.C.MYSTERY;
-  const myst = `<div class="item lendario"><span class="rar">SURPRESA</span><div class="ic">${kspr(92)}</div><div class="in">BAÚ MISTERIOSO</div><div class="ip" title="Sorteia 1 recompensa da taverna">${R.C.MYSTERY} XP</div>
+  const myst = `<div class="item lendario"><span class="rar">SURPRESA</span><div class="ic">${kspr(92)}</div><div class="in">BAÚ MISTERIOSO</div><div class="ip" title="Sorteia 1 recompensa da ALQUIMISTA">${R.C.MYSTERY} XP</div>
     <div class="ia"><button class="btn sm ${canM ? 'pri' : ''}" data-act="mystery" ${canM ? '' : 'disabled'}>ABRIR</button>${tot.tickets > 0 && !shop.locked ? `<button class="btn sm" data-act="mystery-ticket">${px('ticket', 12)}</button>` : ''}</div></div>`;
   return `<div class="shop">${myst}${items}</div>`;
 }
@@ -60,7 +60,7 @@ function mochila() {
       ${using ? `<div class="ip" data-countdown="${p.endsAt}">${mmss(p.endsAt - now)}</div>${segBar((p.endsAt - now) / (p.endsAt - p.startedAt), 'sm')}` : `<small class="dim">${m.min ? `⏱ ${m.min} min` : 'sem tempo'} · desde ${fmtDM(p.date)}</small>`}
       <div class="ia">${using ? `<button class="btn sm" data-act="finish-item" data-id="${p.id}">ENCERRAR</button>` : `<button class="btn sm pri" data-act="use-item" data-id="${p.id}">USAR AGORA</button>`}</div></div>`;
   };
-  return `${bag.length ? `<div class="shop">${bag.map(card).join('')}</div>` : `<div class="card"><p>Sacola vazia. Compre no BARZINHO antes de aproveitar: o prazer comprado tem outro gosto.</p></div>`}
+  return `${bag.length ? `<div class="shop">${bag.map(card).join('')}</div>` : `<div class="card"><p>Sacola vazia. Compre na ALQUIMISTA antes de aproveitar: o prazer comprado tem outro gosto.</p></div>`}
     <div class="card" style="margin-top:16px"><header><h2>Usados recentemente</h2></header><div class="list">${used.map((p) => `<div class="li"><div class="lt">${esc(p.item)}<small>${fmtDM(p.usedAt || p.date)}${p.debt ? ' · 🧾 dívida x2' : ''}</small></div><span class="chip">${p.debt ? 'X2' : 'OK'}</span></div>`).join('') || '<div class="empty">nada ainda.</div>'}</div></div>`;
 }
 
@@ -124,10 +124,10 @@ export function viewShop(ui) {
   const goalIt = S.loja.taverna.find((i) => i.id === S.loja.goal);
   const nb = R.bag(S).length, dn = lightNow() === 'noite' ? 'noite' : 'dia'; // v7.0: pela hora real
   const fx = shop.mult === 1 ? 'x1' : 'x' + shop.mult.toFixed(2).replace('.', ',');
-  // v6: a FEIRA tem barracas (BARZINHO em cima, FERREIRO embaixo), cada uma com o seu banner; outros vendedores entram aqui
+  // v6: a FEIRA tem barracas (ALQUIMISTA em cima, FERREIRO embaixo), cada uma com o seu banner; outros vendedores entram aqui
   const vitrine = (key, title, sub, body) => { const ck = 'c:shop:' + key, shut = isCollapsed(ck); return `<section class="vitrine ${shut ? 'shut' : ''}" data-v="${key}"><header class="vit-h" data-act="collapse" data-k="${ck}" title="Toque pra recolher ou abrir" style="--img:url('${new URL(`assets/topo/${key === 'tav' ? 'shop' : 'ferreiro'}-${dn}.webp`, document.baseURI).href}')"><div><h2><span class="chev">${shut ? '▸' : '▾'}</span> ${title}</h2><p>${sub}</p></div></header>${shut ? '' : `<div class="vit-b">${body}</div>`}</section>`; };
   const body = tab === 'mochila' ? mochila() : tab === 'forjados' ? forjados() : tab === 'ouro' ? ouro() : tab === 'hist' ? hist()
-    : vitrine('tav', '🍻 BARZINHO', 'Os prazeres do dia a dia. Compre ANTES de aproveitar: vai pra SACOLA.', taverna(tot, shop))
+    : vitrine('tav', '🧪 ALQUIMISTA', 'Os prazeres do dia a dia. Compre ANTES de aproveitar: vai pra SACOLA.', taverna(tot, shop))
       + vitrine('fer', '⚒ FERREIRO', 'Conquistas da vida real: XP + gold. Cada nível destrava itens novos. Uma BARRACA por categoria.', barracas(tot, shop, ui));
   const td7 = today(), days7 = Array.from({ length: 7 }, (_, i) => addDays(td7, -i)), xbd = R.idx(S).xpByDay;
   const week = { got: days7.reduce((a, d) => a + (xbd[d] || 0), 0), spent: (S.loja.purchases || []).filter((p) => days7.includes(p.date)).reduce((a, p) => a + (p.xp || 0), 0) };
@@ -136,9 +136,9 @@ export function viewShop(ui) {
     ${tiles([
       { label: '📥 Ganho 7 dias', value: fmtN(week.got), tone: 'ok', tip: 'XP que você ganhou nos últimos 7 dias' },
       { label: '📤 Gasto 7 dias', value: fmtN(week.spent), tone: week.spent > week.got ? 'urg' : 'neutro', sub: week.got ? `${Math.round((week.spent / week.got) * 100)}% do ganho` : '', tip: 'XP gasto na FEIRA nos últimos 7 dias. Gastar menos do que ganha = saldo crescendo.' },
-      { label: '✨ Saldo', value: fmtN(tot.balance), cls: 'gold', tone: 'premio', tip: 'XP pra gastar no BARZINHO e no FERREIRO' },
+      { label: '✨ Saldo', value: fmtN(tot.balance), cls: 'gold', tone: 'premio', tip: 'XP pra gastar na ALQUIMISTA e no FERREIRO' },
       { label: '$ Gold', value: fmtN(tot.gold), cls: 'gold', tone: 'premio', tip: `Dinheiro de verdade que entrou (${fmtN(tot.goldIn)} no total). Usado no FERREIRO.` },
-      { label: '🎟 Tickets', value: tot.tickets, cls: 'tk', tone: 'premio', tip: 'Cada ticket troca por um item do BARZINHO sem gastar XP (itens caros pedem mais de um).' },
+      { label: '🎟 Tickets', value: tot.tickets, cls: 'tk', tone: 'premio', tip: 'Cada ticket troca por um item da ALQUIMISTA sem gastar XP (itens caros pedem mais de um).' },
       { label: '📈 Preço hoje', value: fx, tone: shop.mult > 1 ? 'urg' : 'ok', tip: `Os preços acompanham o seu ritmo: índice x${shop.econ.toFixed(2).replace('.', ',')} (sua média de 14 dias)${shop.status.list.filter((x) => x.shop).map((x) => ' · ' + x.name).join('')}` },
       goalIt ? { label: '★ Meta', value: `<span class="lastm">${esc(goalIt.name)}</span>`, sub: segBar(tot.balance / R.tavernaPrice(S, goalIt), 'sm'), tone: 'premio', tip: 'O item que você está juntando XP pra comprar' } : { label: '★ Meta', value: '—', tone: 'neutro', tip: 'Toque na ☆ de um item pra marcar como meta' },
     ])}

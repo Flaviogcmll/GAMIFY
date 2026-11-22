@@ -232,7 +232,7 @@ export function blip(ch, base = 240, vol = 0.07) {
   } catch { /* sem som */ }
 }
 
-// ───── v6.6: SONS DE ARQUIVO (CC0, assets/sons — créditos em assets/sons/CREDITOS.txt): A PRAGA e a REZA BRABA ─────
+// ───── v6.6: SONS DE ARQUIVO (CC0, assets/sons — créditos em assets/sons/CREDITOS.txt): A PRAGA e o BANHO DE SAL GROSSO ─────
 const FILES = {};
 const fileBuf = (n) => (FILES[n] ||= fetch(new URL(`assets/sons/${n}.mp3`, document.baseURI).href).then((r) => (r.ok ? r.arrayBuffer() : null)).then((a) => (a ? ctx.decodeAudioData(a) : null)).catch(() => null));
 let heard = false; // o navegador só deixa tocar som depois do 1º toque/clique
@@ -247,7 +247,7 @@ export async function playFile(n, { vol = 1, rate = 1 } = {}) {
   } catch { /* sem som */ }
 }
 let drone = null, pendingDrone = null;
-/** zumbido de fundo da Praga: 0 desliga · 1 baixinho (ENCOSTO/DISGRAMA) · 2 forte e mais grave (LAMBEHOMI) */
+/** ronco de fundo da Praga: 0 desliga · 1 baixinho (TREM TRAPAIADO) · 2 forte e mais grave (LAMBEHOMI) */
 export async function pragaDrone(level) {
   if (!heard) { pendingDrone = level; return; }
   if (!level || prefs.sfx <= 0) { if (drone) { const d = drone; drone = null; try { d.g.gain.setTargetAtTime(0, ctx.currentTime, 0.5); setTimeout(() => { try { d.s.stop(); } catch { /* */ } }, 2500); } catch { /* */ } } return; }
@@ -272,6 +272,27 @@ export function uivo(vol = 1) {
       tone(515, t + d + 0.95, 1.9, { type: 'triangle', vol: v * k * 0.9, attack: 0.08, slide: 0.58, vib: 10 });
       tone(258, t + d + 0.95, 1.9, { type: 'sine', vol: v * k * 0.35, attack: 0.1, slide: 0.6, vib: 6 });
     }
+  } catch { /* sem som */ }
+}
+/** v8: ZUMBIDO de mosca, gerado no aparelho (sem arquivo): passa perto e vai embora (no lugar do corvo/urubu) */
+export function zumbido(vol = 1) {
+  if (!heard || prefs.sfx <= 0) return;
+  try {
+    if (!ensure()) return; if (ctx.state === 'suspended') ctx.resume();
+    const t = ctx.currentTime + 0.03, dur = 1.3 + Math.random() * 0.6, f0 = 175 + Math.random() * 40;
+    const o = ctx.createOscillator(), lp = ctx.createBiquadFilter(), g = ctx.createGain(), am = ctx.createOscillator(), amg = ctx.createGain(), pan = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(f0, t); // a mosca chega, desvia e vai embora (o tom sobe e desce um pouco)
+    o.frequency.linearRampToValueAtTime(f0 * 1.12, t + dur * 0.35); o.frequency.linearRampToValueAtTime(f0 * 0.94, t + dur * 0.7); o.frequency.linearRampToValueAtTime(f0 * 1.05, t + dur);
+    lp.type = 'lowpass'; lp.frequency.value = 1400; lp.Q.value = 2;
+    am.frequency.value = 24 + Math.random() * 8; amg.gain.value = 0.35; // as asas batendo
+    const v = 0.05 * vol;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + dur * 0.4); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    am.connect(amg).connect(g.gain);
+    let node = o.connect(lp).connect(g);
+    if (pan) { pan.pan.setValueAtTime(-0.7, t); pan.pan.linearRampToValueAtTime(0.7, t + dur); node = node.connect(pan); }
+    node.connect(bus.sfx);
+    o.start(t); am.start(t); o.stop(t + dur + 0.05); am.stop(t + dur + 0.05);
   } catch { /* sem som */ }
 }
 /** música desafinada (0 = normal; 0.06 = bem torta) */

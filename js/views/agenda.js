@@ -20,7 +20,7 @@ function timelineCard(ui) {
   const head2 = days.map((d) => `<th class="${d === td ? 'today' : off(d)}" title="${esc(holidayName(d) || '')}">${DOW[weekday(d)][0]}<br>${d.slice(8)}${holidayName(d) ? '<i class="holm">★</i>' : ''}</th>`).join('');
   const cell = (d, n, extra = '') => `<td class="${d === td ? 'today' : off(d)} ${n ? 'n' : ''} ${n && d < td ? 'late' : ''} ${extra}">${n || ''}</td>`;
   // v5.15: as linhas das listas e dos rituais saíram daqui (a carga de cada dia fica na faixa de cima); ficam as datas e os blocos
-  // v7.7: o inimigo chegando pelas linhas: 💀 no dia em que uma subtarefa do bloco vira TREM RUIM (se ninguém fizer)
+  // v7.7: o inimigo chegando pelas linhas: 💀 no dia em que uma subtarefa do bloco vira TREM TRAPAIADO (se ninguém fizer)
   const skulls = (bid) => { const m = {}; if (!R.neuroOn(S, 'praga')) return m; for (const t of S.quests.tasks) if (t.block === bid && R.isOpen(t) && t.due && t.st !== 'wait' && !t.who) { const x = R.pragaDay(S, t.due, 1); if (x && x >= td) (m[x] ||= []).push(String(t.text).replace(/\s*\(\d+\s*XP\)/i, '')); } return m; };
   const blocks = tl.blocks.map((b) => {
     const sk = skulls(b.block);
@@ -29,7 +29,7 @@ function timelineCard(ui) {
     return `<tr><td class="name" data-act="jump-block" data-id="${b.block}" style="cursor:pointer">${esc(b.title || b.name)}</td>${days.map((d) => {
       const inSpan = endD && d >= td && d <= endD, left = inSpan ? Math.round((new Date(endD) - new Date(d)) / 864e5) : 0;
       const heat = !inSpan ? '' : left <= 1 ? 'h-urg' : left <= 3 ? 'h-quase' : left <= 7 ? 'h-atencao' : 'h-ok'; // v6: as cores das listas (HOJE, AMANHÃ, SEMANA, DEPOIS)
-      return cell(d, b.counts[d], `${inSpan ? 'span ' + heat : ''} ${b.due === d ? 'end' : ''} ${sk[d] ? 'skull' : ''}`).replace('></td>', `>${b.due === d && !b.counts[d] ? '◆' : ''}</td>`).replace(/<\/td>$/, sk[d] ? `<i class="tl-skull" title="💀 O inimigo chega aqui: vira TREM RUIM se ninguém fizer até a véspera · ${esc(sk[d].slice(0, 3).join(' · ').slice(0, 120))}">💀</i></td>` : '</td>');
+      return cell(d, b.counts[d], `${inSpan ? 'span ' + heat : ''} ${b.due === d ? 'end' : ''} ${sk[d] ? 'skull' : ''}`).replace('></td>', `>${b.due === d && !b.counts[d] ? '◆' : ''}</td>`).replace(/<\/td>$/, sk[d] ? `<i class="tl-skull" title="💀 O inimigo chega aqui: vira TREM TRAPAIADO se ninguém fizer até a véspera · ${esc(sk[d].slice(0, 3).join(' · ').slice(0, 120))}">💀</i></td>` : '</td>');
     }).join('')}</tr>`;
   }).join('');
   return `<div class="cal-part c12"><div class="cal-h"><h3>Linha do tempo dos blocos · 6 semanas</h3>
@@ -84,9 +84,9 @@ function dayStrip() {
   const td = today(), load = R.loadByDay(S), rit = R.ritualDates(S, addDays(td, -3), 45);
   const hols = range(td, 60).filter(holidayName).slice(0, 4);
   return `<div class="cal-part" style="margin-bottom:16px"><div class="cal-h"><h3>📊 Carga do dia · 6 semanas</h3><span class="meta" title="Toque num dia pra ver as tarefas dele. Arraste uma tarefa da fila até um dia pra mudar o prazo.">${hols.length ? `★ ${hols.map((d) => `${fmtDM(d)} ${esc(holidayName(d))}`).join(' · ')}` : ''}</span></div>
-    <div class="daystrip">${((pd) => (S.quests.tasks.filter((t) => R.isOpen(t) && t.due && t.st !== 'wait' && !t.who && !t.mother).forEach((t) => { const x = R.neuroOn(S, 'praga') ? R.pragaDay(S, t.due, 1) : null; /* v7.0: a caveira avisa ANTES: o dia em que a tarefa vira TREM RUIM */ if (x) (pd[x] ||= []).push(t.text.replace(/\s*\(\d+\s*XP\)/i, '')); }), (window.__pragaDays = pd), ''))({})}${range(addDays(td, -3), 45).map((d) => {
+    <div class="daystrip">${((pd) => (S.quests.tasks.filter((t) => R.isOpen(t) && t.due && t.st !== 'wait' && !t.who && !t.mother).forEach((t) => { const x = R.neuroOn(S, 'praga') ? R.pragaDay(S, t.due, 1) : null; /* v7.0: a caveira avisa ANTES: o dia em que a tarefa vira TREM TRAPAIADO */ if (x) (pd[x] ||= []).push(t.text.replace(/\s*\(\d+\s*XP\)/i, '')); }), (window.__pragaDays = pd), ''))({})}${range(addDays(td, -3), 45).map((d) => {
       const n = load[d] || 0, hol = holidayName(d), we = weekday(d) === 0 || weekday(d) === 6;
-      return `<div class="day ${d === td ? 'today' : ''} ${hol ? 'hol off' : we ? 'off' : ''} ${d < td ? 'past' : ''}" data-act="ag-day" data-d="${d}"><small>${DOW[weekday(d)]} ${fmtDM(d)}</small><div class="n ${n >= 6 ? 'l6' : n >= 4 ? 'l4' : n ? 'l1' : ''}">${n || '·'}</div>${window.__pragaDays?.[d] && d >= td && d <= addDays(td, SKULL_DAYS) ? `<i class="pg-skull" title="💀 O inimigo chega aqui. Se ninguém fizer até a véspera, neste dia vira TREM RUIM: ${esc(window.__pragaDays[d].slice(0, 4).join(' · ').slice(0, 160))}">💀${window.__pragaDays[d].length > 1 ? window.__pragaDays[d].length : ''}</i>` : ''}<small>${rit[d] ? `<span title="${esc(rit[d].map((r) => r.name).join(', '))}">🔁${rit[d].length}</span> ` : ''}${hol ? `<b class="holn" title="${esc(hol)}">★ ${esc(hol.split(' ')[0])}</b>` : ''}</small></div>`;
+      return `<div class="day ${d === td ? 'today' : ''} ${hol ? 'hol off' : we ? 'off' : ''} ${d < td ? 'past' : ''}" data-act="ag-day" data-d="${d}"><small>${DOW[weekday(d)]} ${fmtDM(d)}</small><div class="n ${n >= 6 ? 'l6' : n >= 4 ? 'l4' : n ? 'l1' : ''}">${n || '·'}</div>${window.__pragaDays?.[d] && d >= td && d <= addDays(td, SKULL_DAYS) ? `<i class="pg-skull" title="💀 O inimigo chega aqui. Se ninguém fizer até a véspera, neste dia vira TREM TRAPAIADO: ${esc(window.__pragaDays[d].slice(0, 4).join(' · ').slice(0, 160))}">💀${window.__pragaDays[d].length > 1 ? window.__pragaDays[d].length : ''}</i>` : ''}<small>${rit[d] ? `<span title="${esc(rit[d].map((r) => r.name).join(', '))}">🔁${rit[d].length}</span> ` : ''}${hol ? `<b class="holn" title="${esc(hol)}">★ ${esc(hol.split(' ')[0])}</b>` : ''}</small></div>`;
     }).join('')}</div></div>`;
 }
 
