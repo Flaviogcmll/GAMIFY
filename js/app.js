@@ -1009,6 +1009,12 @@ onChange((why) => {
 // lo-fi volta sozinho no primeiro toque, se estava ligado
 document.addEventListener('pointerdown', () => { if (prefs.on && !ambienceOn()) { startAmbience(); render(); } }, { once: true });
 window.__deaccent = deaccent;
+// v9 (guia de interface, etapa 2): BRASINHAS VERMELHAS NO AR à noite. Só CSS anima; aparecem com o tema escuro (html[data-mode="night"])
+if (!document.getElementById('brasas')) {
+  const b = document.createElement('div'); b.id = 'brasas'; b.setAttribute('aria-hidden', 'true');
+  b.innerHTML = Array.from({ length: 10 }, (_, i) => `<i style="left:${((i * 9.7 + 4) % 96).toFixed(1)}%;animation-delay:${(-i * 1.7).toFixed(1)}s;animation-duration:${12 + (i % 4) * 2}s"></i>`).join('');
+  document.body.prepend(b);
+}
 applyMode();
 applyCursor();
 init();

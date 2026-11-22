@@ -1898,3 +1898,41 @@ li.task { position: relative; }
 @keyframes queda { 0% { transform: translateY(-6px) rotate(0); opacity: 0; } 12% { opacity: 1; } 80% { opacity: 1; } 100% { transform: translateY(46px) rotate(200deg); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .moscas svg, .queda { animation: none !important; } .queda { display: none; } }
 .fila-q .moscas.ov { top: 2px; right: 7px; }
+
+/* ═════════════ v9 — guia de interface, etapa 2: PALETA (sombra roxa, noite marrom-ameixa), BRASINHAS NO AR e TEXTURAS DA ROÇA ═════════════
+   Decisões do dono (22/11): os degradês, os brilhos e as sombras TRANSPARENTES ficam (ajudam a enxergar); só a cor da sombra puxa pro roxo.
+   Noite = meio-termo marrom-ameixa (o marrom de antes tinha mais contraste; o roxo/azul do guia ficou só no tom). Botões e abas em fonte legível;
+   a fonte pixel fica nos títulos e números. Texturas desenhadas em código (ladrilhos de 14×14 pixels de arte, em ×2), no máximo 1 ou 2 por tela. */
+:root, :root[data-theme] {
+  --shadow: rgba(78, 52, 96, .24); --luz: rgba(255, 244, 214, .55);
+  --tx-chita: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14' width='28' height='28' shape-rendering='crispEdges'%3E%3Cg opacity='0.28'%3E%3Cpath fill='%23bd4d3f' d='M3 1h1v1h-1zM2 2h1v1h-1zM4 2h1v1h-1zM3 3h1v1h-1zM10 5h1v1h-1zM9 6h1v1h-1zM11 6h1v1h-1zM10 7h1v1h-1z'/%3E%3Cpath fill='%23d59b34' d='M3 2h1v1h-1zM10 6h1v1h-1zM6 11h1v1h-1z'/%3E%3Cpath fill='%235a9862' d='M4 4h1v1h-1zM3 5h1v1h-1zM4 5h1v1h-1zM10 8h1v1h-1zM10 9h1v1h-1zM11 9h1v1h-1z'/%3E%3C/g%3E%3C/svg%3E"); --tx-croche: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14' width='28' height='28' shape-rendering='crispEdges'%3E%3Cg opacity='0.16'%3E%3Cpath fill='%239a5744' d='M2 0h1v1h-1zM3 0h1v1h-1zM4 0h1v1h-1zM5 0h1v1h-1zM1 1h1v1h-1zM6 1h1v1h-1zM0 2h1v1h-1zM7 2h1v1h-1zM0 3h1v1h-1zM7 3h1v1h-1zM0 4h1v1h-1zM7 4h1v1h-1zM1 5h1v1h-1zM6 5h1v1h-1zM2 6h1v1h-1zM3 6h1v1h-1zM4 6h1v1h-1zM5 6h1v1h-1zM8 7h1v1h-1zM9 7h1v1h-1zM7 8h1v1h-1zM10 8h1v1h-1zM7 9h1v1h-1zM10 9h1v1h-1zM8 10h1v1h-1zM9 10h1v1h-1z'/%3E%3C/g%3E%3C/svg%3E"); --tx-couro: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7' width='14' height='14' shape-rendering='crispEdges'%3E%3Cg opacity='0.22'%3E%3Cpath fill='%232e1a12' d='M0 0h1v1h-1zM2 3h1v1h-1zM6 4h1v1h-1zM4 6h1v1h-1z'/%3E%3Cpath fill='%23f0c9a2' d='M4 1h1v1h-1zM1 5h1v1h-1z'/%3E%3C/g%3E%3C/svg%3E"); --tx-papel: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14' width='28' height='28' shape-rendering='crispEdges'%3E%3Cg opacity='0.35'%3E%3Cpath fill='%23a08b77' d='M1 1h1v1h-1zM2 1h1v1h-1zM9 3h1v1h-1zM10 3h1v1h-1zM11 3h1v1h-1zM4 5h1v1h-1zM5 6h1v1h-1zM10 8h1v1h-1zM1 9h1v1h-1zM10 10h1v1h-1zM11 10h1v1h-1zM6 11h1v1h-1zM7 11h1v1h-1z'/%3E%3C/g%3E%3C/svg%3E"); }
+:root[data-mode="night"], :root[data-theme][data-mode="night"] {
+  --bg: #1e1720; --panel: #2a2029; --panel-2: #342833; --line: #4d3d4c; --edge: #6b4f63; --ink: #f2e6d6; --muted: #c8b4b9; --dim: #8f7a86;
+  --shadow: rgba(12, 6, 18, .55); --luz: rgba(255, 228, 190, .12);
+  --accent-soft: color-mix(in srgb, #e0783b 20%, #2a2029); --good-soft: color-mix(in srgb, #5aa062 26%, #2a2029); --bad-soft: color-mix(in srgb, #df624c 24%, #2a2029);
+  --warn-soft: color-mix(in srgb, #734c81 34%, #2a2029); --info-soft: color-mix(in srgb, #477bab 30%, #2a2029); }
+/* luz quente de cima à esquerda nos cartões (a sombra continua embaixo à direita, agora arroxeada) */
+.card, .list-card, .block, .stat, .modal, .banner, .toast, .hab { box-shadow: inset 1px 1px 0 var(--luz), 3px 4px 0 var(--shadow); }
+/* fonte legível nos botões e nas abas (pixel só em títulos e números) */
+.btn { font: 700 12px/1.25 var(--f-mono); letter-spacing: .02em; }
+.btn.sm { font-size: 11px; }
+.tabs a { font: 700 12px/1 var(--f-mono); letter-spacing: .02em; }
+/* CHITA na barra das abas */
+.tabs { background-image: var(--tx-chita); background-size: 28px 28px; }
+:root[data-mode="night"] .tabs { background-image: none; }
+/* COURO nos botões principais: o grão do couro + o pesponto (costura) por dentro */
+.btn.pri { background-image: var(--tx-couro), linear-gradient(180deg, var(--accent-2), var(--accent)); background-size: 14px 14px, auto; outline: 1px dashed rgba(255, 240, 220, .38); outline-offset: -5px; }
+.btn.pri.sm { outline-offset: -4px; }
+/* CROCHÊ nas janelas de descanso (a ALQUIMISTA da EVE LÃ) */
+.vitrine[data-v="tav"] .vit-b { background-image: var(--tx-croche); background-size: 28px 28px; }
+/* PAPEL AMARELADO no ARQUIVO (o CARTÓRIO da CAJULINA) */
+.arq-daycard { background-color: color-mix(in srgb, #f1dfb4 30%, var(--panel)); background-image: var(--tx-papel); background-size: 28px 28px; }
+:root[data-mode="night"] .arq-daycard { background-color: color-mix(in srgb, #8a6a3a 12%, var(--panel)); }
+/* BRASINHAS VERMELHAS NO AR à noite: poucas (10 no PC, 5 no celular), devagar, sem clique, atrás dos cartões */
+#brasas { display: none; position: fixed; inset: 0; pointer-events: none; z-index: -1; overflow: hidden; }
+:root[data-mode="night"] #brasas { display: block; }
+#brasas i { position: absolute; bottom: -10px; width: 4px; height: 4px; background: var(--brasa, #f0913a); box-shadow: 0 0 6px 1px color-mix(in srgb, #df624c 70%, transparent); opacity: 0; animation: brasa-sobe 14s linear infinite; }
+#brasas i:nth-child(2n) { width: 3px; height: 3px; background: #df624c; }
+@keyframes brasa-sobe { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: .85; } 50% { transform: translate(18px, -50vh); } 85% { opacity: .5; } 100% { transform: translate(-10px, -100vh); opacity: 0; } }
+@media (max-width: 600px) { #brasas i:nth-child(n+6) { display: none; } }
+@media (prefers-reduced-motion: reduce) { #brasas { display: none !important; } }
