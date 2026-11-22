@@ -2,7 +2,7 @@
 // Cada construção é um dado seu:
 //   base/castelo = seu nível · muralhas = dias em que bateu a meta diária · tochas acesas = sequência viva
 //   distritos = notas do baú de domingo (HEVELIN, MÃE, AMIGOS…) · casas da vila = blocos fechados + bosses
-//   torres = bosses derrotados · APÊ em obra = o que você GUARDOU pro boss do capítulo
+//   torres = bosses resolvidos · APÊ em obra = o que você GUARDOU pro boss do capítulo
 //   biblioteca = SABER · mercado = RIQUEZA · campo de treino = VIGOR · estrada = ORDEM · lanternas = conquistas
 //   moradores = LAÇOS (rituais com pessoas) · plantação = hábitos de hoje · clima = seus buffs/debuffs
 import { S } from './store.js';

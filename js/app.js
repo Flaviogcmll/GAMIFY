@@ -41,7 +41,7 @@ import { maybeReview, extendReview } from './review.js';
 import { extendBujo, afterRenderBujo } from './bujo.js';
 import { perksNav, perksGo, applyCursor, CURSOR_KEY } from './telas.js';
 import { extendMapa, mountMap } from './mapa.js';
-import { extendPraga, extendPraga2, pragaPaint, pragaBanner, rezaBraba, pragaGuide } from './praga.js';
+import { extendPraga, extendPraga2, pragaPaint, pragaBanner, banhoSal, pragaGuide } from './praga.js';
 import { renderPostit } from './postit.js';
 
 
@@ -151,7 +151,7 @@ function render() {
   try { afterRender4(cur); } catch (err) { console.error(err); }
   try { afterRenderBujo(); } catch (err) { console.error(err); }
   try { renderPostit(); } catch (err) { console.error(err); }
-  try { pragaGuide(); } catch (err) { console.error(err); } // v6.7: o urubu pousa onde a tarefa infectada está
+  try { pragaGuide(); } catch (err) { console.error(err); } // v6.7/v8: a mosca pousa onde a tarefa infectada está
   try { tabTools(cur); } catch (err) { console.error(err); }
   tips($main); // v6.1: os afterRender acima ainda acrescentam botões; eles também ganham legenda
   refocus();
@@ -268,7 +268,7 @@ function welcome() {
 A.onFeedback((fb) => {
   // 🧠 dopamina sob controle: tarefa fácil (menos de 20 XP, sem ⭐ ⚔) ganha só o "tic"; o número voando e os fogos ficam pro que custou
   const easy = R.neuroOn(S, 'calm') && fb.task && fb.xp < 20 && !/⚔|⭐/.test(fb.task.text || '');
-  if (fb.task && fb.xp > 0 && fb.task.due) poof(fb.at); // v7.3b: o PRIMO deu a marretada, o TREM virou poeira
+  if (fb.task && fb.xp > 0 && fb.task.due) poof(fb.at); // v7.3b/v8: o TREM se resolveu (nuvenzinha de poeira e palha)
   if (fb.xp > 0) { if (!easy) floatXp(`+${fmtN(fb.xp)} XP`, fb.at); sfx(fb.task ? 'check' : 'xp'); setTimeout(checkMilestones, 400); }
   // 🎆 fogos pra coisa demorada: boss, bloco fechado, mini-boss ⚔, tarefa chata ⭐ ou tarefa que rendeu 60 XP ou mais
   if (fb.boss || fb.closedBlock || (fb.task && fb.xp > 0 && (fb.xp >= 60 || /⚔|⭐/.test(fb.task.text || '')))) setTimeout(() => { fireworks(); sfx('fireworks'); }, 250);
@@ -277,20 +277,20 @@ A.onFeedback((fb) => {
   if (fb.sent) toast(`✉ Rodada concluída e enviada: <b>${esc(fb.task.text)}</b>. Fica aguardando retorno.`, 'good');
   if (fb.loot) setTimeout(() => { sfx('loot'); toast(`${px('chest', 16)} <b>LOOT!</b> ${esc(fb.loot.label)}${fb.loot.itemId ? ' (foi pra SACOLA)' : ''}`, 'gold'); }, 350);
   if (fb.closedBlock) { toast(`🏁 BLOCO FECHADO: <b>${esc(fb.closedBlock.title)}</b> · +${fb.closedBlock.xp} XP`, 'good'); confetti(60); }
-  if (fb.boss) { toast(`👹 BOSS DERROTADO: <b>${esc(fb.boss.text)}</b> · +${fmtN(fb.boss.xp)} XP · +1 🎟`, 'good'); confetti(); sfx('level'); }
+  if (fb.boss) { toast(`👹 BOSS RESOLVIDO: <b>${esc(fb.boss.text)}</b> · +${fmtN(fb.boss.xp)} XP · +1 🎟`, 'good'); confetti(); sfx('level'); }
   if (fb.sunday) { toast(`🎁 Baú aberto: <b>+${fb.sunday} XP</b>`, 'good'); sfx('chest'); }
   if (fb.built) sfx('ready');
   if (fb.building) sfx('upgrade');
   if (fb.bought) { sfx('buy'); toast(`🛒 <b>${esc(fb.bought)}</b>${fb.bag ? ' foi pra SACOLA. Use quando for aproveitar.' : ''}`, 'gold'); }
   if (fb.using) { sfx('xp'); toast(`⏱ <b>${esc(fb.using.item)}</b>: aproveite sem culpa.`, 'gold'); }
-  for (const a of fb.achievements || []) { toast(`🏆 CONQUISTA: <b>${esc(a.name)}</b> · +${a.xp} XP`, 'gold'); sfx('chest'); }
+  for (const a of fb.achievements || []) { toast(`🏆 CONQUISTA: <b>${esc(a.name)}</b>${a.xp ? ` · +${a.xp} XP` : ''}`, 'gold'); sfx('chest'); }
   if (fb.msg) toast(esc(fb.msg));
   if (fb.released?.length) { toast(`🔓 Liberada${fb.released.length > 1 ? 's' : ''}: <b>${esc(fb.released.map((x) => x.text.replace(/\s*\(\d+\s*XP\)/i, '')).join(' · ').slice(0, 140))}</b>. Saiu do AGUARDANDO.`, 'good'); sfx('ready'); }
   primoFeedback(fb);
   if (fb.levelUp) levelUp(fb.levelUp);
   if (fb.chapterClosed) chapterCard(fb.chapterClosed);
   if (S._pragaWeek) { S._pragaWeek = false; toast('🌙 Uma semana inteira sem Praga: +1 🎟', 'gold'); }
-  if (fb.praga) { rezaBraba(fb.praga); toast(`🙏 REZA BRABA! ${esc(fb.praga.names[0].slice(0, 40))} virou poeira${fb.praga.clean ? ' · a casa tá limpa, o PRIMO desfranziu a testa' : ''}. (Espantar não dá XP: ninguém fabrica Praga pra ganhar ponto.)`, 'good'); } // v7.3
+  if (fb.praga) { banhoSal(fb.praga); toast(`🧂 BANHO DE SAL GROSSO! ${esc(fb.praga.names[0].slice(0, 40))} se resolveu${fb.praga.clean ? ' · a casa tá limpa, o PRIMO desfranziu a testa' : ''}. (Limpar a Praga não dá XP: ninguém fabrica Praga pra ganhar ponto.)`, 'good'); } // v7.3
   if (!fb.quiet || fb.xp || fb.achievements?.length || fb.levelUp) render();
 });
 function levelUp(t) {
@@ -414,7 +414,7 @@ function editRitual(id) {
 function editItem(kind, id, cat) {
   const it = id ? S.loja[kind].find((x) => x.id === id) : { name: '', xp: 100, nv: 1, cat: cat || S.loja.cats[0] || 'EU' };
   const m = R.itemMeta(it);
-  openModal(`<form data-form="item" data-kind="${kind}" data-id="${id || ''}" autocomplete="off"><h2>${kind === 'taverna' ? 'recompensa da taverna' : 'item do ferreiro'}</h2>
+  openModal(`<form data-form="item" data-kind="${kind}" data-id="${id || ''}" autocomplete="off"><h2>${kind === 'taverna' ? 'recompensa da ALQUIMISTA' : 'item do ferreiro'}</h2>
     <div class="row"><div style="width:80px"><label class="lbl" for="i-icon">Ícone</label><input class="inp" id="i-icon" name="icon" value="${esc(it.icon || m.icon)}" style="text-align:center;font-size:20px"></div>
       <div class="grow"><label class="lbl" for="i-name">Nome</label><input class="inp" id="i-name" name="name" value="${esc(it.name)}" required autofocus></div></div>
     ${kind === 'taverna' ? `<div class="row"><div class="grow"><label class="lbl" for="i-xp">Preço (XP)</label><input class="inp" id="i-xp" name="xp" type="number" min="1" value="${it.xp}"></div><div class="grow"><label class="lbl" for="i-min">Cronômetro (min, 0 = sem)</label><input class="inp" id="i-min" name="min" type="number" min="0" value="${m.min}"></div></div>`
@@ -433,11 +433,11 @@ function editBoss(id) {
   if (!b) return;
   const hp = R.bossHp(S, b), st = paused ? 'pause' : b.st === 'wait' ? 'wait' : b.st === 'done' ? 'done' : '';
   openModal(`<form data-form="boss" data-id="${id}" autocomplete="off" class="mform">
-    <div class="mhead"><span class="mtype">👹 boss</span><span class="mwhere" title="A vida (HP) é o que falta fazer no boss: cada subtarefa feita tira vida. Zerou, ele cai.">${hp?.total ? `HP ${fmtN(hp.left)}/${fmtN(hp.total)}` : 'quebre em subtarefas'}</span>
-      <span class="chip xp" title="Derrotar o boss vale isso + 1 ticket">${fmtN(b.xp)} XP</span></div>
+    <div class="mhead"><span class="mtype">👹 boss</span><span class="mwhere" title="A vida (HP) é o que falta fazer no boss: cada subtarefa feita tira vida. Zerou, ele se resolve.">${hp?.total ? `HP ${fmtN(hp.left)}/${fmtN(hp.total)}` : 'quebre em subtarefas'}</span>
+      <span class="chip xp" title="Resolver o boss vale isso + 1 ticket">${fmtN(b.xp)} XP</span></div>
     <input class="inp mtitle" id="bo-text" name="text" value="${esc(b.text)}" aria-label="Meta" autofocus>
     <div class="msplit">
-      <div><label class="lbl">Situação</label><div class="pills">${b.st === 'done' ? pill('radio', 'st', 'done', true, '✓ DERROTADO', 'Já caiu') : ''}${pill('radio', 'st', '', st === '', '○ EM ABERTO', 'Na luta')}${pill('radio', 'st', 'wait', st === 'wait', '⏳ AGUARDANDO', 'Depende de outra pessoa')}${b.st !== 'done' ? pill('radio', 'st', 'pause', st === 'pause', '⏸ PAUSADO', `Pausa de até ${R.BOSS_PAUSE_MAX} dias: os prazos andam junto, sem custo, e ele volta sozinho`) : ''}</div></div>
+      <div><label class="lbl">Situação</label><div class="pills">${b.st === 'done' ? pill('radio', 'st', 'done', true, '✓ RESOLVIDO', 'Já se resolveu') : ''}${pill('radio', 'st', '', st === '', '○ EM ABERTO', 'Na luta')}${pill('radio', 'st', 'wait', st === 'wait', '⏳ AGUARDANDO', 'Depende de outra pessoa')}${b.st !== 'done' ? pill('radio', 'st', 'pause', st === 'pause', '⏸ PAUSADO', `Pausa de até ${R.BOSS_PAUSE_MAX} dias: os prazos andam junto, sem custo, e ele volta sozinho`) : ''}</div></div>
       <div><label class="lbl" for="bo-xp">XP</label><input class="inp" id="bo-xp" name="xp" type="number" min="1" value="${b.xp}" style="width:120px"></div></div>
     ${b.st !== 'done' ? `<div class="pausef"><label class="lbl" for="bo-pause">⏸ volta em</label><input class="inp" type="date" id="bo-pause" name="pause" value="${paused ? b.pause : addDays(td, 7)}" min="${addDays(td, 1)}" max="${addDays(td, R.BOSS_PAUSE_MAX)}" style="width:auto"></div>` : ''}
     ${R.neuroOn(S, 'why') ? `<label class="lbl" for="bo-why">💡 Por que isso importa pra mim?</label><textarea class="inp" id="bo-why" name="why" rows="2" maxlength="300" placeholder="opcional">${esc(b.why || '')}</textarea>

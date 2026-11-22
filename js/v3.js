@@ -26,7 +26,7 @@ export function toggleCollapse(k) { collapsed.has(k) ? collapsed.delete(k) : col
 
 // ───────────── cenário no topo de cada aba ─────────────
 const TITLES = {
-  survival: ['survival.', 'campo de treino · hábitos e rituais'], agenda: ['agenda.', 'a mesa do mapa · prazos e rituais'], shop: ['feira.', 'a taverna, o ferreiro e quem mais aparecer'],
+  survival: ['survival.', 'campo de treino · hábitos e rituais'], agenda: ['agenda.', 'a mesa do mapa · prazos e rituais'], shop: ['feira.', 'a ALQUIMISTA, o ferreiro e quem mais aparecer'],
   ferreiro: ['ferreiro.', 'upgrades permanentes · XP + gold'], domingo: ['reflexão.', 'o baú da semana · peso · notas'], conquistas: ['conquistas.', 'salão dos troféus'],
   filtro: ['filtro.', 'tudo em aberto, numa tabela'], rotina: ['rotina.', 'a torre do relógio · semana-tipo'], regras: ['perks and rules.', 'o livro de regras'], arquivo: ['arquivo.', 'a biblioteca do que já foi'],
 };
@@ -35,11 +35,11 @@ export function sceneBanner(route, ui) {
   const key = route === 'shop' && ui.ltab === 'ferreiro' ? 'ferreiro' : route;
   const [t, sub] = TITLES[key] || [route + '.', ''];
   // v5.14: cada aba tem a sua imagem (dia e noite); o desenho em código só aparece se a imagem não carregar
-  const pph = R.praga(S).phase; // v6.7: A PRAGA força a noite; no ENCOSTO/A PRAGA usa o cenário assombrado (se a arte já existir)
+  const pph = R.praga(S).phase; // v6.7: A PRAGA força a noite; da fase 3 em diante usa o cenário assombrado (se a arte já existir)
   const lt = lightNow(), night = lt === 'noite' || pph >= 4, tarde = !night && lt === 'tarde'; // v7.0: pela hora real (o tema escuro não muda o cenário); fase 4 da Praga força a noite
   // v6: a SHOP virou FEIRA, com o cenário da feira (dia, tarde ou noite)
   const src = pph >= 3 && R.PRAGA_TOPOS.includes(key) ? `assets/topo/${key}-praga.webp` : key === 'shop' ? `assets/primo/cena/feira-${night ? 'noite' : tarde ? 'tarde' : 'dia'}.webp` : `assets/topo/${TOPOS.includes(key) ? key : 'survival'}-${night ? 'noite' : 'dia'}.webp`;
-  return `<div class="scene pstrip ${tarde ? 'tarde' : ''}" style="--img:url('${new URL(src, document.baseURI).href}')"><canvas id="scene" data-interior="${interiorOf(key) || 'rotina'}" aria-hidden="true"></canvas><img class="topo" src="${src}" alt="" aria-hidden="true">${pph >= 2 ? '<span class="pg-fog" aria-hidden="true"></span><span class="pg-eyes" aria-hidden="true"></span>' : ''}${R.praga(S).lua ? '<span class="pg-moon" aria-hidden="true" title="LUA DE SANGUE"></span>' : ''}
+  return `<div class="scene pstrip ${tarde ? 'tarde' : ''}" style="--img:url('${new URL(src, document.baseURI).href}')"><canvas id="scene" data-interior="${interiorOf(key) || 'rotina'}" aria-hidden="true"></canvas><img class="topo" src="${src}" alt="" aria-hidden="true">${pph >= 2 ? '<span class="pg-fog" aria-hidden="true"></span><span class="pg-eyes" aria-hidden="true"></span>' : ''}${R.praga(S).noite ? '<span class="pg-moon" aria-hidden="true" title="NOITE DA DISGRAMA"></span>' : ''}
     <div class="pst-face"><canvas class="pcv" data-portrait="bust" data-act="primo-hub" title="Falar com o PRIMO" aria-label="PRIMO"></canvas></div>
     <div class="pst-txt"><div class="scene-title">${esc(t)}</div><div class="scene-sub">${esc(sub.toUpperCase())}</div><div class="pst-say" data-pspeech="tab:${key}"></div></div></div>`;
 }
@@ -87,6 +87,7 @@ let focus = null;
 function focusModal() {
   const tasks = R.deadlineQueue(S).slice(0, 6);
   openModal(`<h2>🔥 fogueira de foco</h2><p class="muted">Se você sair do app no celular durante o foco, a fogueira apaga. Cada 25 min vale ${R.C.FOCUS_XP} XP (até 60 XP por dia) e tira 1 h da obra da vila.</p>
+    <p class="meta fc-credit">🐸 Fogueira acesa pelo FROG LIPÊ, o único da vila que sabe fazer fogo. <i>"Calma, calabreso: um tiquinho de cada vez."</i></p>
     <label class="lbl" for="fc-task">Em quê?</label><select class="inp" id="fc-task"><option value="">— só foco —</option>${tasks.map((t) => `<option value="${t.id}">${esc(t.text)}</option>`).join('')}</select>
     <label style="display:block;margin-top:10px;font-size:12.5px"><input type="checkbox" id="fc-strict" checked> modo estrito (sair do app apaga a fogueira)</label>
     <div class="actions" style="justify-content:center;flex-wrap:wrap"><button class="btn pri" data-act="focus-go" data-min="25" data-pomo="1" title="25 min de foco, 5 de pausa; a cada 4 rodadas, pausa longa de 15">🍅 POMODORO</button>${[15, 25, 50].map((n) => `<button class="btn" data-act="focus-go" data-min="${n}">${n} MIN</button>`).join('')}</div>`);
@@ -98,7 +99,7 @@ function focusRun(min, pomo = false) {
   focus = { min: len, pomo, phase: 'focus', round: 1, end: Date.now() + len * 60000, taskId, strict, ok: true };
   const m = openModal(`<div style="text-align:center"><div class="chip" id="fc-phase" style="margin:0 auto"></div><h2 id="fc-title">mantenha a fogueira acesa.</h2><div class="focus-fire"><canvas class="pcv" data-portrait="full" aria-label="PRIMO focado"></canvas><div class="fc-flames" aria-hidden="true">🔥</div></div>
     <div class="num" id="fc-clock" style="font-size:30px;color:var(--accent);margin:10px 0">${len}:00</div><p class="muted" id="fc-sub">${taskId ? esc(S.quests.tasks.find((t) => t.id === taskId)?.text || '') : 'foco livre'}</p>
-    <div class="actions" style="justify-content:center"><button class="btn" data-act="focus-stop">${pomo ? 'ENCERRAR' : 'DESISTIR'}</button></div></div>`, { onClose: () => { if (focus) { clearInterval(focus.timer); focus = null; } } });
+    <p class="meta fc-credit">🐸 fogueira do FROG LIPÊ</p><div class="actions" style="justify-content:center"><button class="btn" data-act="focus-stop">${pomo ? 'ENCERRAR' : 'DESISTIR'}</button></div></div>`, { onClose: () => { if (focus) { clearInterval(focus.timer); focus = null; } } });
   mountPortraits(m); primoReact('foco_inicio');
   const paint = () => {
     const f = focus; if (!f) return;
@@ -206,6 +207,7 @@ export function viewArquivo3(ui) {
     { label: '✨ XP', value: fmtN(xpSum), cls: 'gold', tone: 'premio' },
     best && { label: '🔥 Melhor dia', value: `${best[1]} <small class="u">tarefas</small>`, sub: `em ${fmtDM(best[0])}`, tone: 'ok', tip: `O dia em que você mais concluiu tarefas: ${best[1]} em ${fmtDM(best[0])}` },
     rounds && { label: '🔁 Vai e volta', value: rounds, sub: 'rodadas enviadas', tone: 'espera' },
+    ((c) => (c.noite || c.antidoto ? { label: '🐺 Ciclos do lobo', value: (c.noite || 0) + (c.antidoto || 0), sub: `${c.noite || 0} pela NOITE · ${c.antidoto || 0} antídoto`, tone: 'calma', tip: 'Quantas vezes o LAMBEHOMI voltou a ser GUARANÁ: roubando a BRASINHA na NOITE DA DISGRAMA ou pelo ANTÍDOTO da CAJULINA e da EVE LÃ. É um ciclo, como a lua.' } : null))(R.lobo(S).curas),
   ]);
   const ctx = {}; for (const t of done) { const c = ctxOf(t) || '—'; ctx[c] = (ctx[c] || 0) + 1; }
   const top = Object.entries(ctx).sort((a, b) => b[1] - a[1]).slice(0, 8), max = top[0]?.[1] || 1;
@@ -217,7 +219,7 @@ export function viewArquivo3(ui) {
   const rows = groups.map(({ d, items }) => {
     const dd = shown.filter((x) => dayOf(x) === d), nDone = dd.filter((x) => x.st !== 'cancel').length, xpD = dd.reduce((a, x) => a + (x.st === 'cancel' ? 0 : xpOf(x)), 0);
     return `<section class="arq-daycard ${isCollapsed('a:' + d) ? 'shut' : ''}"><div class="arq-day" data-act="collapse" data-k="a:${d}" title="Toque pra recolher ou abrir este dia" style="cursor:pointer"><span class="ad-n">${d ? d.slice(8) : '—'}</span><span class="ad-m">${d ? `${DOWN[new Date(d + 'T12:00').getDay()]}<br>${fmtDM(d).slice(3)}` : 'sem data'}</span><span class="ad-s"><b>${nDone}</b> feita(s)<br><span class="gold">+${fmtN(xpD)} XP</span></span></div>
-      <div class="list">${items.map((t) => `<div class="li ${t.st === 'cancel' ? 'canc' : ''}"><div class="lt">${t.st === 'cancel' ? '✕' : '✓'} ${esc(t.text)}${t.reza ? ' <span title="Espantada com REZA BRABA (estava em ' + R.PRAGA_NAMES[t.reza] + ')">🙏</span>' : ''}<small>${esc(ctxOf(t))}${(t.rounds || []).length ? ` · 🔁 ${t.rounds.length}` : ''}</small></div><span class="chip xp">+${xpOf(t)}</span></div>`).join('')}</div></section>`;
+      <div class="list">${items.map((t) => `<div class="li ${t.st === 'cancel' ? 'canc' : ''}"><div class="lt">${t.st === 'cancel' ? '✕' : '✓'} ${esc(t.text)}${(t.sal ?? t.reza) ? ' <span title="Resolvida com BANHO DE SAL GROSSO (estava em ' + R.PRAGA_NAMES[t.sal ?? t.reza] + ')">🧂</span>' : ''}<small>${esc(ctxOf(t))}${(t.rounds || []).length ? ` · 🔁 ${t.rounds.length}` : ''}</small></div><span class="chip xp">+${xpOf(t)}</span></div>`).join('')}</div></section>`;
   }).join('');
   const L = S.core.legacy;
   return `<div class="page-title"><div><h1><em>arquivo</em>.</h1><p>Tudo que você já fechou mora aqui. Toque num quadrinho pra filtrar.</p></div></div>
@@ -247,7 +249,7 @@ export function extend(ACTIONS, render) {
     },
     qtab: (d) => { const ui = window.__ui; if ((document.querySelector('.qbar .seg button.on')?.dataset.tab || ui.qtab || 'listas') === d.tab && !ui.mm) ui.mm = true; else { ui.mm = false; ui.qtab = d.tab; } render(); sfx('tab'); }, // v6: tocar de novo na janela aberta = memento mori
     'mm-off': () => { window.__ui.mm = false; render(); sfx('tab'); },
-    'ag-day': (d) => { const list = R.openTasks(S).filter((t) => t.due === d.d), pg = window.__pragaDays?.[d.d]; openModal(`<h2>${fmtDM(d.d)}</h2>${pg?.length && d.d >= today() && d.d <= addDays(today(), 3) ? `<p class="pg-coming" style="display:block;border-radius:8px;padding:6px 10px;margin:0 0 10px">💀 O inimigo chega aqui: se ninguém fizer até a véspera, neste dia vira TREM RUIM: ${esc(pg.slice(0, 6).join(' · '))}</p>` : ''}<div class="list">${list.map((t) => `<div class="li" data-list="${R.listOf(t)}"><div class="lt" data-act="jump" data-id="${t.id}" style="cursor:pointer">${esc(t.text)}<small>${esc(t.block ? R.findBlock(S, t.block)?.title || '' : R.areaName(t.area))}</small></div><span class="chip xp">${R.taskXp(S, t).xp}</span></div>`).join('') || '<div class="empty">nada vence nesse dia.</div>'}</div><div class="actions"><button class="btn" data-close>FECHAR</button></div>`); },
+    'ag-day': (d) => { const list = R.openTasks(S).filter((t) => t.due === d.d), pg = window.__pragaDays?.[d.d]; openModal(`<h2>${fmtDM(d.d)}</h2>${pg?.length && d.d >= today() && d.d <= addDays(today(), 3) ? `<p class="pg-coming" style="display:block;border-radius:8px;padding:6px 10px;margin:0 0 10px">💀 O inimigo chega aqui: se ninguém fizer até a véspera, neste dia vira TREM TRAPAIADO: ${esc(pg.slice(0, 6).join(' · '))}</p>` : ''}<div class="list">${list.map((t) => `<div class="li" data-list="${R.listOf(t)}"><div class="lt" data-act="jump" data-id="${t.id}" style="cursor:pointer">${esc(t.text)}<small>${esc(t.block ? R.findBlock(S, t.block)?.title || '' : R.areaName(t.area))}</small></div><span class="chip xp">${R.taskXp(S, t).xp}</span></div>`).join('') || '<div class="empty">nada vence nesse dia.</div>'}</div><div class="actions"><button class="btn" data-close>FECHAR</button></div>`); },
     'comp-talk': () => talk(),
     'comp-rename': () => openModal(`<form data-v3form="rename"><h2>nome do companheiro</h2><input class="inp" name="n" value="${esc(R.companion(S).name)}" maxlength="12" autofocus aria-label="Nome"><div class="actions"><button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">SALVAR</button></div></form>`),
     'take-money': () => openModal(`<form data-v3form="take"><h2>↩ retirei</h2><p class="muted">Quanto você TIROU do que estava guardado? O boss do capítulo recupera essa vida. Fica anotado no histórico, sem multa.</p><input class="inp" name="v" type="number" min="1" step="1" placeholder="R$" autofocus aria-label="Valor"><input class="inp" name="n" placeholder="pra quê (ex.: CONSERTO DO CARRO)" style="margin-top:8px" aria-label="Motivo"><div class="actions"><button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">RETIRAR</button></div></form>`),

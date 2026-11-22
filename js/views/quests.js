@@ -59,10 +59,10 @@ function listCard(area, ui) {
   const late = area === 'hoje' ? open.filter((t) => t.due && t.due < td).length : 0;
   const sub = (t) => (wait ? [R.waitingOn(S, t).label && '⏳ ' + R.waitingOn(S, t).label, t.link && R.findBlock(S, t.link)?.st === 'wait' && 'o bloco dela está aguardando'].filter(Boolean).join(' · ') : '');
   const rv = R.listReviewed(S, area);
-  // v7.0: 💀 = quantas de HOJE viram TREM RUIM amanhã (o aviso vem ANTES do atraso)
+  // v7.0: 💀 = quantas de HOJE viram TREM TRAPAIADO amanhã (o aviso vem ANTES do atraso)
   const coming = area === 'hoje' && R.neuroOn(S, 'praga') ? open.filter((t) => R.isOpen(t) && t.due === td && t.st !== 'wait' && !t.who && !t.mother && R.pragaDay(S, t.due, 1) === addDays(td, 1)).length : 0;
   return `<section class="list-card ${isCollapsed('l:' + area) ? 'collapsed' : ''} ${rv ? 'reviewed' : ''}" data-list="${area}" data-drop-area="${area}"><header><h2 data-act="collapse" data-k="l:${area}" style="cursor:pointer"><span class="chev">${isCollapsed('l:' + area) ? '▸' : '▾'}</span> ${R.AREAS[area]}</h2>
-      <span class="row" style="gap:4px"><span class="meta">${open.length}${late ? ` · <span class="bad">${late} atrasada${late > 1 ? 's' : ''}</span>` : ''}</span>${coming ? `<span class="pg-coming" title="💀 O inimigo está chegando: ${coming} tarefa${coming > 1 ? 's' : ''} de hoje vira${coming > 1 ? 'm' : ''} TREM RUIM amanhã se ficar${coming > 1 ? 'em' : ''} sem fazer">💀${coming}</span>` : ''}<button class="icon-btn ${ui.lsort?.[area] === 'win' ? 'on' : ''}" data-act="sort" data-area="${area}" title="${ui.lsort?.[area] === 'win' ? 'Agrupado por janela. Toque: por data' : 'Por data. Toque: agrupar por janela'}">⇅</button></span></header>
+      <span class="row" style="gap:4px"><span class="meta">${open.length}${late ? ` · <span class="bad">${late} atrasada${late > 1 ? 's' : ''}</span>` : ''}</span>${coming ? `<span class="pg-coming" title="💀 O inimigo está chegando: ${coming} tarefa${coming > 1 ? 's' : ''} de hoje vira${coming > 1 ? 'm' : ''} TREM TRAPAIADO amanhã se ficar${coming > 1 ? 'em' : ''} sem fazer">💀${coming}</span>` : ''}<button class="icon-btn ${ui.lsort?.[area] === 'win' ? 'on' : ''}" data-act="sort" data-area="${area}" title="${ui.lsort?.[area] === 'win' ? 'Agrupado por janela. Toque: por data' : 'Por data. Toque: agrupar por janela'}">⇅</button></span></header>
     ${area === 'hoje' ? overflowBar() : ''}<ul class="tasks">${show.map((t) => taskRow(t, { list: true, sub: sub(t) })).join('')}${show.length ? '' : `<div class="empty">${wait ? 'ninguém te segurando. 👏' : 'vazio.'}</div>`}</ul>
     ${!ui.showDone && nHidden ? `<button class="more" data-act="toggle-done">✓ ${nHidden} feitas · mostrar</button>` : ''}
     ${stalled ? `<button class="more" data-act="toggle-stalled">⬛ ${stalled} parada(s) · mostrar</button>` : ''}
@@ -81,10 +81,10 @@ function bossPanel(ui) {
     const ck = blk?.id || b.id;
     return `<article class="block boss-b ${done ? 'closed' : ''} ${paused ? 'paused' : ''} ${isCollapsed('b:' + ck) ? 'collapsed' : ''}" data-color="red" ${blk ? `data-drop-block="${blk.id}"` : ''}>
       <div class="bh"><div class="stripe"></div><div class="bt" data-act="edit-boss" data-id="${b.id}"><h3>👹 ${esc(b.text.replace(/:\s*[\d.]+\s*XP.*$/i, ''))}</h3>
-        <div class="bm"><span class="acc">${fmtN(b.xp)} XP + 1🎟</span>${hp && hp.total ? `<span>HP ${fmtN(hp.left)}/${fmtN(hp.total)}</span>` : '<span>quebre em subtarefas ↓</span>'}${done ? `<span class="good">DERROTADO ${fmtDM(b.doneAt)}</span>` : paused ? `<span class="info">⏸ volta ${fmtDM(b.pause)}</span>` : b.st === 'wait' ? '<span>⏳ aguardando</span>' : idle >= R.BOSS_IDLE_DAYS && R.neuroOn(S, 'why') ? `<span class="warn">💤 ${idle} dias parado</span>` : ''}</div>
+        <div class="bm"><span class="acc">${fmtN(b.xp)} XP + 1🎟</span>${hp && hp.total ? `<span>HP ${fmtN(hp.left)}/${fmtN(hp.total)}</span>` : '<span>quebre em subtarefas ↓</span>'}${done ? `<span class="good">RESOLVIDO ${fmtDM(b.doneAt)}</span>` : paused ? `<span class="info">⏸ volta ${fmtDM(b.pause)}</span>` : b.st === 'wait' ? '<span>⏳ aguardando</span>' : idle >= R.BOSS_IDLE_DAYS && R.neuroOn(S, 'why') ? `<span class="warn">💤 ${idle} dias parado</span>` : ''}</div>
         ${!done && b.why && R.neuroOn(S, 'why') ? `<p class="bwhy">💡 ${esc(b.why)}</p>` : ''}
         ${hp && hp.total && !done ? segBar(hp.pct, 'hp') : ''}</div>
-       <div class="bbtns">${blk ? `<span class="handle" data-handle="block" data-id="${blk.id}" title="Segure e arraste">⠿</span>` : ''}<button class="icon-btn" data-act="boss-toggle" data-id="${b.id}" aria-label="${done ? 'Reabrir' : 'Derrotar'} boss" title="${done ? 'Reabrir' : 'Derrotar na hora'}">${done ? '↺' : '⚔'}</button><button class="icon-btn" data-act="collapse" data-k="b:${ck}" aria-label="Recolher boss"><span class="chev">${isCollapsed('b:' + ck) ? '▸' : '▾'}</span></button></div></div>
+       <div class="bbtns">${blk ? `<span class="handle" data-handle="block" data-id="${blk.id}" title="Segure e arraste">⠿</span>` : ''}<button class="icon-btn" data-act="boss-toggle" data-id="${b.id}" aria-label="${done ? 'Reabrir' : 'Resolver'} boss" title="${done ? 'Reabrir' : 'Resolver na hora'}">${done ? '↺' : '⚔'}</button><button class="icon-btn" data-act="collapse" data-k="b:${ck}" aria-label="Recolher boss"><span class="chev">${isCollapsed('b:' + ck) ? '▸' : '▾'}</span></button></div></div>
       <div class="bbody"><ul class="tasks">${show.map((t) => taskRow(t, { showPin: true })).join('') || '<div class="empty">sem subtarefas.</div>'}</ul>
         ${blk && !done ? `<form class="addline" data-form="add-task" data-block="${blk.id}" autocomplete="off"><input class="inp" name="text" placeholder="+ subtarefa do boss  (⚔ mini-boss · ↳ passo)" aria-label="Adicionar subtarefa do boss"></form>` : ''}</div></article>`;
   };
@@ -195,7 +195,7 @@ export function sidePanel(ui) {
   // um bloco fixado (📌) fica sempre no topo do painel, à mão enquanto você mexe no resto
   // v6: o bloco fixado virou um post-it flutuante (postit.js), visível em todas as abas (v7.5: vários)
   return `<aside class="side">${arrange('side', [
-    ['relogio', '🕰 Relógio do corpo', clockCard()],
+    // v8 (pedido do dono, sem redundância): o relógio do corpo entrou no FOCO AGORA (a fase do dia e a dica); ele não sugere mais tarefa
     // v7.2: STATUS DO DIA (em ícones) e COMANDOS moram dentro do cartão do PRIMO
     ['primo', '🔥 PRIMO', companionCard()],
     ['ouro', '💰 Carteira (quando tem)', goldCard(td)],
@@ -221,14 +221,13 @@ const CURFEW_KEY = 'gamify-ui:curfew-off';
 const curfewOff = () => { try { return +localStorage.getItem(CURFEW_KEY) > Date.now(); } catch { return false; } };
 export const curfewSkip = () => { try { localStorage.setItem(CURFEW_KEY, String(Date.now() + 15 * 60e3)); } catch { /* */ } };
 export const inCurfew = () => R.neuroOn(S, 'curfew') && ['recolher', 'sono'].includes(R.bodyClock(S).key) && !curfewOff();
-function clockCard() {
+/** v8: o RELÓGIO DO CORPO numa linha, dentro do FOCO AGORA (fase do dia, dica, dormir, refeição e café). Antes era um cartão que repetia a tarefa do FOCO. */
+function clockLine() {
   if (!R.neuroOn(S, 'clock')) return '';
-  const c = R.bodyClock(S), heavy = c.key === 'foco' ? R.heaviestTask(S) : null;
+  const c = R.bodyClock(S);
   const h = (m) => (m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? String(m % 60).padStart(2, '0') : ''}` : `${m} min`);
-  return `<div class="card clock" data-phase="${c.key}"><header><h2>${c.icon} ${c.name}</h2><span class="meta" title="seus horários: acordar ${c.wake} · dormir ${c.bed} (PERKS)">${c.key === 'sono' ? `acordar ${c.wake}` : `dormir ${c.bed} · faltam ${h(c.toBed)}`}</span></header>
-    <p class="clock-tip">${esc(c.tip)}</p>
-    ${heavy ? `<button class="btn sm pri" data-act="jump" data-id="${heavy.id}" title="A mais pesada pra fazer agora">🎯 ${esc(heavy.text.replace(/\s*\(\d+\s*XP\)/i, '').slice(0, 44))}</button>` : ''}
-    <div class="clock-meta">${c.meal ? `<span>🍽 refeição às ${c.meal.at}${c.meal.in ? ` (em ${h(c.meal.in)})` : ' (agora)'}</span>` : ''}${['despertar', 'foco', 'vale'].includes(c.key) ? `<span>☕ último café até ${c.coffeeUntil}</span>` : ''}${['vale', 'pico2'].includes(c.key) ? `<span>🏋 treino até ${c.trainUntil}</span>` : ''}</div></div>`;
+  const meta = [c.key === 'sono' ? `acordar ${c.wake}` : `dormir ${c.bed} (faltam ${h(c.toBed)})`, c.meal ? `🍽 ${c.meal.at}${c.meal.in ? ` (em ${h(c.meal.in)})` : ' (agora)'}` : '', ['despertar', 'foco', 'vale'].includes(c.key) ? `☕ até ${c.coffeeUntil}` : '', ['vale', 'pico2'].includes(c.key) ? `🏋 até ${c.trainUntil}` : ''].filter(Boolean).join(' · ');
+  return `<div class="fn-clock" data-phase="${c.key}" title="Relógio do corpo (PERKS → 🧠): ${esc(c.tip)}"><b>${c.icon} ${esc(c.name)}</b> <span>${esc(c.tip)}</span> <small>${esc(meta)}</small></div>`;
 }
 /** depois da hora: no lugar das listas, o fechamento do dia (o que fiz, o que fica pra amanhã, hábitos) */
 function closingView() {
@@ -288,12 +287,12 @@ function chapterDue() {
 function focusCard(ui) {
   if (!R.neuroOn(S, 'foco')) return '';
   const f = R.focusNow(S, today(), ui.focusSkip || []);
-  if (!f) return `<div class="focus-now card empty-f"><span class="fn-k">🎯 FOCO AGORA</span><span class="meta">nada urgente: escolha você ${ui.focusSkip?.length ? '<a href="#" data-act="focus-reset">ver de novo as sugestões</a>' : ''}</span></div>`;
+  if (!f) return `<div class="focus-now card empty-f"><span class="fn-k">🎯 FOCO AGORA</span><span class="meta">nada urgente: escolha você ${ui.focusSkip?.length ? '<a href="#" data-act="focus-reset">ver de novo as sugestões</a>' : ''}</span>${clockLine()}</div>`;
   const t = f.task, b = t.block && R.findBlock(S, t.block);
   return `<div class="focus-now card ${f.praga ? 'praga' : ''}" ${f.praga ? `data-praga="${f.praga}"` : ''}><span class="fn-k" title="O PRIMO escolhe UMA tarefa pra você não perder tempo decidindo">🎯 FOCO AGORA</span>
     <button class="check" data-act="toggle" data-id="${t.id}" aria-label="Concluir">${t.st === 'doing' ? '▶' : ''}</button>
     <div class="fn-t" data-act="jump" data-id="${t.id}" title="Toque pra ir até a tarefa"><b>${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}</b><small>${b ? esc(b.title) + ' · ' : ''}porque ${esc(f.why)}</small></div>
-    <span class="chip xp">${R.taskXp(S, t).xp}</span>${f.praga ? `<span class="chip praga-chip" title="Enquanto ela estiver infectada, não dá pra trocar">🐛 FASE ${f.praga}</span>` : `<button class="btn sm ghost" data-act="focus-skip" data-id="${t.id}" title="Agora não: mostra outra sugestão">OUTRA ▸</button>`}</div>`;
+    <span class="chip xp">${R.taskXp(S, t).xp}</span>${f.praga ? `<span class="chip praga-chip" title="Enquanto ela estiver infectada, não dá pra trocar">🪰 FASE ${f.praga}</span>` : `<button class="btn sm ghost" data-act="focus-skip" data-id="${t.id}" title="Agora não: mostra outra sugestão">OUTRA ▸</button>`}${clockLine()}</div>`;
 }
 /** v6 MEMENTO MORI: tocar de novo na janela aberta recolhe tudo e mostra o tempo passando (lembra de parar de procrastinar) */
 const MM_LINES = ['Memento mori: o tempo não volta. Faça hoje o que importa.', 'Cada minuto aqui é um minuto a menos lá fora. Escolha UMA coisa.', 'O dia está passando agora, enquanto você lê isto.', 'Você não tem todo o tempo do mundo. Tem o de hoje.'];

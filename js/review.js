@@ -35,6 +35,7 @@ function buildSteps(gap, only) {
   else if (blanksYesterday().length) steps.push('ontem');
   if (late().length) steps.push('atras');
   if (R.staleBosses(S).length && bossNudgeDue()) steps.push('boss');
+  if (R.moscaMorta(S).length) steps.push('mosca'); // v8: o PARADO não some mais de todo aviso
   steps.push('hoje');
   return steps;
 }
@@ -66,6 +67,19 @@ const VIEW = {
         <div class="list"><button class="li rv-opt" data-rv="boss-go" data-id="${b.id}"><span class="lt">⚔ PUXAR UM PASSO DELE<small>Abre o boss: escolha UMA subtarefa e dê uma data.</small></span></button>
         <button class="li rv-opt" data-rv="boss-pause" data-id="${b.id}"><span class="lt">⏸ PAUSAR 2 SEMANAS<small>Não é desistir: os prazos andam junto e ele volta sozinho.</small></span></button>
         <button class="li rv-opt" data-rv="boss-edit" data-id="${b.id}"><span class="lt">✎ EDITAR O BOSS<small>Escrever o porquê, mudar a meta ou apagar.</small></span></button></div>`,
+    };
+  },
+  mosca: () => {
+    if (!st.mosca) { st.mosca = R.moscaMorta(S); if (st.mosca.length) setTimeout(() => A.moscaSeen(st.mosca.map((x) => x.id)), 0); } // viu = só lembra de novo daqui a 7 dias
+    const still = (x) => (x.kind === 'block' ? S.quests.blocks.find((b) => b.id === x.id)?.color === 'black' : S.quests.tasks.find((t) => t.id === x.id)?.color === 'black');
+    const l = st.mosca.filter(still);
+    return {
+      title: 'mosca morta',
+      line: l.length ? `Ó, sô: ${l.length > 1 ? `tem ${l.length} trem PARADO` : 'tem um trem PARADO'} faz tempo. Mosca morta, mas não esquecida. Continua parado ou volta a andar?` : 'Nada parado esquecido. Trem bão, sô.',
+      body: l.length ? `<div class="list" style="max-height:38vh;overflow:auto">${l.map((x) => `<div class="li"><div class="lt">🪰 ${esc(clean(x.text))}<small>${x.kind === 'block' ? 'bloco' : 'tarefa'} parado${x.last ? ` · último lembrete ${fmtDM(x.last)}` : ''}</small></div>
+          <span class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn sm good" data-rv="mosca-wake" data-id="${x.id}" title="Sai do PARADO e vira FAZENDO">▶ VOLTAR</button><button class="btn sm ghost" data-rv="mosca-go" data-id="${x.id}" data-k="${x.kind}" title="Ir até ele">↗</button></span></div>`).join('')}</div>
+        <p class="meta" style="margin:8px 0 0">O que ficar parado continua parado (só você muda). Eu lembro de novo daqui a ${R.MOSCA_DIAS} dias.</p>` : '',
+      last: st.steps.at(-1) === 'mosca',
     };
   },
   gap: () => ({
@@ -165,6 +179,8 @@ export function openReview(gap = 0, prev = null, only = null) {
     else if (k === 'boss-pause') { A.pauseBoss(id, addDays(today(), R.BOSS_PAUSE_MAX)); sfx('tab'); }
     else if (k === 'boss-edit') { closeModal(); ACT['edit-boss']?.({ id }); return; }
     else if (k === 'boss-go') { const bo = S.quests.bosses.find((x) => x.id === id); closeModal(); if (bo?.block) ACT['jump-block']?.({ id: bo.block }); return; }
+    else if (k === 'mosca-wake') { A.moscaWake(id); sfx('ready'); toast('▶ Voltou a andar: agora tá FAZENDO.', 'good'); }
+    else if (k === 'mosca-go') { closeModal(); ACT[b.dataset.k === 'block' ? 'jump-block' : 'jump']?.({ id }); return; }
     else if (k === 'done') A.setStatus(id, 'done');
     else if (k === 'wait') A.setStatus(id, 'wait');
     else if (k === 'cancel') A.setStatus(id, 'cancel');
@@ -180,9 +196,10 @@ export function maybeReview() {
   if (ls.get('gamify-ui:brief') === td || !ls.get('gamify-ui:tour') || modalOpen() || R.tripNow(S)) return;
   const gap = S._gap || 0, prev = S._prevOpen;
   const off = ls.get('gamify-ui:brief-off') === '1' && gap < GAP_DAYS; // desligou a entrevista: só o retorno (e a migração do mês) continuam
-  if (off && !R.migrationPending(S)) return;
+  const only = off ? (R.migrationPending(S) ? 'mes' : R.moscaMorta(S).length ? 'mosca' : null) : null; // v8: a MOSCA MORTA aparece mesmo com a entrevista desligada
+  if (off && !only) return;
   ls.set('gamify-ui:brief', td);
-  setTimeout(() => { if (!modalOpen()) openReview(gap, prev, off ? 'mes' : null); }, 700);
+  setTimeout(() => { if (!modalOpen()) openReview(gap, prev, only); }, 700);
 }
 
 let ACT = {};
