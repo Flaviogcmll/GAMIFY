@@ -374,8 +374,8 @@ export const STATUS_INFO = {
   // v6.7: A PRAGA no STATUS DO DIA (o castigo de XP já vem do praga(); aqui é pra explicar ao tocar)
   // v8: a Praga é o SOPRO DO LAMBEHOMI contra a casa do PRIMO. Ele quase nunca tem medo: fica PARANOICO. Medo de verdade só na NOITE DA DISGRAMA.
   paranoico: { icon: '👀', name: 'PARANOICO', kind: 'debuff', desc: 'Tem TREM TRAPAIADO rondando: uma tarefa ou ritual estourou o prazo. Ela vira o FOCO AGORA e o PRIMO fica desconfiado, olhando de lado.', cure: '🧂 BANHO DE SAL GROSSO: resolva a tarefa (ou remarque com motivo, ou cancele). Siga a mosca: ela pousa onde o trem está.' },
-  trapaiado: { icon: '🪰', name: 'TREM TRAPAIADO', kind: 'debuff', desc: 'O TREM TRAPAIADO tá soltando chorume e chamando mosca. A faixa ERRO NA FITA aparece em todas as abas e a janela pula a cada 7 min. Mais um dia e a tarefa apodrece: vira LAMBEHOMI e a BRASINHA perde uma fase.', cure: '🧂 BANHO DE SAL GROSSO na tarefa que a mosca mostra.' },
-  lambehomi: { icon: '🐺', name: 'LAMBEHOMI', kind: 'debuff', desc: 'Uma tarefa apodreceu (mais de 3 dias) e o GUARANÁ virou LAMBEHOMI: ele sopra a casa, a BRASINHA perde uma fase, a loja tranca e a tela fica vermelha e preta.', cure: '🧂 BANHO DE SAL GROSSO. Resolvendo TODAS as atrasadas, a CAJULINA e a EVE LÃ acham o ANTÍDOTO e ele volta a ser GUARANÁ (sem XP: ninguém fabrica Praga pra ganhar ponto).' },
+  trapaiado: { icon: '🪰', name: 'TREM TRAPAIADO', kind: 'debuff', desc: 'O TREM TRAPAIADO tá soltando chorume e chamando mosca. A faixa ERRO NA FITA aparece em todas as abas e a janela pula a cada 7 min. Se ficar, a tarefa apodrece: vira LAMBEHOMI e a BRASINHA perde uma fase.', cure: '🧂 BANHO DE SAL GROSSO na tarefa que a mosca mostra.' },
+  lambehomi: { icon: '🐺', name: 'LAMBEHOMI', kind: 'debuff', desc: 'Uma tarefa apodreceu (passou dos dias de TREM TRAPAIADO, padrão 3) e o GUARANÁ virou LAMBEHOMI: ele sopra a casa, a BRASINHA perde uma fase, a loja tranca e a tela fica vermelha e preta.', cure: '🧂 BANHO DE SAL GROSSO. Resolvendo TODAS as atrasadas, a CAJULINA e a EVE LÃ acham o ANTÍDOTO e ele volta a ser GUARANÁ (sem XP: ninguém fabrica Praga pra ganhar ponto).' },
   noitedisgrama: { icon: '🌕', name: 'NOITE DA DISGRAMA', kind: 'debuff', desc: 'Tarefas demais no LAMBEHOMI ao mesmo tempo: a noite fica vermelha, três lobisomens nos morros, a tela treme. É a única hora em que o PRIMO tem medo de verdade. O LAMBEHOMI rouba a BRASINHA: a chama dela cura ele (volta a ser GUARANÁ), ela vira OVO e a MEGG DE FÁTIMA choca de novo.', cure: '🧂 BANHO DE SAL GROSSO até ficar abaixo do limite (PERKS → 🧠).' },
 };
 
@@ -1372,8 +1372,17 @@ export function neuroRoutine(plan, hours) {
 // Cura (BANHO DE SAL GROSSO): resolver, remarcar (custa o de sempre) ou cancelar. Limpar NÃO dá XP. Sem CORPO FECHADO e sem vacina.
 export const PRAGA_POP_MS = 7 * 60e3;
 export const PRAGA_NAMES = ['', 'TREM TRAPAIADO', 'TREM TRAPAIADO', 'TREM TRAPAIADO', 'LAMBEHOMI']; // v8: compare sempre pelo NÚMERO da fase, nunca pelo nome
-/** moscas = podridão ("onde tem mosca, tem coisa podre"): FEI 1 · CUSTOSO 2 · TRAPAIADO 3 (o LAMBEHOMI tem a auréola) */
-export const MOSCAS = { fei: 1, custoso: 2, boss: 1, praga: 3 };
+/** v9: moscas = podridão ("onde tem mosca, tem coisa podre"). Os dias de cada nível são do dono (PERKS → 🧠, settings.neuro):
+ *  `mosca1` = 1 mosca (TREM FEI) quando faltam até N dias (mais que isso = em dia, 0 moscas) · `mosca2` = 2 moscas (TREM CUSTOSO)
+ *  quando faltam até N dias (0 = só hoje, 1 = hoje e amanhã) · `podre` = dias de atraso como TREM TRAPAIADO (3 moscas); passou disso,
+ *  apodreceu: LAMBEHOMI (auréola de 2 moscas). O `podre` também decide quando a Praga chega na fase 4. */
+export const MOSCA_PADRAO = { mosca1: 7, mosca2: 1, podre: 3 };
+const clampN = (v, d, a, b) => { const n = Math.round(+v); return Number.isFinite(n) && v !== '' && v != null ? Math.max(a, Math.min(b, n)) : d; };
+export function moscaCfg(s) {
+  const n = s.core?.settings?.neuro || {};
+  const mosca2 = clampN(n.mosca2, MOSCA_PADRAO.mosca2, 0, 7);
+  return { mosca2, mosca1: Math.max(mosca2, clampN(n.mosca1, MOSCA_PADRAO.mosca1, 0, 60)), podre: clampN(n.podre, MOSCA_PADRAO.podre, 1, 10) };
+}
 /** v8: quantas tarefas no LAMBEHOMI ao mesmo tempo viram NOITE DA DISGRAMA. Ajustável em PERKS → 🧠. */
 export const NOITE_N = 3;
 export const noiteN = (s) => Math.max(1, Math.min(10, Math.round(+(s.core?.settings?.neuro?.noiteN) || NOITE_N)));
@@ -1399,11 +1408,11 @@ function pragaCalc(s, td) {
     }
     return n;
   };
-  const list = [];
+  const list = [], podre = moscaCfg(s).podre;
   const add = (id, kind, text, start, extra = 0) => {
     const days = daysLate(start);
     if (start < born) start = born;
-    const phase = Math.min(4, Math.max(1, days + extra));
+    const phase = days + extra > podre ? 4 : Math.min(3, Math.max(1, days + extra)); // v9: apodrece depois de `podre` dias (padrão 3)
     list.push({ id, kind, text, days: Math.max(1, days), phase });
   };
   for (const t of openTasks(s)) {
@@ -1430,7 +1439,8 @@ export function pragaDay(s, due, phase = 4) {
   if (!due) return null;
   const rests = s.core?.rests || [], born = s.core?.praga?.start || today();
   let d = due < born ? addDays(born, -1) : due, n = 0;
-  for (let i = 0; i < 40 && n < phase; i++) { d = addDays(d, 1); if (!holidayName(d) && !rests.includes(d) && !tripDay(s, d)) n++; }
+  const need = phase >= 4 ? moscaCfg(s).podre + 1 : phase; // v9: o LAMBEHOMI chega depois de `podre` dias (PERKS → 🧠)
+  for (let i = 0; i < 40 && n < need; i++) { d = addDays(d, 1); if (!holidayName(d) && !rests.includes(d) && !tripDay(s, d)) n++; }
   return d;
 }
 /** v6.7: cenários assombrados que já existem (o dono gera no Higgsfield, #101). Nome da aba → assets/topo/<aba>-praga.webp */
@@ -1470,20 +1480,30 @@ export function brasinha(s, td = today()) {
   return { stage, frame: BRAS_FRAME[stage], name: BRAS_NAMES[stage], calor: b.calor || 0, hoje, need, pct: need ? Math.min(1, cal / need) : 1, left: need ? Math.max(0, need - cal) : 0, max: stage >= 4, egg: stage === 0 };
 }
 /** v8: que tipo de TREM cada tarefa é (só nome da história; a lista continua dizendo "tarefa").
- *  TREM FEI (prazo longe) › TREM CUSTOSO (vence hoje ou amanhã) › TREM TRAPAIADO (estourou, 1 a 3 dias) › LAMBEHOMI (apodreceu).
+ *  TREM FEI (prazo longe) › TREM CUSTOSO (vence hoje ou amanhã) › TREM TRAPAIADO (estourou, até `podre` dias) › LAMBEHOMI (apodreceu).
  *  Tarefa de BOSS segue a mesma escada com o selo 👹 (boss: true). moscas = quantas moscas a tarefa já atrai. */
 export function tremOf(s, t, td = today()) {
   if (!t || !isOpen(t)) return null;
   const b = t.block && findBlock(s, t.block), boss = !!(b && (s.quests?.bosses || []).some((x) => x.block === b.id));
   const pg = pragaOf(s, t.id);
-  if (pg) return { k: 'praga', name: PRAGA_NAMES[pg.phase], phase: pg.phase, boss, moscas: pg.phase >= 4 ? 0 : MOSCAS.praga, aureola: pg.phase >= 4 };
-  if (t.due && diffDays(td, t.due) <= 1) return { k: 'custoso', name: 'TREM CUSTOSO', boss, moscas: MOSCAS.custoso };
-  return { k: 'fei', name: 'TREM FEI', boss, moscas: MOSCAS.fei };
+  if (pg) return { k: 'praga', name: PRAGA_NAMES[pg.phase], phase: pg.phase, boss, moscas: pg.phase >= 4 ? 'aur' : 3, aureola: pg.phase >= 4 };
+  const cfg = moscaCfg(s), left = t.due ? diffDays(td, t.due) : null; // quantos dias faltam (negativo = atrasada, mas ainda fora da Praga)
+  if (left != null && left <= cfg.mosca2) return { k: 'custoso', name: 'TREM CUSTOSO', boss, moscas: 2 };
+  return { k: 'fei', name: 'TREM FEI', boss, moscas: left != null && left <= cfg.mosca1 ? 1 : 0 };
+}
+/** v9: as moscas de uma tarefa pra tela: n (0, 1, 2, 3 ou 'aur') e a legenda. Tarefa sem prazo, feita ou esperando alguém não tem mosca. */
+export function moscasOf(s, t, td = today()) {
+  if (!t || !isOpen(t) || !t.due || t.st === 'wait' || t.who || t.dep || !neuroOn(s, 'praga')) return { n: 0, title: '' };
+  const tr = tremOf(s, t, td);
+  if (!tr || !tr.moscas) return { n: 0, title: '' };
+  const cfg = moscaCfg(s), left = diffDays(td, t.due);
+  const why = tr.k === 'praga' ? (tr.aureola ? `apodreceu: mais de ${cfg.podre} dia${cfg.podre > 1 ? 's' : ''} de atraso` : 'estourou o prazo') : left <= 0 ? 'vence hoje' : left === 1 ? 'vence amanhã' : `faltam ${left} dias`;
+  return { n: tr.moscas, title: `🪰 ${tr.name}${tr.boss ? ' 👹' : ''}: ${why}. Onde tem mosca, tem coisa podre.` };
 }
 
 // ───────────────────────── v8: o LOBO (GUARANÁ ⇄ LAMBEHOMI, o mesmo bicho em dois estados) ─────────────────────────
 // O ciclo infinito, como a lua: GUARANÁ calmo (tudo em dia) → emburrado/isolado (existe TREM TRAPAIADO: é o aviso)
-// → LAMBEHOMI (1 tarefa apodreceu, mais de 3 dias). Ele volta a ser GUARANÁ de dois jeitos:
+// → LAMBEHOMI (1 tarefa apodreceu, passou de `podre` dias, padrão 3). Ele volta a ser GUARANÁ de dois jeitos:
 //   1) NOITE DA DISGRAMA: rouba a BRASINHA, a chama dela o cura, ela vira OVO e a MEGG DE FÁTIMA choca de novo
 //      (se a BRASINHA já é OVO, não tem o que roubar: ele continua LAMBEHOMI);
 //   2) ANTÍDOTO: todas as atrasadas resolvidas → a CAJULINA e a EVE LÃ acham o antídoto, a BRASINHA fica (sem XP).
@@ -1492,7 +1512,7 @@ export function tremOf(s, t, td = today()) {
 export const LOBO_STATES = {
   calmo: { ico: '🥭', name: 'GUARANÁ', sub: 'chupando manga', tip: 'Tudo em dia. O GUARANÁ tá na dele: solitário, cheirando o chão, chupando manga.' },
   tregua: { ico: '🥭', name: 'GUARANÁ', sub: 'de trégua', tip: 'Acabou de se curar: fica GUARANÁ até o fim de amanhã, aconteça o que acontecer.' },
-  emburrado: { ico: '😒', name: 'GUARANÁ', sub: 'emburrado, se isolando', tip: 'Tem TREM TRAPAIADO. Ele tá se isolando e a raiva tá voltando. Se uma tarefa passar de 3 dias, ele vira LAMBEHOMI.' },
+  emburrado: { ico: '😒', name: 'GUARANÁ', sub: 'emburrado, se isolando', tip: 'Tem TREM TRAPAIADO. Ele tá se isolando e a raiva tá voltando. Se uma tarefa apodrecer, ele vira LAMBEHOMI.' },
   lambehomi: { ico: '🐺', name: 'LAMBEHOMI', sub: 'à solta', tip: 'A raiva tomou conta. Resolva TODAS as atrasadas e a CAJULINA e a EVE LÃ acham o ANTÍDOTO. Se chegar a NOITE DA DISGRAMA, ele rouba a BRASINHA.' },
 };
 export function lobo(s, td = today()) {

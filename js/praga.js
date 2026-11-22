@@ -86,7 +86,7 @@ export function pragaBanner() {
   const lb = R.lobo(S), ovo = R.brasinha(S).egg;
   const fim = pg.noite ? (lb.tregua ? ', o LAMBEHOMI levou a BRASINHA e se curou (o GUARANÁ tá de trégua até amanhã), a MEGG DE FÁTIMA tá chocando o ovo e a loja trancou'
       : ovo ? ', a BRASINHA é OVO (não tem o que roubar: ele continua LAMBEHOMI até o ANTÍDOTO) e a loja trancou' : ', o LAMBEHOMI vem roubar a BRASINHA e a loja trancou')
-    : pg.phase >= 4 ? ', a BRASINHA perdeu força e a loja trancou' : `. Mais um dia e ela apodrece: o ${lb.st === 'lambehomi' ? 'LAMBEHOMI' : 'GUARANÁ vira LAMBEHOMI e'} sopra a casa`;
+    : pg.phase >= 4 ? ', a BRASINHA perdeu força e a loja trancou' : `. Se ficar, ela apodrece: o ${lb.st === 'lambehomi' ? 'LAMBEHOMI' : 'GUARANÁ vira LAMBEHOMI e'} sopra a casa`;
   return `<div class="banner praga-b" data-praga="${pg.phase}" ${pg.noite ? 'data-noite="1"' : ''}><span class="pb-tag">${pg.noite ? '🌕 NOITE DA DISGRAMA' : pg.phase >= 4 ? '🐺 ERRO FATAL NA FITA' : '🪰 ERRO NA FITA'}</span>
     <span class="pb-t"><b>${pg.noite ? `${pg.n4} NO LAMBEHOMI: A NOITE FICOU VERMELHA` : pg.phase >= 4 ? 'O LAMBEHOMI TÁ SOPRANDO A CASA' : 'O TREM TRAPAIADO TÁ SOLTANDO CHORUME'}</b> · ${esc(w.text.slice(0, 60))} (atrasada há ${w.days} dia${w.days > 1 ? 's' : ''})${more > 0 ? ` e mais ${more}` : ''}. ${pg.noite ? 'O PRIMO está com medo de verdade' : 'O PRIMO tá paranoico'}${fim}.<i class="pb-cur">▮</i></span>
     <button class="btn sm pri" data-act="praga-pop" data-id="${w.id}">🧂 BANHO DE SAL GROSSO</button></div>`;
