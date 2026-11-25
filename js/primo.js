@@ -265,10 +265,12 @@ function body(big, compact = false) {
   const c = R.companion(S), st = primoState(), pet = PS.petState(), mk = primoMood(), m = MOODS[mk];
   const status = st.act !== 'idle' ? `${esc(c.name)} está ${esc(st.label)}` : `<span title="${esc(m.tip)}">${m.ico} ${esc(c.name)} está <b>${m.label}</b></span>`;
   const trip = R.tripNow(S);
-  return `<div class="pcard ${big ? 'big' : ''} ${compact ? 'compact' : ''}" data-mood="${mk}">${compact ? '' : `<div class="pstage"><canvas class="pcv" data-portrait="${big ? 'full' : 'card'}" data-act="comp-poke" aria-label="${esc(c.name)}"></canvas>
-      <canvas class="pcv pmascot" data-mascot title="${esc(pet.title)}" data-act="mascot-info"></canvas></div>`}
-    <div class="pcol">${compact ? '' : '<div class="speech" id="comp-speech" data-pspeech="ambient" data-act="comp-poke" title="toque pra ouvir outra"></div>'}
-      <div class="meta pstat">${status}${st.left ? ` · <span data-countdown="${Date.now() + st.left}">${mmss(st.left)}</span>` : ''}</div>
+  // v8.5 (pedido do dono): a imagem, a fala e o "PRIMO está…" ficam juntos em .phead, preso no topo do painel; o resto rola por baixo
+  const pstat = `<div class="meta pstat">${status}${st.left ? ` · <span data-countdown="${Date.now() + st.left}">${mmss(st.left)}</span>` : ''}</div>`;
+  return `<div class="pcard ${big ? 'big' : ''} ${compact ? 'compact' : ''}" data-mood="${mk}">${compact ? '' : `<div class="phead"><div class="pstage"><canvas class="pcv" data-portrait="${big ? 'full' : 'card'}" data-act="comp-poke" aria-label="${esc(c.name)}"></canvas>
+      <canvas class="pcv pmascot" data-mascot title="${esc(pet.title)}" data-act="mascot-info"></canvas></div>
+      <div class="speech" id="comp-speech" data-pspeech="ambient" data-act="comp-poke" title="toque pra ouvir outra"></div>${pstat}</div>`}
+    <div class="pcol">${compact ? pstat : ''}
       ${statusIcons()}
       ${brasLine(pet)}
       ${loboLine()}
@@ -284,9 +286,18 @@ export function questsBanner() {
     <canvas class="pcv pmascot" data-mascot title="${esc(pet.title)}" data-act="mascot-info"></canvas>
     <div class="qs-say"><div class="speech" data-pspeech="ambient" data-act="comp-poke" title="toque pra ouvir outra"></div></div></div>`;
 }
+/** v8.5 (pedido do dono): imagem, fala e "PRIMO está…" presos no topo do painel da direita; o cartão (status, BRASINHA, lobo, pedido, botões) rola por baixo */
+export function primoHead() {
+  const c = R.companion(S), pet = PS.petState(), mk = primoMood(), m = MOODS[mk], st = primoState();
+  const status = st.act !== 'idle' ? `${esc(c.name)} está ${esc(st.label)}` : `<span title="${esc(m.tip)}">${m.ico} ${esc(c.name)} está <b>${m.label}</b></span>`;
+  return `<div class="pcard side-head" data-mood="${mk}"><div class="phead"><div class="pstage"><canvas class="pcv" data-portrait="card" data-act="comp-poke" aria-label="${esc(c.name)}"></canvas>
+      <canvas class="pcv pmascot" data-mascot title="${esc(pet.title)}" data-act="mascot-info"></canvas></div>
+      <div class="speech" id="comp-speech" data-pspeech="ambient" data-act="comp-poke" title="toque pra ouvir outra"></div>
+      <div class="meta pstat">${status}${st.left ? ` · <span data-countdown="${Date.now() + st.left}">${mmss(st.left)}</span>` : ''}</div></div></div>`;
+}
 export function primoCard() {
   const c = R.companion(S), n = claudeCount();
-  return `<div class="card comp-card"><header><h2>${esc(c.name)}</h2><span class="row" style="gap:6px;flex-wrap:nowrap">${hearts()}<button class="icon-btn" data-act="comp-rename" title="Nome" aria-label="Renomear">✎</button></span></header>${body(false)}</div>`; void n; // v6.3: o PRIMO voltou pro cantinho dele (pedido do dono)
+  return `<div class="card comp-card"><header><h2>${esc(c.name)}</h2><span class="row" style="gap:6px;flex-wrap:nowrap">${hearts()}<button class="icon-btn" data-act="comp-rename" title="Nome" aria-label="Renomear">✎</button></span></header>${body(false, true)}</div>`; // v8.5: a imagem e a fala moram no primoHead void n; // v6.3: o PRIMO voltou pro cantinho dele (pedido do dono)
 }
 export function openPrimoHub() {
   const c = R.companion(S), b = bond(), pet = PS.petState();

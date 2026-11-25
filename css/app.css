@@ -1984,3 +1984,18 @@ aside.postit.min .addline { padding-top: 4px; }
 .list-card[data-cor="semcor"] > header { border-bottom-color: var(--c-neutro); }
 .list-card[data-cor="parado"] { opacity: .8; }
 .list-card .addline { margin: 0 0 6px; }
+
+/* ═════════════ v8.5 — rodada 4: navegação ═════════════ */
+/* o topo e as abas ficam presos o tempo todo ao rolar (antes só na primeira tela: o body tinha altura fixa de uma tela) */
+html, body { height: auto; } body { min-height: 100vh; }
+@media (max-width: 860px) { .top { position: relative; } } /* no celular a barra de baixo já fica presa: o topo rola junto pra sobrar tela */
+/* o PRIMO no painel: imagem, fala e "PRIMO está…" presos em cima; hábitos, pedido e botões rolam por baixo */
+.side > .side-head { padding: 10px; border: 2px solid var(--edge); border-radius: var(--rad, 12px); background: var(--panel); }
+@media (min-width: 861px) { .side > .side-head { position: sticky; top: 0; z-index: 5; box-shadow: 0 8px 10px -6px var(--shadow); } }
+.pcard .phead { display: flex; flex-direction: column; gap: 8px; }
+/* setinha de voltar ao topo */
+#totop { position: fixed; right: 12px; bottom: 76px; z-index: 45; width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--edge); background: var(--panel); color: var(--ink); font-size: 12px; line-height: 1; opacity: 0; pointer-events: none; transition: opacity .2s; box-shadow: 2px 2px 0 var(--shadow); }
+#totop.on { opacity: .85; pointer-events: auto; }
+@media (min-width: 861px) { #totop { bottom: 18px; left: 18px; right: auto; } } /* no PC os post-its ficam na direita */
+/* busca rápida */
+.find #find-r { max-height: 50vh; overflow: auto; margin-top: 8px; }

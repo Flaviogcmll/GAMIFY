@@ -12,7 +12,7 @@ import { px } from './icons.js';
 import { embers, confetti, floatXp, fireworks, poof } from './fx.js';
 import { sfx, startAmbience, stopAmbience, ambienceOn, prefs, setVol } from './audio.js';
 
-import { viewQuests, togglePin, curfewSkip, qsortOf } from './views/quests.js';
+import { viewQuests, togglePin, curfewSkip, qsortOf, filaCard } from './views/quests.js';
 
 import { viewSurvival } from './views/survival.js';
 
@@ -51,9 +51,11 @@ const ROUTES = [
   ['shop', 'FEIRA', 'shop', viewShop, 'l'], ['domingo', 'REFLEXÃO', 'domingo', viewDomingo, 'b'], ['conquistas', 'CONQUISTAS', 'conquistas', viewConquistas, ''],
   ['filtro', 'FILTRO', 'filtro', (u) => { setTimeout(() => { history.replaceState(null, '', '#agenda'); document.getElementById('filtro-v')?.scrollIntoView({ block: 'start' }); }, 80); return viewAgenda(u); }, 'f'], ['rotina', 'ROTINA', 'rotina', viewRotina, 'r'], ['regras', 'PERKS AND RULES', 'regras', viewRegras, 'p'],
   ['arquivo', 'ARQUIVO', 'arquivo', viewArquivo3, ''],
+  // v8.5: a FILA DE PRAZOS sozinha numa tela (atalho do app instalado: segure o ícone no celular, ou clique com o direito na barra do PC)
+  ['fila', 'FILA', 'agenda', () => `<div class="page-title"><div><h1><em>fila de prazos</em>.</h1></div></div>${filaCard(today())}`, ''],
 ];
 /** a ordem das abas de cima é sua: arraste uma aba sobre outra */
-const HIDDEN_TABS = ['filtro']; // v6.1: o FILTRO mora dentro da AGENDA
+const HIDDEN_TABS = ['filtro', 'fila']; // v6.1: o FILTRO mora dentro da AGENDA · v8.5: a FILA é só pelo atalho
 function tabOrder() {
   let saved = [];
   try { saved = JSON.parse(localStorage.getItem('gamify-ui:tabs')) || []; } catch { /* */ }
@@ -103,6 +105,7 @@ function header() {
       <div class="wallet"><div class="coin"><small>XP</small><b class="acc">${fmtN(tot.balance)}</b></div><div class="coin"><small>GOLD</small><b class="gold">${fmtN(tot.gold)}</b></div><div class="coin" style="min-width:52px"><small>🎟</small><b class="tk">${tot.tickets}</b></div></div>
       <div class="tools">${using.map((p) => `<button class="timer-chip" data-act="goto-bag" title="${esc(p.item)}" data-countdown="${p.endsAt}">${mmss(p.endsAt - Date.now())}</button>`).join('')}
         <button class="btn sm" data-act="undo" data-undo-btn ${A.undoState().undo ? '' : 'disabled'} title="Desfazer (Ctrl+Z)" aria-label="Desfazer">↩</button><button class="btn sm" data-act="redo" data-redo-btn ${A.undoState().redo ? '' : 'disabled'} title="Refazer (Ctrl+Y)" aria-label="Refazer">↪</button>
+        <button class="btn sm" data-act="find" title="Buscar e ir direto (Ctrl+K)" aria-label="Buscar">🔍</button>
         <button class="btn sm" data-act="mode" title="Dia/noite (N)">${px(night ? 'moon' : 'sun', 12)}</button>
         <button class="btn sm ${ambienceOn() ? 'pri' : ''}" data-act="music" title="Lo-fi da fogueira">${px('music', 12)}</button>
         <button class="btn sm" data-act="fullscreen" title="Tela cheia (F11)" aria-label="Tela cheia">⛶</button></div></div>`;
@@ -587,6 +590,23 @@ function jump(id) {
   if (route() !== 'quests') location.hash = '#quests'; else render();
   glow([`.board :is(.list-card, .block) li.task[data-id="${id}"]`, `.board li.task[data-id="${id}"]`]);
 }
+const norm = (x) => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+function findHits(q) {
+  const n = norm(q).trim(); if (n.length < 2) return [];
+  const out = [];
+  for (const t of S.quests.tasks) if (R.isOpen(t) && !t.mother && norm(t.text).includes(n)) out.push({ k: 'task', id: t.id, text: t.text.replace(/\s*\(\d+\s*XP\)/i, ''), sub: t.block ? R.findBlock(S, t.block)?.title || '' : R.COR_NAMES[R.corOf(S, t)] || '', due: t.due });
+  for (const b of S.quests.blocks) if (b.st !== 'done' && norm(b.title).includes(n)) out.push({ k: 'block', id: b.id, text: '▣ ' + b.title, sub: R.winOf(S, b)?.name || R.GROUPS[b.group]?.short || 'bloco', due: b.due });
+  for (const r of S.core.rituals || []) if (norm(r.name).includes(n)) out.push({ k: 'rit', id: r.id, text: '🔁 ' + r.name, sub: 'ritual', due: null });
+  return out.sort((a, z) => (a.due || '9').localeCompare(z.due || '9')).slice(0, 14);
+}
+function openFind() {
+  const m = openModal(`<div class="find"><h2>🔍 ir direto pra…</h2><input class="inp" id="find-q" placeholder="digite parte do nome (tarefa, bloco, boss ou ritual)" autofocus data-kbd autocomplete="off"><div class="list" id="find-r"><div class="empty">digite pelo menos 2 letras</div></div>
+    <p class="meta" style="margin:6px 0 0">Enter vai pro primeiro · Ctrl+K abre de qualquer aba</p></div>`);
+  const q = m.querySelector('#find-q'), box = m.querySelector('#find-r');
+  const draw = () => { const h = findHits(q.value); box.innerHTML = h.map((x) => `<button class="li rv-opt" data-act="find-go" data-k="${x.k}" data-id="${x.id}"><span class="lt">${esc(x.text)}<small>${esc(x.sub)}${x.due ? ' · ' + fmtDM(x.due) : ''}</small></span></button>`).join('') || `<div class="empty">${q.value.trim().length < 2 ? 'digite pelo menos 2 letras' : 'nada com esse nome'}</div>`; };
+  q.addEventListener('input', draw);
+  q.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); box.querySelector('[data-act="find-go"]')?.click(); } });
+}
 function jumpBlock(bid) {
   const b = S.quests.blocks.find((x) => x.id === bid);
   if (!b) return;
@@ -740,6 +760,10 @@ const ACTIONS = {
   'del-gold': async (d) => { if (await ask('Apagar entrada de gold?', 'O valor sai do baú de ouro.', 'APAGAR', true)) A.deleteGold(d.id); },
   'gold-yes': (d) => { const p = goldByKey(d.key); if (p) { A.confirmGold(p, p.amount); sfx('coin'); } },
   // v8.3: atalhos que preenchem um campo do formulário (ex.: horário do time box; o relógio do navegador era ruim de usar)
+  // v8.5: BUSCA RÁPIDA (🔍 no topo ou Ctrl+K): digita e vai direto pra tarefa, bloco, boss ou ritual (pedido do dono: velocidade pra se mover no app)
+  find: () => openFind(),
+  'find-go': (d) => { closeModal(); if (d.k === 'task') jump(d.id); else if (d.k === 'block') jumpBlock(d.id); else if (d.k === 'rit') { location.hash = '#survival'; setTimeout(() => document.querySelector(`[data-rit="${CSS.escape(d.id)}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300); } },
+  'to-top': () => scrollTo({ top: 0, behavior: 'smooth' }),
   'set-field': (d, e, el) => { const f = el?.closest('form'), i = f?.elements?.[d.name]; if (!i) return; i.value = d.v; i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); f.querySelectorAll(`[data-act="set-field"][data-name="${d.name}"]`).forEach((b) => b.classList.toggle('on', b === el)); },
   'gold-edit': (d) => { const p = goldByKey(d.key); if (p) openModal(`<form data-form="gold-edit" data-key="${esc(p.key)}"><h2>💰 ${esc(p.title)}</h2><label class="lbl" for="ge-v">Quanto entrou (sua parte)</label><input class="inp" id="ge-v" name="v" type="number" min="1" value="${p.amount}" autofocus><div class="actions"><button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">GUARDAR</button></div></form>`); },
   'gold-later': (d) => { const p = goldByKey(d.key); if (p) A.snoozeGold(p); },
@@ -986,6 +1010,7 @@ document.addEventListener('drop', (e) => {
 // ───────────────────────── ATALHOS ─────────────────────────
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') { if (modalOpen()) { document.activeElement?.blur?.(); closeModal(); } return; } // blur antes: salva o texto em edição
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openFind(); return; } // v8.5: busca rápida
   if (modalOpen() || e.ctrlKey || e.metaKey || e.altKey || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName) || document.activeElement?.isContentEditable) return; // v6: escrevendo num balão do mapa, as letras não viram atalho
   const r = ROUTES.find((x) => x[4] && x[4] === e.key.toLowerCase());
   if (r) { location.hash = '#' + r[0]; return; }
@@ -1024,6 +1049,9 @@ document.addEventListener('focusin', (e) => {
   if (!/INPUT|TEXTAREA/.test(el?.tagName) || innerWidth > 860 || el.closest('.overlay, aside.postit')) return;
   setTimeout(() => { try { const vv = window.visualViewport, r = el.getBoundingClientRect(), h = vv ? vv.height : innerHeight; if (r.bottom > h - 12 || r.top < 60) el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch { /* */ } }, 380);
 });
+// v8.5: setinha bem pequena pra voltar ao topo (aparece depois de rolar)
+{ const b = document.createElement('button'); b.id = 'totop'; b.type = 'button'; b.dataset.act = 'to-top'; b.title = 'Voltar ao topo'; b.setAttribute('aria-label', 'Voltar ao topo'); b.textContent = '▲'; document.body.appendChild(b);
+  addEventListener('scroll', () => b.classList.toggle('on', scrollY > 600), { passive: true }); }
 // v9 (guia de interface, etapa 2): BRASINHAS VERMELHAS NO AR à noite. Só CSS anima; aparecem com o tema escuro (html[data-mode="night"])
 if (!document.getElementById('brasas')) {
   const b = document.createElement('div'); b.id = 'brasas'; b.setAttribute('aria-hidden', 'true');

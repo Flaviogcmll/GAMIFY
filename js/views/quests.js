@@ -5,6 +5,7 @@ import { esc, fmtDM, fmtN, today, diffDays, weekday, addDays } from '../util.js'
 import { taskRow, segBar, statusChips, dueChip } from '../ui.js';
 import { px } from '../icons.js';
 import { isCollapsed, companionCard } from '../v3.js';
+import { primoHead } from '../primo.js';
 import { arrange } from '../v35.js';
 import { overflowBar } from '../bujo.js';
 import { moscasHtml, moscaMortaHtml } from '../moscas.js';
@@ -142,7 +143,7 @@ function habitsCard(td) {
     <p class="meta" style="margin:8px 0 0">toque: ✓ fiz → – folga → vazio</p></div>`;
 }
 
-function filaCard(td) {
+export function filaCard(td) {
   const q = R.deadlineQueue(S, td); // v6.1: completa (antes eram só 12); o cartão rola
   const where = (t) => (t.block ? R.findBlock(S, t.block)?.title : R.areaName(t.area)) || '';
   // v8.3 (pedido do dono): os RITUAIS dos próximos 14 dias também entram na fila, na ordem da data (são coisas a fazer)
@@ -200,7 +201,7 @@ export function sidePanel(ui) {
   // v3.5: cada cartão do painel pode ser recolhido (toque no título), arrastado (alça ⠿) e escondido (⚙ PERSONALIZAR)
   // um bloco fixado (📌) fica sempre no topo do painel, à mão enquanto você mexe no resto
   // v6: o bloco fixado virou um post-it flutuante (postit.js), visível em todas as abas (v7.5: vários)
-  return `<aside class="side">${arrange('side', [
+  return `<aside class="side">${primoHead()}${arrange('side', [
     // v8 (pedido do dono, sem redundância): o relógio do corpo entrou no FOCO AGORA (a fase do dia e a dica); ele não sugere mais tarefa
     // v7.2: STATUS DO DIA (em ícones) e COMANDOS moram dentro do cartão do PRIMO
     ['primo', '🔥 PRIMO', companionCard()],
