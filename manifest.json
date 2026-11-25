@@ -10,8 +10,59 @@
   "background_color": "#f0dbbc",
   "theme_color": "#f0dbbc",
   "icons": [
-    { "src": "assets/icon-192-v2.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "assets/icon-512-v2.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "assets/icon-maskable-512-v2.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "assets/icon-192-v2.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon-512-v2.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon-maskable-512-v2.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Fila de prazos",
+      "short_name": "Fila",
+      "description": "Tudo que tem prazo, do mais perto pro mais longe",
+      "url": "./#fila",
+      "icons": [
+        {
+          "src": "assets/icon-192-v2.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Missões de hoje",
+      "short_name": "Missões",
+      "url": "./#quests",
+      "icons": [
+        {
+          "src": "assets/icon-192-v2.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Agenda",
+      "short_name": "Agenda",
+      "url": "./#agenda",
+      "icons": [
+        {
+          "src": "assets/icon-192-v2.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
   ]
 }
