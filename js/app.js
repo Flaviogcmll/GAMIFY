@@ -20,7 +20,7 @@ import { viewAgenda } from './views/agenda.js';
 
 import { viewShop, mmss } from './views/shop.js';
 
-import { viewDomingo, viewConquistas, viewRegras } from './views/extras.js';
+import { viewConquistas, viewRegras } from './views/extras.js';
 import { viewFiltro } from './views/filtro.js';
 
 import { viewRotina } from './views/rotina.js';
@@ -40,7 +40,7 @@ import { tripBanner, tripCheck, extendTrip } from './trip.js';
 import { maybeReview, extendReview } from './review.js';
 import { extendBujo, afterRenderBujo } from './bujo.js';
 import { perksNav, perksGo, applyCursor, CURSOR_KEY } from './telas.js';
-import { extendMapa, mountMap } from './mapa.js';
+import { extendMapa } from './mapa.js';
 import { extendPraga, extendPraga2, pragaPaint, pragaBanner, banhoSal, pragaGuide, salToast } from './praga.js';
 import { renderPostit } from './postit.js';
 
@@ -48,14 +48,14 @@ import { renderPostit } from './postit.js';
 // abas na mesma ordem da planilha
 const ROUTES = [
   ['quests', 'QUESTS', 'quests', viewQuests, 'q'], ['survival', 'SURVIVAL', 'survival', viewSurvival, 's'], ['agenda', 'AGENDA', 'agenda', viewAgenda, 'a'],
-  ['shop', 'FEIRA', 'shop', viewShop, 'l'], ['domingo', 'REFLEXÃO', 'domingo', viewDomingo, 'b'], ['conquistas', 'CONQUISTAS', 'conquistas', viewConquistas, ''],
+  ['shop', 'FEIRA', 'shop', viewShop, 'l'], ['domingo', 'REFLEXÃO', 'domingo', (u) => { setTimeout(() => { history.replaceState(null, '', '#survival'); document.getElementById('reflexao')?.scrollIntoView({ block: 'start' }); }, 80); return viewSurvival(u); }, 'b'], ['conquistas', 'CONQUISTAS', 'conquistas', viewConquistas, ''],
   ['filtro', 'FILTRO', 'filtro', (u) => { setTimeout(() => { history.replaceState(null, '', '#agenda'); document.getElementById('filtro-v')?.scrollIntoView({ block: 'start' }); }, 80); return viewAgenda(u); }, 'f'], ['rotina', 'ROTINA', 'rotina', viewRotina, 'r'], ['regras', 'PERKS AND RULES', 'regras', viewRegras, 'p'],
   ['arquivo', 'ARQUIVO', 'arquivo', viewArquivo3, ''],
   // v8.5: a FILA DE PRAZOS sozinha numa tela (atalho do app instalado: segure o ícone no celular, ou clique com o direito na barra do PC)
   ['fila', 'FILA', 'agenda', () => `<div class="page-title"><div><h1><em>fila de prazos</em>.</h1></div></div>${filaCard(today())}`, ''],
 ];
 /** a ordem das abas de cima é sua: arraste uma aba sobre outra */
-const HIDDEN_TABS = ['filtro', 'fila']; // v6.1: o FILTRO mora dentro da AGENDA · v8.5: a FILA é só pelo atalho
+const HIDDEN_TABS = ['filtro', 'fila', 'domingo']; // v6.1: o FILTRO mora dentro da AGENDA · v8.5: a FILA é só pelo atalho
 function tabOrder() {
   let saved = [];
   try { saved = JSON.parse(localStorage.getItem('gamify-ui:tabs')) || []; } catch { /* */ }
@@ -147,7 +147,6 @@ function render() {
   setStick();
   scrollTo(0, y);
   try { mountScenes(); } catch (err) { console.error(err); }
-  try { mountMap(); } catch (err) { console.error(err); }
   deaccent(document.body);
   try { maybeReview(); } catch (err) { console.error(err); }
   try { afterRender(cur); } catch (err) { console.error(err); }
@@ -957,7 +956,6 @@ document.addEventListener('change', (e) => {
   if (c === 'mode') setMode(el.value);
   if (c === 'vol') setVol(k, +el.value);
   if (c === 'filtro') { ui.filtro[k] = el.value; render(); }
-  if (c === 'mapa') A.setMapa(el.value);
   if (c === 'cursor') { try { localStorage.setItem(CURSOR_KEY, el.value); } catch { /* */ } applyCursor(); }
   if (c === 'routine-list') A.setRoutineList(k, el.value.split('\n'));
 });
