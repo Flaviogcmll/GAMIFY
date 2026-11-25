@@ -16,7 +16,7 @@ function quickAdd() {
   if (modalOpen()) return;
   const td = today();
   openModal(`<form data-form="quick" autocomplete="off"><h2>✎ anotar rápido</h2>
-    <input class="inp" name="text" placeholder="o que veio na cabeça?" aria-label="Tarefa" autofocus maxlength="200">
+    <input class="inp" name="text" placeholder="o que veio na cabeça?" aria-label="Tarefa" autofocus data-kbd maxlength="200">
     <div class="row seg qwhen" style="margin-top:8px">${[['', 'SEM PRAZO'], [td, 'HOJE'], [addDays(td, 1), 'AMANHÃ']].map(([d, n], i) => `<label class="btn sm ghost"><input type="radio" name="due" value="${d}" ${i ? '' : 'checked'}> ${n}</label>`).join('')}</div>
     <p class="meta" style="margin:6px 0 0">Enter salva. Depois você dá data e lugar com calma.</p>
     <div class="actions"><button type="button" class="btn" data-close>FECHAR</button><button class="btn pri">ANOTAR</button></div></form>`);

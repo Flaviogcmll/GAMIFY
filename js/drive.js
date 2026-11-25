@@ -33,8 +33,12 @@ async function getToken(interactive) {
   cachedToken();
   if (token && Date.now() < tokenExp - 60000) return token;
   if (!clientId()) throw new Error('Cole primeiro o ID de acesso do Google (veja o guia).');
+  // v8.3: sem toque do dono o Google não abre a janela de login (o navegador bloqueia). Antes a sincronização automática
+  // ficava esperando pra sempre (e travava as próximas): agora ela desiste na hora e o app avisa pra tocar em SINCRONIZAR.
+  if (!interactive) { const e = new Error('login'); e.needLogin = true; throw e; }
   await loadGis();
   return new Promise((res, rej) => {
+    setTimeout(() => rej(new Error('O Google demorou demais pra responder. Tente de novo.')), 90e3);
     tc = tc || window.google.accounts.oauth2.initTokenClient({ client_id: clientId(), scope: 'https://www.googleapis.com/auth/drive.appdata', callback: () => {} });
     tc.callback = (r) => { if (r.error) rej(new Error(r.error_description || r.error)); else { token = r.access_token; tokenExp = Date.now() + (r.expires_in || 3600) * 1000; ls.set('gamify-ui:gdrive', '1'); ls.set('gamify-ui:gtok', JSON.stringify({ t: token, exp: tokenExp })); res(token); } };
     tc.error_callback = (e) => rej(new Error(e?.type === 'popup_closed' ? 'Janela do Google fechada.' : 'O Google não abriu a janela de login.'));
@@ -72,6 +76,7 @@ async function upload(tk, fileId, body) {
 export async function driveSync({ interactive = true, render = () => {} } = {}) {
   if (busy || backendKind() !== 'local') return;
   busy = true;
+  if (interactive) warned = false;
   try {
     const tk = await getToken(interactive);
     await rememberAccount(tk);
@@ -87,7 +92,17 @@ export async function driveSync({ interactive = true, render = () => {} } = {}) 
     if (remoteChanged && localChanged && !useRemote && !(await ask('Manter este aparelho?', 'A versão da nuvem será substituída pela daqui.', 'MANTER ESTE', true))) return;
     if (useRemote) { restoreDocs(remote.docs); ls.set('gamify-ui:gsnap', remoteHash); markBackup(); render(); toast('☁ Dados baixados do Drive', 'good'); sfx('coin'); }
     else { await upload(tk, file.id, JSON.stringify(exportAll())); ls.set('gamify-ui:gsnap', localNow); markBackup(); if (interactive) toast('☁ Enviado pro Drive', 'good'); }
-  } catch (e) { if (interactive) { sfx('error'); toast('☁ ' + esc(e.message || 'Não deu certo'), 'bad'); } } finally { busy = false; }
+  } catch (e) {
+    if (interactive) { sfx('error'); toast('☁ ' + esc(e.message || 'Não deu certo'), 'bad'); }
+    else if (e.needLogin && !warned) { warned = true; toast('☁ O Google pediu pra entrar de novo: as mudanças deste aparelho ainda NÃO foram pro Drive. <button class="btn sm pri" data-act="drive-sync">☁ SINCRONIZAR</button>', 'gold'); }
+  } finally { busy = false; }
+}
+let warned = false, soonT = 0;
+/** v8.3: depois de cada mudança, manda pro Drive (20 s depois da última, pra juntar várias). Antes só mandava ao abrir e ao sair da aba,
+ *  e no celular o "ao sair" quase nunca rodava (o navegador congela a aba): o que foi feito no celular não chegava no PC. */
+export function driveSoon(render) {
+  if (ls.get('gamify-ui:gdrive') !== '1' || backendKind() !== 'local') return;
+  clearTimeout(soonT); soonT = setTimeout(() => driveSync({ interactive: false, render }), 20e3);
 }
 
 export function driveCard() {
@@ -111,6 +126,12 @@ export function extendDrive(ACTIONS, render) {
   // ao abrir e depois de mudanças (20 s), tenta sincronizar sozinho quando já conectado
   let t = null;
   setTimeout(() => { if (ls.get('gamify-ui:gdrive') === '1') driveSync({ interactive: false, render }); }, 4000);
-  document.addEventListener('visibilitychange', () => { if (document.hidden && ls.get('gamify-ui:gdrive') === '1') { clearTimeout(t); t = setTimeout(() => driveSync({ interactive: false, render }), 500); } });
+  // v8.3: ao sair da aba manda NA HORA (o timer congelava no celular); ao voltar pro app, busca o que o outro aparelho mandou
+  let lastPull = Date.now();
+  document.addEventListener('visibilitychange', () => {
+    if (ls.get('gamify-ui:gdrive') !== '1') return;
+    if (document.hidden) { clearTimeout(t); clearTimeout(soonT); driveSync({ interactive: false, render }); }
+    else if (Date.now() - lastPull > 60e3) { lastPull = Date.now(); clearTimeout(t); t = setTimeout(() => driveSync({ interactive: false, render }), 800); }
+  });
   void S;
 }

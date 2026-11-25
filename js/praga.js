@@ -164,18 +164,33 @@ function ambient() {
 }
 
 // ───── a janela que pula ("ERRO NA FITA") ─────
+// v8.3 (pedido do dono): ◄ ► passa pelas atrasadas sem fechar; remarcar ali mesmo (atalhos de data + motivo);
+// depois de cancelar, remarcar ou fazer o ritual, a janela mostra a PRÓXIMA em vez de sumir.
 const item = (id) => R.praga(S).list.find((x) => x.id === id);
+const nextMon = (td) => { let d = addDays(td, 1); while (new Date(d + 'T12:00').getDay() !== 1) d = addDays(d, 1); return d; };
 function popHtml(x) {
-  const pg = R.praga(S), isT = x.kind === 'task';
+  const pg = R.praga(S), isT = x.kind === 'task', n = pg.list.length, i = Math.max(0, pg.list.findIndex((y) => y.id === x.id)), td = today();
+  const nav = n > 1 ? `<div class="pp-nav"><button type="button" class="btn sm" data-act="praga-nav" data-i="${(i - 1 + n) % n}" aria-label="Anterior">◄</button><span class="meta">${i + 1} de ${n} atrasadas</span><button type="button" class="btn sm" data-act="praga-nav" data-i="${(i + 1) % n}" aria-label="Próxima">►</button></div>` : '';
+  const days = [['AMANHÃ', addDays(td, 1)], ['+2', addDays(td, 2)], ['SEGUNDA', nextMon(td)], ['+7', addDays(td, 7)]];
+  const L = pg.noite ? LINES_NOITE : LINES;
   return `<div class="praga-pop" data-praga="${x.phase}"><div class="pp-bar"><span>${x.phase >= 3 ? '⚠ ERRO NA FITA' : '⚠ ' + R.PRAGA_NAMES[x.phase]}</span><span>${String(Math.floor(Math.random() * 0xffff).toString(16)).toUpperCase().padStart(4, '0')}:${x.days}D</span></div>
+    ${nav}
     <h2>${x.phase >= 4 ? '🐺' : '🪰'} ${R.PRAGA_NAMES[x.phase]} <small>fase ${x.phase} de 4</small></h2>
     <div class="pp-row"><canvas class="pcv" data-portrait="mini" aria-hidden="true"></canvas>
-      <div><p class="pp-t"><b>${esc(x.text)}</b></p><p class="meta">atrasada há ${x.days} dia${x.days > 1 ? 's' : ''}${pg.list.length > 1 ? ` · ${pg.list.length} atrasadas no total` : ''}</p>
-      <p class="speech">${esc((pg.noite ? LINES_NOITE : LINES)[Math.floor(Math.random() * (pg.noite ? LINES_NOITE : LINES).length)])}</p></div></div>
-    <p class="meta">Resolver agora é o <b>🧂 BANHO DE SAL GROSSO</b>: o TREM se resolve (o XP é o da tarefa; limpar a Praga não dá XP extra). Remarcar (com motivo) custa o de sempre; cancelar é grátis.</p>
-    <div class="actions">${isT ? `<button class="btn" data-act="praga-cancel" data-id="${x.id}">✕ CANCELAR</button><button class="btn" data-act="praga-resched" data-id="${x.id}">📅 REMARCAR</button><button class="btn pri" data-act="praga-go" data-id="${x.id}">🧂 RESOLVER AGORA</button>`
-      : `<button class="btn" data-close>DEPOIS</button><button class="btn pri" data-act="ritual-done" data-id="${x.id}" data-close>🧂 FIZ O RITUAL</button>`}</div>
-    ${isT ? '<p class="meta" style="text-align:right;margin:6px 0 0"><a href="#" data-close>agora não</a></p>' : ''}</div>`;
+      <div><p class="pp-t"><b>${esc(x.text)}</b></p><p class="meta">${isT ? 'atrasada' : 'ritual atrasado'} há ${x.days} dia${x.days > 1 ? 's' : ''}</p>
+      <p class="speech">${esc(L[Math.floor(Math.random() * L.length)])}</p></div></div>
+    ${isT ? `<form class="pp-resched" data-form="praga-resched" data-id="${x.id}" autocomplete="off"><label class="lbl">📅 Remarcar pra</label>
+      <div class="row pp-days">${days.map(([nm, d], k) => `<button type="button" class="pill ${k === 0 ? 'on' : ''}" data-act="set-field" data-name="due" data-v="${d}"><span>${nm}</span></button>`).join('')}<input class="inp" type="date" name="due" required min="${td}" value="${addDays(td, 1)}" style="width:auto"></div>
+      <input class="inp" name="why" minlength="4" maxlength="120" placeholder="por que atrasou? (obrigatório pra remarcar)" aria-label="Motivo">
+      ${(() => { const t = S.quests.tasks.find((y) => y.id === x.id); return t && R.reschedLocked(S, t) ? `<div class="boxlock"><b>🔒 Já remarcada ${t.rs}x:</b> marque um horário e quanto tempo (time box) pra empurrar de novo.
+        <div class="row" style="margin-top:6px"><input class="inp" type="time" name="box_at" style="width:auto" aria-label="Horário">${['08:00', '10:00', '14:00', '16:00', '19:00'].map((h) => `<button type="button" class="pill" data-act="set-field" data-name="box_at" data-v="${h}"><span>${h}</span></button>`).join('')}
+        <select class="inp" name="box_min" style="width:auto" aria-label="Duração">${[15, 25, 50, 90].map((m) => `<option value="${m}" ${m === 25 ? 'selected' : ''}>${m} min</option>`).join('')}</select></div></div>` : ''; })()}
+      <div class="actions"><button type="button" class="btn" data-act="praga-cancel" data-id="${x.id}">✕ CANCELAR</button><button class="btn">📅 REMARCAR</button><button type="button" class="btn pri" data-act="praga-go" data-id="${x.id}">🧂 RESOLVER AGORA</button></div></form>
+      <p class="meta" style="margin:4px 0 0">Resolver agora é o <b>🧂 BANHO DE SAL GROSSO</b> (o XP é o da tarefa; limpar não dá XP extra). Remarcar custa o de sempre; cancelar é grátis.</p>`
+      : `<form class="pp-resched" data-form="praga-ritual" data-id="${x.id}" autocomplete="off"><label class="lbl">📅 Marcar o dia do ritual</label>
+      <div class="row pp-days">${days.map(([nm, d], k) => `<button type="button" class="pill ${k === 0 ? 'on' : ''}" data-act="set-field" data-name="plan" data-v="${d}"><span>${nm}</span></button>`).join('')}<input class="inp" type="date" name="plan" required min="${td}" value="${addDays(td, 1)}" style="width:auto"></div>
+      <div class="actions"><button class="btn">📅 MARCAR O DIA</button><button type="button" class="btn pri" data-act="praga-rit-done" data-id="${x.id}">🧂 FIZ O RITUAL</button></div></form>`}
+    <p class="meta" style="text-align:right;margin:6px 0 0"><a href="#" data-close>agora não</a></p></div>`;
 }
 export function pragaPop(id) {
   const x = item(id) || R.praga(S).worst;
@@ -186,6 +201,13 @@ export function pragaPop(id) {
   playFile(x.phase >= 3 ? 'praga-fita' : 'praga-chiado', { vol: 0.7 });
   if (x.phase >= 3) setTimeout(() => (Math.random() < 0.5 ? zumbido() : playFile('praga-sino', { vol: 0.6 })), 700);
   setTimeout(() => { try { mountPortraits(document.querySelector('.praga-pop')); } catch { /* */ } }, 30);
+}
+/** depois de uma ação na janela: mostra a próxima atrasada (ou fecha, se acabaram) */
+function popNext(afterId) {
+  setTimeout(() => {
+    const l = R.praga(S).list.filter((x) => x.id !== afterId);
+    if (l.length) pragaPop(l[0].id); else { closeModal(); toast('🧂 Nenhuma atrasada sobrando. A casa tá limpa!', 'good'); }
+  }, 120);
 }
 /** relógio das janelas: roda a cada 20 s */
 function tick() {
@@ -201,12 +223,21 @@ function tick() {
 }
 
 // ───── a cura: BANHO DE SAL GROSSO (a tela limpa de baixo pra cima, com sal grosso e arruda) ─────
+// v8.3: falas variadas (o dono achou repetido) e "o trem ficou organizado" no lugar de "se resolveu"
+const SAL_SUB = ['o trem ficou organizado', 'roupa dobrada, papel no lugar', 'a mosca foi embora', 'cheiro de arruda no ar', 'a casa respirou', 'um trem a menos, uai'];
+const SAL_TOAST = [
+  (n) => `${n} ficou organizado. A mosca bateu asa.`, (n) => `${n}: roupa dobrada e papel no lugar. Trem bão!`,
+  (n) => `Sal grosso na porta e ${n} se aquietou. Nó!`, (n) => `${n} saiu do caminho. O GUARANÁ até parou de rosnar.`,
+  (n) => `Arruda, sal e coragem: ${n} tá organizado.`, (n) => `${n} já era. Bão demais da conta!`,
+  (n) => `A CAJULINA carimbou: ${n}, ORGANIZADO.`, (n) => `${n} resolvido. A BRASINHA até deu um pulinho.`,
+];
+export const salToast = (name) => SAL_TOAST[Math.floor(Math.random() * SAL_TOAST.length)](name);
 export function banhoSal(info) {
   playFile('sal-grosso', { vol: 0.9 });
   const el = document.createElement('div'); el.className = 'sal-fx'; el.setAttribute('aria-hidden', 'true');
   let parts = '';
   for (let i = 0; i < 26; i++) parts += `<i class="${i % 3 ? 'sal' : 'arruda'}" style="left:${(Math.random() * 100).toFixed(1)}%;animation-delay:${(Math.random() * 0.8).toFixed(2)}s"></i>`;
-  el.innerHTML = `<div class="sg-luz"></div>${parts}<div class="sg-t">🧂 BANHO DE SAL GROSSO<br><small>o trem se resolveu</small></div>`;
+  el.innerHTML = `<div class="sg-luz"></div>${parts}<div class="sg-t">🧂 BANHO DE SAL GROSSO<br><small>${SAL_SUB[Math.floor(Math.random() * SAL_SUB.length)]}</small></div>`;
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 2600);
 }
@@ -216,25 +247,23 @@ export function extendPraga(ACTIONS, FORMS, jump) {
   setInterval(tick, 20e3);
   Object.assign(ACTIONS, {
     'praga-pop': (d) => pragaPop(d.id),
+    'praga-nav': (d) => { const l = R.praga(S).list, x = l[+d.i]; if (x) pragaPop(x.id); },
     'praga-go': (d) => { closeModal(); jump(d.id); },
-    'praga-cancel': async (d) => { closeModal(); A.setStatus(d.id, 'cancel'); },
-    'praga-resched': (d) => {
-      const t = S.quests.tasks.find((y) => y.id === d.id); if (!t) return;
-      openModal(`<form data-form="praga-resched" data-id="${t.id}"><h2>📅 remarcar · ${esc(String(t.text).slice(0, 50))}</h2>
-        <label class="lbl">Nova data</label><input class="inp" type="date" name="due" required min="${today()}" value="${addDays(today(), 1)}">
-        <label class="lbl">Por que atrasou? (obrigatório: é o que limpa a praga)</label><input class="inp" name="why" required minlength="4" maxlength="120" placeholder="ex.: dependia do cliente, subestimei o tempo…" autofocus>
-        <p class="meta">Remarcar custa o XP normal de remarcar. O motivo fica guardado na tarefa.</p>
-        <div class="actions"><button type="button" class="btn" data-close>VOLTAR</button><button class="btn pri">REMARCAR E LIMPAR</button></div></form>`);
-    },
+    'praga-cancel': (d) => { A.setStatus(d.id, 'cancel'); popNext(d.id); },
+    'praga-rit-done': (d) => { A.ritualDone(d.id); popNext(d.id); },
+    'praga-resched': (d) => pragaPop(d.id), // (antigo botão: agora o remarcar mora na própria janela)
   });
   FORMS['praga-resched'] = (f) => {
     const id = f.dataset.id, due = f.due.value, why = f.why.value.trim();
-    if (!due || why.length < 4) { toast('Escreva o motivo (é ele que limpa a praga).', 'bad'); sfx('error'); return; }
+    if (!due || why.length < 4) { toast('Escreva o motivo (é ele que limpa a praga).', 'bad'); sfx('error'); f.why.focus(); return; }
     const t = S.quests.tasks.find((y) => y.id === id); if (!t) return;
-    const r = A.updateTask(id, { due, pragaLog: [...(t.pragaLog || []), { d: today(), why }].slice(-10) });
+    const at = f.box_at?.value, box = at ? { at, min: +(f.box_min?.value || 25) } : null;
+    if (f.box_at && !at) { toast('🔒 Marque o horário do time box pra empurrar de novo (ou cancele).', 'bad'); sfx('error'); return; }
+    const r = A.updateTask(id, { due, pragaLog: [...(t.pragaLog || []), { d: today(), why }].slice(-10), ...(box ? { box } : {}) });
     if (r?.error) { toast(r.error, 'bad'); return; }
-    closeModal();
+    popNext(id);
   };
+  FORMS['praga-ritual'] = (f) => { const id = f.dataset.id; if (!f.plan.value) return; A.planRitual(id, f.plan.value); popNext(id); };
 }
 
 // ───── v6.7: A ASSOMBRAÇÃO QUE PASSA (alma penada de chapéu de palha e lamparina). Tocar nela (xô!) mostra a tarefa ─────
@@ -262,37 +291,68 @@ export function passGhost() {
   playFile('praga-alma', { vol: 0.7 });
   setTimeout(() => { clearInterval(bob); el.remove(); }, 9500);
 }
-// ───── v6.7/v8: A MOSCA GUIA. Pousa onde a tarefa infectada está; as cores vão puxando até lá; tocar nela leva até a tarefa ─────
+// ───── v6.7/v8.3: AS MOSCAS GUIA. Uma mosca em CADA lugar que tem coisa atrasada (tarefas E rituais: tudo o que faz a Praga),
+// com o número quando é mais de uma. Tocar nela leva até lá e ela voa deixando uma trilha de fedor em espiral (pedido do dono).
+function guideTarget(x, route, ui) {
+  if (x.kind === 'ritual') {
+    if (route !== 'survival' || ui.mm) return [...document.querySelectorAll('#tabs a[href="#survival"], #bottom a[href="#survival"]')].find((a) => a.offsetParent) || null;
+    const row = document.querySelector(`[data-rit="${CSS.escape(x.id)}"]`); if (row) row.dataset.guia = '1';
+    return null; // já está na tela: a linha do ritual só ganha o brilho
+  }
+  const where = R.pragaWhere(S, x.id); if (!where) return null;
+  if (route !== 'quests' || ui.mm) return [...document.querySelectorAll('#tabs a[href="#quests"], #bottom a[href="#quests"]')].find((a) => a.offsetParent) || null;
+  const tab = ui.qtab || 'listas';
+  if (tab !== where.tab) return document.querySelector(`.qbar [data-act="qtab"][data-tab="${CSS.escape(where.tab)}"]`);
+  const li = document.querySelector(`li.task[data-id="${CSS.escape(x.id)}"]`);
+  if (li) li.dataset.guia = '1';
+  return li && li.offsetParent ? null : document.querySelector(where.block ? `[data-k="b:${CSS.escape(where.block)}"]` : `[data-k="l:${CSS.escape(where.area || '')}"]`);
+}
 export function pragaGuide() {
   document.querySelectorAll('.mosca-guia').forEach((x) => x.remove());
   document.querySelectorAll('[data-guia]').forEach((x) => x.removeAttribute('data-guia'));
-  const pg = R.praga(S), w = pg.list.find((x) => x.kind === 'task');
-  if (!w || pg.phase < 1) return;
-  const route = (location.hash || '#quests').slice(1), ui = window.__ui || {};
-  const where = R.pragaWhere(S, w.id); if (!where) return;
-  let target = null;
-  if (route !== 'quests' || ui.mm) target = [...document.querySelectorAll('#tabs a[href="#quests"], #bottom a[href="#quests"]')].find((a) => a.offsetParent);
-  else {
-    const tab = ui.qtab || 'listas';
-    if (tab !== where.tab) target = document.querySelector(`.qbar [data-act="qtab"][data-tab="${CSS.escape(where.tab)}"]`);
-    else {
-      const li = document.querySelector(`li.task[data-id="${CSS.escape(w.id)}"]`);
-      target = li && li.offsetParent ? null : document.querySelector(where.block ? `[data-k="b:${CSS.escape(where.block)}"]` : `[data-k="l:${CSS.escape(where.area || '')}"]`);
-      if (li) li.dataset.guia = '1';
-    }
+  const pg = R.praga(S);
+  if (!pg.list.length || pg.phase < 1) return;
+  const route = (location.hash || '#quests').slice(1), ui = window.__ui || {}, spots = new Map();
+  for (const x of pg.list) { const t = guideTarget(x, route, ui); if (!t) continue; if (!spots.has(t)) spots.set(t, []); spots.get(t).push(x); }
+  for (const [target, xs] of spots) {
+    target.dataset.guia = '1';
+    const w = xs[0], b = document.createElement('button');
+    b.type = 'button'; b.className = 'mosca-guia'; b.dataset.act = 'praga-guide'; b.dataset.id = w.id; b.dataset.kind = w.kind;
+    b.title = `${xs.length > 1 ? `${xs.length} coisas atrasadas por aqui` : `"${w.text.slice(0, 50)}" virou ${R.PRAGA_NAMES[w.phase]}`}. Onde tem mosca, tem coisa podre. Toque pra ir até lá.`;
+    b.innerHTML = SPR.guia.map((f, i) => pxSvg(f, 2, `f${i}`)).join('') + (xs.length > 1 ? `<b class="mg-n">${xs.length}</b>` : '');
+    if (getComputedStyle(target).position === 'static') target.style.position = 'relative';
+    target.appendChild(b);
   }
-  if (!target) return;
-  target.dataset.guia = '1';
-  const b = document.createElement('button');
-  b.type = 'button'; b.className = 'mosca-guia'; b.dataset.act = 'praga-guide'; b.dataset.id = w.id;
-  b.title = `A mosca pousou aqui: "${w.text.slice(0, 50)}" virou ${R.PRAGA_NAMES[w.phase]}. Onde tem mosca, tem coisa podre. Toque pra ir até ela.`;
-  b.innerHTML = SPR.guia.map((f, i) => pxSvg(f, 2, `f${i}`)).join('');
-  if (getComputedStyle(target).position === 'static') target.style.position = 'relative';
-  target.appendChild(b);
+}
+/** a trilha de fedor: a mosca voa de onde foi tocada até a coisa atrasada, fazendo um cachinho em espiral no fim */
+function flyTrail(from, sel) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  setTimeout(() => {
+    const el = document.querySelector(sel); if (!el) return;
+    const r = el.getBoundingClientRect(), sx = from.left + from.width / 2, sy = from.top + from.height / 2, ex = r.left + Math.min(r.width - 30, 60), ey = r.top + r.height / 2;
+    if (ey < 0 || ey > innerHeight) return;
+    const mx = (sx + ex) / 2, my = Math.min(sy, ey) - 80;
+    const d = `M${sx} ${sy} Q${mx} ${my} ${ex} ${ey - 14} a14 14 0 1 1 -10 12 a9 9 0 1 1 6 -7 a4 4 0 1 1 -2 3`;
+    const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('class', 'fedor-trilha'); svg.setAttribute('aria-hidden', 'true');
+    svg.innerHTML = `<path d="${d}" pathLength="100"/>`;
+    const m = document.createElement('div'); m.className = 'fedor-mosca'; m.innerHTML = pxSvg(SPR.mosca[0], 3); m.style.offsetPath = `path('${d}')`;
+    document.body.append(svg, m); zumbido(0.8);
+    setTimeout(() => { svg.remove(); m.remove(); }, 2200);
+  }, 520);
 }
 export function extendPraga2(ACTIONS, jump) {
   Object.assign(ACTIONS, {
-    'praga-guide': (d) => { zumbido(); if (window.__ui) window.__ui.mm = false; jump(d.id); },
+    'praga-guide': (d, e, el) => {
+      const from = el?.getBoundingClientRect?.() || { left: innerWidth / 2, top: 80, width: 0, height: 0 };
+      if (window.__ui) window.__ui.mm = false;
+      if (d.kind === 'ritual') { // ritual atrasado: vai pro SURVIVAL, onde se marca o ritual
+        if ((location.hash || '#quests') !== '#survival') location.hash = '#survival';
+        setTimeout(() => { const row = document.querySelector(`[data-rit="${CSS.escape(d.id)}"]`); row?.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 250);
+        flyTrail(from, `[data-rit="${CSS.escape(d.id)}"]`); return;
+      }
+      jump(d.id); flyTrail(from, `li.task[data-id="${CSS.escape(d.id)}"]`);
+    },
     'praga-ghost': (d, e, el) => {
       el?.classList.add('gone'); setTimeout(() => el?.remove(), 400);
       playFile('praga-sino', { vol: 0.5 }); sfx('swish');

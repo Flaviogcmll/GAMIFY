@@ -145,8 +145,13 @@ function habitsCard(td) {
 function filaCard(td) {
   const q = R.deadlineQueue(S, td); // v6.1: completa (antes eram só 12); o cartão rola
   const where = (t) => (t.block ? R.findBlock(S, t.block)?.title : R.areaName(t.area)) || '';
-  return `<div class="card fila-q"><header><h2 title="Tudo que tem prazo, do mais perto pro mais longe">⏰ Fila de prazos</h2><span class="meta">${q.length}</span></header>
-    <div class="list">${q.map((t) => `<div class="li" data-act="jump" data-id="${t.id}" data-list="${R.listOf(t, td)}" style="cursor:pointer"><div class="lt">${t.st === 'doing' ? '▶ ' : ''}${t.prio ? '<b class="bad">!</b> ' : ''}${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}<small>${esc(where(t))}</small></div><div class="row" style="flex-wrap:nowrap">${dueChip(t.due, false, true)}</div>${((m) => moscasHtml(m.n, m.title, true))(R.moscasOf(S, t, td))}</div>`).join('') || '<div class="empty">nenhuma tarefa com prazo.</div>'}</div></div>`;
+  // v8.3 (pedido do dono): os RITUAIS dos próximos 14 dias também entram na fila, na ordem da data (são coisas a fazer)
+  const rits = (S.core.rituals || []).map((r) => ({ r, s: R.ritualStatus(r, td) })).filter((x) => x.s.next && x.s.left != null && x.s.left <= 14);
+  const rows = [...q.map((t) => ({ t, k: t.due || '9999' })), ...rits.map((x) => ({ ...x, k: x.s.next }))].sort((a, b) => a.k.localeCompare(b.k));
+  const taskLi = (t) => `<div class="li" data-act="jump" data-id="${t.id}" data-list="${R.listOf(t, td)}" style="cursor:pointer"><div class="lt">${t.st === 'doing' ? '▶ ' : ''}${t.prio ? '<b class="bad">!</b> ' : ''}${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}<small>${esc(where(t))}</small></div><div class="row" style="flex-wrap:nowrap">${dueChip(t.due, false, true)}</div>${((m) => moscasHtml(m.n, m.title, true))(R.moscasOf(S, t, td))}</div>`;
+  const ritLi = (r, st) => { const pg = R.pragaOf(S, r.id); return `<div class="li rit" data-rit="${r.id}" ${pg ? `data-praga="${pg.phase}"` : ''} data-act="edit-ritual" data-id="${r.id}" style="cursor:pointer"><div class="lt">🔁 ${esc(r.name)}<small>ritual${st.plan ? ' · dia marcado' : ''}</small></div><div class="row" style="flex-wrap:nowrap"><span class="chip ${st.left < 0 ? 'late' : st.left <= 1 ? 'week' : 'rit'}">${esc(st.label)}</span></div>${pg ? moscasHtml(pg.phase >= 4 ? 'aur' : 3, `🪰 ritual atrasado há ${pg.days} dia(s)`, true) : ''}</div>`; };
+  return `<div class="card fila-q"><header><h2 title="Tudo que tem prazo, do mais perto pro mais longe (rituais incluídos)">⏰ Fila de prazos</h2><span class="meta">${rows.length}</span></header>
+    <div class="list">${rows.map((x) => (x.t ? taskLi(x.t) : ritLi(x.r, x.s))).join('') || '<div class="empty">nenhuma tarefa com prazo.</div>'}</div></div>`;
 }
 
 export function legendHtml() {
@@ -228,7 +233,8 @@ function clockLine() {
   const c = R.bodyClock(S);
   const h = (m) => (m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? String(m % 60).padStart(2, '0') : ''}` : `${m} min`);
   const meta = [c.key === 'sono' ? `acordar ${c.wake}` : `dormir ${c.bed} (faltam ${h(c.toBed)})`, c.meal ? `🍽 ${c.meal.at}${c.meal.in ? ` (em ${h(c.meal.in)})` : ' (agora)'}` : '', ['despertar', 'foco', 'vale'].includes(c.key) ? `☕ até ${c.coffeeUntil}` : '', ['vale', 'pico2'].includes(c.key) ? `🏋 até ${c.trainUntil}` : ''].filter(Boolean).join(' · ');
-  return `<div class="fn-clock" data-phase="${c.key}" title="Relógio do corpo (PERKS → 🧠): ${esc(c.tip)}"><b>${c.icon} ${esc(c.name)}</b> <span>${esc(c.tip)}</span> <small>${esc(meta)}</small></div>`;
+  const curto = c.tip.split(/(?<=[.!?])\s/)[0]; // v8.3: só a 1ª frase (a dica inteira fica na legenda): o relógio estava ocupando o cartão todo
+  return `<div class="fn-clock" data-phase="${c.key}" title="Relógio do corpo (PERKS → 🧠): ${esc(c.tip)}"><b>${c.icon} ${esc(c.name)}</b> <span>${esc(curto)}</span> <small>${esc(meta)}</small></div>`;
 }
 /** depois da hora: no lugar das listas, o fechamento do dia (o que fiz, o que fica pra amanhã, hábitos) */
 function closingView() {
@@ -290,7 +296,8 @@ function focusCard(ui) {
   const f = R.focusNow(S, today(), ui.focusSkip || []);
   if (!f) return `<div class="focus-now card empty-f"><span class="fn-k">🎯 FOCO AGORA</span><span class="meta">nada urgente: escolha você ${ui.focusSkip?.length ? '<a href="#" data-act="focus-reset">ver de novo as sugestões</a>' : ''}</span>${clockLine()}</div>`;
   const t = f.task, b = t.block && R.findBlock(S, t.block);
-  return `<div class="focus-now card ${f.praga ? 'praga' : ''}" ${f.praga ? `data-praga="${f.praga}"` : ''}><span class="fn-k" title="O PRIMO escolhe UMA tarefa pra você não perder tempo decidindo">🎯 FOCO AGORA</span>
+  const ph = R.neuroOn(S, 'clock') ? R.bodyClock(S).key : ''; // v8.3: o cartão ganha uma cor bem leve conforme a fase do dia
+  return `<div class="focus-now card ${f.praga ? 'praga' : ''}" ${f.praga ? `data-praga="${f.praga}"` : ''} ${ph ? `data-phase="${ph}"` : ''}><span class="fn-k" title="O PRIMO escolhe UMA tarefa pra você não perder tempo decidindo">🎯 FOCO AGORA</span>
     <button class="check" data-act="toggle" data-id="${t.id}" aria-label="Concluir">${t.st === 'doing' ? '▶' : ''}</button>
     <div class="fn-t" data-act="jump" data-id="${t.id}" title="Toque pra ir até a tarefa"><b>${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}</b><small>${b ? esc(b.title) + ' · ' : ''}porque ${esc(f.why)}</small></div>
     ${((m) => moscasHtml(m.n, m.title))(R.moscasOf(S, t))}<span class="chip xp">${R.taskXp(S, t).xp}</span>${f.praga ? `<span class="chip praga-chip" title="Enquanto ela estiver infectada, não dá pra trocar">🪰 FASE ${f.praga}</span>` : `<button class="btn sm ghost" data-act="focus-skip" data-id="${t.id}" title="Agora não: mostra outra sugestão">OUTRA ▸</button>`}${clockLine()}</div>`;

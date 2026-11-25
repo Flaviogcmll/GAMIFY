@@ -6,15 +6,17 @@ import { moscasHtml, quedaHtml, moscaMortaHtml } from './moscas.js';
 
 // ───── modal ─────
 let modalClose = null;
+const coarse = () => { try { return matchMedia('(pointer: coarse)').matches; } catch { return false; } };
 export function openModal(html, { onClose, wide } = {}) {
   closeModal();
+  if (coarse() && !/data-kbd/.test(html)) html = html.replace(/\sautofocus(?=[\s>])/g, ''); // v8.3: no celular o teclado não pula na frente de tudo
   const ov = document.createElement('div');
   ov.className = 'overlay';
   ov.innerHTML = `<div class="modal" role="dialog" aria-modal="true" ${wide ? 'style="width:min(820px,100%)"' : ''}>${html}</div>`;
   ov.addEventListener('mousedown', (e) => { if (e.target === ov) { document.activeElement?.blur?.(); closeModal(); } }); // blur antes: o texto em edição é salvo
   document.body.appendChild(ov);
   modalClose = () => { ov.remove(); modalClose = null; onClose?.(); };
-  setTimeout(() => { ov.querySelector('[autofocus]')?.focus(); window.__deaccent?.(ov); }, 0);
+  setTimeout(() => { if (!coarse() || ov.querySelector('[data-kbd]')) ov.querySelector('[autofocus]')?.focus(); window.__deaccent?.(ov); }, 0);
   return ov.querySelector('.modal');
 }
 export function closeModal() {

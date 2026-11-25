@@ -522,7 +522,7 @@ export function totals(s) {
   const ticketsEarned = (s.core?.season?.tickets || 0) + lv.level - 1 + bossDone + Math.floor(onTime / 10) + lootTickets;
   const ticketsSpent = buys.reduce((a, p) => a + (!from || (p.date || '') >= from ? p.tickets || 0 : 0), 0);
   return (c.totals = {
-    earned, spent, balance: earned - spent, goldIn, goldOut, gold: goldIn - goldOut,
+    earned, spent, balance: earned - spent, goldIn, goldOut, gold: goldIn - goldOut - (s.core?.season?.goldMinus || 0), // v8.3: RECOMEÇO (zerar sem capítulo novo) também zera o gold
     tickets: ticketsEarned - ticketsSpent, ticketsEarned, ...lv,
   });
 }

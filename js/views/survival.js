@@ -76,7 +76,7 @@ const RIT_ICON = { pessoa: '👥', rotina: '🔁', trabalho: '💼' };
 /** uma linha de ritual: nome, quando, selo, 📅 marcar o dia e ✓ FIZ */
 export function ritualRow(r, td = today()) {
   const s = R.ritualStatus(r, td);
-  return `<div class="li"><div class="lt" data-act="edit-ritual" data-id="${r.id}" style="cursor:pointer">${RIT_ICON[r.type] || '🔁'} ${esc(r.name)}<small>${s.next ? DOW[weekday(s.next)] + ' ' + fmtDM(s.next) : '—'}${s.plan ? ' · dia marcado por você' : r.every ? ` · a cada ${r.every} dias` : r.dom ? ` · todo dia ${r.dom}` : ''}</small></div>
+  return `<div class="li" data-rit="${r.id}"><div class="lt" data-act="edit-ritual" data-id="${r.id}" style="cursor:pointer">${RIT_ICON[r.type] || '🔁'} ${esc(r.name)}<small>${s.next ? DOW[weekday(s.next)] + ' ' + fmtDM(s.next) : '—'}${s.plan ? ' · dia marcado por você' : r.every ? ` · a cada ${r.every} dias` : r.dom ? ` · todo dia ${r.dom}` : ''}</small></div>
       <div class="row" style="flex-wrap:nowrap;gap:6px"><span class="chip ${s.left != null && s.left <= 0 ? 'late' : s.tone === 'bad' ? 'late' : s.tone === 'warn' || (s.left != null && s.left <= 1) ? 'week' : 'soon'}">${esc(s.label)}</span><button class="btn sm ghost" data-act="ritual-plan" data-id="${r.id}" title="Marcar o dia em que vou fazer">📅</button>${r.last === td ? `<button class="btn sm ghost" data-act="ritual-undo" data-id="${r.id}" title="Desfazer">↺</button>` : `<button class="btn sm" data-act="ritual-done" data-id="${r.id}">✓ FIZ</button>`}</div></div>`;
 }
 function ritualsMini(td) {
