@@ -270,7 +270,7 @@ function body(big, compact = false) {
   return `<div class="pcard ${big ? 'big' : ''} ${compact ? 'compact' : ''}" data-mood="${mk}">${compact ? '' : `<div class="phead"><div class="pstage"><canvas class="pcv" data-portrait="${big ? 'full' : 'card'}" data-act="comp-poke" aria-label="${esc(c.name)}"></canvas>
       <canvas class="pcv pmascot" data-mascot title="${esc(pet.title)}" data-act="mascot-info"></canvas></div>
       <div class="speech" id="comp-speech" data-pspeech="ambient" data-act="comp-poke" title="toque pra ouvir outra"></div>${pstat}</div>`}
-    <div class="pcol">${compact ? pstat : ''}
+    <div class="pcol">
       ${statusIcons()}
       ${brasLine(pet)}
       ${loboLine()}
