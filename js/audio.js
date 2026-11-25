@@ -211,6 +211,12 @@ export function stopAmbience() {
   prefs.on = false; savePrefs();
 }
 export const ambienceOn = () => running;
+/** v8.9 (pedido do dono): 🔇 desliga TODO som do app (efeitos, música, Praga); 🔊 volta como estava */
+export function toggleMute() {
+  if (prefs.mute) { prefs.mute = false; prefs.sfx = prefs.sfxPrev ?? 0.6; }
+  else { prefs.mute = true; prefs.sfxPrev = prefs.sfx || 0.6; prefs.sfx = 0; if (running) stopAmbience(); pragaDrone(0); }
+  savePrefs(); applyVolumes(); return prefs.mute;
+}
 // v8.3 (pedido do dono): sair do app no celular sem fechar a aba deixava a música tocando. Aba escondida = som pausado; voltou = continua.
 document.addEventListener('visibilitychange', () => { if (!ctx) return; try { if (document.hidden) ctx.suspend(); else if (prefs.sfx > 0 || running) ctx.resume(); } catch { /* */ } });
 window.addEventListener('pagehide', () => { try { ctx?.suspend(); } catch { /* */ } });
