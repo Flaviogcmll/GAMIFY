@@ -498,6 +498,7 @@ export function addTask({ text, area = 'hoje', block = null, due = null, parent 
       t.ord = (anchor.ord + nextOrd) / 2;
     }
     if (color) { t.color = color; if (color === 'red' && !t.due) t.due = today(); } // v8.4: adicionada numa lista de cor (URGENTE sempre tem prazo)
+    if (t.due) t.dueSet = today(); // v8.8: prazo nascido hoje pode mudar hoje sem custo
     S.quests.tasks.push(t);
     return { task: t, feedback: { newTrem: t.due ? t : null } }; // v8: "Que trem é esse, sô?"
   });
@@ -657,6 +658,7 @@ export function setStatus(id, st) {
 function syncLink(t) { const lb = t?.link && B(t.link); if (lb) lb.due = t.due || null; }
 export function reschedBase(t, newDue) {
   if (!t || !t.due || !newDue || newDue <= t.due) return 0;
+  if (t.dueSet === today()) return 0; // v8.8 (pedido do dono): acabou de pôr o prazo hoje e mudou no mesmo dia = não paga
   return Math.min(R.C.RESCHED * 2 ** (t.rs || 0), R.C.RESCHED * R.RESCHED_CAP);
 }
 /** 1 remarcação grátis por semana (vale a primeira que você fizer) */
@@ -685,6 +687,7 @@ export function updateTask(id, patch) {
     if (cost) { chargeResched(t, cost); }
     if (free) { useFree(); t.rs = (t.rs || 0) + 1; }
     if ('text' in patch) patch.text = normalizeText(patch.text);
+    if ('due' in patch && patch.due && !t.due) t.dueSet = today(); // v8.8: prazo posto hoje (antes não tinha): mudar hoje é de graça
     if (patch.block !== undefined || patch.area !== undefined) {
       // mudar de lista/bloco: leva junto os passos ↳ e vai pro fim do destino
       const nb = patch.block || null, na = nb ? 'block' : patch.area ?? t.area;
@@ -761,6 +764,27 @@ export function deleteBlock(id) {
     S.quests.blocks = S.quests.blocks.filter((b) => b.id !== id);
     S.quests.tasks = S.quests.tasks.filter((t) => t.block !== id);
   });
+}
+/** v8.8 (pedido do dono): um bloco vira SUBTAREFA de outro bloco. O título vira uma tarefa lá dentro (mesmo prazo e cor),
+ *  e as tarefas dele viram passos ↳ dela (as feitas vão junto, pro histórico). A tarefa-mãe dele nas MISSÕES sai. */
+export function mergeBlockInto(srcId, dstId) {
+  const src = B(srcId), dst = B(dstId);
+  if (!src || !dst || src.id === dst.id || src.group === 'bs' || dst.st === 'done') return { error: 'Não dá pra juntar esses dois blocos.' };
+  return commit(['quests'], () => {
+    let ord = Math.max(0, ...S.quests.tasks.filter((t) => t.block === dst.id).map((t) => t.ord || 0)) + 1;
+    const head = { id: uid('t'), area: 'block', block: dst.id, text: normalizeText(src.title.replace(/\s*\(\d+\s*XP\)/i, '')), st: src.st === 'done' ? 'done' : '', due: src.due || null, created: src.created || today(), ord: ord++, ...(src.color && src.color !== dst.color ? { color: src.color } : {}) };
+    if (dst.due && head.due && head.due > dst.due) head.due = dst.due; // a subtarefa não passa do prazo do bloco
+    S.quests.tasks.push(head);
+    for (const t of S.quests.tasks.filter((x) => x.block === src.id).sort((a, b) => (a.ord || 0) - (b.ord || 0))) {
+      t.block = dst.id; t.parent = head.id; t.ord = ord++;
+      if (!/^\s*(↳|>)/.test(t.text)) t.text = '↳ ' + t.text;
+      if (dst.due && t.due && t.due > dst.due) t.due = dst.due;
+    }
+    const sb = src.src && T(src.src);
+    if (sb?.mother) S.quests.tasks = S.quests.tasks.filter((t) => t !== sb); else if (sb) { delete sb.link; delete sb.linked; }
+    S.quests.blocks = S.quests.blocks.filter((b) => b.id !== src.id);
+    return { msg: `↘ "${src.title}" virou subtarefa de "${dst.title}".` };
+  }, { label: 'juntar blocos' });
 }
 export function moveBlock(id, dir) {
   const b = B(id);
@@ -1085,6 +1109,7 @@ export function applyPlan(plan) {
     for (const p of plan) {
       const t = T(p.id); if (!t) continue;
       const b = reschedBase({ ...t, due: p.from ?? t.due }, p.to);
+      if (!p.from) t.dueSet = today(); // v8.8: ganhou prazo hoje: mudar hoje é de graça
       t.due = p.to; syncLink(t);
       if (b && free) { free = false; useFree(); t.rs = (t.rs || 0) + 1; } else if (b) pids.push(chargeResched(t, b));
     }
