@@ -35,7 +35,7 @@ function taverna(tot, shop) {
       <div class="itags">${m.min ? `<span title="Ao usar, liga um cronômetro de ${m.min} minutos">⏱ ${m.min}m</span>` : ''}<span title="Ou pegue com ${R.ticketCost(it)} ticket(s), sem gastar XP">🎟 ${R.ticketCost(it)}</span>${n ? `<span title="Você já comprou ${n} vez(es)">×${n}</span>` : ''}${offer?.id === it.id ? `<span class="offer-why" title="${esc(R.offerWhy(S, td))}">🎁</span>` : ''}</div>
       ${R.neuroOn(S, 'calm') && R.boughtLast7(S, it.id, td) >= R.HABIT_BUY ? `<small class="warn" title="Habituação: o cérebro se acostuma com a mesma recompensa e ela perde o efeito">🔁 ${R.boughtLast7(S, it.id, td)}x em 7 dias: varie a recompensa</small>` : ''}
       ${goal && !can ? segBar(tot.balance / price, 'sm') : ''}
-      <div class="ia"><button class="btn sm ${can ? 'pri' : ''}" data-act="buy" data-id="${it.id}" ${can ? '' : 'disabled'}>${can ? 'COMPRAR' : shop.locked ? 'TRANCADA' : `FALTA ${fmtN(price - tot.balance)}`}</button>
+      <div class="ia">${can ? `<button class="btn sm pri" data-act="buy-now" data-id="${it.id}" title="Compra e já começa a aproveitar (liga o cronômetro, se tiver)">⚡ USAR AGORA</button><button class="btn sm" data-act="buy" data-id="${it.id}" title="Compra e guarda na SACOLA pra usar depois">🎒 SACOLA</button>` : `<button class="btn sm" disabled>${shop.locked ? 'TRANCADA' : `FALTA ${fmtN(price - tot.balance)}`}</button>`}
         ${tot.tickets >= R.ticketCost(it) && !shop.locked ? `<button class="btn sm" data-act="buy-ticket" data-id="${it.id}" title="Pegar com ${R.ticketCost(it)} ticket(s)">${R.ticketCost(it)}${px('ticket', 12)}</button>` : ''}
         <button class="icon-btn" data-act="shop-goal" data-id="${it.id}" title="Marcar como meta">${goal ? '★' : '☆'}</button>
 </div>

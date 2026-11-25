@@ -1999,3 +1999,8 @@ html, body { height: auto; } body { min-height: 100vh; }
 .pc-cor { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--edge); cursor: pointer; padding: 0; opacity: .45; }
 .pc-cor[data-c="red"] { background: var(--c-urg); } .pc-cor[data-c="yellow"] { background: var(--c-atencao); } .pc-cor[data-c="green"] { background: var(--c-ok); }
 .pc-cor.on { opacity: 1; box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--ink); }
+
+/* ═════════════ v8.8 — rodada 7: mecânicas novas ═════════════ */
+/* o TREM que cresce a cada adiamento (montinho de tralha em pixel, ×2 ×3 ×4) */
+.trem-monte { display: inline-flex; align-items: flex-end; line-height: 0; image-rendering: pixelated; margin-right: 2px; }
+.trem-monte[data-rs="3"] svg { animation: mosca-voo 2.4s steps(2) infinite; }

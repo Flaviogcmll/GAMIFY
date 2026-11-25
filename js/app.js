@@ -378,6 +378,7 @@ function editBlock(id) {
     <label class="lbl">Cor</label>${swatches(color)}
     <div class="row"><div class="grow"><label class="lbl" for="b-due">◆ Prazo final</label><input class="inp" type="date" id="b-due" name="due" value="${b.due || ''}"></div>
       <div class="grow"><label class="lbl" for="b-group">Janela</label><select class="inp" id="b-group" name="group">${Object.entries(R.GROUPS).map(([g, i]) => `<option value="${g}" ${b.group === g && !R.winOf(S, b) ? 'selected' : ''}>${i.name}</option>`).join('')}${R.windows(S).map((w) => `<option value="win:${w.id}" ${b.win === w.id ? 'selected' : ''}>▣ ${esc(w.name)}</option>`).join('')}</select></div></div>
+    ${b.group !== 'bs' ? `<details class="merge-b"><summary class="meta">↘ virar subtarefa de outro bloco</summary><div class="row" style="margin-top:6px"><select class="inp grow" data-merge-into="${id}" aria-label="Bloco de destino"><option value="">— escolha o bloco —</option>${S.quests.blocks.filter((x) => x.id !== id && x.st !== 'done' && x.group !== 'bs').sort((a, z) => a.title.localeCompare(z.title)).map((x) => `<option value="${x.id}">${esc(x.title)}${R.winOf(S, x) ? ' · ' + esc(R.winOf(S, x).name) : ''}</option>`).join('')}</select></div><p class="meta" style="margin:4px 0 0">O título vira uma tarefa lá dentro e as tarefas daqui viram passos ↳ dela. Dá pra desfazer no ↩.</p></details>` : ''}
     <div class="actions"><div class="left"><button type="button" class="btn sm danger" data-act="del-block" data-id="${id}">APAGAR BLOCO</button></div>
       <button type="button" class="btn" data-close>FECHAR</button><button class="btn pri">SALVAR</button></div></form>`);
 }
@@ -746,6 +747,8 @@ const ACTIONS = {
     openModal(`<h2>${x.icon} ${esc(x.name)}</h2><p>${esc(x.desc)}</p>${x.cure ? `<p class="muted">Cura: ${esc(x.cure)}</p>` : ''}<div class="actions"><button class="btn pri" data-close autofocus>OK</button></div>`);
   },
   buy: (d, e) => { const r = A.buyTaverna(d.id, false, at(e)); if (r?.error) { sfx('error'); toast(esc(r.error), 'bad'); } },
+  // v8.8 (pedido do dono): USAR AGORA = compra e já começa a usar (sem passar pela SACOLA)
+  'buy-now': (d, e) => { const r = A.buyTaverna(d.id, false, at(e)); if (r?.error) { sfx('error'); toast(esc(r.error), 'bad'); return; } const p = [...S.loja.purchases].reverse().find((x) => x.itemId === d.id && x.status === 'bag'); if (p) A.useItem(p.id); },
   'buy-ticket': (d, e) => { const r = A.buyTaverna(d.id, true, at(e)); if (r?.error) { sfx('error'); toast(esc(r.error), 'bad'); } },
   confess: async (d) => { const it = S.loja.taverna.find((x) => x.id === d.id); if (await ask('Fiz sem comprar…', `${it.name} sai por ${Math.round((R.tavernaPrice(S, it) * R.DEBT_MULT) / 5) * 5} XP (x${String(R.DEBT_MULT).replace('.', ',')}). Da próxima vez, compre antes.`, 'PAGAR A DÍVIDA', true)) A.confessItem(d.id); },
   'shop-goal': (d) => A.setShopGoal(d.id),
@@ -1050,6 +1053,13 @@ document.addEventListener('focusin', (e) => {
   const el = e.target;
   if (!/INPUT|TEXTAREA/.test(el?.tagName) || innerWidth > 860 || el.closest('.overlay, aside.postit')) return;
   setTimeout(() => { try { const vv = window.visualViewport, r = el.getBoundingClientRect(), h = vv ? vv.height : innerHeight; if (r.bottom > h - 12 || r.top < 60) el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch { /* */ } }, 380);
+});
+// v8.8: ↘ virar subtarefa de outro bloco (escolhe na janela do bloco e confirma)
+document.addEventListener('change', async (e) => {
+  const sel = e.target.closest?.('[data-merge-into]'); if (!sel || !sel.value) return;
+  const src = S.quests.blocks.find((b) => b.id === sel.dataset.mergeInto), dst = S.quests.blocks.find((b) => b.id === sel.value);
+  if (!src || !dst || !(await ask('Virar subtarefa?', `"${src.title}" vira uma tarefa dentro de "${dst.title}", e as tarefas dele viram passos ↳. Dá pra desfazer no ↩.`, 'VIRAR SUBTAREFA'))) { sel.value = ''; return; }
+  closeModal(); const r = A.mergeBlockInto(src.id, dst.id); if (r?.error) { toast(esc(r.error), 'bad'); return; } sfx('ready'); setTimeout(() => jumpBlock(dst.id), 60);
 });
 // v8.5: setinha bem pequena pra voltar ao topo (aparece depois de rolar)
 { const b = document.createElement('button'); b.id = 'totop'; b.type = 'button'; b.dataset.act = 'to-top'; b.title = 'Voltar ao topo'; b.setAttribute('aria-label', 'Voltar ao topo'); b.textContent = '▲'; document.body.appendChild(b);
