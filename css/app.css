@@ -2004,3 +2004,10 @@ html, body { height: auto; } body { min-height: 100vh; }
 /* o TREM que cresce a cada adiamento (montinho de tralha em pixel, ×2 ×3 ×4) */
 .trem-monte { display: inline-flex; align-items: flex-end; line-height: 0; image-rendering: pixelated; margin-right: 2px; }
 .trem-monte[data-rs="3"] svg { animation: mosca-voo 2.4s steps(2) infinite; }
+
+/* v8.9.1 (pedido do dono): o tema escuro um pouco mais amarronzado (continua com o toque de ameixa, menos roxo) */
+:root[data-mode="night"], :root[data-theme][data-mode="night"] { --bg: #211a1b; --panel: #2d2324; --panel-2: #372b2b; --line: #4f3f3d; --edge: #6e5249;
+  --accent-soft: color-mix(in srgb, #e0783b 20%, #2d2324); --good-soft: color-mix(in srgb, #5aa062 26%, #2d2324); --bad-soft: color-mix(in srgb, #df624c 24%, #2d2324);
+  --warn-soft: color-mix(in srgb, #734c81 34%, #2d2324); --info-soft: color-mix(in srgb, #477bab 30%, #2d2324); }
+:root[data-mode="night"] .btn.pri { color: #2b1d14; } /* v8.9.1: à noite o couro é claro: letra escura (contraste ~9:1) */
+:root[data-mode="night"] .btn.pri { outline-color: rgba(43, 29, 20, .35); }
