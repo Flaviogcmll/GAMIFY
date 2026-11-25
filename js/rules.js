@@ -1109,7 +1109,7 @@ export function bossHp(s, boss) {
 // ───────────────────────── v2: FILTRO ─────────────────────────
 export function filterRows(s, td = today()) {
   const rows = [];
-  const bucket = (d) => (!d ? 'SEM DATA' : d < td ? 'ATRASADA' : d === td ? 'HOJE' : diffDays(td, d) <= 7 ? 'PRÓX. 7 DIAS' : 'DEPOIS');
+  const bucket = (d) => (!d ? 'SEM DATA' : d < td ? 'ATRASADA' : d === td ? 'HOJE' : d === addDays(td, 1) ? 'AMANHÃ' : diffDays(td, d) <= 7 ? 'PRÓX. 7 DIAS' : 'DEPOIS'); // v8.7: AMANHÃ separado
   const ST = { '': 'ABERTA', doing: '▶ FAZENDO', wait: '⏳ AGUARDANDO' };
   for (const t of openTasks(s)) {
     const b = t.block ? findBlock(s, t.block) : null, p = parse(t.text);
@@ -1117,8 +1117,13 @@ export function filterRows(s, td = today()) {
       id: t.id, kind: 'task', text: t.text, where: b ? b.title : areaName(t.area), cat: b ? GROUPS[b.group].short : 'LISTA', who: t.who || (t.dep ? '🔗 OUTRA TAREFA' : ''),
       date: t.due || '', time: '', left: t.due ? diffDays(td, t.due) : null, bucket: bucket(t.due), status: ST[t.st || ''] || 'ABERTA',
       type: p.mini ? 'MINI-BOSS' : p.step ? 'PASSO' : 'TAREFA', color: b?.color || '', marks: [p.star && '⭐', p.home && '🛡', p.money && '💰'].filter(Boolean).join(''),
-      xp: taskXp(s, t, td).xp,
+      xp: taskXp(s, t, td).xp, at: t.at || t.box?.at || '',
     });
+  }
+  // v8.7 (pedido do dono): os RITUAIS também são coisas a fazer: entram no FILTRO com a data do próximo
+  for (const r of s.core?.rituals || []) {
+    const st = ritualStatus(r, td); if (!st.next) continue;
+    rows.push({ id: r.id, kind: 'ritual', text: '🔁 ' + r.name, where: 'RITUAL', cat: 'RITUAL', who: '', date: st.next, time: '', left: diffDays(td, st.next), bucket: bucket(st.next), status: 'ABERTA', type: 'RITUAL', color: '', marks: '', xp: 0, at: '' });
   }
   return rows;
 }
