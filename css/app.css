@@ -1542,7 +1542,7 @@ html, body, main { overflow-anchor: none; }
 @keyframes praga-pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c-urg) 0%, transparent); } 50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-urg) 45%, transparent); } }
 @keyframes praga-float { 0% { transform: translateY(6px) rotate(0); opacity: 0; } 20% { opacity: .9; } 100% { transform: translateY(-38px) rotate(30deg); opacity: 0; } }
 /* fase 1 incubação: laranja com 🦠 · fase 2 infecção: vermelho pulsando · fase 3/4: mais forte */
-li.task[data-praga] .txt::before, .li.rit[data-praga] .lt::before { content: '🦠 '; }
+li.task[data-praga] .txt::before, .li.rit[data-praga] .lt::before { content: '💀 '; } /* v8.3: a caveira no lugar da bactéria (pedido do dono: mais clean) */
 li.task[data-praga="1"] { border-left-color: var(--c-quase) !important; background: color-mix(in srgb, var(--c-quase) 8%, transparent); }
 li.task[data-praga="2"], li.task[data-praga="3"], li.task[data-praga="4"], .li.rit[data-praga="2"], .li.rit[data-praga="3"], .li.rit[data-praga="4"] { border-left-color: var(--c-urg) !important; background: color-mix(in srgb, var(--c-urg) 10%, transparent); animation: praga-pulse 1.6s ease-in-out infinite; border-radius: 6px; }
 li.task[data-praga="4"] { background: color-mix(in srgb, var(--c-urg) 18%, transparent); }
@@ -1936,3 +1936,37 @@ li.task { position: relative; }
 @keyframes brasa-sobe { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: .85; } 50% { transform: translate(18px, -50vh); } 85% { opacity: .5; } 100% { transform: translate(-10px, -100vh); opacity: 0; } }
 @media (max-width: 600px) { #brasas i:nth-child(n+6) { display: none; } }
 @media (prefers-reduced-motion: reduce) { #brasas { display: none !important; } }
+
+/* ═════════════ v8.3 — rodadas 1 e 2 (defeitos, celular, Praga) ═════════════ */
+/* post-it: do tamanho que precisar (até quase a tela toda), lado a lado no PC, e o campo de anotar sempre à mostra */
+aside.postit { max-height: calc(100vh - 96px); width: min(300px, calc(100vw - 24px)); }
+aside.postit.min { width: min(300px, calc(100vw - 24px)); max-width: none; }
+aside.postit.min .addline { padding-top: 4px; }
+@media (min-width: 861px) { aside.postit { right: calc(18px + var(--pi, 0) * 312px); bottom: 18px; } }
+/* FOCO AGORA: no celular o texto nunca espreme (antes virava uma letra por linha); cor bem leve pela fase do dia; a fase em destaque */
+.focus-now .fn-t { flex: 1 1 170px; }
+@media (max-width: 600px) { .focus-now .fn-k { flex: 1 1 100%; } .focus-now .fn-t { flex: 1 1 calc(100% - 48px); } .focus-now .moscas { margin-left: 0; } }
+.focus-now[data-phase] { --fase: var(--c-calma); background: color-mix(in srgb, var(--fase) 7%, var(--panel)); }
+.focus-now[data-phase="foco"], .focus-now[data-phase="pico2"] { --fase: var(--c-atencao); }
+.focus-now[data-phase="vale"] { --fase: var(--c-ok); } .focus-now[data-phase="desacelerar"] { --fase: var(--c-espera); }
+.focus-now .fn-clock b { font-size: 8px; padding: 3px 7px; border-radius: 7px; color: var(--ink); background: color-mix(in srgb, var(--fase, var(--c-calma)) 28%, transparent); }
+:root[data-praga] .focus-now.praga { background: linear-gradient(90deg, color-mix(in srgb, #241414 10%, var(--panel)), var(--panel)); }
+/* sal grosso: a luz é mais comprida que a tela, então ao subir não aparece mais o "corte" reto embaixo (o dono via a base cortada) */
+.sal-fx .sg-luz { inset: -10% 0 -70% 0; }
+/* texturas mais leves (estavam atrapalhando a leitura): papel e crochê bem de leve, chita só na barra das abas */
+.arq-daycard { background-image: none; } .arq-daycard .arq-day { background-image: var(--tx-papel); background-size: 28px 28px; }
+.vitrine[data-v="tav"] .vit-b { background-image: none; }
+.tabs { background-size: 42px 42px; }
+/* arrastar blocos no celular: a alça vira um alvo de dedo (44 px) */
+@media (pointer: coarse) { .block .handle[data-handle="block"] { min-width: 40px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; font-size: 20px; touch-action: none; } }
+/* moscas guia: o número quando tem mais de uma coisa atrasada no mesmo lugar; ritual atrasado também brilha */
+.mosca-guia .mg-n { position: absolute; right: -6px; bottom: -4px; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 7px; font: 700 10px/14px var(--f-mono); color: #fffaf1; background: var(--c-urg); }
+.li[data-rit][data-guia] { outline: 2px solid color-mix(in srgb, #c0392b 70%, transparent); outline-offset: 1px; }
+/* a trilha de fedor: linha pontilhada cor de musgo que se desenha até a tarefa e termina num cachinho em espiral */
+.fedor-trilha { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 95; overflow: visible; }
+.fedor-trilha path { fill: none; stroke: #8b8b44; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 2 6; opacity: .85; animation: fedor-some 2.1s ease-out forwards; }
+@keyframes fedor-some { 0% { opacity: 0; } 15% { opacity: .9; } 70% { opacity: .7; } 100% { opacity: 0; } }
+.fedor-mosca { position: fixed; left: 0; top: 0; z-index: 96; pointer-events: none; line-height: 0; offset-rotate: 0deg; animation: fedor-voa 1.5s cubic-bezier(.4, 0, .3, 1) forwards; color: #2e2430; }
+.fedor-mosca svg { transform: translate(-50%, -50%); }
+@keyframes fedor-voa { 0% { offset-distance: 0%; } 100% { offset-distance: 100%; } }
+.fila-q .li.rit[data-praga]::after { display: none; }

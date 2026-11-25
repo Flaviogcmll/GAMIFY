@@ -211,6 +211,9 @@ export function stopAmbience() {
   prefs.on = false; savePrefs();
 }
 export const ambienceOn = () => running;
+// v8.3 (pedido do dono): sair do app no celular sem fechar a aba deixava a música tocando. Aba escondida = som pausado; voltou = continua.
+document.addEventListener('visibilitychange', () => { if (!ctx) return; try { if (document.hidden) ctx.suspend(); else if (prefs.sfx > 0 || running) ctx.resume(); } catch { /* */ } });
+window.addEventListener('pagehide', () => { try { ctx?.suspend(); } catch { /* */ } });
 
 // ───── v3.5: VOZ DO PRIMO (estilo "animalese": um bip por sílaba, com a altura da vogal) ─────
 const VOWEL = { a: 0, á: 0, à: 0, ã: -1, â: 0, e: 4, é: 5, ê: 4, i: 9, í: 9, o: -3, ó: -2, ô: -3, õ: -4, u: -5, ú: -5 };

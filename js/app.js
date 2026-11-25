@@ -33,7 +33,7 @@ import { extend4, afterRender4, captureFocus, checkMilestones, confirmResched, d
 
 import { extendPrimo, openPrimoHub, primoFeedback, primoReact } from './primo.js';
 
-import { extendDrive } from './drive.js';
+import { extendDrive, driveSoon } from './drive.js';
 import { extendImgs, imgSection, fillImgs } from './imgs.js';
 import { autoSnapshot, backupBanner, extendBackup, markBackup, restoreDocs } from './backup.js';
 import { tripBanner, tripCheck, extendTrip } from './trip.js';
@@ -41,7 +41,7 @@ import { maybeReview, extendReview } from './review.js';
 import { extendBujo, afterRenderBujo } from './bujo.js';
 import { perksNav, perksGo, applyCursor, CURSOR_KEY } from './telas.js';
 import { extendMapa, mountMap } from './mapa.js';
-import { extendPraga, extendPraga2, pragaPaint, pragaBanner, banhoSal, pragaGuide } from './praga.js';
+import { extendPraga, extendPraga2, pragaPaint, pragaBanner, banhoSal, pragaGuide, salToast } from './praga.js';
 import { renderPostit } from './postit.js';
 
 
@@ -266,6 +266,7 @@ function welcome() {
 
 // ───────────────────────── RECOMPENSAS NA TELA ─────────────────────────
 A.onFeedback((fb) => {
+  driveSoon(render); // v8.3: toda mudança vai pro Drive uns segundos depois (o celular não perde mais o que foi feito)
   // 🧠 dopamina sob controle: tarefa fácil (menos de 20 XP, sem ⭐ ⚔) ganha só o "tic"; o número voando e os fogos ficam pro que custou
   const easy = R.neuroOn(S, 'calm') && fb.task && fb.xp < 20 && !/⚔|⭐/.test(fb.task.text || '');
   if (fb.task && fb.xp > 0 && fb.task.due) poof(fb.at); // v7.3b/v8: o TREM se resolveu (nuvenzinha de poeira e palha)
@@ -290,7 +291,7 @@ A.onFeedback((fb) => {
   if (fb.levelUp) levelUp(fb.levelUp);
   if (fb.chapterClosed) chapterCard(fb.chapterClosed);
   if (S._pragaWeek) { S._pragaWeek = false; toast('🌙 Uma semana inteira sem Praga: +1 🎟', 'gold'); }
-  if (fb.praga) { banhoSal(fb.praga); toast(`🧂 BANHO DE SAL GROSSO! ${esc(fb.praga.names[0].slice(0, 40))} se resolveu${fb.praga.clean ? ' · a casa tá limpa, o PRIMO desfranziu a testa' : ''}. (Limpar a Praga não dá XP: ninguém fabrica Praga pra ganhar ponto.)`, 'good'); } // v7.3
+  if (fb.praga) { banhoSal(fb.praga); toast(`🧂 ${salToast(`<b>${esc(fb.praga.names[0].slice(0, 40))}</b>`)}${fb.praga.clean ? ' A casa tá limpa: o PRIMO desfranziu a testa.' : ''}`, 'good'); } // v7.3
   if (!fb.quiet || fb.xp || fb.achievements?.length || fb.levelUp) render();
 });
 function levelUp(t) {
@@ -348,6 +349,7 @@ function editTask(id) {
       ${t.due ? `<span class="minfo" title="${t.due < td ? `Atrasada: concluir agora paga ${Math.round(Math.max(R.C.LATE_MIN, 1 - R.C.LATE_DAY * diffDays(t.due, td)) * 100)}% do XP. ` : ''}Empurrar o prazo custa ${A.reschedBase({ ...t, due: '0' }, '9')} XP${A.freeResched() ? ' (a 1ª da semana é grátis)' : ''}. Antecipar é de graça.">${t.due < td ? '⏰' : 'ⓘ'}${t.rs ? ` remarcada ${t.rs}x` : ''}</span>` : ''}</div>
     ${R.reschedLocked(S, t) && R.isOpen(t) ? `<div class="boxlock"><b>🔒 Já remarcada ${t.rs}x.</b> Pra empurrar de novo, marque um horário e quanto tempo (time box). Ou cancele: se não vale fazer, tudo bem.
       <div class="row" style="margin-top:6px"><label>⏰ às <input class="inp" type="time" name="box_at" value="${esc(t.box?.at || '')}" style="width:auto;display:inline-block"></label>
+      ${['08:00', '10:00', '14:00', '16:00', '19:00'].map((h) => `<button type="button" class="pill" data-act="set-field" data-name="box_at" data-v="${h}"><span>${h}</span></button>`).join('')}</div><div class="row" style="margin-top:6px">
       <label>por <select class="inp" name="box_min" style="width:auto;display:inline-block">${[15, 25, 50, 90].map((m) => `<option value="${m}" ${(t.box?.min || 25) === m ? 'selected' : ''}>${m} min</option>`).join('')}</select></label></div></div>` : t.box ? `<p class="meta" style="margin:4px 0 0">⏰ time box: ${esc(t.box.at)} · ${t.box.min} min</p>` : ''}
     <label class="lbl">Marcadores</label><div class="pills">
       ${pill('radio', 'kind', '', !p.mini && !p.step, '• tarefa', 'Tarefa comum')}${pill('radio', 'kind', 'mini', p.mini, '⚔ mini-boss', 'Uma vitória no meio do caminho: vale mais XP e solta fogos')}${pill('radio', 'kind', 'step', p.step, '↳ passo', 'Ação pequena embaixo de outra')}
@@ -737,6 +739,8 @@ const ACTIONS = {
   'undo-buy': async (d) => { if (await ask('Desfazer compra?', 'O XP/gold/ticket volta pro saldo.', 'DESFAZER')) A.undoPurchase(d.id); },
   'del-gold': async (d) => { if (await ask('Apagar entrada de gold?', 'O valor sai do baú de ouro.', 'APAGAR', true)) A.deleteGold(d.id); },
   'gold-yes': (d) => { const p = goldByKey(d.key); if (p) { A.confirmGold(p, p.amount); sfx('coin'); } },
+  // v8.3: atalhos que preenchem um campo do formulário (ex.: horário do time box; o relógio do navegador era ruim de usar)
+  'set-field': (d, e, el) => { const f = el?.closest('form'), i = f?.elements?.[d.name]; if (!i) return; i.value = d.v; i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); f.querySelectorAll(`[data-act="set-field"][data-name="${d.name}"]`).forEach((b) => b.classList.toggle('on', b === el)); },
   'gold-edit': (d) => { const p = goldByKey(d.key); if (p) openModal(`<form data-form="gold-edit" data-key="${esc(p.key)}"><h2>💰 ${esc(p.title)}</h2><label class="lbl" for="ge-v">Quanto entrou (sua parte)</label><input class="inp" id="ge-v" name="v" type="number" min="1" value="${p.amount}" autofocus><div class="actions"><button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">GUARDAR</button></div></form>`); },
   'gold-later': (d) => { const p = goldByKey(d.key); if (p) A.snoozeGold(p); },
   'gold-never': (d) => { const p = goldByKey(d.key); if (p) A.snoozeGold(p, true); },
@@ -1009,6 +1013,12 @@ onChange((why) => {
 // lo-fi volta sozinho no primeiro toque, se estava ligado
 document.addEventListener('pointerdown', () => { if (prefs.on && !ambienceOn()) { startAmbience(); render(); } }, { once: true });
 window.__deaccent = deaccent;
+// v8.3: no celular, ao tocar num campo, a tela rola até ele depois que o teclado abre (o teclado cobria o último bloco)
+document.addEventListener('focusin', (e) => {
+  const el = e.target;
+  if (!/INPUT|TEXTAREA/.test(el?.tagName) || innerWidth > 860 || el.closest('.overlay, aside.postit')) return;
+  setTimeout(() => { try { const vv = window.visualViewport, r = el.getBoundingClientRect(), h = vv ? vv.height : innerHeight; if (r.bottom > h - 12 || r.top < 60) el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch { /* */ } }, 380);
+});
 // v9 (guia de interface, etapa 2): BRASINHAS VERMELHAS NO AR à noite. Só CSS anima; aparecem com o tema escuro (html[data-mode="night"])
 if (!document.getElementById('brasas')) {
   const b = document.createElement('div'); b.id = 'brasas'; b.setAttribute('aria-hidden', 'true');

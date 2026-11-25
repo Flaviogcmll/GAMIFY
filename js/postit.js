@@ -28,10 +28,15 @@ function one(id, i) {
   el.style.setProperty('--pi', i);
   el.innerHTML = `<header class="pi-h" title="Arraste por aqui"><b>📌 ${esc(b.title)}</b><span class="meta">${items.length}</span>
       <button class="icon-btn" data-pi="min" aria-label="${min ? 'Abrir' : 'Recolher'} post-it" title="${min ? 'Abrir' : 'Recolher'}">${min ? '▴' : '▾'}</button><button class="icon-btn" data-act="pin-block" data-id="${b.id}" aria-label="Guardar post-it" title="Guardar (tirar da tela)">×</button></header>
-    ${min ? '' : `<ul class="tasks">${items.map((t) => taskRow(t)).join('') || '<div class="empty">vazio: anote abaixo.</div>'}</ul>
-      <form class="addline" data-form="add-task" data-block="${b.id}" autocomplete="off"><input class="inp" name="text" placeholder="+ anotar aqui (Enter)" aria-label="Anotar no post-it"></form>`}`;
+    ${min ? '' : `<ul class="tasks">${items.map((t) => taskRow(t)).join('') || '<div class="empty">vazio: anote abaixo.</div>'}</ul>`}
+    <form class="addline" data-form="add-task" data-block="${b.id}" autocomplete="off"><input class="inp" name="text" placeholder="+ anotar aqui (Enter)" aria-label="Anotar no post-it"></form>`; // v8.3: dá pra anotar mesmo recolhido
+  // v8.3: o post-it fica preso pela parte de BAIXO (left + bottom): abrir, recolher ou ganhar tarefa faz ele crescer pra cima,
+  // e o campo de anotar não sai do lugar (antes ele pulava e o dono tinha que arrastar de novo pra escrever)
   const pos = (() => { try { return JSON.parse(ls.get(POS + ':' + id) || (i === 0 ? ls.get(POS) : 'null')); } catch { return null; } })();
-  if (pos && innerWidth > 860) { el.style.left = Math.min(pos.x, innerWidth - 120) + 'px'; el.style.top = Math.min(pos.y, innerHeight - 60) + 'px'; el.style.right = 'auto'; el.style.bottom = 'auto'; }
+  if (pos && innerWidth > 860) {
+    const b0 = pos.b != null ? pos.b : Math.max(8, innerHeight - (pos.y + 60)); // posição antiga (topo) vira distância do pé da tela
+    el.style.left = Math.max(4, Math.min(pos.x, innerWidth - 120)) + 'px'; el.style.bottom = Math.max(4, Math.min(b0, innerHeight - 60)) + 'px'; el.style.right = 'auto'; el.style.top = 'auto';
+  }
   const ni = el.querySelector('input[name="text"]');
   if (ni && draft) ni.value = draft;
   if (ni && focused) ni.focus();
@@ -55,9 +60,11 @@ document.addEventListener('pointerdown', (e) => {
 document.addEventListener('pointermove', (e) => {
   if (!drag) return;
   const x = Math.max(4, Math.min(innerWidth - 120, e.clientX - drag.dx)), y = Math.max(4, Math.min(innerHeight - 50, e.clientY - drag.dy));
-  Object.assign(drag.el.style, { left: x + 'px', top: y + 'px', right: 'auto', bottom: 'auto' });
+  Object.assign(drag.el.style, { left: x + 'px', top: y + 'px', right: 'auto', bottom: 'auto' }); // enquanto arrasta, pelo topo; ao soltar, vira "pelo pé" 
 });
 document.addEventListener('pointerup', () => {
   if (!drag) return;
-  const r = drag.el.getBoundingClientRect(); ls.set(POS + ':' + drag.el.dataset.id, JSON.stringify({ x: Math.round(r.left), y: Math.round(r.top) })); drag = null;
+  const el = drag.el, r = el.getBoundingClientRect(), b = Math.max(4, Math.round(innerHeight - r.bottom));
+  ls.set(POS + ':' + el.dataset.id, JSON.stringify({ x: Math.round(r.left), b }));
+  Object.assign(el.style, { top: 'auto', bottom: b + 'px' }); drag = null;
 });
