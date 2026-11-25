@@ -4,7 +4,7 @@ import { S, status, backendKind } from '../store.js';
 
 import * as R from '../rules.js';
 import { tiles } from '../telas.js';
-import { scratchCard, mapCard } from '../mapa.js';
+import { scratchCard } from '../mapa.js';
 import { sundayTarget } from '../actions.js';
 
 import { esc, today, fmtDM, fmtDMY, weekday, fmtN, DOW, weekStart, addDays, lightNow } from '../util.js';
@@ -37,10 +37,10 @@ function metaCard() {
     <div class="row"><span>Hoje: <b>${cur} XP</b> → sugerida: <b>${sug} XP</b></span><button class="btn sm pri" data-act="goal-apply" data-v="${sug}" ${sug === cur ? 'disabled' : ''}>USAR ${sug} XP</button></div></div>`;
 }
 // ───────────── RESUMO DA SEMANA (o PRIMO conta como foi) ─────────────
-function resumoCard() {
+export function resumoSemana() {
   const ws = weekStart(today()), cur = weekSummary(ws), prev = weekSummary(addDays(ws, -7));
   const row = (t, x) => (x ? `<div class="li"><div class="lt">${esc(x.text)}<small>${t}</small></div></div>` : '');
-  return `<div class="card c12"><header><h2>📖 Como foi a semana</h2></header><div class="list">${row('esta semana (até agora)', cur)}${row('semana passada', prev)}${!cur && !prev ? '<div class="empty">Conclua tarefas e volte aqui: o PRIMO resume pra você.</div>' : ''}</div></div>`;
+  return `<div class="wk-res"><h3>📖 Resumo da semana</h3><div class="list">${row('esta semana (até agora)', cur)}${row('semana passada', prev)}${!cur && !prev ? '<div class="empty">Conclua tarefas e volte aqui: o PRIMO resume pra você.</div>' : ''}</div></div>`;
 }
 // ───────────── PESO (fica junto do baú) ─────────────
 function pesoCard() {
@@ -57,7 +57,9 @@ function pesoCard() {
     ${chart}<div class="list" style="margin-top:8px;max-height:200px;overflow:auto">${[...w].reverse().slice(0, 15).map(([d, v]) => `<div class="li"><div class="lt">${String(v).replace('.', ',')} kg<small>${DOW[weekday(d)]} ${fmtDM(d)}</small></div><button class="btn sm ghost" data-act="weight-del" data-d="${d}" aria-label="Apagar">✕</button></div>`).join('') || '<div class="empty">Anote o primeiro peso acima.</div>'}</div></div>`;
 }
 // ───────────── REFLEXÃO (era DOMINGO) ─────────────
-export function viewDomingo() {
+/** v8.6 (pedido do dono): a REFLEXÃO não é mais uma aba: vira um banner recolhível dentro do SURVIVAL
+ *  (nota da semana, baú de domingo, peso, histórico e descarregar a cabeça). O "como foi a semana" foi pro lado dos DESAFIOS. */
+export function reflexaoBanner() {
   const td = today();
   const target = sundayTarget(td);
   const already = target && S.core.sundays.some((x) => x.date === target);
@@ -97,9 +99,9 @@ export function viewDomingo() {
     (() => { const ws = weekStart(td), h = (S.core.praga?.hist || []).filter((x) => x.d >= ws); return { label: '🐛 Pragas da semana', value: h.length, sub: h.length ? `${h.filter((x) => x.sal ?? x.reza).length} com banho de sal grosso` : (S.core.praga?.lastSeen >= ws ? 'tem praga ativa' : 'semana limpa 🌙'), tone: h.length ? 'quase' : 'ok', tip: 'Quantas tarefas atrasadas viraram praga e foram limpas nesta semana' }; })(),
     { label: '🎁 Baús abertos', value: hist.length, sub: `${fmtN(hist.reduce((s, x) => s + (x.xp || 0), 0))} XP`, tone: 'premio' },
   ]);
-  return `<div class="page-title"><div><h1><em>domingo</em>.</h1></div></div>
-    ${strip}<div class="grid">${form}${pesoCard()}${resumoCard()}${table}</div>
-    ${(() => { const ck = 'c:domingo:caderno', shut = isCollapsed(ck); return `<section class="vitrine caderno-v ${shut ? 'shut' : ''}" data-v="caderno"><header class="vit-h" data-act="collapse" data-k="${ck}" title="Toque pra recolher ou abrir o CADERNO" style="--img:url('${new URL(`assets/topo/${CADERNO_ART ? 'caderno' : 'domingo'}-${lightNow() === 'noite' ? 'noite' : 'dia'}.webp`, document.baseURI).href}')"><div><h2><span class="chev">${shut ? '▸' : '▾'}</span> 📓 CADERNO</h2><p>Descarregar a cabeça e o mapa mental, guardados aqui no fim.</p></div></header>${shut ? '' : `<div class="vit-b"><div class="grid">${scratchCard()}${mapCard()}</div></div>`}</section>`; })()}`; // v7.7: o CADERNO fica no fim (pedido do dono)
+  const ck = 'c:survival:reflexao', shut = isCollapsed(ck);
+  return `<section class="vitrine reflexao-v ${shut ? 'shut' : ''}" data-v="reflexao" id="reflexao"><header class="vit-h" data-act="collapse" data-k="${ck}" title="Toque pra recolher ou abrir a REFLEXÃO" style="--img:url('${new URL(`assets/topo/domingo-${lightNow() === 'noite' ? 'noite' : 'dia'}.webp`, document.baseURI).href}')"><div><h2><span class="chev">${shut ? '▸' : '▾'}</span> 📖 REFLEXÃO</h2><p>Baú de domingo, peso, histórico e descarregar a cabeça.</p></div></header>
+    ${shut ? '' : `<div class="vit-b">${strip}<div class="grid">${form}${pesoCard()}${scratchCard()}${table}</div></div>`}</section>`;
 }
 
 // ───────────── CONQUISTAS ─────────────
@@ -260,5 +262,3 @@ function neuroCard() {
     </div></div>`;
 }
 
-/** v7.7: banner do CADERNO na REFLEXÃO (true quando existir assets/topo/caderno-<dia|noite>.webp) */
-const CADERNO_ART = false;

@@ -339,6 +339,10 @@ export function startup() {
     }
     S.core.migrations.push('v8-cores'); changedCore = true;
   }
+  if (!S.core.migrations.includes('v8-mapa-off')) { // v8.6 (pedido do dono, 5B): o MAPA MENTAL saiu do app, e os dados dele também
+    delete S.core.mapa;
+    S.core.migrations.push('v8-mapa-off'); changedCore = true;
+  }
   if (!S.core.migrations.includes('cores5')) { // v5.9: cores dos blocos = URGENTE, FAZENDO, ESTÁVEL, PARADO (o laranja saiu)
     for (const b of S.quests.blocks) if (b.color === 'orange') { b.color = 'green'; changedQ = true; }
     S.core.migrations.push('cores5'); changedCore = true;
@@ -1668,11 +1672,6 @@ export function delScratch(id) {
   commit(['core'], () => { S.core.scratch = (S.core.scratch || []).filter((x) => x.id !== id); });
 }
 /** v6: o mapa é de balões e setas ({ nodes, links }); o formato antigo (texto) ainda é aceito e vira balões ao abrir */
-export function setMapa(data) {
-  const v = typeof data === 'string' ? { text: data.slice(0, 6000) } : { nodes: (data.nodes || []).slice(0, 200), links: (data.links || []).slice(0, 400) };
-  if (JSON.stringify(S.core.mapa ? { ...S.core.mapa, at: undefined } : null) === JSON.stringify({ ...v, at: undefined })) return;
-  commit(['core'], () => { S.core.mapa = { ...v, at: today() }; }, { noUndo: true, quiet: true }); // v6.3: o mapa se redesenha sozinho (sem redesenhar a aba e pular a tela)
-}
 /** o mapa vira trabalho: a raiz vira um bloco no BREAKDOWN, os galhos viram tarefas e os galhos de galho viram passos ↳ */
 export function mapToBlock(tree) {
   if (!tree?.text) return;

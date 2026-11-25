@@ -5,6 +5,7 @@ import * as R from '../rules.js';
 import { tiles } from '../telas.js';
 import { esc, today, fmtDM, DOW, addDays, weekStart, range, weekday } from '../util.js';
 import { pbar, segBar, statusChips } from '../ui.js';
+import { reflexaoBanner, resumoSemana } from './extras.js';
 
 
 function grid(ui) {
@@ -35,13 +36,13 @@ function grid(ui) {
   }).join('');
   const xpRow = days.map((d, i) => `${i === 7 ? '<td class="sep"></td>' : ''}<td style="text-align:center;font:700 12px var(--f-display);color:var(--accent-2)">${S.marks.days[d]?.xp || ''}</td>`).join('');
   const stRow = days.map((d, i) => `${i === 7 ? '<td class="sep"></td>' : ''}<td style="text-align:center;font-size:12px;cursor:pointer" data-act="day-status" data-d="${d}" title="${R.dayStatus(S, d).list.map((x) => x.name).join(', ')}">${d <= td ? R.dayStatus(S, d).list.filter((x) => x.key !== 'sabado').map((x) => x.icon).join('') : ''}</td>`).join('');
-  return `<div class="card c12"><header><h2>Semana</h2>
+  return `<div class="card c12"><header><h2>Hábitos</h2>
       <div class="row"><button class="btn sm" data-act="hweek" data-dir="-1" aria-label="Semana anterior">◄</button><span class="meta">${fmtDM(days[0])} – ${fmtDM(days[6])}</span><button class="btn sm" data-act="hweek" data-dir="1" aria-label="Próxima semana" ${(ui.hweek || 0) >= 0 ? 'disabled' : ''}>►</button></div></header>
     <div class="grid2w"><table class="hg"><thead><tr><th></th>${head}<th></th></tr></thead><tbody>${body}
       <tr><th class="hn dim">XP DO DIA</th>${xpRow}<td></td></tr><tr><th class="hn dim">STATUS <span class="meta">(toque)</span></th>${stRow}<td></td></tr></tbody></table></div>
     <div class="hleg" title="Toque na casinha: ✓ fiz → – folga → vazio"><span class="chip soon">✓ fez</span><span class="chip late">✕ falhou</span><span class="chip calm">🛡 perdoada</span><span class="chip">🔥 sequência · 🏆 recorde</span></div>
-  ${weekCard(today(), ui, true)}
-  </div>`;
+  <div class="wk-split">${weekCard(today(), ui, true)}${resumoSemana()}</div>
+  </div>`; // v8.6: DESAFIOS na metade, RESUMO DA SEMANA ao lado
 }
 
 export function viewSurvival(ui) {
@@ -58,7 +59,8 @@ export function viewSurvival(ui) {
       { label: '✨ XP hoje', value: S.marks.days[td]?.xp || 0, cls: 'gold', tone: 'premio', tip: `Multiplicador dos hábitos hoje: x${st.habitMult.toFixed(2).replace('.', ',')}` },
     ])}
     <div class="card status-sv"><header><h2 title="Toque num status pra ver o que é e como resolver">🎭 Status do dia</h2></header><div class="status-line">${statusChips(st, R.alerts(S, td)) || '<span class="meta">nenhum buff nem debuff hoje.</span>'}</div></div>
-    <div class="grid">${grid(ui)}${ritualsMini(td)}</div>`;
+    <div class="grid">${grid(ui)}${ritualsMini(td)}</div>
+    ${reflexaoBanner()}`;
 }
 
 /** v7.4: os DESAFIOS DA SEMANA moram DENTRO da janela SEMANA (inside = sem cartão próprio) */
