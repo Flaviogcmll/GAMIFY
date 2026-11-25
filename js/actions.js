@@ -328,6 +328,17 @@ export function startup() {
     S.core.lobo ||= { st: 'guarana', since: td, curas: { noite: 0, antidoto: 0 }, hist: [] };
     S.core.migrations.push('v8-lobo'); changedCore = true;
   }
+  if (!S.core.migrations.includes('v8-cores')) { // v8.4: as listas viraram por COR. Quem não tinha cor ganha uma vez, pela data que tinha:
+    // até amanhã (ou atrasada) = URGENTE · até 7 dias = CHEGANDO · mais longe = ESTÁVEL · sem prazo = A CLASSIFICAR (sem cor). Daí pra frente quem manda é a cor.
+    const corDe = (due) => (!due ? '' : due <= addDays(td, 1) ? 'red' : due <= addDays(td, 7) ? 'yellow' : 'green');
+    for (const t of q.tasks) {
+      if (t.block || !R.isOpen(t) || t.st === 'wait' || t.who || t.dep) continue;
+      const lb = t.link && q.blocks.find((b) => b.id === t.link);
+      if (lb) { if (!lb.color && corDe(t.due || lb.due)) { lb.color = corDe(t.due || lb.due); changedQ = true; } continue; }
+      if (!t.color && corDe(t.due)) { t.color = corDe(t.due); changedQ = true; }
+    }
+    S.core.migrations.push('v8-cores'); changedCore = true;
+  }
   if (!S.core.migrations.includes('cores5')) { // v5.9: cores dos blocos = URGENTE, FAZENDO, ESTÁVEL, PARADO (o laranja saiu)
     for (const b of S.quests.blocks) if (b.color === 'orange') { b.color = 'green'; changedQ = true; }
     S.core.migrations.push('cores5'); changedCore = true;
@@ -434,6 +445,12 @@ function syncLists() {
       if (!d || d.st === 'done' || d.st === 'cancel') { delete t.dep; if (!t.who && t.st === 'wait') t.st = ''; released.push({ id: t.id, text: t.text }); changed = true; }
     }
     if (t.block) continue;
+    // v8.4: o prazo chegou (hoje ou atrasada) → a tarefa sobe sozinha pra URGENTE (vermelho), uma vez por prazo: dá pra tirar de lá depois
+    if (R.isOpen(t) && t.st !== 'wait' && !t.who && !t.dep && t.due && t.due <= td && t.autoUrg !== t.due) {
+      const lb = t.link && blk.get(t.link), col = lb ? lb.color : t.color;
+      if (col !== 'red' && col !== 'black' && !(lb && lb.st === 'wait')) { if (lb) lb.color = 'red'; else t.color = 'red'; changed = true; }
+      t.autoUrg = t.due; changed = true;
+    }
     // tarefa da lista ligada a um bloco que está "só aguardando": ela também espera, então mora em AGUARDANDO
     const k = R.isOpen(t) || t.st === 'sent' ? (t.link && blk.get(t.link)?.st === 'wait' ? 'wait' : R.listOf(t, td)) : R.AREAS[t.area] ? t.area : R.AREA_FROM_OLD[t.area] || 'sem';
     if (t.area !== k) { t.area = k; changed = true; }
@@ -450,7 +467,7 @@ export function normalizeText(text) {
   return t;
 }
 
-export function addTask({ text, area = 'hoje', block = null, due = null, parent = null, after = null }) {
+export function addTask({ text, area = 'hoje', block = null, due = null, parent = null, after = null, color = null }) {
   text = normalizeText(text);
   if (!text) return null;
   area = R.AREA_FROM_OLD[area] || area;
@@ -476,6 +493,7 @@ export function addTask({ text, area = 'hoje', block = null, due = null, parent 
       const nextOrd = c[i + 1]?.ord ?? anchor.ord + 1;
       t.ord = (anchor.ord + nextOrd) / 2;
     }
+    if (color) { t.color = color; if (color === 'red' && !t.due) t.due = today(); } // v8.4: adicionada numa lista de cor (URGENTE sempre tem prazo)
     S.quests.tasks.push(t);
     return { task: t, feedback: { newTrem: t.due ? t : null } }; // v8: "Que trem é esse, sô?"
   });
@@ -1124,7 +1142,25 @@ export function updateMilestones(list) {
   commit(['core'], () => { S.core.milestones = list.filter(Boolean); });
 }
 /** v5.14: liga/desliga e horários da neurociência (settings.neuro) */
-/** v8: 🪰 MOSCA MORTA. "ainda parado" = lembra de novo em 7 dias; "voltar a andar" = sai do PARADO (vira FAZENDO). */
+/** v8.4: tarefa arrastada pra uma lista de COR. A cor da tarefa-mãe é a do bloco (muda lá também). URGENTE sem prazo ganha prazo hoje.
+ *  `before` = soltou em cima de outra tarefa da mesma lista: só muda a ordem. */
+export function setCor(id, cor, before) {
+  const t = T(id); if (!t) return;
+  return commit(['quests'], () => {
+    const lb = t.link && B(t.link), color = R.COR_COLOR[cor];
+    if (cor === 'wait') { if (R.isOpen(t)) t.st = 'wait'; if (lb && lb.st !== 'done') lb.st = 'wait'; }
+    else {
+      if (t.st === 'wait') { t.st = ''; delete t.who; delete t.dep; }
+      if (lb && lb.st === 'wait') lb.st = '';
+      if (lb) lb.color = color || lb.color; else if (color) t.color = color; else delete t.color;
+      if (cor === 'urg' && !t.due) { t.due = today(); syncLink(t); }
+      if (t.due && t.due <= today()) t.autoUrg = t.due; // tirou de URGENTE de propósito: não volta sozinha hoje
+    }
+    const bt = before && T(before);
+    if (bt && bt.id !== t.id) t.ord = bt.ord - 0.001;
+  }, { label: 'mudar de lista' });
+}
+/** v8: 🪰 MOSCA MORTA. "ainda parado" = lembra de novo em 7 dias; "voltar a andar" = sai do PARADO (vira CHEGANDO, amarelo). */
 export function moscaSeen(ids) {
   commit(['core'], () => { const m = (S.core.moscaMorta ||= {}), td = today(); for (const id of ids) m[id] = td; }, { noUndo: true, quiet: true });
 }

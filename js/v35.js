@@ -218,7 +218,7 @@ document.addEventListener('pointerup', () => {
 export const COLOR_MEANING = [
   ['--c-urg', 'VERMELHO', 'urgente, perigo, inimigo: HOJE, atrasada, URGENTE, BOSS, vida, castigo, apagar. O vermelho acelera e chama a ação imediata.'],
   ['--c-quase', 'LARANJA', 'quase urgente: AMANHÃ. Alerta sem pânico.'],
-  ['--c-atencao', 'AMARELO', 'em andamento, atenção: ESTA SEMANA, EM ANDAMENTO, ritual pra amanhã.'],
+  ['--c-atencao', 'AMARELO', 'chegando, atenção: CHEGANDO, ritual pra amanhã.'],
   ['--c-ok', 'VERDE', 'feito, estável, tranquilo: concluída, ESTÁVEL, DEPOIS, hábito feito, REVISADO, buff. O verde acalma e diz "está tudo bem".'],
   ['--c-calma', 'AZUL', 'ritual e descanso: RITUAIS, fim de semana, feriado, sono, noite, pausa, falha perdoada. O azul baixa a ansiedade.'],
   ['--c-espera', 'ROXO', 'depende de outra pessoa: AGUARDANDO (lista, tarefa e bloco), vai e volta.'],

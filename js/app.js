@@ -317,9 +317,9 @@ function whereOptions(t) {
   const groups = Object.entries(R.GROUPS).map(([g, info]) => { const bl = S.quests.blocks.filter((b) => b.group === g).sort((a, b) => a.ord - b.ord); return bl.length ? `<optgroup label="${info.name}">${bl.map((b) => `<option value="block:${b.id}" ${t.block === b.id ? 'selected' : ''}>${esc(b.title)}</option>`).join('')}</optgroup>` : ''; }).join('');
   return `<optgroup label="LISTAS">${lists}</optgroup>${groups}`;
 }
-const COLORS = [['', 'sem cor'], ['red', '🟥 URGENTE'], ['yellow', '🟨 EM ANDAMENTO'], ['green', '🟩 ESTÁVEL'], ['black', '⬛ PARADO']];
+const COLORS = [['', 'sem cor'], ['red', '🟥 URGENTE'], ['yellow', '🟨 CHEGANDO'], ['green', '🟩 ESTÁVEL'], ['black', '⬛ PARADO']];
 // v5.16: as mesmas bolinhas de cor em toda janela; AGUARDANDO (roxo) virou uma das cores (por baixo continua o estado "aguardando")
-const SWATCH = [['red', 'URGENTE', 'urg', 'Prazo perto ou atrasado: faça primeiro'], ['yellow', 'EM ANDAMENTO', 'atencao', 'Você está mexendo nisso agora'], ['green', 'ESTÁVEL', 'ok', 'Tudo em ordem, sem pressa'],
+const SWATCH = [['red', 'URGENTE', 'urg', 'Prazo perto ou atrasado: faça primeiro'], ['yellow', 'CHEGANDO', 'atencao', 'Tá chegando a hora: vem logo depois das urgentes'], ['green', 'ESTÁVEL', 'ok', 'Tudo em ordem, sem pressa'],
   ['black', 'PARADO', 'neutro', 'Parado de propósito: some das listas até você mostrar'], ['wait', 'AGUARDANDO', 'espera', 'Depende de outra pessoa ou de outra coisa']];
 const swatches = (cur, withNone = false) => `<div class="swatches">${[...(withNone ? [['', 'SEM COR', 'none', 'Sem cor']] : []), ...SWATCH].map(([k, n, tone, tip]) => `<label class="csw" title="${tip}"><input type="radio" name="color" value="${k}" ${cur === k ? 'checked' : ''}><i data-tone="${tone}"></i><span>${n}</span></label>`).join('')}</div>`;
 /** marcador redondo (checkbox ou radio) com legenda ao passar o mouse */
@@ -621,7 +621,7 @@ const ACTIONS = {
   },
   'send-to': (d) => { closeModal(); const r = A.toBreakdown(d.id, d.to); if (r?.error) { sfx('error'); toast(esc(r.error), 'bad'); return; } sfx('upgrade'); if (r?.block) jumpBlock(r.block.id); },
   unlink: (d) => { A.unlinkTask(d.id); closeModal(); },
-  'edit-task': (d) => editTask(d.id),
+  'edit-task': (d) => { const t = S.quests.tasks.find((x) => x.id === d.id), lb = t?.mother && t.link && R.findBlock(S, t.link); if (lb && lb.group !== 'bs') editBlock(lb.id); else editTask(d.id); }, // v8.4: a tarefa-mãe É o bloco: abre a mesma janela
   'set-status': (d) => { A.setStatus(d.id, d.st); closeModal(); },
   'due-quick': (d, e, el) => { el.closest('form').due.value = d.d; },
   'move-task': (d) => A.moveTask(d.id, +d.dir),
@@ -824,9 +824,11 @@ const FORMS = {
     const text = f.text.value.trim();
     if (!text) return;
     f.text.value = '';
-    if (f.dataset.block) A.addTask({ text, block: f.dataset.block }); else A.addTask({ text, area: f.dataset.area });
+    const cor = f.dataset.cor, COR_AREA = { urg: 'hoje', chega: 'sem', estavel: 'sem', semcor: 'sem', wait: 'wait', parado: 'sem' };
+    if (f.dataset.block) A.addTask({ text, block: f.dataset.block }); else if (cor) A.addTask({ text, area: COR_AREA[cor], color: R.COR_COLOR[cor] || null }); else A.addTask({ text, area: f.dataset.area });
     sfx('tab');
-    if (!blur) requestAnimationFrame(() => document.querySelector(`form[data-form="add-task"][data-${f.dataset.block ? 'block' : 'area'}="${f.dataset.block || f.dataset.area}"] input`)?.focus());
+    const key = f.dataset.block ? 'block' : cor ? 'cor' : 'area';
+    if (!blur) requestAnimationFrame(() => document.querySelector(`form[data-form="add-task"][data-${key}="${f.dataset.block || cor || f.dataset.area}"] input`)?.focus());
   },
   'add-block': (f) => { const v = f.title.value.trim(); f.title.value = ''; if (v) A.addBlock(f.dataset.group, v, f.dataset.win ? { win: f.dataset.win } : {}); },
   window: (f) => { const r = A.saveWindow({ id: f.dataset.id, name: f.name.value, base: f.base.value }); if (r?.error) { toast(esc(r.error), 'bad'); return; } ui.qtab = 'w:' + r.window.id; closeModal(); sfx('tab'); render(); },
@@ -840,6 +842,8 @@ const FORMS = {
     const open = !t.st || t.st === 'doing' || t.st === 'wait';
     if (col === 'wait' || patch.who || patch.dep) { if (open) patch.st = 'wait'; } // roxo (ou disse quem segura): vai pra AGUARDANDO
     else { patch.color = col || undefined; if (t.st === 'wait') { patch.st = ''; patch.who = undefined; patch.dep = undefined; } } // outra cor: sai do AGUARDANDO
+    if (patch.color === 'red' && !patch.due && R.isOpen(t)) { patch.due = today(); toast('🟥 URGENTE sempre tem prazo: ficou pra hoje.', 'gold'); } // v8.4 (pedido do dono)
+    if (t.link && 'color' in patch && patch.color && patch.color !== 'wait') { const lb = R.findBlock(S, t.link); if (lb && lb.color !== patch.color) A.updateBlock(lb.id, { color: patch.color }); } // tarefa-mãe e bloco têm a mesma cor
     if (f.pin) patch.pin = f.pin.value || undefined;
     if (patch.due && t.due && patch.due > t.due && R.reschedLocked(S, t) && !patch.box) { sfx('error'); toast('🔒 Marque o horário (⏰) do time box pra empurrar de novo, ou cancele a tarefa.', 'bad'); f.box_at?.focus(); return; }
     if (!(await confirmResched(t, patch.due))) return;
@@ -962,7 +966,7 @@ document.addEventListener('dragstart', (e) => { const li = e.target.closest?.('l
 document.addEventListener('dragend', (e) => { const li = e.target.closest?.('li.task'); if (li) li.style.opacity = ''; document.querySelectorAll('.drag-over').forEach((x) => x.classList.remove('drag-over')); dragId = null; });
 document.addEventListener('dragover', (e) => {
   if (!dragId) return;
-  const zone = e.target.closest('[data-drop-area],[data-drop-block]');
+  const zone = e.target.closest('[data-drop-area],[data-drop-block],[data-drop-cor]');
   if (!zone) return;
   e.preventDefault();
   document.querySelectorAll('.drag-over').forEach((x) => x.classList.remove('drag-over'));
@@ -970,10 +974,11 @@ document.addEventListener('dragover', (e) => {
 });
 document.addEventListener('drop', (e) => {
   if (!dragId) return;
-  const zone = e.target.closest('[data-drop-area],[data-drop-block]');
+  const zone = e.target.closest('[data-drop-area],[data-drop-block],[data-drop-cor]');
   if (!zone) return;
   e.preventDefault();
   const before = e.target.closest('li.task')?.dataset.id;
+  if (zone.dataset.dropCor) { const t = S.quests.tasks.find((x) => x.id === dragId); if (t && !t.block) { A.setCor(dragId, zone.dataset.dropCor, before !== dragId ? before : undefined); sfx('tab'); return; } } // v8.4: listas por cor
   dropTaskSmart(dragId, { area: zone.dataset.dropArea, block: zone.dataset.dropBlock, before: before !== dragId ? before : undefined });
   sfx('tab');
 });
@@ -986,7 +991,7 @@ document.addEventListener('keydown', (e) => {
   if (r) { location.hash = '#' + r[0]; return; }
   if (e.key === ' ') { e.preventDefault(); openPrimoHub(); }
   if (e.key === 'n') ACTIONS.mode();
-  if (e.key === '/') { e.preventDefault(); location.hash = '#quests'; setTimeout(() => document.querySelector('form[data-area="hoje"] input')?.focus(), 60); }
+  if (e.key === '/') { e.preventDefault(); location.hash = '#quests'; setTimeout(() => document.querySelector('form[data-cor="urg"] input, form[data-area="hoje"] input')?.focus(), 60); }
 });
 
 // ───────────────────────── RELÓGIO: cronômetros, virada do dia, dia/noite ─────────────────────────

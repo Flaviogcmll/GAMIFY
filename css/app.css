@@ -1970,3 +1970,17 @@ aside.postit.min .addline { padding-top: 4px; }
 .fedor-mosca svg { transform: translate(-50%, -50%); }
 @keyframes fedor-voa { 0% { offset-distance: 0%; } 100% { offset-distance: 100%; } }
 .fila-q .li.rit[data-praga]::after { display: none; }
+/* ═════════════ v8.4 — rodada 3: QUESTS por cor ═════════════ */
+/* ≡ e RECOLHER sempre à mostra no canto direito da barra (no celular o ≡ sumia no fim da fileira das janelas) */
+.qbar { display: flex; align-items: center; gap: 8px; }
+.qbar > .seg { flex: 1 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.qbar .qtools { flex: none; display: flex; align-items: center; gap: 6px; margin-left: auto; }
+@media (max-width: 860px) { .qbar .qcol { padding: 0 8px; } }
+/* setinha de recolher à esquerda nos blocos e bosses (igual às listas) */
+.block .bh { align-items: flex-start; }
+.block .bchev { flex: none; margin: 2px 2px 0 0; }
+/* listas por cor: o topo de cada lista na cor dela */
+.list-card[data-cor="estavel"] > header { border-bottom-color: var(--c-ok); }
+.list-card[data-cor="semcor"] > header { border-bottom-color: var(--c-neutro); }
+.list-card[data-cor="parado"] { opacity: .8; }
+.list-card .addline { margin: 0 0 6px; }
