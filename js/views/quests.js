@@ -250,7 +250,7 @@ function closingView() {
         ${habits ? `<p class="meta">✓ ${habits} hábito(s) de hoje sem marcar · <a href="#survival">marcar agora</a></p>` : '<p class="meta">✓ hábitos de hoje marcados.</p>'}</div>
     </div>
     <p class="meta">😴 Deitar às ${c.bed} e acordar às ${c.wake} = ${String(c.sleepH).replace('.', ',')} h de sono. ${c.sleepH < 7 ? '<b class="bad">Menos de 7 h: ajuste em PERKS.</b>' : 'Dentro dos 7 a 9 h.'}</p>
-    <div class="row"><button class="btn sm ghost" data-act="curfew-skip">VER AS LISTAS MESMO ASSIM (15 MIN)</button></div></div>`;
+    <div class="row"><button class="btn sm pri" data-act="plan-tomorrow">🌙 PLANEJAR AMANHÃ</button><button class="btn sm ghost" data-act="curfew-skip">VER AS LISTAS MESMO ASSIM (15 MIN)</button></div></div>`;
 }
 
 export function viewQuests(ui) {

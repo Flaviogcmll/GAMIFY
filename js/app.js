@@ -38,6 +38,7 @@ import { extendImgs, imgSection, fillImgs } from './imgs.js';
 import { autoSnapshot, backupBanner, extendBackup, markBackup, restoreDocs } from './backup.js';
 import { tripBanner, tripCheck, extendTrip } from './trip.js';
 import { maybeReview, extendReview } from './review.js';
+import { extendPlanos, maybePlanAsk } from './planos.js';
 import { extendBujo, afterRenderBujo } from './bujo.js';
 import { perksNav, perksGo, applyCursor, CURSOR_KEY } from './telas.js';
 import { extendMapa } from './mapa.js';
@@ -149,6 +150,7 @@ function render() {
   try { mountScenes(); } catch (err) { console.error(err); }
   deaccent(document.body);
   try { maybeReview(); } catch (err) { console.error(err); }
+  try { maybePlanAsk(); } catch (err) { console.error(err); } // v8.7: à noite, o plano de amanhã
   try { afterRender(cur); } catch (err) { console.error(err); }
   try { afterRender4(cur); } catch (err) { console.error(err); }
   try { afterRenderBujo(); } catch (err) { console.error(err); }
@@ -346,7 +348,7 @@ function editTask(id) {
     <div class="waitbox"><label class="lbl" for="t-who">⏳ Aguardando quem ou o quê</label><div class="row">
       <input class="inp grow" id="t-who" name="who" value="${esc(t.who || '')}" list="who-list" placeholder="PREFEITURA, CLIENTE, FULANO…" autocomplete="off"><datalist id="who-list">${R.people(S).map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
       <select class="inp" name="dep" aria-label="Depende de outra tarefa" style="flex:1 1 220px;min-width:0"><option value="">— não depende de outra tarefa —</option>${R.openTasks(S).filter((x) => x.id !== t.id && x.dep !== t.id).sort((x, y) => (x.block === t.block ? 0 : 1) - (y.block === t.block ? 0 : 1) || x.text.localeCompare(y.text)).map((x) => `<option value="${x.id}" ${t.dep === x.id ? 'selected' : ''}>🔗 ${esc(x.text.replace(/\s*\(\d+\s*XP\)/i, '').slice(0, 60))}</option>`).join('')}</select></div></div>
-    <label class="lbl" for="t-due">Prazo</label><div class="row"><input class="inp" type="date" id="t-due" name="due" value="${t.due || ''}" ${cap ? `max="${cap}" title="Até o prazo do bloco"` : ''} style="width:auto">
+    <label class="lbl" for="t-due">Prazo <span class="meta">· ⏰ horário (opcional: aparece no MEU DIA da AGENDA)</span></label><div class="row"><input class="inp" type="date" id="t-due" name="due" value="${t.due || ''}" ${cap ? `max="${cap}" title="Até o prazo do bloco"` : ''} style="width:auto"><input class="inp" type="time" name="at" value="${esc(t.at || '')}" style="width:auto" aria-label="Horário">
       ${[['HOJE', td], ['AMANHÃ', addDays(td, 1)], ['+3', addDays(td, 3)], ['PRÓX. SEG', nextMon], ['SEM', '']].map(([n, d]) => `<button type="button" class="pill" data-act="due-quick" data-d="${d}"><span>${n}</span></button>`).join('')}
       ${t.due ? `<span class="minfo" title="${t.due < td ? `Atrasada: concluir agora paga ${Math.round(Math.max(R.C.LATE_MIN, 1 - R.C.LATE_DAY * diffDays(t.due, td)) * 100)}% do XP. ` : ''}Empurrar o prazo custa ${A.reschedBase({ ...t, due: '0' }, '9')} XP${A.freeResched() ? ' (a 1ª da semana é grátis)' : ''}. Antecipar é de graça.">${t.due < td ? '⏰' : 'ⓘ'}${t.rs ? ` remarcada ${t.rs}x` : ''}</span>` : ''}</div>
     ${R.reschedLocked(S, t) && R.isOpen(t) ? `<div class="boxlock"><b>🔒 Já remarcada ${t.rs}x.</b> Pra empurrar de novo, marque um horário e quanto tempo (time box). Ou cancele: se não vale fazer, tudo bem.
@@ -814,6 +816,7 @@ extendBackup(ACTIONS, () => render());
 extendTrip(ACTIONS);
 extendReview(ACTIONS);
 window.__ui = ui;
+window.__render = () => render();
 /** em qual janela do QUESTS um bloco aparece */
 function tabOfBlock(b) { return !b ? 'listas' : b.group === 'bs' ? 'boss' : R.winOf(S, b) ? 'w:' + b.win : b.group; }
 function windowModal(id) {
@@ -859,7 +862,7 @@ const FORMS = {
   task: async (f) => {
     const t = S.quests.tasks.find((x) => x.id === f.dataset.id);
     const text = rebuildText(f.text.value, { star: f.star.checked, home: f.home.checked, money: f.money.checked, xp: +f.xp.value || null, kind: f.kind.value });
-    const patch = { text, due: f.due.value || null, prio: f.prio.checked || undefined, cycle: f.cycle.checked, who: f.who.value.trim().toUpperCase() || undefined, dep: f.dep.value || undefined };
+    const patch = { text, due: f.due.value || null, at: f.at?.value || undefined, prio: f.prio.checked || undefined, cycle: f.cycle.checked, who: f.who.value.trim().toUpperCase() || undefined, dep: f.dep.value || undefined };
     if (f.box_at?.value && patch.due && t.due && patch.due > t.due) patch.box = { at: f.box_at.value, min: +f.box_min.value || 25 }; // v5.16 E) time box destrava a remarcação
     const col = f.querySelector('[name=color]:checked')?.value ?? (t.color || '');
     const open = !t.st || t.st === 'doing' || t.st === 'wait';
@@ -940,6 +943,7 @@ FORMS['new-chapter'] = (f) => { const ch = S.core.chapter || {}; closeModal(); A
 FORMS['rot-hours'] = (f) => { const v = f.h.value; if (!v) return; A.setRoutineHours([...(S.core.routine?.hours || []), v]); ACTIONS['rot-hours'](); };
 extendBujo(ACTIONS, FORMS);
 extendMapa(ACTIONS, FORMS);
+extendPlanos(ACTIONS, FORMS);
 extendPraga(ACTIONS, FORMS, jump);
 extendPraga2(ACTIONS, jump);
 document.addEventListener('submit', (e) => { const f = e.target.closest('form[data-form]'); if (!f) return; e.preventDefault(); FORMS[f.dataset.form]?.(f); });

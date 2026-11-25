@@ -7,6 +7,7 @@ import { filtroBody } from './filtro.js';
 import * as R from '../rules.js';
 import { esc, today, fmtDM, DOW, addDays, range, weekday, weekStart, holidayName, lightNow } from '../util.js';
 import { dueChip } from '../ui.js';
+import { diaCard } from '../planos.js';
 
 
 function timelineCard(ui) {
@@ -63,12 +64,13 @@ export function viewAgenda(ui) {
     <div class="row" style="flex-wrap:nowrap;gap:6px"><span class="chip ${s.left <= 0 ? 'late' : s.left <= 1 ? 'week' : 'rit'}">${esc(s.label)}</span>${r.last === td ? '' : `<button class="btn sm" data-act="ritual-done" data-id="${r.id}" title="Fiz">✓</button>`}</div></div>`;
   const blow = R.blowState(S), blowPct = Math.round((R.BLOW_MULT - 1) * 100);
   return `<div class="page-title"><div><h1><em>agenda</em>.</h1></div></div>
-    <div class="page-actions"><button class="btn pri" data-act="distribute">📅 DISTRIBUIR PRAZOS</button></div> <!-- v7.7: os botões vêm antes dos quadrinhos -->
+    <div class="page-actions"><button class="btn pri" data-act="distribute">📅 DISTRIBUIR PRAZOS</button><button class="btn" data-act="plan-change">🔀 MUDANÇA DE PLANOS</button><button class="btn" data-act="plan-tomorrow">🌙 PLANEJAR AMANHÃ</button></div> <!-- v7.7: os botões vêm antes dos quadrinhos -->
     ${tiles([
       { label: 'Pontualidade 30d', value: punct == null ? '—' : punct + '%', tone: 'ok', tip: 'Das tarefas com prazo concluídas nos últimos 30 dias, quantas saíram no prazo.' },
       { label: '🎯 No prazo seguidas', value: seq, tone: 'ok', tip: seq >= 5 ? 'RELÓGIO SUÍÇO!' : '5 seguidas no prazo = RELÓGIO SUÍÇO' },
       { label: '💥 Estourados', value: `${blow.n % R.BLOW_EVERY}/${R.BLOW_EVERY}`, cls: blow.active ? 'bad' : '', tone: 'urg', tip: blow.active ? `Castigo ativo: loja +${blowPct}%. Resolva 1 atrasada antiga pra cancelar.` : `A cada ${R.BLOW_EVERY} prazos estourados, a loja fica ${blowPct}% mais cara por ${R.BLOW_DAYS} dias.` },
     ])}
+    ${diaCard(ui)}
     <section class="vitrine cal-v ${isCollapsed('c:agenda:calendario') ? 'shut' : ''}" data-v="calendario"><header class="vit-h" data-act="collapse" data-k="c:agenda:calendario" title="Toque pra recolher ou abrir o CALENDÁRIO" style="--img:url('${new URL(`assets/topo/${CAL_ART ? 'calendario' : 'agenda'}-${lightNow() === 'noite' ? 'noite' : 'dia'}.webp`, document.baseURI).href}')"><div><h2><span class="chev">${isCollapsed('c:agenda:calendario') ? '▸' : '▾'}</span> 📅 CALENDÁRIO</h2><p>A carga de cada dia e a linha do tempo dos blocos, juntas. 💀 = o inimigo chega.</p></div></header>
       ${isCollapsed('c:agenda:calendario') ? '' : `<div class="vit-b">${dayStrip()}<div class="grid">${timelineCard(ui)}</div></div>`}</section>
     <section class="vitrine filtro-v ${isCollapsed('c:agenda:filtro') ? 'shut' : ''}" id="filtro-v" data-v="filtro"><header class="vit-h" data-act="collapse" data-k="c:agenda:filtro" title="Toque pra recolher ou abrir o FILTRO" style="--img:url('${new URL(`assets/topo/filtro-${lightNow() === 'noite' ? 'noite' : 'dia'}.webp`, document.baseURI).href}')"><div><h2><span class="chev">${isCollapsed('c:agenda:filtro') ? '▸' : '▾'}</span> 🔍 FILTRO</h2><p>Tudo em aberto, numa tabela. Toque num quadrinho pra filtrar, no cabeçalho pra ordenar, na linha pra abrir.</p></div></header>
