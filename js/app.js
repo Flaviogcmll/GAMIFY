@@ -10,7 +10,7 @@ import { openModal, closeModal, ask, toast, modalOpen, segBar } from './ui.js';
 import { px } from './icons.js';
 
 import { embers, confetti, floatXp, fireworks, poof } from './fx.js';
-import { sfx, startAmbience, stopAmbience, ambienceOn, prefs, setVol } from './audio.js';
+import { sfx, startAmbience, stopAmbience, ambienceOn, prefs, setVol, toggleMute } from './audio.js';
 
 import { viewQuests, togglePin, curfewSkip, qsortOf, filaCard } from './views/quests.js';
 
@@ -109,6 +109,7 @@ function header() {
         <button class="btn sm" data-act="find" title="Buscar e ir direto (Ctrl+K)" aria-label="Buscar">🔍</button>
         <button class="btn sm" data-act="mode" title="Dia/noite (N)">${px(night ? 'moon' : 'sun', 12)}</button>
         <button class="btn sm ${ambienceOn() ? 'pri' : ''}" data-act="music" title="Lo-fi da fogueira">${px('music', 12)}</button>
+        <button class="btn sm ${prefs.mute ? 'pri' : ''}" data-act="mute" title="${prefs.mute ? 'Som desligado: toque pra ligar' : 'Desligar todo o som do app'}" aria-label="Som">${prefs.mute ? '🔇' : '🔊'}</button>
         <button class="btn sm" data-act="fullscreen" title="Tela cheia (F11)" aria-label="Tela cheia">⛶</button></div></div>`;
 }
 function render() {
@@ -768,6 +769,7 @@ const ACTIONS = {
   find: () => openFind(),
   'find-go': (d) => { closeModal(); if (d.k === 'task') jump(d.id); else if (d.k === 'block') jumpBlock(d.id); else if (d.k === 'rit') { location.hash = '#survival'; setTimeout(() => document.querySelector(`[data-rit="${CSS.escape(d.id)}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300); } },
   'to-top': () => scrollTo({ top: 0, behavior: 'smooth' }),
+  mute: () => { const m = toggleMute(); toast(m ? '🔇 Som desligado (efeitos, música e Praga).' : '🔊 Som de volta.', 'gold'); render(); },
   'set-field': (d, e, el) => { const f = el?.closest('form'), i = f?.elements?.[d.name]; if (!i) return; i.value = d.v; i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); f.querySelectorAll(`[data-act="set-field"][data-name="${d.name}"]`).forEach((b) => b.classList.toggle('on', b === el)); },
   'gold-edit': (d) => { const p = goldByKey(d.key); if (p) openModal(`<form data-form="gold-edit" data-key="${esc(p.key)}"><h2>💰 ${esc(p.title)}</h2><label class="lbl" for="ge-v">Quanto entrou (sua parte)</label><input class="inp" id="ge-v" name="v" type="number" min="1" value="${p.amount}" autofocus><div class="actions"><button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">GUARDAR</button></div></form>`); },
   'gold-later': (d) => { const p = goldByKey(d.key); if (p) A.snoozeGold(p); },

@@ -46,6 +46,8 @@ const CURSORS = {
   mao: ['....KK..........', '...KWWK.........', '...KWWK.........', '...KWWK.........', '...KWWKKK.......', '...KWWKWWKKK....', '.KKKWWKWWKWWKK..', 'KWWKWWWWWWWWKWK.',
     'KWWKWWWWWWWWWWK.', '.KWWWWWWWWWWWCK.', '..KWWWWWWWWWWCK.', '..KWWWWWWWWWCK..', '...KWWWWWWWCK...', '...KWWWWWWWCK...', '....KKKKKKKK....', '................'],
   pincel: ['kk..............', 'kwyk...s........', '.kyok..........s', '..kook.....s....', '...kook.........', '....kgk.........', '.....kgk........', '......kbk.......', '.......kbk......', '........kbk.....', '.........kbk....', '..........kbk...', '...........kdk..', '............kdk.', '.............kk.', '................'],
+  // v8.9 (pedido do dono): a PENA DA BRASINHA (cor de brasa), ponta em cima à esquerda; é o cursor padrão
+  pena: ['k...............', 'kyk.............', 'kyok............', '.kooyk..........', '.koyook.........', '..kooyok........', '..koyooyk.......', '...kooyoyk......', '....kooyook.....', '.....kooyook....', '......koyoyok...', '.......kkoyok...', '.........kdk....', '..........kdk...', '...........kdk..', '............kk..'],
   patinha: ['.kk..kk.........', 'kPPkkPPk........', 'kPpkkpPk........', 'kPpkkpPk........', '.kppppk.........', '.kppppk.........', 'kppppppk........', 'kppwwppk........', 'kpppppppk.......', '.kpppppppk......', '..kppppppk......', '...kpppppk......', '....kkkkk.......', '................', '................', '................'],
 };
 const curUrl = (rows, hx = 1, hy = 1) => {
@@ -54,10 +56,10 @@ const curUrl = (rows, hx = 1, hy = 1) => {
 };
 export const CURSOR_KEY = 'gamify-ui:cursor';
 export function applyCursor() {
-  let k = 'seta'; try { k = localStorage.getItem(CURSOR_KEY) || 'seta'; } catch { /* */ }
+  let k = 'pena'; try { k = localStorage.getItem(CURSOR_KEY) || 'pena'; } catch { /* */ }
   const root = document.documentElement;
   if (!CURSORS[k] || k === 'mao') { root.style.removeProperty('--cur'); root.style.removeProperty('--cur-hand'); delete root.dataset.cursor; return; }
   root.style.setProperty('--cur', curUrl(CURSORS[k]) + ', auto');
-  root.style.setProperty('--cur-hand', k === 'seta' ? curUrl(CURSORS.mao, 9, 1) + ', pointer' : curUrl(CURSORS[k]) + ', pointer');
+  root.style.setProperty('--cur-hand', k === 'seta' || k === 'pena' ? curUrl(CURSORS.mao, 9, 1) + ', pointer' : curUrl(CURSORS[k]) + ', pointer'); // pena: a mãozinha continua nos botões (dá pra ver o que é clicável)
   root.dataset.cursor = k;
 }
