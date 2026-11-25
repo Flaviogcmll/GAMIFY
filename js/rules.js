@@ -54,9 +54,24 @@ export const AREAS = {
   hoje: 'HOJE', amanha: 'AMANHÃ', semana: 'ESTA SEMANA', depois: 'DEPOIS', sem: 'SEM PRAZO', wait: 'AGUARDANDO',
 };
 export const AREA_KEYS = ['hoje', 'amanha', 'semana', 'depois', 'sem', 'wait'];
+// v8.4 (escolha do dono): as listas do QUESTS são pela COR, não pelo prazo. A data continua decidindo `t.area` por dentro
+// (HOJE cheio, fechamento do dia, fila…), mas a tela mostra URGENTE · CHEGANDO · ESTÁVEL · A CLASSIFICAR · AGUARDANDO · PARADO.
+// A cor da tarefa-mãe é a do bloco ligado (mexeu num, muda no outro). Quando o prazo chega, ela sobe sozinha pra URGENTE (syncLists).
+export const COR_KEYS = ['urg', 'chega', 'estavel', 'semcor', 'wait', 'parado'];
+export const COR_NAMES = { urg: 'URGENTE', chega: 'CHEGANDO', estavel: 'ESTÁVEL', semcor: 'A CLASSIFICAR', wait: 'AGUARDANDO', parado: 'PARADO' };
+export const COR_COLOR = { urg: 'red', chega: 'yellow', estavel: 'green', semcor: '', parado: 'black' };
+const COLOR_COR = { red: 'urg', yellow: 'chega', green: 'estavel', black: 'parado', purple: 'wait' };
+/** a cor que vale pra uma tarefa das listas: a do bloco ligado (tarefa-mãe) ou a dela */
+export function colorOfTask(s, t) { if (t?.link) { const b = findBlock(s, t.link); if (b) return b.color || ''; } return t?.color || ''; }
+/** em que lista (por cor) a tarefa mora */
+export function corOf(s, t) {
+  if (t.st === 'wait' || t.who || t.dep || t.area === 'wait') return 'wait';
+  if (t.link && findBlock(s, t.link)?.st === 'wait') return 'wait';
+  return COLOR_COR[colorOfTask(s, t)] || 'semcor';
+}
 // ───── NOMES PERSONALIZÁVEIS: só o texto muda; as chaves (hoje, bd, tr…) e as regras continuam as mesmas ─────
-const NAMES_DEFAULT = { 'tab:listas': 'LISTAS', 'tab:boss': 'BOSSES' };
-export const TAB_NAMES = { listas: 'LISTAS', boss: 'BOSSES' };
+const NAMES_DEFAULT = { 'tab:listas': 'MISSÕES', 'tab:boss': 'BOSSES' };
+export const TAB_NAMES = { listas: 'MISSÕES', boss: 'BOSSES' }; // v8.4: LISTAS virou MISSÕES (pedido do dono; a chave continua 'listas')
 /** tudo que dá pra renomear: [chave, nome padrão] */
 export function labelFields() {
   return [['tab:listas', NAMES_DEFAULT['tab:listas']], ...AREA_KEYS.map((k) => ['area:' + k, NAMES_DEFAULT['area:' + k]]), ['tab:boss', NAMES_DEFAULT['tab:boss']], ...['bd', 'tr', 'cap', 'gs'].map((g) => ['group:' + g, NAMES_DEFAULT['group:' + g]])];
@@ -914,7 +929,7 @@ export const tabBlocks = (s, k) => { const ws = new Set(windows(s).map((w) => w.
 /** aba toda revisada: todas as listas com tarefa aberta, ou todos os blocos ativos (não fechados nem parados) */
 export function tabReviewed(s, k) {
   if (k === 'boss') return false;
-  if (k === 'listas') { const ks = AREA_KEYS.filter((a) => (s.quests?.tasks || []).some((t) => !t.block && t.area === a && isOpen(t))); return ks.length > 0 && ks.every((a) => listReviewed(s, a)); }
+  if (k === 'listas') { const ks = COR_KEYS.filter((a) => a !== 'parado' && (s.quests?.tasks || []).some((t) => !t.block && isOpen(t) && corOf(s, t) === a)); return ks.length > 0 && ks.every((a) => listReviewed(s, a)); }
   const bl = tabBlocks(s, k).filter((b) => b.st !== 'done' && b.color !== 'black');
   return bl.length > 0 && bl.every((b) => reviewed(b));
 }
@@ -1316,6 +1331,10 @@ export function focusNow(s, td = today(), skip = []) {
   { // v6.5: da fase 2 em diante a tarefa da Praga é o FOCO (sem OUTRA)
     const pg = praga(s, td), w = pg.list.find((x) => x.kind === 'task' && x.phase >= 2), t = w && (s.quests?.tasks || []).find((x) => x.id === w.id);
     if (t) return { task: t, why: `${w.phase >= 4 ? '🐺' : '🪰'} ${PRAGA_NAMES[w.phase]}: atrasada há ${w.days} dia(s), fase ${w.phase} de 4`, praga: w.phase };
+  }
+  { // v8.4 (pedido do dono): o que você marcou ▶ FAZENDO vira o FOCO AGORA
+    const doing = openTasks(s).find((t) => t.st === 'doing' && !skip.includes(t.id));
+    if (doing) return { task: doing, why: '▶ você marcou como FAZENDO' };
   }
   const wm = new Set(weeklyMissions(s, td).ids || []), clock = neuroOn(s, 'clock') ? bodyClock(s).key : '';
   const bossOf = (t) => (t.block && (s.quests?.bosses || []).find((b) => b.block === t.block)) || null;
