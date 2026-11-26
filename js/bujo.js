@@ -2,6 +2,7 @@
 // Q1 anotar rápido (botão + e tecla +) · Q2 v7.1: segurar e arrastar no celular conclui várias
 // F HOJE cheio demais (atenção residual) · G pato de borracha no SOS.
 // A migração do mês e o boss parado ficam na entrevista do dia (review.js); o time box na janela da tarefa (app.js).
+import { destOptions, destBlock } from './organiza.js';
 import { fig, quem } from './elenco.js';
 import { S } from './store.js';
 import * as A from './actions.js';
@@ -13,17 +14,15 @@ import { sfx } from './audio.js';
 const clean = (t) => String(t || '').replace(/\s*\(\d+\s*XP\)/i, '').trim();
 
 // ───────────── Q1: ANOTAR RÁPIDO ─────────────
-export function quickAdd(text = '') {
+export function quickAdd(text = '', where = '') {
   if (modalOpen()) return;
   const td = today();
-  // v9.2 (pedido do dono, 8B): o anotar rápido também pergunta a COR e o DIA (nada fica sem rumo); igual ao MEU DIA
-  const cores = [['red', R.COR_NAMES.urg, 'urg'], ['yellow', R.COR_NAMES.chega, 'atencao'], ['green', R.COR_NAMES.estavel, 'ok'], ['wait', R.COR_NAMES.wait, 'espera'], ['', R.COR_NAMES.semcor, 'neutro']];
-  openModal(`<form data-form="quick" autocomplete="off">${quem('brasinha', Math.max(0, Math.min(4, S.core.brasinha?.stage ?? 0)) + 1, 'Piu! Escreve com a minha pena: nada fica sem rumo.')}<h2>✎ anotar rápido</h2>
+  // v9.5 (pedido do dono): a COR sai do prazo sozinha, então o anotar rápido pergunta o DIA e ONDE a tarefa mora (janela/bloco)
+  openModal(`<form data-form="quick" autocomplete="off">${quem('brasinha', Math.max(0, Math.min(4, S.core.brasinha?.stage ?? 0)) + 1, 'Piu! Escreve com a minha pena: nada fica sem casa.')}<h2>✎ anotar rápido</h2>
     <input class="inp" name="text" placeholder="o que veio na cabeça?" aria-label="Tarefa" autofocus data-kbd maxlength="200" value="${esc(text)}">
-    <label class="lbl">Cor</label><div class="row qcor">${cores.map(([k, n, tone], i) => `<label class="btn sm ghost qc" data-tone="${tone}"><input type="radio" name="cor" value="${k}" ${i === 1 ? 'checked' : ''}><i></i> ${n}</label>`).join('')}</div>
-    <label class="lbl">Dia</label><div class="row seg qwhen">${[[td, 'HOJE'], [addDays(td, 1), 'AMANHÃ'], ['outro', 'OUTRO'], ['', 'SEM PRAZO']].map(([d, n], i) => `<label class="btn sm ghost"><input type="radio" name="due" value="${d}" ${i ? '' : 'checked'}> ${n}</label>`).join('')}<input class="inp" type="date" name="dia" aria-label="Outro dia" style="width:auto"></div>
-    <label class="lbl">Assunto</label><select class="inp" name="cat" aria-label="Assunto">${R.assuntos(S).map(([k, n]) => `<option value="${k}">${esc(n)}</option>`).join('')}</select>
-    <p class="meta" style="margin:6px 0 0">Enter salva. Vai pra TODAS (AGORA ou DEPOIS, pela cor e pela data), no assunto escolhido, e pro MEU DIA se tiver dia.</p>
+    <label class="lbl">Dia <span class="meta">· a cor vem do prazo: até amanhã URGENTE, até 7 dias ESQUENTANDO, depois ESTÁVEL</span></label><div class="row seg qwhen">${[[td, 'HOJE'], [addDays(td, 1), 'AMANHÃ'], ['outro', 'OUTRO'], ['', 'SEM PRAZO']].map(([d, n], i) => `<label class="btn sm ghost"><input type="radio" name="due" value="${d}" ${i ? '' : 'checked'}> ${n}</label>`).join('')}<input class="inp" type="date" name="dia" aria-label="Outro dia" style="width:auto"></div>
+    <label class="lbl">Onde mora</label><select class="inp" name="dest" aria-label="Janela e bloco">${destOptions(where || 'new:bd')}</select>
+    <label class="row" style="gap:6px;margin-top:8px"><input type="checkbox" name="wait"> ⏳ aguardando alguém</label>
     <div class="actions"><button type="button" class="btn" data-close>FECHAR</button><button class="btn pri">ANOTAR</button></div></form>`);
 }
 function fab() {
@@ -119,18 +118,18 @@ export function extendBujo(ACTIONS, FORMS) {
   });
   Object.assign(FORMS, {
     'todas-add': (f) => { const text = f.text.value.trim(); if (!text) return; f.text.value = ''; quickAdd(text); }, // v9.4 (H2)
+    'win-add': (f) => { const text = f.text.value.trim(); if (!text) return; f.text.value = ''; quickAdd(text, 'new:' + f.dataset.win); }, // v9.5: a linha do topo de cada janela
     quick: (f) => {
       const text = f.text.value.trim();
       if (!text) return;
       let due = f.querySelector('[name=due]:checked')?.value || null;
       if (due === 'outro' || f.dia.value) due = f.dia.value || null; // digitou uma data: ela vale
-      const cor = f.querySelector('[name=cor]:checked')?.value ?? 'yellow';
-      const r = A.addTask({ text, area: due ? R.listOf({ due }) : 'sem', due, color: cor && cor !== 'wait' ? cor : null });
-      if (cor === 'wait' && r?.task) A.setStatus(r.task.id, 'wait');
-      if (f.cat?.value && r?.task) A.setCat(r.task.id, f.cat.value); // v9.4: o assunto (sem = CAIXA DE ENTRADA)
+      const block = destBlock(f.dest.value);
+      const r = A.addTask({ text, block, due, area: 'block' });
+      if (f.wait.checked && r?.task) A.setStatus(r.task.id, 'wait');
       closeModal(); sfx('tab');
-      const lista = cor === 'wait' ? R.COR_NAMES.wait : R.COR_NAMES[{ red: 'urg', yellow: 'chega', green: 'estavel', '': 'semcor' }[cor]];
-      toast(`✎ Anotado em <b>${esc(lista)}</b>${due ? ` · ${due === today() ? 'HOJE' : due === addDays(today(), 1) ? 'AMANHÃ' : due.slice(8) + '/' + due.slice(5, 7)}` : ''}.`);
+      const b = block && S.quests.blocks.find((x) => x.id === block);
+      toast(`✎ Anotado em <b>${esc(b?.title || '')}</b>${due ? ` · ${due === today() ? 'HOJE' : due === addDays(today(), 1) ? 'AMANHÃ' : due.slice(8) + '/' + due.slice(5, 7)}` : ' · sem prazo'}.`);
     },
     cheio: (f) => { const ids = [...f.querySelectorAll('[name=id]:checked')].map((x) => x.value); closeModal(); if (ids.length) { A.pushTomorrow(ids); sfx('tab'); } },
     duck: (f) => {

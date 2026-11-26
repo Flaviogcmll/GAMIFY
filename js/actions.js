@@ -203,8 +203,9 @@ function sync() {
   S.core.achievements ||= {};
   const store = S.core.season?.from ? (S.core.seasonAch ||= {}) : S.core.achievements; // v6: capítulo novo = conquistas novas
   for (const a of R.newAchievements(S)) {
-    store[a.key] = { date: td, xp: a.xp };
-    achievements.push(a);
+    const xp = Math.round((a.xp * R.C.ACH_MULT) / 5) * 5; // v9.5 (economia): conquista é espelho, não salário: paga a metade (as antigas ficam como estão)
+    store[a.key] = { date: td, xp };
+    achievements.push({ ...a, xp });
     changed = true;
   }
   if (achievements.length) S._epoch++;
@@ -444,22 +445,23 @@ function syncLists() {
   const byId = new Map(S.quests.tasks.map((t) => [t.id, t])), blk = new Map(S.quests.blocks.map((b) => [b.id, b]));
   // janela mãe: bloco ativo (não fechado nem parado, e que não seja BOSS) sem tarefa nas LISTAS ganha uma, ligada a ele, com o prazo final do bloco
   for (const b of S.quests.blocks) {
+    if (true) continue; // v9.5: a TODAS saiu, as tarefas-mãe não são mais criadas (as antigas ficam escondidas)
     if (b.st === 'done' || b.color === 'black' || b.group === 'bs' || (b.src && byId.has(b.src))) continue; // BOSSES são as próprias mães
     const t = { id: uid('t'), area: 'sem', text: b.title.replace(/\s*\(\d+\s*XP\)/i, '').trim(), st: '', due: b.due || null, created: td, ord: maxOrd() + 1, link: b.id, mother: true };
     S.quests.tasks.push(t); byId.set(t.id, t); b.src = t.id; changed = true;
+  }
+  for (const b of S.quests.blocks) { // o bloco também: pelo prazo dele ou da subtarefa mais perto
+    if (b.st === 'done' || b.color === 'black') continue;
+    const c = R.autoCor(S, R.blockDue(S, b), td); if ((b.color || '') !== c) { b.color = c; changed = true; }
   }
   for (const t of S.quests.tasks) {
     if (t.dep) {
       const d = byId.get(t.dep);
       if (!d || d.st === 'done' || d.st === 'cancel') { delete t.dep; if (!t.who && t.st === 'wait') t.st = ''; released.push({ id: t.id, text: t.text }); changed = true; }
     }
+    // v9.5 (pedido do dono): a COR sai do PRAZO, sozinha (PARADO e AGUARDANDO são escolha sua e ficam)
+    if (R.isOpen(t) && t.color !== 'black') { const c = R.autoCor(S, t.due, td); if ((t.color || '') !== c) { if (c) t.color = c; else delete t.color; changed = true; } }
     if (t.block) continue;
-    // v8.4: o prazo chegou (hoje ou atrasada) → a tarefa sobe sozinha pra URGENTE (vermelho), uma vez por prazo: dá pra tirar de lá depois
-    if (R.isOpen(t) && t.st !== 'wait' && !t.who && !t.dep && t.due && t.due <= td && t.autoUrg !== t.due) {
-      const lb = t.link && blk.get(t.link), col = lb ? lb.color : t.color;
-      if (col !== 'red' && col !== 'black' && !(lb && lb.st === 'wait')) { if (lb) lb.color = 'red'; else t.color = 'red'; changed = true; }
-      t.autoUrg = t.due; changed = true;
-    }
     // tarefa da lista ligada a um bloco que está "só aguardando": ela também espera, então mora em AGUARDANDO
     const k = R.isOpen(t) || t.st === 'sent' ? (t.link && blk.get(t.link)?.st === 'wait' ? 'wait' : R.listOf(t, td)) : R.AREAS[t.area] ? t.area : R.AREA_FROM_OLD[t.area] || 'sem';
     if (t.area !== k) { t.area = k; changed = true; }
@@ -748,6 +750,32 @@ export function moveTask(id, dir) {
 // ───────────────────────── MISSÕES DO DIA ─────────────────────────
 
 // ───────────────────────── BLOCOS ─────────────────────────
+/** v9.5: o bloco 📥 AVULSAS de uma janela (onde caem as tarefas soltas). winKey = 'bd' | 'tr' | 'cap' | 'gs' | 'w:<id>'. Cria se não tiver. */
+export const AVULSAS = '📥 AVULSAS';
+export function avulsasBlock(winKey) {
+  const win = winKey.startsWith('w:') ? R.windows(S).find((w) => 'w:' + w.id === winKey) : null, group = win ? win.base : winKey;
+  const found = S.quests.blocks.find((b) => b.title === AVULSAS && b.st !== 'done' && (win ? b.win === win.id : !b.win && b.group === group));
+  if (found) return found.id;
+  return addBlock(group, AVULSAS, win ? { win: win.id } : {})?.block?.id || null;
+}
+/** v9.5: muda uma tarefa (com os passos) pra dentro de um bloco */
+export function moveToBlock(id, blockId) { const t = T(id); if (!t || !B(blockId)) return; const r = updateTask(id, { block: blockId }); delete t.cat; return r; }
+/** v9.5 (pedido do dono): ESVAZIAR a NOTA FISCAL sem perder a conta. As compras já usadas dos meses que passaram viram UMA linha por mês
+ *  (somando XP, ferro, tickets e quantas compras eram), então o saldo não muda. Forjados, o que está na SACOLA e o mês atual ficam. */
+export function compactPurchases() {
+  const cut = addDays(today(), -7), keep = (p) => p.kind === 'ferreiro' || p.kind === 'resumo' || p.status === 'bag' || p.status === 'using' || (p.date || '') >= cut; // os últimos 7 dias ficam
+  const old = S.loja.purchases.filter((p) => !keep(p)); if (!old.length) return { msg: 'Nada pra esvaziar: só tem compra dos últimos 7 dias ou na sacola.' };
+  return commit(['loja'], () => {
+    const by = {};
+    const from = S.core.season?.from || ''; // o capítulo conta só o que é depois do começo dele: cada lado vira um grupo, com a data da última compra
+    for (const p of old) { const m = p.date.slice(0, 7), side = from && p.date >= from ? 'a' : 'b', r = (by[m + side] ||= { id: uid('p'), date: p.date, item: `📦 compras de ${m.slice(5)}/${m.slice(0, 4)}`, kind: 'resumo', qty: 0, xp: 0, gold: 0, tickets: 0, buys: 0, n: 0 }); if (p.date > r.date) r.date = p.date; r.n++; r.xp += p.xp || 0; r.gold += +p.gold || 0; r.tickets += p.tickets || 0; if (p.kind === 'taverna' || p.kind === 'bau') r.buys += p.qty || 1; }
+    S.loja.purchases = [...S.loja.purchases.filter(keep), ...Object.values(by)];
+    S.core.stats ||= {}; S.core.stats.nf = (S.core.stats.nf || 0) + 1; touch('core');
+    return { msg: `🧹 ${old.length} compras antigas viraram ${Object.keys(by).length} linha(s) de resumo. O saldo não mudou.` };
+  }, { label: 'esvaziar nota fiscal' });
+}
+/** v9.5: contadores das mecânicas novas (pras conquistas): foco, revisao, mudanca, plan, nf */
+export const stat = (k, n = 1) => commit(['core'], () => { S.core.stats ||= {}; S.core.stats[k] = (S.core.stats[k] || 0) + n; }, { noUndo: true, quiet: true });
 export function addBlock(group, title, extra = {}) {
   title = normalizeMoney(String(title || '').trim());
   if (!title) return null;
@@ -969,6 +997,7 @@ export function ritualDone(rid, at) {
     S.core.ritualLog.push({ id: uid('rl'), rid, date: td, xp: R.ritualXp(r), prevLast: r.last || null });
     r.last = td;
     delete r.plan; // feito: o dia marcado já cumpriu o papel
+    delete r.rs; // v9.5: fez = as moscas vão embora
   }, { at });
 }
 export function ritualUndo(rid) {
@@ -1030,10 +1059,13 @@ export function setRitualAt(id, at) {
   if (!r) return;
   return commit(['core'], () => { if (at) r.at = at; else delete r.at; });
 }
+/** v9.5: refaz as cores pelo prazo (virada do dia) sem entrar no desfazer */
+export const resync = () => commit(['quests'], () => {}, { noUndo: true, quiet: true });
 export function planRitual(id, date) {
   const r = S.core.rituals.find((x) => x.id === id);
   if (!r) return;
-  return commit(['core'], () => { if (date) r.plan = date; else delete r.plan; return { msg: date ? `📅 ${r.name}: marcado.` : `${r.name}: dia desmarcado.` }; });
+  const before = R.ritualStatus(r).next; // v9.5: empurrar o ritual pra depois junta uma mosca (zera quando faz)
+  return commit(['core'], () => { if (date && before && date > before) r.rs = (r.rs || 0) + 1; if (date) r.plan = date; else delete r.plan; return { msg: date ? `📅 ${r.name}: marcado.` : `${r.name}: dia desmarcado.` }; });
 }
 /** REVISADO de uma lista do QUESTS (selo de 24 h) */
 export function reviewList(k) {

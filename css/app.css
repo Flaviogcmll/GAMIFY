@@ -2280,3 +2280,12 @@ aside.postit .tasks { flex: 1 1 auto; min-height: 0; }
 .org-cat { max-width: 180px; min-width: 150px; }
 .dia-t.armed { outline: 3px solid var(--c-acao); transform: scale(1.06) rotate(0deg) !important; }
 @media (max-width: 600px) { .todas-top { flex-wrap: wrap; } .todas-top .todas-add { flex: 1 1 100%; } }
+
+/* ═════════════ v9.5 — FERRO, SOBREVIVÊNCIA, ROTINA no banner, PRIMO no degradê, banners mais legíveis ═════════════ */
+/* banners: um degradê leve, mais escuro à esquerda (onde fica o texto) */
+.vit-h::before { background: linear-gradient(90deg, color-mix(in srgb, var(--t-ameixa) 72%, transparent) 0, color-mix(in srgb, var(--t-ameixa) 38%, transparent) 38%, transparent 70%), linear-gradient(0deg, color-mix(in srgb, var(--t-ameixa) 55%, transparent) 0, transparent 60%) !important; }
+.scene.pstrip::after { background: linear-gradient(90deg, rgba(53, 35, 41, .78) 0, rgba(53, 35, 41, .45) 40%, rgba(53, 35, 41, .08) 75%, transparent 100%) !important; }
+/* o PRIMO e a BRASINHA num degradê (os cenários saíram por enquanto) */
+.pcard .pstage.hero, :root[data-mode="night"] .pcard .pstage.hero { background-image: radial-gradient(ellipse at 50% 95%, color-mix(in srgb, var(--t-mel-2) 45%, transparent) 0, transparent 60%), linear-gradient(180deg, var(--t-papel-2) 0%, var(--t-mel-3) 55%, var(--t-rosa) 100%) !important; background-size: cover !important; }
+:root[data-light="noite"] .pcard .pstage.hero { background-image: radial-gradient(ellipse at 50% 95%, color-mix(in srgb, var(--brasa, #e8893a) 35%, transparent) 0, transparent 60%), linear-gradient(180deg, #2b2040 0%, var(--t-ameixa) 55%, var(--t-couro) 100%) !important; }
+:root[data-light="tarde"] .pcard .pstage.hero { background-image: radial-gradient(ellipse at 50% 95%, color-mix(in srgb, var(--t-mel-2) 50%, transparent) 0, transparent 60%), linear-gradient(180deg, var(--t-mel-3) 0%, var(--t-brasa-3) 60%, var(--t-brasa-2) 100%) !important; }

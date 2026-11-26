@@ -53,15 +53,16 @@ import { renderPostit } from './postit.js';
 
 // abas na mesma ordem da planilha
 const ROUTES = [
-  ['quests', 'MISSÕES', 'quests', viewQuests, 'q'], ['survival', 'SURVIVAL', 'survival', viewSurvival, 's'], ['agenda', 'AGENDA', 'agenda', viewAgenda, 'a'],
+  ['quests', 'MISSÕES', 'quests', viewQuests, 'q'], ['survival', 'SOBREVIVÊNCIA', 'survival', viewSurvival, 's'], ['agenda', 'AGENDA', 'agenda', viewAgenda, 'a'],
   ['shop', 'FEIRA', 'shop', viewShop, 'l'], ['domingo', 'REFLEXÃO', 'domingo', (u) => { setTimeout(() => { history.replaceState(null, '', '#survival'); document.getElementById('reflexao')?.scrollIntoView({ block: 'start' }); }, 80); return viewSurvival(u); }, 'b'], ['conquistas', 'CONQUISTAS', 'conquistas', viewConquistas, ''],
-  ['filtro', 'FILTRO', 'filtro', (u) => { setTimeout(() => { history.replaceState(null, '', '#agenda'); document.getElementById('filtro-v')?.scrollIntoView({ block: 'start' }); }, 80); return viewAgenda(u); }, 'f'], ['rotina', 'ROTINA', 'rotina', viewRotina, 'r'], ['regras', 'PERKS AND RULES', 'regras', viewRegras, 'p'],
+  ['filtro', 'FILTRO', 'filtro', (u) => { setTimeout(() => { history.replaceState(null, '', '#agenda'); document.getElementById('filtro-v')?.scrollIntoView({ block: 'start' }); }, 80); return viewAgenda(u); }, 'f'], ['rotina', 'ROTINA', 'rotina', (u) => { setTimeout(() => { history.replaceState(null, '', '#survival'); document.getElementById('v-rotina')?.scrollIntoView({ block: 'start' }); }, 80); return viewSurvival(u); }, 'r'], ['regras', 'PERKS AND RULES', 'regras', viewRegras, 'p'],
   ['arquivo', 'ARQUIVO', 'arquivo', viewArquivo3, ''],
   // v8.5: a FILA DE PRAZOS sozinha numa tela (atalho do app instalado: segure o ícone no celular, ou clique com o direito na barra do PC)
   ['fila', 'FILA', 'agenda', () => `<div class="page-title"><div><h1><em>fila de prazos</em>.</h1></div></div>${filaCard(today())}`, ''],
 ];
 /** a ordem das abas de cima é sua: arraste uma aba sobre outra */
-const HIDDEN_TABS = ['filtro', 'fila', 'domingo']; // v6.1: o FILTRO mora dentro da AGENDA · v8.5: a FILA é só pelo atalho
+const HIDDEN_TABS = ['filtro', 'fila', 'domingo', 'rotina']; // v9.5: a ROTINA mora dentro da SOBREVIVÊNCIA
+ // v6.1: o FILTRO mora dentro da AGENDA · v8.5: a FILA é só pelo atalho
 function tabOrder() {
   let saved = [];
   try { saved = JSON.parse(localStorage.getItem('gamify-ui:tabs')) || []; } catch { /* */ }
@@ -108,7 +109,7 @@ function header() {
     <div class="hero"><div class="lv"><span>NV</span><b>${tot.level}</b></div>
       <div class="who"><div class="t">⚔ ${esc(tot.title)}</div>${segBar(tot.pct, 'sm')}<div class="x">${fmtN(tot.into)}/${fmtN(tot.need)} XP · CAP. ${esc(ch.n)} ${esc(ch.title)}</div></div></div>
     <div class="row" style="gap:6px;flex-wrap:nowrap">
-      <div class="wallet"><div class="coin"><small>XP</small><b class="acc">${fmtN(tot.balance)}</b></div><div class="coin"><small>GOLD</small><b class="gold">${fmtN(tot.gold)}</b></div><div class="coin" style="min-width:52px"><small>🎟</small><b class="tk">${tot.tickets}</b></div></div>
+      <div class="wallet"><div class="coin"><small>XP</small><b class="acc">${fmtN(tot.balance)}</b></div><div class="coin"><small>FERRO</small><b class="gold">${fmtN(tot.gold)}</b></div><div class="coin" style="min-width:52px"><small>🎟</small><b class="tk">${tot.tickets}</b></div></div>
       <div class="tools">${using.map((p) => `<button class="timer-chip" data-act="goto-bag" title="${esc(p.item)}" data-countdown="${p.endsAt}">${mmss(p.endsAt - Date.now())}</button>`).join('')}
         <button class="btn sm" data-act="undo" data-undo-btn ${A.undoState().undo ? '' : 'disabled'} title="Desfazer (Ctrl+Z)" aria-label="Desfazer">↩</button><button class="btn sm" data-act="redo" data-redo-btn ${A.undoState().redo ? '' : 'disabled'} title="Refazer (Ctrl+Y)" aria-label="Refazer">↪</button>
         <button class="btn sm" data-act="find" title="Buscar e ir direto (Ctrl+K)" aria-label="Buscar">🔍</button>
@@ -135,7 +136,7 @@ function render() {
   document.getElementById('top').innerHTML = header();
   document.getElementById('tabs').innerHTML = tabOrder().map(([k, n, ic]) => `<a href="#${k}" draggable="true" data-tabk="${k}" class="${k === cur ? 'on' : ''}">${px(ic, 12)}${n}</a>`).join('');
   const bn = (k, n, ic, cls = '') => `<a href="#${k}" class="${cls} ${k === cur ? 'on' : ''}">${px(ic, 18)}${n}</a>`;
-  document.getElementById('bottom').innerHTML = bn('quests', 'MISSÕES', 'quests') + bn('survival', 'SURVIVAL', 'survival') + bn('shop', 'FEIRA', 'shop', 'primo-btn') + bn('agenda', 'AGENDA', 'agenda') + `<a href="#" data-act="more">${px('regras', 18)}MAIS</a>`;
+  document.getElementById('bottom').innerHTML = bn('quests', 'MISSÕES', 'quests') + bn('survival', 'SOBREVIVÊNCIA', 'survival') + bn('shop', 'FEIRA', 'shop', 'primo-btn') + bn('agenda', 'AGENDA', 'agenda') + `<a href="#" data-act="more">${px('regras', 18)}MAIS</a>`;
   const banners = [];
   if (status.error) banners.push(`<div class="banner bad">${esc(status.error)}</div>`);
   if (status.stale) banners.push('<div class="banner info">Ainda não consegui confirmar os dados com o servidor. Pode estar desatualizado.</div>');
@@ -263,6 +264,10 @@ function tips(root) {
 }
 function deaccent(root) {
   tips(root);
+  // v9.5 (pedido do dono): o GOLD se chama FERRO na tela (material raro que o FERREIRO gasta pra forjar); a chave nos dados continua 'gold'
+  const wv = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (/gold|breakdown|survival/i.test(n.nodeValue) && !n.parentElement?.closest('textarea,input,[contenteditable]') ? 1 : 3) });
+  const lv = []; for (let n = wv.nextNode(); n; n = wv.nextNode()) lv.push(n);
+  for (const n of lv) n.nodeValue = n.nodeValue.replace(/\bGOLD\b/g, 'FERRO').replace(/\bGold\b/g, 'Ferro').replace(/\bgold\b/g, 'ferro').replace(/\bBREAKDOWN( MACHINE)?\b/g, 'GERAL').replace(/\bSURVIVAL\b/g, 'SOBREVIVÊNCIA');
   for (const el of root.querySelectorAll(PX_SEL)) {
     const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
     for (let n = w.nextNode(); n; n = w.nextNode()) if (/[\u00C0-\u017F]/.test(n.nodeValue)) n.nodeValue = plain(n.nodeValue);
@@ -334,7 +339,10 @@ const COLORS = [['', 'sem cor'], ['red', '🟥 URGENTE'], ['yellow', '🟨 ESQUE
 // v5.16: as mesmas bolinhas de cor em toda janela; AGUARDANDO (roxo) virou uma das cores (por baixo continua o estado "aguardando")
 const SWATCH = [['red', 'URGENTE', 'urg', 'Prazo perto ou atrasado: faça primeiro'], ['yellow', 'ESQUENTANDO', 'atencao', 'Tá chegando a hora: vem logo depois das urgentes'], ['green', 'ESTÁVEL', 'ok', 'Tudo em ordem, sem pressa'],
   ['black', 'PARADO', 'neutro', 'Parado de propósito: some das listas até você mostrar'], ['wait', 'AGUARDANDO', 'espera', 'Depende de outra pessoa ou de outra coisa']];
-const swatches = (cur, withNone = false) => `<div class="swatches">${[...(withNone ? [['', 'SEM COR', 'none', 'Sem cor']] : []), ...SWATCH].map(([k, n, tone, tip]) => `<label class="csw" title="${tip}"><input type="radio" name="color" value="${k}" ${cur === k ? 'checked' : ''}><i data-tone="${tone}"></i><span>${n}</span></label>`).join('')}</div>`;
+// v9.5 (pedido do dono): a COR vem do PRAZO sozinha. Na janela só dá pra escolher AUTOMÁTICA, AGUARDANDO ou PARADO
+const swatches = (cur, withNone = false, due = null) => { void withNone; const auto = R.autoCor(S, due), nm = { red: 'URGENTE', yellow: 'ESQUENTANDO', green: 'ESTÁVEL', '': 'SEM PRAZO' }[auto], tone = { red: 'urg', yellow: 'atencao', green: 'ok', '': 'none' }[auto];
+  const k0 = cur === 'wait' || cur === 'black' ? cur : '';
+  return `<div class="swatches">${[['', `AUTOMÁTICA: ${nm}`, tone, 'A cor sai do prazo: até amanhã URGENTE, até 7 dias ESQUENTANDO, depois ESTÁVEL'], ['wait', 'AGUARDANDO', 'espera', 'Depende de outra pessoa ou de outra coisa'], ['black', 'PARADO', 'neutro', 'Parado de propósito']].map(([k, n, tn, tip]) => `<label class="csw" title="${tip}"><input type="radio" name="color" value="${k}" ${k0 === k ? 'checked' : ''}><i data-tone="${tn}"></i><span>${n}</span></label>`).join('')}</div>`; };
 /** marcador redondo (checkbox ou radio) com legenda ao passar o mouse */
 const pill = (type, name, value, on, label, tip) => `<label class="pill" title="${tip}"><input type="${type}" name="${name}" ${value != null ? `value="${value}"` : ''} ${on ? 'checked' : ''}><span>${label}</span></label>`;
 function editTask(id) {
@@ -353,7 +361,7 @@ function editTask(id) {
     <textarea class="inp mtitle" id="t-text" name="text" rows="2" aria-label="Texto" autofocus>${esc(t.text.replace(MARK_RE.star, '').replace(MARK_RE.home, '').replace(MARK_RE.xp, '').replace(/💰/g, '$').replace(/^(⚔|↳|>)\s*/, '').trim())}</textarea>${(t.pragaLog || []).length ? `<p class="meta" title="Motivos que você escreveu ao remarcar um TREM TRAPAIADO">🐛 ${t.pragaLog.map((x) => `${esc(x.d.slice(8))}/${esc(x.d.slice(5, 7))}: ${esc(x.why)}`).join(' · ')}</p>` : ''}
     <div class="msplit">
       <div><label class="lbl">Status</label><div class="pills">${[['', '○ ABERTA', 'Ainda por fazer'], ['done', '✓ FEITA', 'Concluída (ganha o XP)'], ['cancel', '✕ CANCELADA', 'Não vale mais: sem XP e sem punição']].map(([k, n, tip]) => `<button type="button" class="pill ${st === k ? 'on' : ''}" data-act="set-status" data-id="${id}" data-st="${k}" title="${tip}"><span>${n}</span></button>`).join('')}</div></div>
-      <div><label class="lbl">Cor</label>${swatches(color, true)}</div></div>
+      <div><label class="lbl">Cor</label>${swatches(color, true, t.due)}</div></div>
     ${t.block ? '' : `<label class="lbl" for="t-cat">Assunto <span class="meta">· o grupo dela na TODAS (sem assunto = CAIXA DE ENTRADA)</span></label><select class="inp" id="t-cat" name="cat">${R.assuntos(S).map(([k, n]) => `<option value="${k}" ${R.catOf(S, t) === k ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>`}
     <div class="waitbox"><label class="lbl" for="t-who">⏳ Aguardando quem ou o quê</label><div class="row">
       <input class="inp grow" id="t-who" name="who" value="${esc(t.who || '')}" list="who-list" placeholder="PREFEITURA, CLIENTE, FULANO…" autocomplete="off"><datalist id="who-list">${R.people(S).map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
@@ -390,7 +398,7 @@ function editBlock(id) {
     <div class="msplit">
       <div><label class="lbl" for="b-group">Janela</label><select class="inp" id="b-group" name="group">${Object.entries(R.GROUPS).map(([g, i]) => `<option value="${g}" ${b.group === g && !R.winOf(S, b) ? 'selected' : ''}>${i.name}</option>`).join('')}${R.windows(S).map((w) => `<option value="win:${w.id}" ${b.win === w.id ? 'selected' : ''}>▣ ${esc(w.name)}</option>`).join('')}</select>
         <p class="meta" style="margin:6px 0 0">${items.length - open.length}/${items.length} feitas${open.length ? ` · ${open.length} em aberto` : ''}</p></div>
-      <div><label class="lbl">Cor</label>${swatches(color, true)}</div></div>
+      <div><label class="lbl">Cor</label>${swatches(color, true, R.blockDue(S, b))}</div></div>
     <label class="lbl" for="b-due">◆ Prazo final <span class="meta">· só as subtarefas que você datar têm prazo; nenhuma passa deste</span></label><div class="row"><input class="inp" type="date" id="b-due" name="due" value="${b.due || ''}" style="width:auto">
       ${[['HOJE', td], ['AMANHÃ', addDays(td, 1)], ['+7', addDays(td, 7)], ['PRÓX. SEG', nextMon], ['SEM', '']].map(([n, d]) => `<button type="button" class="pill" data-act="due-quick" data-d="${d}"><span>${n}</span></button>`).join('')}</div>
     ${open.length ? `<label class="lbl">Subtarefas</label><div class="mlist">${open.slice(0, 12).map((t) => `<button type="button" class="dia-t" data-act="edit-task" data-id="${t.id}" data-color="${R.colorOfTask(S, t) || ''}">${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}${t.due ? ` <small class="meta">${fmtDM(t.due)}</small>` : ''}</button>`).join('')}${open.length > 12 ? `<span class="meta">+${open.length - 12}</span>` : ''}</div>` : ''}
@@ -799,7 +807,8 @@ const ACTIONS = {
   forge: (d) => { const it = S.loja.ferreiro.find((x) => x.id === d.id); openModal(`<form data-form="forge" data-id="${d.id}"><h2>⚒ ${esc(it.name)}</h2><p class="muted">Custa <b class="acc">${R.ferreiroXp(it)} XP</b> + o gold (dinheiro real) que você gastou.</p><label class="lbl" for="fg-gold">Quanto gastou (R$ = gold)?</label><input class="inp" id="fg-gold" name="gold" type="number" min="0" value="0" autofocus><div class="actions"><button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">FORJAR</button></div></form>`); },
   'edit-item': (d) => editItem(d.kind, d.id, d.cat),
   'del-item': async (d) => { closeModal(); if (await ask('Apagar item?', 'O histórico de compras continua.', 'APAGAR', true)) A.deleteShopItem(d.kind, d.id); },
-  'undo-buy': async (d) => { if (await ask('Desfazer compra?', 'O XP/gold/ticket volta pro saldo.', 'DESFAZER')) A.undoPurchase(d.id); },
+  'undo-buy': async (d) => { if (await ask('Devolver?', 'O produto volta pra barraca e o XP, o ferro ou o ticket volta pro seu bolso.', 'DEVOLVER', false, quem('eve-la', 1, 'Não gostou, sô? Pode devolver, que aqui é feira de confiança.'))) A.undoPurchase(d.id); },
+  'nf-esvaziar': async () => { if (await ask('Esvaziar a nota fiscal?', 'As compras já usadas com mais de 7 dias viram uma linha por mês. O saldo não muda; a última semana, a sacola e os forjados ficam.', 'ESVAZIAR', false, quem('eve-la', 4, 'Papel demais pesa a feira. Eu junto tudo num resuminho.'))) { const r = A.compactPurchases(); if (r?.msg) toast(r.msg); } },
   'del-gold': async (d) => { if (await ask('Apagar entrada de gold?', 'O valor sai do baú de ouro.', 'APAGAR', true)) A.deleteGold(d.id); },
   'gold-yes': (d) => { const p = goldByKey(d.key); if (p) { A.confirmGold(p, p.amount); sfx('coin'); } },
   // v8.3: atalhos que preenchem um campo do formulário (ex.: horário do time box; o relógio do navegador era ruim de usar)
@@ -911,7 +920,6 @@ const FORMS = {
     const open = !t.st || t.st === 'doing' || t.st === 'wait';
     if (col === 'wait' || patch.who || patch.dep) { if (open) patch.st = 'wait'; } // roxo (ou disse quem segura): vai pra AGUARDANDO
     else { patch.color = col || undefined; if (t.st === 'wait') { patch.st = ''; patch.who = undefined; patch.dep = undefined; } } // outra cor: sai do AGUARDANDO
-    if (patch.color === 'red' && !patch.due && R.isOpen(t)) { patch.due = today(); toast('🟥 URGENTE sempre tem prazo: ficou pra hoje.', 'gold'); } // v8.4 (pedido do dono)
     if (t.link && 'color' in patch && patch.color && patch.color !== 'wait') { const lb = R.findBlock(S, t.link); if (lb && lb.color !== patch.color) A.updateBlock(lb.id, { color: patch.color }); } // tarefa-mãe e bloco têm a mesma cor
     if (f.pin) patch.pin = f.pin.value || undefined;
     // v9.1: o prazo passa pelo caminho único de remarcar (remarcar.js): ele resolve bloco, time box e custo numa janela só
@@ -925,7 +933,7 @@ const FORMS = {
   block: async (f) => {
     const b = S.quests.blocks.find((x) => x.id === f.dataset.id);
     const gv = f.group.value, gw = gv.startsWith('win:') ? R.windows(S).find((w) => 'win:' + w.id === gv) : null;
-    const col = f.querySelector('[name=color]:checked')?.value || b.color;
+    const col = f.querySelector('[name=color]:checked')?.value ?? b.color;
     const patch = { title: A.normalizeMoney(f.title.value.trim()) || b.title, due: f.due.value || null, group: gw ? gw.base : gv, win: gw ? gw.id : undefined };
     if (b.st !== 'done') { if (col === 'wait') patch.st = 'wait'; else { patch.st = ''; patch.color = col; } }
     // v9.3: a tarefa das listas ligada ao bloco muda de prazo pelo caminho único (custo e time box perguntados ali mesmo)
@@ -1074,7 +1082,7 @@ setInterval(() => {
     A.finishItem(p.id); sfx('bell'); toast(`⏰ Acabou: <b>${esc(p.item)}</b>. De volta pra fogueira.`, 'gold');
   }
 }, 1000);
-setInterval(() => { applyMode(); if (today() !== lastDay) { lastDay = today(); started = false; render(); } }, 60000);
+setInterval(() => { applyMode(); if (today() !== lastDay) { lastDay = today(); started = false; A.resync?.(); render(); } }, 60000);
 setInterval(() => { try { if (S.quests) checkAvisos(); } catch { /* */ } }, 20000); // v9.2: aviso 10 min antes do que tem horário
 setTimeout(() => { try { if (S.quests) checkAvisos(); } catch { /* */ } }, 4000);
 

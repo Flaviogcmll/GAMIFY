@@ -112,11 +112,13 @@ function forjados() {
   return `<div class="card" style="max-width:860px"><header><h2>⚒ Tudo que você já forjou</h2><span class="meta">${list.length} ${list.length === 1 ? 'item' : 'itens'} · ${fmtN(xp)} XP · ${fmtN(gold)} gold</span></header>
     <div class="list">${list.map((p) => `<div class="li"><div class="lt">⚒ ${esc(p.item)}<small>${fmtDM(p.date)}${catOf(p) ? ' · ' + esc(catOf(p)) : ''} · ${fmtN(p.xp || 0)} XP${p.gold ? ` · ${fmtN(p.gold)} gold` : ''}</small></div><span class="chip soon">FORJADO</span></div>`).join('') || '<div class="empty">nada forjado ainda. Vá ao FERREIRO: cada item daqui é uma conquista da vida real.</div>'}</div></div>`;
 }
+// v9.5 (pedido do dono): NOTA FISCAL como o ARQUIVO: recolhível por mês, ESVAZIAR junta os meses velhos numa linha e o ↺ chama DEVOLVER
 function hist() {
-  const list = [...S.loja.purchases].sort((a, b) => (a.date < b.date ? 1 : -1));
-  return `<div class="card" style="max-width:860px"><header><h2>🧾 Nota fiscal</h2><span class="meta">${list.length} compras</span></header>
-    <div class="list">${list.map((p) => `<div class="li"><div class="lt">${fmtDM(p.date)} · ${esc(p.item)}<small>${p.kind}${p.tickets ? ' · 🎟' : p.xp ? ` · -${fmtN(p.xp)} XP` : ''}${p.gold ? ` · -${fmtN(p.gold)} gold` : ''}${p.debt ? ' · dívida' : ''}${p.status ? ' · ' + p.status : ''}</small></div>
-      <button class="icon-btn" data-act="undo-buy" data-id="${p.id}" title="Desfazer">↺</button></div>`).join('') || '<div class="empty">nenhuma compra.</div>'}</div></div>`;
+  const list = [...S.loja.purchases].sort((a, b) => (a.date < b.date ? 1 : -1)), cur = today().slice(0, 7), months = [...new Set(list.map((p) => p.date.slice(0, 7)))];
+  const row = (p) => `<div class="li"><div class="lt">${fmtDM(p.date)} · ${esc(p.item)}<small>${p.kind === 'resumo' ? `${p.n} compras juntadas` : p.kind}${p.tickets ? ` · ${p.tickets > 1 ? p.tickets + ' ' : ''}🎟` : ''}${p.xp ? ` · -${fmtN(p.xp)} XP` : ''}${p.gold ? ` · -${fmtN(p.gold)} ferro` : ''}${p.debt ? ' · fiado' : ''}${p.status ? ' · ' + p.status : ''}</small></div>
+      ${p.kind === 'resumo' ? '' : `<button class="btn sm ghost" data-act="undo-buy" data-id="${p.id}" title="Devolver: o produto volta pra barraca e o XP/ferro/ticket volta pro bolso">↺ DEVOLVER</button>`}</div>`;
+  return `<div class="card" style="max-width:860px"><header><h2>🧾 Nota fiscal</h2><span class="row" style="gap:6px"><span class="meta">${list.length} linhas</span><button class="btn sm" data-act="nf-esvaziar" title="Junta as compras já usadas dos meses que passaram numa linha por mês (o saldo não muda)">🧹 ESVAZIAR</button></span></header>
+    ${months.map((m) => { const k = 'nf:' + m, shut = m === cur ? isCollapsed(k) : !isCollapsed('nf-open:' + m), items = list.filter((p) => p.date.startsWith(m)); return `<div class="nf-m"><h3 class="tg-h" data-act="collapse" data-k="${m === cur ? k : 'nf-open:' + m}"><span class="chev">${shut ? '▸' : '▾'}</span> ${m.slice(5)}/${m.slice(0, 4)} <small>${items.length}</small></h3>${shut ? '' : `<div class="list">${items.map(row).join('')}</div>`}</div>`; }).join('') || '<div class="empty">nenhuma compra.</div>'}</div>`;
 }
 
 export function viewShop(ui) {
