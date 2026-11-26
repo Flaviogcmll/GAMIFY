@@ -75,7 +75,7 @@ function pragaCure(before) {
   return { n: gone.length, xp: 0, clean: after.size === 0, names: gone.map((x) => x.text) };
 }
 /** v7.3b: a BRASINHA. 1) fecha os dias que passaram (o CALOR de cada um; viagem não conta) e ela cresce;
- *  2) cada TREM que chega no LAMBEHOMI tira 1 fase (nunca abaixo de PINTINHO); 3) NOITE DA DISGRAMA = o lobo rouba e ela vira OVO (é fênix: renasce).
+ *  2) cada TREM que chega no LAMBEHOMI tira 1 fase (nunca abaixo de PINTINHO); 3) PRAGA = o lobo rouba e ela vira OVO (é fênix: renasce).
  *  v8: depois cuida do LOBO (GUARANÁ ⇄ LAMBEHOMI, regras em rules.js → lobo()).
  *  Os castigos não somam: a Praga não tira mais XP. Devolve os acontecimentos (pra tela avisar) ou null. */
 export function brasinhaTick() {
@@ -131,7 +131,7 @@ function pragaWeek(docs, seen) {
   if (pv.start > ws || (pv.weeks || []).includes(ws)) return;
   pv.weeks = [...(pv.weeks || []), ws].slice(-60);
   if (!pv.lastSeen || pv.lastSeen < ws || pv.lastSeen > we) {
-    S.core.bonus.push({ id: uid('pw'), date: td, kind: 'semlimpa', xp: 0, tickets: 1, label: '🌙 semana sem Praga' });
+    S.core.bonus.push({ id: uid('pw'), date: td, kind: 'semlimpa', xp: 0, tickets: 1, label: '🌙 semana sem TREM TRAPAIADO' });
     S._pragaWeek = true;
   }
   docs.push('core');
@@ -315,7 +315,7 @@ export function startup() {
     S.core.brasinha = { stage: map[old], calor: 0, upTo: addDays(td, -1), hit: R.praga(S).list.filter((x) => x.kind === 'task' && x.phase >= 4).map((x) => x.id), max: map[old], hist: [] };
     S.core.migrations.push('v7-bras'); changedCore = true;
   }
-  if (!S.core.migrations.includes('v8-nomes')) { // v8 (vFINAL): REZA BRABA → BANHO DE SAL GROSSO e LUA DE SANGUE → NOITE DA DISGRAMA também nos dados salvos
+  if (!S.core.migrations.includes('v8-nomes')) { // v8 (vFINAL): REZA BRABA → BANHO DE SAL GROSSO e LUA DE SANGUE → PRAGA também nos dados salvos
     for (const t of q.tasks) if (t.reza != null) { t.sal = t.reza; delete t.reza; changedQ = true; }
     for (const [m, doc] of Object.entries(S.arq)) for (const t of doc.tasks || []) if (t.reza != null) { t.sal = t.reza; delete t.reza; moved.add('arq-' + m); }
     for (const h of S.core.praga?.hist || []) if ('reza' in h) { h.sal = h.reza; delete h.reza; }
@@ -338,6 +338,11 @@ export function startup() {
       if (!t.color && corDe(t.due)) { t.color = corDe(t.due); changedQ = true; }
     }
     S.core.migrations.push('v8-cores'); changedCore = true;
+  }
+  if (!S.core.migrations.includes('v9-subdue')) { // v9.0: subtarefa sem prazo segue o prazo final do bloco (só bloco com prazo de hoje em diante: nada vira atrasada de repente)
+    const td = today();
+    for (const t of S.quests.tasks) { const b = t.block && R.isOpen(t) && !t.due && q.blocks.find((x) => x.id === t.block); if (b && b.st !== 'done' && b.due && b.due >= td) { t.due = b.due; t.dueInh = true; t.dueSet = td; changedQ = true; } }
+    S.core.migrations.push('v9-subdue'); changedCore = true;
   }
   if (!S.core.migrations.includes('v8-mapa-off')) { // v8.6 (pedido do dono, 5B): o MAPA MENTAL saiu do app, e os dados dele também
     delete S.core.mapa;
@@ -482,6 +487,8 @@ export function addTask({ text, area = 'hoje', block = null, due = null, parent 
       t.block = block;
       const bl = B(block);
       if (bl?.st === 'done') reopenBlock(bl);
+      // v9.0 (pedido do dono): a subtarefa nasce com o prazo final do bloco (a não ser que você mude: aí ela deixa de seguir)
+      if (!due && bl?.due && bl.due >= today()) { t.due = bl.due; t.dueInh = true; }
       const items = S.quests.tasks.filter((x) => x.block === block).sort((a, b) => a.ord - b.ord);
       if (text.startsWith('↳')) t.parent = parent || [...items].reverse().find((x) => !x.text.startsWith('↳'))?.id || null;
       if (!t.parent) delete t.parent;
@@ -676,6 +683,7 @@ export function updateTask(id, patch) {
   if (!t) return;
   // subtarefa não pode passar do prazo final do bloco
   const bk = B(patch.block !== undefined ? patch.block : t.block), cap = R.dueCap(bk);
+  if ('due' in patch && patch.due !== t.due) delete t.dueInh; // v9.0: mudou na mão = não segue mais o prazo do bloco
   if ('due' in patch && patch.due && cap && patch.due > cap) return { error: `O bloco "${bk.title}" termina em ${fmtDM(cap)}: a subtarefa não pode passar disso. Mude antes o prazo do bloco.` };
   // v5.16 E) time boxing: remarcada 3x, só empurra de novo com horário + duração (patch.box) ou cancelando
   if ('due' in patch && patch.due && t.due && patch.due > t.due && R.reschedLocked(S, t) && !patch.box) return { error: `"${String(t.text).replace(/\s*\(\d+\s*XP\)/i, '').slice(0, 50)}" já foi remarcada ${t.rs}x. Pra empurrar de novo, abra a tarefa e marque um horário e uma duração (time box), ou cancele.`, locked: true };
@@ -754,7 +762,15 @@ export function addBlock(group, title, extra = {}) {
 export function updateBlock(id, patch) {
   const b = B(id);
   if (!b) return;
-  return commit(['quests'], () => { Object.assign(b, patch); if (!b.due) b.due = null; });
+  const old = b.due || null;
+  return commit(['quests'], () => {
+    Object.assign(b, patch); if (!b.due) b.due = null;
+    // v9.0: mudou o prazo final do bloco: as subtarefas que seguem o bloco (ou sem prazo) vão junto
+    if ('due' in patch && (b.due || null) !== old) for (const t of S.quests.tasks.filter((x) => x.block === b.id && R.isOpen(x))) {
+      if (t.dueInh || (!t.due && b.due)) { t.due = b.due || null; t.dueInh = !!b.due; if (!t.dueInh) delete t.dueInh; }
+      else if (b.due && t.due && t.due > b.due) t.due = b.due; // ninguém passa do prazo do bloco
+    }
+  });
 }
 export function deleteBlock(id) {
   return commit(['quests'], () => {
@@ -785,6 +801,26 @@ export function mergeBlockInto(srcId, dstId) {
     S.quests.blocks = S.quests.blocks.filter((b) => b.id !== src.id);
     return { msg: `↘ "${src.title}" virou subtarefa de "${dst.title}".` };
   }, { label: 'juntar blocos' });
+}
+/** v9.0 (pedido do dono): arrastar uma subtarefa pra cima de outra = vira passo ↳ dela (os passos dela vão junto, pro mesmo pai) */
+export function nestTask(id, parentId) {
+  const t = T(id), p = T(parentId);
+  if (!t || !p || t.id === p.id || !p.block) return { error: 'Não dá pra fazer isso aqui.' };
+  const dad = p.parent ? T(p.parent) || p : p; // passo não tem passo: vai pro pai dele
+  if (dad.id === t.id) return { error: 'Uma tarefa não vira passo dela mesma.' };
+  return commit(['quests'], () => {
+    const kids = S.quests.tasks.filter((x) => x.parent === t.id);
+    const fam = S.quests.tasks.filter((x) => x.id === dad.id || x.parent === dad.id).sort((a, b) => a.ord - b.ord);
+    const last = fam[fam.length - 1], next = container(last).sort((a, b) => a.ord - b.ord).find((x) => x.ord > last.ord);
+    const step = ((next?.ord ?? last.ord + 1) - last.ord) / (kids.length + 2);
+    [t, ...kids].forEach((x, i) => {
+      x.block = dad.block; x.area = 'block'; x.parent = dad.id; x.ord = last.ord + step * (i + 1);
+      if (!/^\s*(↳|>)/.test(x.text)) x.text = '↳ ' + x.text.replace(/^\s*⚔\s*/, '');
+      const cap = R.dueCap(B(dad.block)); if (cap && x.due && x.due > cap) x.due = cap;
+      if (x.link) { /* tarefa ligada a outro bloco continua ligada */ }
+    });
+    return { msg: `↳ "${t.text.replace(/^↳\s*/, '').slice(0, 40)}" virou passo de "${dad.text.slice(0, 40)}".` };
+  }, { label: 'virar passo' });
 }
 export function moveBlock(id, dir) {
   const b = B(id);
@@ -1257,6 +1293,12 @@ export function newGameDocs() {
 }
 
 // ───────────────────────── v2: QUADRO ─────────────────────────
+/** v9.0: quantos itens o ATUALIZAR vai arquivar (pra dizer ANTES, na pergunta) */
+export function archivePreview() {
+  const q = S.quests, closed = q.blocks.filter((b) => b.st === 'done'), ids = new Set(closed.map((b) => b.id));
+  const fin = q.tasks.filter((t) => !ids.has(t.block) && (t.st === 'done' || t.st === 'cancel') && !q.tasks.some((k) => k.parent === t.id && R.isOpen(k)));
+  return { tasks: fin.filter((t) => t.st === 'done').length, canceled: fin.filter((t) => t.st === 'cancel').length, blocks: closed.length, inBlocks: q.tasks.filter((t) => ids.has(t.block)).length };
+}
 /** 🔄 ATUALIZAR: arquiva já tudo que está ✔/✖ (listas e blocos fechados) */
 export function archiveNow() {
   const td = today(), q = S.quests;

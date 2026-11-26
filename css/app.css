@@ -2011,3 +2011,118 @@ html, body { height: auto; } body { min-height: 100vh; }
   --warn-soft: color-mix(in srgb, #734c81 34%, #2d2324); --info-soft: color-mix(in srgb, #477bab 30%, #2d2324); }
 :root[data-mode="night"] .btn.pri { color: #2b1d14; } /* v8.9.1: à noite o couro é claro: letra escura (contraste ~9:1) */
 :root[data-mode="night"] .btn.pri { outline-color: rgba(43, 29, 20, .35); }
+
+/* ═════════════ v9.0 — pedidos do dono de 26/11: limpeza, elenco, MEU DIA ═════════════ */
+/* cabeçalho do bloco e do boss: faixa · setinha · título · botões (a setinha da v8.4 empurrava os botões pra linha de baixo) */
+.block > .bh { grid-template-columns: 8px auto minmax(0, 1fr) auto; }
+.block > .bh .bchev { align-self: start; margin: 8px 0 0 4px; width: 22px; height: 22px; }
+.block > .bh .bbtns { flex-wrap: nowrap; }
+/* moscas na linha, antes do prazo (no canto de cima elas pareciam soltas) */
+.task .info .moscas, .task .info .mosca-morta { margin: 0 1px 0 0; }
+.moscas svg + svg { margin-left: -3px; }
+.mini-mosca { display: inline-flex; align-items: center; gap: 1px; color: var(--plum, #2e2430); line-height: 0; vertical-align: middle; }
+:root[data-mode="night"] .mini-mosca { color: #cbb8d6; }
+.mini-mosca b { font: 700 9px/1 var(--f-mono); }
+.mini-mosca svg { animation: mosca-voo 1.4s steps(2) infinite; }
+.tl .tl-skull, .pg-skull { filter: none; }
+.pg-skull { background: transparent; }
+/* menos coisa na linha: o ⤴ (mandar pra janela) só aparece passando o mouse; no celular fica, discreto */
+@media (hover: hover) { .task .info .icon-btn.mini { opacity: 0; } .task:hover .info .icon-btn.mini { opacity: 1; } }
+.task .info .chip.xp { opacity: .75; }
+.task .info .chip.box { letter-spacing: .02em; }
+/* os personagens (assets/elenco): nunca espelhados */
+img.elenco { display: block; image-rendering: pixelated; image-rendering: crisp-edges; pointer-events: none; user-select: none; max-width: none; }
+.pst-host { position: absolute; right: 12px; bottom: -6px; z-index: 2; display: flex; align-items: flex-end; pointer-events: none; }
+.pst-host img.elenco { filter: drop-shadow(3px 0 0 color-mix(in srgb, var(--plum, #2e2430) 45%, transparent)); }
+@media (max-width: 600px) { .pst-host { right: 4px; } .pst-host img.elenco { width: auto; height: 112px; } }
+/* o PRIMO dá as dicas do relógio do corpo (era o FOCO AGORA) e diz por que está com aquele humor */
+.ptip { position: relative; margin: 0 0 10px; padding: 8px 11px 9px; border: 2px solid var(--edge); border-radius: var(--rad, 12px); background: var(--panel); font-size: 12px; line-height: 1.45; box-shadow: var(--luz, none), 3px 3px 0 var(--shadow); }
+.ptip::after { content: ''; position: absolute; left: 34px; bottom: -9px; width: 12px; height: 12px; background: inherit; border-right: 2px solid var(--edge); border-bottom: 2px solid var(--edge); transform: rotate(45deg); }
+.ptip b { font: 700 11px var(--f-mono); color: var(--accent-2, var(--ink)); margin-right: 4px; }
+.ptip small { display: block; margin-top: 3px; color: var(--muted); font-size: 10.5px; }
+.ptip[data-phase="foco"], .ptip[data-phase="pico2"] { background: color-mix(in srgb, var(--c-ok) 10%, var(--panel)); }
+.ptip[data-phase="vale"] { background: color-mix(in srgb, var(--c-atencao) 12%, var(--panel)); }
+.ptip[data-phase="recolher"], .ptip[data-phase="sono"], .ptip[data-phase="desacelerar"] { background: color-mix(in srgb, var(--c-calma) 12%, var(--panel)); }
+.pstat .msay { color: var(--muted); font-weight: 400; }
+.vit-host { position: absolute; right: 14px; bottom: -6px; z-index: 1; display: flex; align-items: flex-end; pointer-events: none; }
+.vit-host img.elenco { filter: drop-shadow(3px 0 0 rgba(46, 36, 48, .5)); }
+@media (max-width: 600px) { .vit-host img.elenco { width: auto; height: 96px; } }
+.vitrine.shut .vit-host { display: none; }
+.vitrine.elv .vit-h > div { max-width: 66%; z-index: 2; }
+.hweek-nav { justify-content: flex-end; margin: 0 0 8px; }
+@media (min-width: 601px) { .vit-b table.hg td.c { width: 9%; } }
+/* v9.0 (pedido do dono): o painel da direita vai até o pé da tela e a FILA DE PRAZOS estica até lá (o PRIMO não muda de tamanho) */
+@media (min-width: 861px) {
+  .quests .side { height: calc(100vh - var(--stick, 100px) - 24px); }
+  .side > .sitem:has(.fila-q) { flex: 1 0 auto; min-height: 340px; display: flex; flex-direction: column; }
+  .side > .sitem:has(.fila-q) > .fila-q { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+  .side .fila-q .list { max-height: none; flex: 1 1 0; min-height: 260px; overflow-y: auto; }
+}
+/* v9.0 MEU DIA: banner, visual da ROTINA e a BAGUNÇA do dia (o que não tem horário, solto e torto, pra arrumar) */
+.vitrine[data-v="meu-dia"] .vit-b { padding: 12px; }
+.dia-nav { gap: 6px; flex-wrap: wrap; margin: 0 0 12px; align-items: center; }
+.dia-nav .grow { flex: 1; }
+.dia-wrap { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(240px, 1fr); gap: 14px; align-items: start; }
+.dia-grid.rot-look { border: 0; border-radius: 0; gap: 3px; background: none; overflow: visible; }
+.dia-grid.rot-look .dia-h { border: 0; border-radius: 8px; background: var(--panel-2); grid-template-columns: 46px minmax(90px, .9fr) 2fr; padding: 4px 6px; min-height: 38px; transition: background .15s, box-shadow .15s; }
+.dia-grid.rot-look .dia-h.past { opacity: .5; }
+.dia-grid.rot-look .dia-h.now { box-shadow: 0 0 0 3px var(--accent) inset; opacity: 1; }
+.dia-grid.rot-look .dia-h.over { box-shadow: 0 0 0 3px var(--c-acao) inset; background: color-mix(in srgb, var(--c-acao) 14%, var(--panel)); }
+.dia-grid.rot-look .dia-rot { border-radius: 6px; padding: 5px 8px; font: 600 10.5px/1.25 var(--f-mono); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dia-grid.rot-look .dia-rot:empty { background: transparent; }
+.dia-mess { position: sticky; top: calc(var(--stick, 100px) + 12px); border: 2px dashed color-mix(in srgb, var(--edge) 70%, transparent); border-radius: var(--rad, 12px); padding: 10px 10px 8px; background: color-mix(in srgb, var(--c-premio) 7%, var(--panel)); transition: background .15s; }
+.dia-mess.over { background: color-mix(in srgb, var(--c-acao) 12%, var(--panel)); border-color: var(--c-acao); }
+.dia-mess > header { display: flex; flex-direction: column; gap: 2px; margin: 0 0 8px; }
+.dia-mess > header b { font: 700 11px var(--f-mono); }
+.mess-pile { display: flex; flex-wrap: wrap; gap: 10px 8px; align-content: flex-start; padding: 4px 2px 10px; }
+.dia-t.solto { transform: translate(var(--dx, 0), var(--dy, 0)) rotate(var(--r, 0deg)); box-shadow: 2px 3px 0 var(--shadow); max-width: 100%; transition: transform .2s; }
+.dia-t.solto:hover { transform: translate(var(--dx, 0), calc(var(--dy, 0) - 2px)) rotate(0deg); z-index: 2; }
+.dia-t.solto.picked { outline: 3px solid var(--c-acao); outline-offset: 2px; transform: rotate(0deg) scale(1.04); }
+.dia-drag { cursor: grab; touch-action: manipulation; }
+.dia-drag.dragging { opacity: .35; }
+.dia-ghost { position: fixed; z-index: 9999; pointer-events: none; transform: rotate(-3deg); opacity: .92; box-shadow: 4px 6px 0 var(--shadow); }
+.dia-trens { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 0 2px; margin-top: 4px; padding-top: 8px; border-top: 1px dashed var(--line); }
+.dia-trens img.elenco { height: 70px; width: auto; margin-right: -8px; }
+.dia-trens img.elenco:nth-child(2n) { height: 60px; }
+.dia-tr-n { display: block; margin-top: 4px; }
+@media (max-width: 860px) {
+  .dia-wrap { grid-template-columns: 1fr; }
+  .dia-mess { position: static; order: -1; }
+  .dia-grid.rot-look .dia-h { grid-template-columns: 40px minmax(70px, .8fr) 1.4fr; }
+  .dia-trens img.elenco { height: 46px; }
+}
+.pst-host img.elenco, .vit-host img.elenco, .dia-trens img.elenco { pointer-events: auto; cursor: pointer; transition: transform .15s; }
+.pst-host img.elenco:hover, .vit-host img.elenco:hover, .dia-trens img.elenco:hover { transform: translateY(-3px); }
+.pst-host, .vit-host { pointer-events: none; }
+/* soltar uma subtarefa em cima de outra (vira passo ↳) ou um bloco dentro de outro bloco aberto (vira subtarefa) */
+.drop-nest { outline: 3px dashed var(--c-acao) !important; outline-offset: 2px; background: color-mix(in srgb, var(--c-acao) 10%, transparent) !important; }
+li.task.drop-nest::after { content: '↳ vira passo'; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font: 700 10px var(--f-mono); color: var(--c-acao); background: var(--panel); padding: 1px 6px; border-radius: 6px; }
+article.block.drop-nest::after { content: '↘ vira subtarefa deste bloco'; position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); font: 700 11px var(--f-mono); color: var(--c-acao); background: var(--panel); padding: 3px 8px; border-radius: 8px; border: 2px solid var(--c-acao); z-index: 3; }
+article.block { position: relative; }
+.mlist { display: flex; flex-wrap: wrap; gap: 6px; max-height: 160px; overflow-y: auto; }
+img.elenco.pmini { display: inline-block; height: 34px; width: auto; vertical-align: middle; margin: -6px 2px -4px 0; }
+.pbras > span, .plobo > span { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.cheio { display: flex; align-items: center; gap: 10px; }
+.cheio img.cheio-art { height: 56px; width: auto; flex: none; pointer-events: auto; cursor: pointer; }
+/* v9.0 repaginada (guia 11.3): a paleta tirada das artes aprovadas, como tokens. Contorno preto nenhum: sombra ameixa e luz quente */
+:root { --t-ameixa: #352329; --t-ameixa-2: #493032; --t-ameixa-3: #5f3737; --t-couro: #77423c; --t-couro-2: #904440; --t-couro-3: #9a5d3e;
+  --t-brasa: #ba4f40; --t-brasa-2: #d76443; --t-brasa-3: #ea9145; --t-mel: #c49a44; --t-mel-2: #f8bc56; --t-mel-3: #facf83;
+  --t-papel: #f9dba5; --t-papel-2: #fbebc5; --t-rosa: #d87d65; --t-cinza: #785e5f; --t-cinza-2: #b78f81; --t-musgo: #545643; --t-musgo-2: #8b8b44;
+  --espiral: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14' shape-rendering='crispEdges'%3E%3Cpath fill='%239a5d3e' d='M6 6h2v2H6zM8 4h2v2H8zM4 4h2v2H4zM2 6h2v4H2zM4 10h4v2H4zM8 8h2v2H8zM10 4h2v4h-2zM6 2h4v2H6z'/%3E%3C/svg%3E"); }
+/* títulos de seção com o cachinho no fim (a espiral é a assinatura do artista: 10.2) */
+.sec-h::after, .vit-h h2::after, .dia-mess > header b::after { content: ''; display: inline-block; width: 14px; height: 14px; margin-left: 7px; vertical-align: -1px; background: var(--espiral) center / contain no-repeat; image-rendering: pixelated; opacity: .85; }
+.vit-h h2 { color: var(--t-papel-2); text-shadow: 2px 2px 0 var(--t-ameixa); }
+.vit-h p { color: var(--t-papel); text-shadow: 1px 1px 0 var(--t-ameixa); }
+.vit-h::before { background: linear-gradient(0deg, color-mix(in srgb, var(--t-ameixa) 88%, transparent) 0, color-mix(in srgb, var(--t-ameixa) 40%, transparent) 58%, transparent 100%); }
+/* a PENA DA BRASINHA é o ícone de "escrever" (guia 7): nas linhas de adicionar */
+.addline .inp::placeholder { color: color-mix(in srgb, var(--muted) 85%, var(--t-brasa)); }
+/* v9.0: a 💀 e a 🦠 saíram (as moscas já dizem tudo) */
+li.task[data-praga] .txt::before, .li.rit[data-praga] .lt::before { content: none; }
+:root[data-praga] .pstage::before, :root[data-praga] .pstage::after { content: none !important; }
+/* colunas estreitas (listas e blocos em 3 colunas): o texto da tarefa fica com a linha inteira e as moscas/prazo/XP descem pra linha de baixo, à direita */
+.list-card, .mcol article.block, aside.postit { container-type: inline-size; }
+@container (max-width: 380px) {
+  .task .info { grid-column: 2 / -1; grid-row: auto; justify-content: flex-end; flex-wrap: wrap; padding-top: 0; margin-top: -2px; }
+  .task .txt { grid-column: 2 / -1; }
+}
+.lbl .meta { font: 400 11px/1.4 var(--f-mono); letter-spacing: 0; text-transform: none; }

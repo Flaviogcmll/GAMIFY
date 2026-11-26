@@ -33,6 +33,8 @@ export function moscasHtml(n, title = '', ov = false) {
   const inner = n === 'aur' ? svg('aur') : Array.from({ length: n }, () => svg('mosca')).join('');
   return `<span class="moscas ${ov ? 'ov' : ''}" data-n="${n}" title="${title}" role="img" aria-label="${title}">${inner}</span>`;
 }
+/** v9.0: a mini mosca no lugar da caveira 💀 (o dono pediu): o dia em que o TREM fica TRAPAIADO */
+export const miniMosca = (n = 1) => `<span class="mini-mosca" aria-hidden="true">${svg('mosca')}${n > 1 ? `<b>${n}</b>` : ''}</span>`;
 export const moscaMortaHtml = (title = 'Mosca morta: está PARADO', ov = false) => `<span class="mosca-morta ${ov ? 'ov' : ''}" title="${title}" role="img" aria-label="${title}">${svg('morta')}</span>`;
 
 /** v8.8 (pedido do dono): cada vez que a tarefa é adiada (t.rs), o TREM cresce: ×2, ×3, ×4 pixels */

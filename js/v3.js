@@ -1,4 +1,5 @@
 // v3 — companheiro, cenários por aba, fogueira de foco, arrastar com dedo/mouse, recolher e arquivo com filtro.
+import { fig, ANFITRIAO } from './elenco.js';
 import { historyCard, dropTaskSmart } from './v4.js';
 
 import { S } from './store.js';
@@ -39,8 +40,8 @@ export function sceneBanner(route, ui) {
   const lt = lightNow(), night = lt === 'noite' || pph >= 4, tarde = !night && lt === 'tarde'; // v7.0: pela hora real (o tema escuro não muda o cenário); fase 4 da Praga força a noite
   // v6: a SHOP virou FEIRA, com o cenário da feira (dia, tarde ou noite)
   const src = pph >= 3 && R.PRAGA_TOPOS.includes(key) ? `assets/topo/${key}-praga.webp` : key === 'shop' ? `assets/primo/cena/feira-${night ? 'noite' : tarde ? 'tarde' : 'dia'}.webp` : `assets/topo/${TOPOS.includes(key) ? key : 'survival'}-${night ? 'noite' : 'dia'}.webp`;
-  return `<div class="scene pstrip ${tarde ? 'tarde' : ''}" style="--img:url('${new URL(src, document.baseURI).href}')"><canvas id="scene" data-interior="${interiorOf(key) || 'rotina'}" aria-hidden="true"></canvas><img class="topo" src="${src}" alt="" aria-hidden="true">${pph >= 2 ? '<span class="pg-fog" aria-hidden="true"></span><span class="pg-eyes" aria-hidden="true"></span>' : ''}${R.praga(S).noite ? '<span class="pg-moon" aria-hidden="true" title="NOITE DA DISGRAMA"></span>' : ''}
-    <div class="pst-face"><canvas class="pcv" data-portrait="bust" data-act="primo-hub" title="Falar com o PRIMO" aria-label="PRIMO"></canvas></div>
+  return `<div class="scene pstrip ${tarde ? 'tarde' : ''}" style="--img:url('${new URL(src, document.baseURI).href}')"><canvas id="scene" data-interior="${interiorOf(key) || 'rotina'}" aria-hidden="true"></canvas><img class="topo" src="${src}" alt="" aria-hidden="true">${pph >= 2 ? '<span class="pg-fog" aria-hidden="true"></span><span class="pg-eyes" aria-hidden="true"></span>' : ''}${R.praga(S).noite ? '<span class="pg-moon" aria-hidden="true" title="PRAGA"></span>' : ''}
+    <div class="pst-face"><canvas class="pcv" data-portrait="bust" data-act="primo-hub" title="Falar com o PRIMO" aria-label="PRIMO"></canvas></div>${((h) => (h ? `<div class="pst-host" data-host="${h[0]}">${fig(h[0], h[1], '', h[2], true)}</div>` : ''))(ANFITRIAO[key])}
     <div class="pst-txt"><div class="scene-title">${esc(t)}</div><div class="scene-sub">${esc(sub.toUpperCase())}</div><div class="pst-say" data-pspeech="tab:${key}"></div></div></div>`;
 }
 const TOPOS = ['survival', 'agenda', 'shop', 'ferreiro', 'domingo', 'conquistas', 'filtro', 'rotina', 'regras', 'arquivo'];
@@ -135,9 +136,16 @@ function targetAt(x, y, kind) {
   if (!el) return null;
   if (kind === 'task') {
     const li = el.closest('li.task'), zone = el.closest('[data-drop-area],[data-drop-block]');
-    return zone ? { li: li && li.dataset.id !== drag.id ? li : null, zone } : null;
+    if (!zone) return null;
+    const other = li && li.dataset.id !== drag.id ? li : null;
+    // v9.0 (pedido do dono): soltar EM CIMA de outra subtarefa do bloco (metade de baixo da linha) = vira passo ↳ dela
+    if (other && zone.dataset.dropBlock && !other.classList.contains('step')) { const r = other.getBoundingClientRect(); if (y > r.top + r.height * 0.4) return { nest: other, zone }; }
+    return { li: other, zone };
   }
   const art = el.closest('article.block'), col = el.closest('.group[data-group]');
+  // v9.0 (pedido do dono): soltar um bloco DENTRO de outro bloco aberto (na lista de tarefas dele) = vira subtarefa dele
+  const body = el.closest('article.block:not(.collapsed) .bbody'), host = body?.closest('article.block[data-drop-block]');
+  if (host && host.dataset.dropBlock !== drag.id && !host.classList.contains('boss-b')) return { merge: host, zone: col };
   // v7.0: a coluna (0 a 2) onde o bloco vai cair. No celular as colunas viram uma só: aí não muda a coluna, só a ordem
   const mc = matchMedia('(max-width: 860px)').matches ? null : el.closest('.mcol[data-col]');
   return col ? { li: art && art.dataset.dropBlock !== drag.id ? art : null, zone: col, mc } : null;
@@ -161,21 +169,27 @@ document.addEventListener('pointermove', (e) => {
     document.body.appendChild(drag.ghost); drag.src.classList.add('dragging');
   }
   drag.ghost.style.left = e.clientX - 20 + 'px'; drag.ghost.style.top = e.clientY - 14 + 'px';
-  document.querySelectorAll('.drop-before,.drop-zone').forEach((x) => x.classList.remove('drop-before', 'drop-zone'));
+  document.querySelectorAll('.drop-before,.drop-zone,.drop-nest').forEach((x) => x.classList.remove('drop-before', 'drop-zone', 'drop-nest'));
   drag.ghost.style.display = 'none';
   const t = targetAt(e.clientX, e.clientY, drag.kind);
   drag.ghost.style.display = '';
   drag.target = t;
-  if (t) (t.li || t.mc || t.zone).classList.add(t.li ? 'drop-before' : 'drop-zone');
+  if (t) (t.nest || t.merge || t.li || t.mc || t.zone).classList.add(t.nest || t.merge ? 'drop-nest' : t.li ? 'drop-before' : 'drop-zone');
   if (e.clientY < 70) scrollBy(0, -12); else if (e.clientY > innerHeight - 70) scrollBy(0, 12);
 });
 document.addEventListener('pointerup', () => {
   if (!drag) return;
   const d = drag; drag = null;
   d.ghost?.remove(); d.src?.classList.remove('dragging');
-  document.querySelectorAll('.drop-before,.drop-zone').forEach((x) => x.classList.remove('drop-before', 'drop-zone'));
+  document.querySelectorAll('.drop-before,.drop-zone,.drop-nest').forEach((x) => x.classList.remove('drop-before', 'drop-zone', 'drop-nest'));
   if (!d.on || !d.target) return;
   const z = d.target.zone;
+  if (d.target.nest) { const r = A.nestTask(d.id, d.target.nest.dataset.id); if (r?.error) toast(esc(r.error), 'bad'); sfx('drop'); return; }
+  if (d.target.merge) {
+    const src = R.findBlock(S, d.id), dst = R.findBlock(S, d.target.merge.dataset.dropBlock);
+    ask('Juntar os blocos?', `"${src?.title}" vira uma subtarefa de "${dst?.title}" e as tarefas dele viram passos ↳. Dá pra desfazer no ↩.`, 'JUNTAR').then((ok) => { if (ok) { const r = A.mergeBlockInto(d.id, dst.id); if (r?.error) toast(esc(r.error), 'bad'); else sfx('drop'); } });
+    return;
+  }
   if (d.kind === 'task') dropTaskSmart(d.id, { area: z.dataset.dropArea, block: z.dataset.dropBlock, before: d.target.li?.dataset.id });
   else {
     // v7.0: guarda a coluna de destino e "congela" a coluna dos vizinhos (assim ninguém troca de lugar sozinho)
@@ -207,7 +221,7 @@ export function viewArquivo3(ui) {
     { label: '✨ XP', value: fmtN(xpSum), cls: 'gold', tone: 'premio' },
     best && { label: '🔥 Melhor dia', value: `${best[1]} <small class="u">tarefas</small>`, sub: `em ${fmtDM(best[0])}`, tone: 'ok', tip: `O dia em que você mais concluiu tarefas: ${best[1]} em ${fmtDM(best[0])}` },
     rounds && { label: '🔁 Vai e volta', value: rounds, sub: 'rodadas enviadas', tone: 'espera' },
-    ((c) => (c.noite || c.antidoto ? { label: '🐺 Ciclos do lobo', value: (c.noite || 0) + (c.antidoto || 0), sub: `${c.noite || 0} pela NOITE · ${c.antidoto || 0} antídoto`, tone: 'calma', tip: 'Quantas vezes o LAMBEHOMI voltou a ser GUARANÁ: roubando a BRASINHA na NOITE DA DISGRAMA ou pelo ANTÍDOTO da CAJULINA e da EVE LÃ. É um ciclo, como a lua.' } : null))(R.lobo(S).curas),
+    ((c) => (c.noite || c.antidoto ? { label: '🐺 Ciclos do lobo', value: (c.noite || 0) + (c.antidoto || 0), sub: `${c.noite || 0} pela NOITE · ${c.antidoto || 0} antídoto`, tone: 'calma', tip: 'Quantas vezes o LAMBEHOMI voltou a ser GUARANÁ: roubando a BRASINHA na PRAGA ou pelo ANTÍDOTO da CAJULINA e da EVE LÃ. É um ciclo, como a lua.' } : null))(R.lobo(S).curas),
   ]);
   const ctx = {}; for (const t of done) { const c = ctxOf(t) || '—'; ctx[c] = (ctx[c] || 0) + 1; }
   const top = Object.entries(ctx).sort((a, b) => b[1] - a[1]).slice(0, 8), max = top[0]?.[1] || 1;
@@ -245,11 +259,14 @@ export function extend(ACTIONS, render) {
       // v7.7: corrige já e de novo quando imagens, gráficos e o mapa terminam de assentar (eles mudam a altura DEPOIS do redesenho e empurravam o cartão)
       const fix = () => { const h = document.querySelector(`[data-k="${CSS.escape(d.k)}"]`); if (!h || y0 == null) return; const dy = h.getBoundingClientRect().top - y0; if (Math.abs(dy) > 1) window.scrollBy(0, dy); };
       fix(); let moved = false; const off = () => { moved = true; }; addEventListener('wheel', off, { once: true, passive: true }); addEventListener('touchmove', off, { once: true, passive: true });
-      requestAnimationFrame(() => { if (!moved) fix(); }); [150, 450, 900].forEach((ms) => setTimeout(() => { if (!moved) fix(); }, ms));
+      // v9.0 (pedido do dono: linhas pulando, mais no PERKS): em vez de corrigir em 150/450/900 ms (cada correção era um pulo visível),
+      // um ResizeObserver corrige ANTES de a tela ser pintada sempre que a altura muda, durante 1,2 s
+      const ro = new ResizeObserver(() => { if (!moved) fix(); }); ro.observe(document.body); const mn2 = document.getElementById('main'); if (mn2) ro.observe(mn2);
+      setTimeout(() => ro.disconnect(), 1200);
     },
     qtab: (d) => { const ui = window.__ui; if ((document.querySelector('.qbar .seg button.on')?.dataset.tab || ui.qtab || 'listas') === d.tab && !ui.mm) ui.mm = true; else { ui.mm = false; ui.qtab = d.tab; } render(); sfx('tab'); }, // v6: tocar de novo na janela aberta = memento mori
     'mm-off': () => { window.__ui.mm = false; render(); sfx('tab'); },
-    'ag-day': (d) => { const list = R.openTasks(S).filter((t) => t.due === d.d), pg = window.__pragaDays?.[d.d]; openModal(`<h2>${fmtDM(d.d)}</h2>${pg?.length && d.d >= today() && d.d <= addDays(today(), 3) ? `<p class="pg-coming" style="display:block;border-radius:8px;padding:6px 10px;margin:0 0 10px">💀 O inimigo chega aqui: se ninguém fizer até a véspera, neste dia vira TREM TRAPAIADO: ${esc(pg.slice(0, 6).join(' · '))}</p>` : ''}<div class="list">${list.map((t) => `<div class="li" data-list="${R.listOf(t)}"><div class="lt" data-act="jump" data-id="${t.id}" style="cursor:pointer">${esc(t.text)}<small>${esc(t.block ? R.findBlock(S, t.block)?.title || '' : R.areaName(t.area))}</small></div><span class="chip xp">${R.taskXp(S, t).xp}</span></div>`).join('') || '<div class="empty">nada vence nesse dia.</div>'}</div><div class="actions"><button class="btn" data-close>FECHAR</button></div>`); },
+    'ag-day': (d) => { const list = R.openTasks(S).filter((t) => t.due === d.d), pg = window.__pragaDays?.[d.d]; openModal(`<h2>${fmtDM(d.d)}</h2>${pg?.length && d.d >= today() && d.d <= addDays(today(), 3) ? `<p class="pg-coming" style="display:block;border-radius:8px;padding:6px 10px;margin:0 0 10px">🪰 O TREM chega aqui: se ninguém fizer até a véspera, neste dia vira TREM TRAPAIADO: ${esc(pg.slice(0, 6).join(' · '))}</p>` : ''}<div class="list">${list.map((t) => `<div class="li" data-list="${R.listOf(t)}"><div class="lt" data-act="jump" data-id="${t.id}" style="cursor:pointer">${esc(t.text)}<small>${esc(t.block ? R.findBlock(S, t.block)?.title || '' : R.areaName(t.area))}</small></div><span class="chip xp">${R.taskXp(S, t).xp}</span></div>`).join('') || '<div class="empty">nada vence nesse dia.</div>'}</div><div class="actions"><button class="btn" data-close>FECHAR</button></div>`); },
     'comp-talk': () => talk(),
     'comp-rename': () => openModal(`<form data-v3form="rename"><h2>nome do companheiro</h2><input class="inp" name="n" value="${esc(R.companion(S).name)}" maxlength="12" autofocus aria-label="Nome"><div class="actions"><button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">SALVAR</button></div></form>`),
     'take-money': () => openModal(`<form data-v3form="take"><h2>↩ retirei</h2><p class="muted">Quanto você TIROU do que estava guardado? O boss do capítulo recupera essa vida. Fica anotado no histórico, sem multa.</p><input class="inp" name="v" type="number" min="1" step="1" placeholder="R$" autofocus aria-label="Valor"><input class="inp" name="n" placeholder="pra quê (ex.: CONSERTO DO CARRO)" style="margin-top:8px" aria-label="Motivo"><div class="actions"><button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">RETIRAR</button></div></form>`),

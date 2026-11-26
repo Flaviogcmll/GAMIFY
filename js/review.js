@@ -77,7 +77,7 @@ const VIEW = {
       title: 'mosca morta',
       line: l.length ? `Ó, sô: ${l.length > 1 ? `tem ${l.length} trem PARADO` : 'tem um trem PARADO'} faz tempo. Mosca morta, mas não esquecida. Continua parado ou volta a andar?` : 'Nada parado esquecido. Trem bão, sô.',
       body: l.length ? `<div class="list" style="max-height:38vh;overflow:auto">${l.map((x) => `<div class="li"><div class="lt">🪰 ${esc(clean(x.text))}<small>${x.kind === 'block' ? 'bloco' : 'tarefa'} parado${x.last ? ` · último lembrete ${fmtDM(x.last)}` : ''}</small></div>
-          <span class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn sm good" data-rv="mosca-wake" data-id="${x.id}" title="Sai do PARADO e vira CHEGANDO">▶ VOLTAR</button><button class="btn sm ghost" data-rv="mosca-go" data-id="${x.id}" data-k="${x.kind}" title="Ir até ele">↗</button></span></div>`).join('')}</div>
+          <span class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn sm good" data-rv="mosca-wake" data-id="${x.id}" title="Sai do PARADO e vira ESQUENTANDO">▶ VOLTAR</button><button class="btn sm ghost" data-rv="mosca-go" data-id="${x.id}" data-k="${x.kind}" title="Ir até ele">↗</button></span></div>`).join('')}</div>
         <p class="meta" style="margin:8px 0 0">O que ficar parado continua parado (só você muda). Eu lembro de novo daqui a ${R.MOSCA_DIAS} dias.</p>` : '',
       last: st.steps.at(-1) === 'mosca',
     };
@@ -179,7 +179,7 @@ export function openReview(gap = 0, prev = null, only = null) {
     else if (k === 'boss-pause') { A.pauseBoss(id, addDays(today(), R.BOSS_PAUSE_MAX)); sfx('tab'); }
     else if (k === 'boss-edit') { closeModal(); ACT['edit-boss']?.({ id }); return; }
     else if (k === 'boss-go') { const bo = S.quests.bosses.find((x) => x.id === id); closeModal(); if (bo?.block) ACT['jump-block']?.({ id: bo.block }); return; }
-    else if (k === 'mosca-wake') { A.moscaWake(id); sfx('ready'); toast('▶ Voltou a andar: agora tá CHEGANDO.', 'good'); }
+    else if (k === 'mosca-wake') { A.moscaWake(id); sfx('ready'); toast('▶ Voltou a andar: agora tá ESQUENTANDO.', 'good'); }
     else if (k === 'mosca-go') { closeModal(); ACT[b.dataset.k === 'block' ? 'jump-block' : 'jump']?.({ id }); return; }
     else if (k === 'done') A.setStatus(id, 'done');
     else if (k === 'wait') A.setStatus(id, 'wait');

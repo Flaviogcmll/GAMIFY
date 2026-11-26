@@ -2,6 +2,7 @@
 // Q1 anotar rápido (botão + e tecla +) · Q2 v7.1: segurar e arrastar no celular conclui várias
 // F HOJE cheio demais (atenção residual) · G pato de borracha no SOS.
 // A migração do mês e o boss parado ficam na entrevista do dia (review.js); o time box na janela da tarefa (app.js).
+import { fig } from './elenco.js';
 import { S } from './store.js';
 import * as A from './actions.js';
 import * as R from './rules.js';
@@ -39,7 +40,8 @@ function fab() {
 export function overflowBar() {
   const o = R.hojeOverflow(S);
   if (!o) return '';
-  return `<div class="cheio"><span>🧠 HOJE tem <b>${o.count}</b> (seu limite é ${o.max}). Cada tarefa a mais deixa resíduo de atenção.</span>${o.suggest.length ? `<button class="btn sm" data-act="cheio">EMPURRAR ${o.suggest.length} PRA AMANHÃ</button>` : '<button class="btn sm" data-act="distribute" title="As atrasadas ganham dias novos pelo seu ritmo">📅 DISTRIBUIR</button>'}</div>`;
+  // v9.0 (guia 10.5): a ROSEMIA aparece em cima das caixas quando a lista enche demais
+  return `<div class="cheio">${fig('rosemia', 4, 'cheio-art', 'ROSEMIA: as cartas avisaram, tá cheio demais', true)}<span>HOJE tem <b>${o.count}</b> (seu limite é ${o.max}). A ROSEMIA viu nas cartas: cada tarefa a mais deixa resíduo de atenção.</span>${o.suggest.length ? `<button class="btn sm" data-act="cheio">EMPURRAR ${o.suggest.length} PRA AMANHÃ</button>` : '<button class="btn sm" data-act="distribute" title="As atrasadas ganham dias novos pelo seu ritmo">📅 DISTRIBUIR</button>'}</div>`;
 }
 function cheioModal() {
   const o = R.hojeOverflow(S);

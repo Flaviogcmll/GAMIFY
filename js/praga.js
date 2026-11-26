@@ -1,7 +1,7 @@
 // v6.5/v6.6 — A PRAGA: o "cartucho amaldiçoado". Tarefa ou ritual atrasado vira assombração caipira que corrompe o jogo
 // (glitch de videogame antigo + mau-olhado, moscas, mariposa). Regras em rules.js → praga(); aqui fica o que se vê e se ouve.
 // v8: a Praga é o SOPRO DO LAMBEHOMI contra a casa do PRIMO. Fases (1 por dia): 1-3 TREM TRAPAIADO (efeitos crescendo) · 4 LAMBEHOMI.
-// NOITE DA DISGRAMA: R.noiteN(S) ou mais no LAMBEHOMI ao mesmo tempo. A cura é o BANHO DE SAL GROSSO (resolver, remarcar ou cancelar), sem XP.
+// PRAGA: R.noiteN(S) ou mais no LAMBEHOMI ao mesmo tempo. A cura é o BANHO DE SAL GROSSO (resolver, remarcar ou cancelar), sem XP.
 // Moscas = podridão ("onde tem mosca, tem coisa podre"): a mosca guia pousa onde o trem está e as tarefas mostram 1, 2 ou 3 moscas.
 // Janelas: com o app na fase 3 ou pior, CADA infectada aparece dentro de 7 minutos. Nunca por cima de outra janela,
 // nunca enquanto você digita, nunca depois da hora de dormir. Tudo que anda na tela deixa o clique passar (pointer-events: none).
@@ -10,10 +10,10 @@ import * as R from './rules.js';
 import * as A from './actions.js';
 import { esc, today, addDays } from './util.js';
 import { openModal, closeModal, toast, modalOpen } from './ui.js';
-import { sfx, playFile, pragaDrone, pragaWarp, uivo, zumbido } from './audio.js';
+import { sfx, playFile, pragaDrone, pragaWarp, uivo, zumbido, bagunca, salGrosso } from './audio.js';
 import { mountPortraits } from './primo.js';
 
-// v7.3: o PRIMO é destemido. Com a Praga ele fica PARANOICO (desconfiado, olhando de lado). Medo de verdade só na NOITE DA DISGRAMA.
+// v7.3: o PRIMO é destemido. Com a Praga ele fica PARANOICO (desconfiado, olhando de lado). Medo de verdade só na PRAGA.
 const LINES = [
   'Hm. Tem um trem trapaiado rondando a casa. Eu tô de olho, sô.',
   'Ouvi um uivo longe. Essa atrasada não me engana não.',
@@ -27,7 +27,7 @@ const LINES = [
 const LINES_NOITE = [
   'Primo… a noite ficou vermelha. Agora eu tô com medo de verdade.',
   'Três uivos nos morros. Segura a BRASINHA, que eu seguro a porta.',
-  'É a NOITE DA DISGRAMA! Banho de sal grosso, primo, AGORA!',
+  'É a PRAGA! Banho de sal grosso, primo, AGORA!',
   'Ninguém solta a mão de ninguém. Fica atrás de mim, pequena.',
 ];
 const shown = new Map(); // id → quando apareceu pela última vez
@@ -70,7 +70,7 @@ function setMoscas(root) {
 export function pragaPaint() {
   const pg = R.praga(S), root = document.documentElement, route = location.hash || '#quests';
   if (pg.phase) root.dataset.praga = pg.phase; else delete root.dataset.praga;
-  if (pg.noite) root.dataset.noite = '1'; else delete root.dataset.noite; // v8: NOITE DA DISGRAMA
+  if (pg.noite) root.dataset.noite = '1'; else delete root.dataset.noite; // v8: PRAGA
   setMoscas(root);
   // LAMBEHOMI: a tela treme ao trocar de aba
   if (pg.phase >= 4 && route !== lastRoute) { const m = document.getElementById('main'); m?.classList.remove('praga-shake'); void m?.offsetWidth; m?.classList.add('praga-shake'); playFile('praga-chiado', { vol: 0.35 }); }
@@ -87,7 +87,7 @@ export function pragaBanner() {
   const fim = pg.noite ? (lb.tregua ? ', o LAMBEHOMI levou a BRASINHA e se curou (o GUARANÁ tá de trégua até amanhã), a MEGG DE FÁTIMA tá chocando o ovo e a loja trancou'
       : ovo ? ', a BRASINHA é OVO (não tem o que roubar: ele continua LAMBEHOMI até o ANTÍDOTO) e a loja trancou' : ', o LAMBEHOMI vem roubar a BRASINHA e a loja trancou')
     : pg.phase >= 4 ? ', a BRASINHA perdeu força e a loja trancou' : `. Se ficar, ela apodrece: o ${lb.st === 'lambehomi' ? 'LAMBEHOMI' : 'GUARANÁ vira LAMBEHOMI e'} sopra a casa`;
-  return `<div class="banner praga-b" data-praga="${pg.phase}" ${pg.noite ? 'data-noite="1"' : ''}><span class="pb-tag">${pg.noite ? '🌕 NOITE DA DISGRAMA' : pg.phase >= 4 ? '🐺 ERRO FATAL NA FITA' : '🪰 ERRO NA FITA'}</span>
+  return `<div class="banner praga-b" data-praga="${pg.phase}" ${pg.noite ? 'data-noite="1"' : ''}><span class="pb-tag">${pg.noite ? '🌕 PRAGA' : pg.phase >= 4 ? '🐺 ERRO FATAL NA FITA' : '🪰 ERRO NA FITA'}</span>
     <span class="pb-t"><b>${pg.noite ? `${pg.n4} NO LAMBEHOMI: A NOITE FICOU VERMELHA` : pg.phase >= 4 ? 'O LAMBEHOMI TÁ SOPRANDO A CASA' : 'O TREM TRAPAIADO TÁ SOLTANDO CHORUME'}</b> · ${esc(w.text.slice(0, 60))} (atrasada há ${w.days} dia${w.days > 1 ? 's' : ''})${more > 0 ? ` e mais ${more}` : ''}. ${pg.noite ? 'O PRIMO está com medo de verdade' : 'O PRIMO tá paranoico'}${fim}.<i class="pb-cur">▮</i></span>
     <button class="btn sm pri" data-act="praga-pop" data-id="${w.id}">🧂 BANHO DE SAL GROSSO</button></div>`;
 }
@@ -103,8 +103,9 @@ export function pragaLine() {
 let layer = null, bugs = [], loop = 0, glitchT = 0, crawlT = 0, ambT = 0;
 function fx(pg) {
   const ph = pg.phase;
-  pragaDrone(ph >= 4 ? 2 : ph >= 1 ? 1 : 0); // v7.7: os sons começam na fase 1
-  pragaWarp(ph >= 4 ? 0.06 : ph >= 3 ? 0.02 : 0);
+  // v9.0 (pedido do dono: o ronco era estranho): os TREM fazem BAGUNÇA (latas, tralha, gato brigando) de vez em quando; o ronco e a música torta ficam só no LAMBEHOMI
+  pragaDrone(ph >= 4 ? 2 : 0);
+  pragaWarp(ph >= 4 ? 0.04 : 0);
   clearInterval(loop); clearInterval(glitchT); clearInterval(crawlT); clearInterval(ambT);
   layer?.remove(); layer = null; bugs = [];
   // v7.7: sons desde a fase 1, espaçados (o app é cozy). No LAMBEHOMI, uivos de vez em quando.
@@ -144,7 +145,7 @@ function glitchTitle() {
   const nodes = []; const w = document.createTreeWalker(h, NodeFilter.SHOW_TEXT); for (let n = w.nextNode(); n; n = w.nextNode()) if (n.nodeValue.trim()) nodes.push([n, n.nodeValue]);
   for (const [n, v] of nodes) n.nodeValue = [...v].map((c) => (c !== ' ' && Math.random() < 0.45 ? GL[(Math.random() * GL.length) | 0] : c)).join('');
   h.classList.add('pfx-glitch');
-  if (Math.random() < 0.35) playFile('praga-chiado', { vol: 0.18 });
+  if (Math.random() < 0.25) bagunca(1);
   setTimeout(() => { for (const [n, v] of nodes) if (n.isConnected) n.nodeValue = v; h.classList.remove('pfx-glitch'); }, 260);
 }
 function crawlName() {
@@ -158,9 +159,7 @@ function ambient() {
   if (document.hidden) return;
   const ph = R.praga(S).phase, r = Math.random();
   if (ph >= 4 && r < 0.45) uivo();
-  else if (ph >= 4 && r < 0.6) playFile('praga-canto', { vol: 0.55 });
-  else if (ph >= 3 && r < 0.6) playFile('praga-sino', { vol: 0.5 });
-  else if (ph >= 1) zumbido(); // v8: mosca no lugar do urubu
+  else if (ph >= 1) bagunca(Math.min(3, ph)); // v9.0: os TREM fazendo bagunça (Tom e Jerry de roça)
 }
 
 // ───── a janela que pula ("ERRO NA FITA") ─────
@@ -198,8 +197,7 @@ export function pragaPop(id) {
   shown.set(x.id, Date.now()); lastPop = Date.now();
   openModal(popHtml(x));
   document.querySelector('.praga-pop')?.closest('.modal')?.classList.add('praga-modal');
-  playFile(x.phase >= 3 ? 'praga-fita' : 'praga-chiado', { vol: 0.7 });
-  if (x.phase >= 3) setTimeout(() => (Math.random() < 0.5 ? zumbido() : playFile('praga-sino', { vol: 0.6 })), 700);
+  bagunca(Math.min(3, x.phase)); if (x.phase >= 4) setTimeout(() => uivo(0.6), 900);
   setTimeout(() => { try { mountPortraits(document.querySelector('.praga-pop')); } catch { /* */ } }, 30);
 }
 /** depois de uma ação na janela: mostra a próxima atrasada (ou fecha, se acabaram) */
@@ -233,7 +231,7 @@ const SAL_TOAST = [
 ];
 export const salToast = (name) => SAL_TOAST[Math.floor(Math.random() * SAL_TOAST.length)](name);
 export function banhoSal(info) {
-  playFile('sal-grosso', { vol: 0.9 });
+  salGrosso(); // v9.0: som novo, gerado no aparelho (grãos caindo + sininho)
   const el = document.createElement('div'); el.className = 'sal-fx'; el.setAttribute('aria-hidden', 'true');
   let parts = '';
   for (let i = 0; i < 26; i++) parts += `<i class="${i % 3 ? 'sal' : 'arruda'}" style="left:${(Math.random() * 100).toFixed(1)}%;animation-delay:${(Math.random() * 0.8).toFixed(2)}s"></i>`;

@@ -1,4 +1,5 @@
 // APP — liga tudo: abas (como na planilha), dia/noite, cliques, janelas, PRIMO, SOS, arrastar e soltar, sons.
+import { FALAS, NOMES } from './elenco.js';
 import { S, status, init, onChange, replaceAll, exportAll } from './store.js';
 
 import * as A from './actions.js';
@@ -10,7 +11,7 @@ import { openModal, closeModal, ask, toast, modalOpen, segBar } from './ui.js';
 import { px } from './icons.js';
 
 import { embers, confetti, floatXp, fireworks, poof } from './fx.js';
-import { sfx, startAmbience, stopAmbience, ambienceOn, prefs, setVol, toggleMute } from './audio.js';
+import { sfx, startAmbience, stopAmbience, ambienceOn, prefs, setVol, toggleMute, voz } from './audio.js';
 
 import { viewQuests, togglePin, curfewSkip, qsortOf, filaCard } from './views/quests.js';
 
@@ -295,7 +296,7 @@ A.onFeedback((fb) => {
   primoFeedback(fb);
   if (fb.levelUp) levelUp(fb.levelUp);
   if (fb.chapterClosed) chapterCard(fb.chapterClosed);
-  if (S._pragaWeek) { S._pragaWeek = false; toast('🌙 Uma semana inteira sem Praga: +1 🎟', 'gold'); }
+  if (S._pragaWeek) { S._pragaWeek = false; toast('🌙 Uma semana inteira sem TREM TRAPAIADO: +1 🎟', 'gold'); }
   if (fb.praga) { banhoSal(fb.praga); toast(`🧂 ${salToast(`<b>${esc(fb.praga.names[0].slice(0, 40))}</b>`)}${fb.praga.clean ? ' A casa tá limpa: o PRIMO desfranziu a testa.' : ''}`, 'good'); } // v7.3
   if (!fb.quiet || fb.xp || fb.achievements?.length || fb.levelUp) render();
 });
@@ -322,9 +323,9 @@ function whereOptions(t) {
   const groups = Object.entries(R.GROUPS).map(([g, info]) => { const bl = S.quests.blocks.filter((b) => b.group === g).sort((a, b) => a.ord - b.ord); return bl.length ? `<optgroup label="${info.name}">${bl.map((b) => `<option value="block:${b.id}" ${t.block === b.id ? 'selected' : ''}>${esc(b.title)}</option>`).join('')}</optgroup>` : ''; }).join('');
   return `<optgroup label="LISTAS">${lists}</optgroup>${groups}`;
 }
-const COLORS = [['', 'sem cor'], ['red', '🟥 URGENTE'], ['yellow', '🟨 CHEGANDO'], ['green', '🟩 ESTÁVEL'], ['black', '⬛ PARADO']];
+const COLORS = [['', 'sem cor'], ['red', '🟥 URGENTE'], ['yellow', '🟨 ESQUENTANDO'], ['green', '🟩 ESTÁVEL'], ['black', '⬛ PARADO']];
 // v5.16: as mesmas bolinhas de cor em toda janela; AGUARDANDO (roxo) virou uma das cores (por baixo continua o estado "aguardando")
-const SWATCH = [['red', 'URGENTE', 'urg', 'Prazo perto ou atrasado: faça primeiro'], ['yellow', 'CHEGANDO', 'atencao', 'Tá chegando a hora: vem logo depois das urgentes'], ['green', 'ESTÁVEL', 'ok', 'Tudo em ordem, sem pressa'],
+const SWATCH = [['red', 'URGENTE', 'urg', 'Prazo perto ou atrasado: faça primeiro'], ['yellow', 'ESQUENTANDO', 'atencao', 'Tá chegando a hora: vem logo depois das urgentes'], ['green', 'ESTÁVEL', 'ok', 'Tudo em ordem, sem pressa'],
   ['black', 'PARADO', 'neutro', 'Parado de propósito: some das listas até você mostrar'], ['wait', 'AGUARDANDO', 'espera', 'Depende de outra pessoa ou de outra coisa']];
 const swatches = (cur, withNone = false) => `<div class="swatches">${[...(withNone ? [['', 'SEM COR', 'none', 'Sem cor']] : []), ...SWATCH].map(([k, n, tone, tip]) => `<label class="csw" title="${tip}"><input type="radio" name="color" value="${k}" ${cur === k ? 'checked' : ''}><i data-tone="${tone}"></i><span>${n}</span></label>`).join('')}</div>`;
 /** marcador redondo (checkbox ou radio) com legenda ao passar o mouse */
@@ -342,7 +343,7 @@ function editTask(id) {
   openModal(`<form data-form="task" data-id="${id}" autocomplete="off" class="mform">
     <div class="mhead"><span class="mtype">${p.mini ? '⚔ mini-boss' : p.step ? '↳ passo' : 'tarefa'}</span><span class="mwhere">${esc(where)}</span>
       <span class="chip xp" title="${now.parts.length ? esc(now.parts.join(' · ')) : 'XP desta tarefa'}">${t.st === 'done' ? `+${t.xp}` : now.xp} XP</span></div>
-    <textarea class="inp mtitle" id="t-text" name="text" rows="2" aria-label="Texto" autofocus>${esc(t.text.replace(MARK_RE.star, '').replace(MARK_RE.home, '').replace(MARK_RE.xp, '').replace(/💰/g, '$').replace(/^(⚔|↳|>)\s*/, '').trim())}</textarea>${(t.pragaLog || []).length ? `<p class="meta" title="Motivos que você escreveu ao remarcar pela Praga">🐛 ${t.pragaLog.map((x) => `${esc(x.d.slice(8))}/${esc(x.d.slice(5, 7))}: ${esc(x.why)}`).join(' · ')}</p>` : ''}
+    <textarea class="inp mtitle" id="t-text" name="text" rows="2" aria-label="Texto" autofocus>${esc(t.text.replace(MARK_RE.star, '').replace(MARK_RE.home, '').replace(MARK_RE.xp, '').replace(/💰/g, '$').replace(/^(⚔|↳|>)\s*/, '').trim())}</textarea>${(t.pragaLog || []).length ? `<p class="meta" title="Motivos que você escreveu ao remarcar um TREM TRAPAIADO">🐛 ${t.pragaLog.map((x) => `${esc(x.d.slice(8))}/${esc(x.d.slice(5, 7))}: ${esc(x.why)}`).join(' · ')}</p>` : ''}
     <div class="msplit">
       <div><label class="lbl">Status</label><div class="pills">${[['', '○ ABERTA', 'Ainda por fazer'], ['done', '✓ FEITA', 'Concluída (ganha o XP)'], ['cancel', '✕ CANCELADA', 'Não vale mais: sem XP e sem punição']].map(([k, n, tip]) => `<button type="button" class="pill ${st === k ? 'on' : ''}" data-act="set-status" data-id="${id}" data-st="${k}" title="${tip}"><span>${n}</span></button>`).join('')}</div></div>
       <div><label class="lbl">Cor</label>${swatches(color, true)}</div></div>
@@ -371,17 +372,24 @@ function editTask(id) {
 function editBlock(id) {
   const b = S.quests.blocks.find((x) => x.id === id);
   if (!b) return;
-  const color = b.st === 'wait' ? 'wait' : b.color;
+  // v9.0 (pedido do dono): a janela do BLOCO tem o mesmo desenho da janela da TAREFA (cabeçalho, título grande, cor ao lado, prazo com atalhos, ações embaixo)
+  const color = b.st === 'wait' ? 'wait' : b.color, td = today(), nextMon = addDays(td, ((8 - weekday(td)) % 7) || 7);
+  const items = S.quests.tasks.filter((t) => t.block === b.id && t.st !== 'cancel').sort((x, y) => x.ord - y.ord), open = items.filter(R.isOpen);
+  const inh = open.filter((t) => t.dueInh).length;
   openModal(`<form data-form="block" data-id="${id}" autocomplete="off" class="mform">
     <div class="mhead"><span class="mtype">bloco</span><span class="mwhere">${esc(R.winOf(S, b)?.name || R.GROUPS[b.group]?.name || '')}</span>
       <span class="chip xp" title="Fechar o bloco vale isso${R.projectValue(b.title) ? ` · projeto de ${fmtN(R.projectValue(b.title))}: sua metade ${fmtN(R.projectValue(b.title) / 2)} gold` : ''}">${R.blockXp(b)} XP</span></div>
-    <input class="inp mtitle" id="b-title" name="title" value="${esc(b.title.replace(/💰/g, '$'))}" aria-label="Título" title="Dicas: 🎯 no começo = meta · 3000$ = projeto que vale dinheiro · (500XP) fixa o XP" autofocus>
-    <label class="lbl">Cor</label>${swatches(color)}
-    <div class="row"><div class="grow"><label class="lbl" for="b-due">◆ Prazo final</label><input class="inp" type="date" id="b-due" name="due" value="${b.due || ''}"></div>
-      <div class="grow"><label class="lbl" for="b-group">Janela</label><select class="inp" id="b-group" name="group">${Object.entries(R.GROUPS).map(([g, i]) => `<option value="${g}" ${b.group === g && !R.winOf(S, b) ? 'selected' : ''}>${i.name}</option>`).join('')}${R.windows(S).map((w) => `<option value="win:${w.id}" ${b.win === w.id ? 'selected' : ''}>▣ ${esc(w.name)}</option>`).join('')}</select></div></div>
-    ${b.group !== 'bs' ? `<details class="merge-b"><summary class="meta">↘ virar subtarefa de outro bloco</summary><div class="row" style="margin-top:6px"><select class="inp grow" data-merge-into="${id}" aria-label="Bloco de destino"><option value="">— escolha o bloco —</option>${S.quests.blocks.filter((x) => x.id !== id && x.st !== 'done' && x.group !== 'bs').sort((a, z) => a.title.localeCompare(z.title)).map((x) => `<option value="${x.id}">${esc(x.title)}${R.winOf(S, x) ? ' · ' + esc(R.winOf(S, x).name) : ''}</option>`).join('')}</select></div><p class="meta" style="margin:4px 0 0">O título vira uma tarefa lá dentro e as tarefas daqui viram passos ↳ dela. Dá pra desfazer no ↩.</p></details>` : ''}
-    <div class="actions"><div class="left"><button type="button" class="btn sm danger" data-act="del-block" data-id="${id}">APAGAR BLOCO</button></div>
-      <button type="button" class="btn" data-close>FECHAR</button><button class="btn pri">SALVAR</button></div></form>`);
+    <textarea class="inp mtitle" id="b-title" name="title" rows="2" aria-label="Título" title="Dicas: 🎯 no começo = meta · 3000$ = projeto que vale dinheiro · (500XP) fixa o XP" autofocus>${esc(b.title.replace(/💰/g, '$'))}</textarea>
+    <div class="msplit">
+      <div><label class="lbl" for="b-group">Janela</label><select class="inp" id="b-group" name="group">${Object.entries(R.GROUPS).map(([g, i]) => `<option value="${g}" ${b.group === g && !R.winOf(S, b) ? 'selected' : ''}>${i.name}</option>`).join('')}${R.windows(S).map((w) => `<option value="win:${w.id}" ${b.win === w.id ? 'selected' : ''}>▣ ${esc(w.name)}</option>`).join('')}</select>
+        <p class="meta" style="margin:6px 0 0">${items.length - open.length}/${items.length} feitas${open.length ? ` · ${open.length} em aberto` : ''}</p></div>
+      <div><label class="lbl">Cor</label>${swatches(color, true)}</div></div>
+    <label class="lbl" for="b-due">◆ Prazo final <span class="meta">· as subtarefas seguem este prazo, a não ser que você mude a delas${inh ? ` (${inh} seguindo agora)` : ''}</span></label><div class="row"><input class="inp" type="date" id="b-due" name="due" value="${b.due || ''}" style="width:auto">
+      ${[['HOJE', td], ['AMANHÃ', addDays(td, 1)], ['+7', addDays(td, 7)], ['PRÓX. SEG', nextMon], ['SEM', '']].map(([n, d]) => `<button type="button" class="pill" data-act="due-quick" data-d="${d}"><span>${n}</span></button>`).join('')}</div>
+    ${open.length ? `<label class="lbl">Subtarefas</label><div class="mlist">${open.slice(0, 12).map((t) => `<button type="button" class="dia-t" data-act="edit-task" data-id="${t.id}" data-color="${R.colorOfTask(S, t) || ''}">${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}${t.due ? ` <small class="meta">${fmtDM(t.due)}</small>` : ''}</button>`).join('')}${open.length > 12 ? `<span class="meta">+${open.length - 12}</span>` : ''}</div>` : ''}
+    ${b.group !== 'bs' ? `<details class="merge-b"><summary class="meta">↘ virar subtarefa de outro bloco <span class="meta">(ou arraste o bloco pelo ⠿ pra dentro de outro bloco aberto)</span></summary><div class="row" style="margin-top:6px"><select class="inp grow" data-merge-into="${id}" aria-label="Bloco de destino"><option value="">— escolha o bloco —</option>${S.quests.blocks.filter((x) => x.id !== id && x.st !== 'done' && x.group !== 'bs').sort((a, z) => a.title.localeCompare(z.title)).map((x) => `<option value="${x.id}">${esc(x.title)}${R.winOf(S, x) ? ' · ' + esc(R.winOf(S, x).name) : ''}</option>`).join('')}</select></div><p class="meta" style="margin:4px 0 0">O título vira uma tarefa lá dentro e as tarefas daqui viram passos ↳ dela. Dá pra desfazer no ↩.</p></details>` : ''}
+    <div class="actions"><div class="left">${open.length && b.st !== 'done' ? `<button type="button" class="btn sm" data-act="done-all" data-id="${id}" title="Concluir todas as tarefas deste bloco">✓ CONCLUIR TUDO</button>` : ''}<button type="button" class="btn sm danger" data-act="del-block" data-id="${id}">APAGAR</button></div>
+      <button type="button" class="btn" data-close>FECHAR</button><button class="btn pri">SALVAR</button></div></form>`, { wide: true });
 }
 function distribute() {
   let scope = 'dated';
@@ -582,6 +590,13 @@ function openUp(keys) { for (const k of keys) if (k && isCollapsed(k)) toggleCol
 function glow(sel) {
   setTimeout(() => { const el = [].concat(sel).map((x) => document.querySelector(x)).find(Boolean); if (!el) return; el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.classList.remove('glow'); void el.offsetWidth; el.classList.add('glow'); setTimeout(() => el.classList.remove('glow'), 3200); }, 90);
 }
+/** v9.0 (pedido do dono): tocar num ritual (fila de prazos, busca, moscas) leva até ele no SURVIVAL, como acontece com os blocos */
+function jumpRit(id) {
+  closeModal();
+  openUp(['c:survival:rituais']);
+  if (route() !== 'survival') location.hash = '#survival'; else render();
+  setTimeout(() => glow(`[data-rit="${CSS.escape(id)}"]`), 250);
+}
 function jump(id) {
   const t = S.quests.tasks.find((x) => x.id === id);
   if (!t) return;
@@ -658,6 +673,8 @@ const ACTIONS = {
   'done-all': async (d) => { const b = S.quests.blocks.find((x) => x.id === d.id), n = S.quests.tasks.filter((t) => t.block === d.id && R.isOpen(t)).length;
     if (b && n && await ask('Concluir tudo?', `Marca as ${n} tarefa(s) abertas de "${b.title}" como feitas (dá pra desfazer com ↩).`, 'CONCLUIR TUDO')) A.doneAll(d.id); },
   'jump-block': (d) => jumpBlock(d.id),
+  'jump-rit': (d) => jumpRit(d.id),
+  voz: (d) => { voz(d.k); const f = FALAS[d.k]; if (f) toast(`<b>${esc(NOMES[d.k] || '')}:</b> ${esc(f[Math.floor(Math.random() * f.length)])}`); }, // v9.0: tocar num personagem = a voz e uma fala dele
   'edit-block': (d) => editBlock(d.id),
   'move-block': (d) => A.moveBlock(d.id, +d.dir),
   'del-block': async (d) => { closeModal(); if (await ask('Apagar bloco inteiro?', 'O bloco e todas as subtarefas somem de vez.', 'APAGAR', true)) A.deleteBlock(d.id); },
@@ -734,7 +751,13 @@ const ACTIONS = {
   },
   'arq-more': () => { ui.arqLimit = (ui.arqLimit || 80) + 100; render(); },
   'arq-st': (d) => { ui.arqF.st = ui.arqF.st === d.v ? '' : d.v; sfx('tab'); render(); },
-  'archive-now': async () => { if (await ask('Atualizar o quadro?', 'Arquiva agora tudo que está ✓ ou ✕ (e blocos fechados). O XP continua valendo.', 'ATUALIZAR')) A.archiveNow(); },
+  'archive-now': async () => {
+    // v9.0 (pedido do dono): a pergunta já diz QUANTAS coisas vão pro ARQUIVO
+    const p = A.archivePreview(), n = p.tasks + p.canceled + p.blocks;
+    if (!n) { toast('🔄 Nada pra arquivar: o quadro já está em dia.'); return; }
+    const parts = [p.tasks && `${p.tasks} tarefa${p.tasks > 1 ? 's' : ''} feita${p.tasks > 1 ? 's' : ''}`, p.canceled && `${p.canceled} cancelada${p.canceled > 1 ? 's' : ''}`, p.blocks && `${p.blocks} bloco${p.blocks > 1 ? 's' : ''} fechado${p.blocks > 1 ? 's' : ''}${p.inBlocks ? ` (com ${p.inBlocks} subtarefa${p.inBlocks > 1 ? 's' : ''})` : ''}`].filter(Boolean);
+    if (await ask(`Arquivar ${n} item${n > 1 ? 'ns' : ''}?`, `Vão pro ARQUIVO: ${parts.join(', ')}. O XP continua valendo.`, `ARQUIVAR ${n}`)) A.archiveNow();
+  },
   distribute: () => distribute(),
   'undo-plan': () => A.undoPlan(),
   'day-status': (d) => {
@@ -767,9 +790,9 @@ const ACTIONS = {
   // v8.3: atalhos que preenchem um campo do formulário (ex.: horário do time box; o relógio do navegador era ruim de usar)
   // v8.5: BUSCA RÁPIDA (🔍 no topo ou Ctrl+K): digita e vai direto pra tarefa, bloco, boss ou ritual (pedido do dono: velocidade pra se mover no app)
   find: () => openFind(),
-  'find-go': (d) => { closeModal(); if (d.k === 'task') jump(d.id); else if (d.k === 'block') jumpBlock(d.id); else if (d.k === 'rit') { location.hash = '#survival'; setTimeout(() => document.querySelector(`[data-rit="${CSS.escape(d.id)}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300); } },
+  'find-go': (d) => { closeModal(); if (d.k === 'task') jump(d.id); else if (d.k === 'block') jumpBlock(d.id); else if (d.k === 'rit') jumpRit(d.id); },
   'to-top': () => scrollTo({ top: 0, behavior: 'smooth' }),
-  mute: () => { const m = toggleMute(); toast(m ? '🔇 Som desligado (efeitos, música e Praga).' : '🔊 Som de volta.', 'gold'); render(); },
+  mute: () => { const m = toggleMute(); toast(m ? '🔇 Som desligado (efeitos, música e a bagunça dos TREM).' : '🔊 Som de volta.', 'gold'); render(); },
   'set-field': (d, e, el) => { const f = el?.closest('form'), i = f?.elements?.[d.name]; if (!i) return; i.value = d.v; i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); f.querySelectorAll(`[data-act="set-field"][data-name="${d.name}"]`).forEach((b) => b.classList.toggle('on', b === el)); },
   'gold-edit': (d) => { const p = goldByKey(d.key); if (p) openModal(`<form data-form="gold-edit" data-key="${esc(p.key)}"><h2>💰 ${esc(p.title)}</h2><label class="lbl" for="ge-v">Quanto entrou (sua parte)</label><input class="inp" id="ge-v" name="v" type="number" min="1" value="${p.amount}" autofocus><div class="actions"><button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">GUARDAR</button></div></form>`); },
   'gold-later': (d) => { const p = goldByKey(d.key); if (p) A.snoozeGold(p); },
