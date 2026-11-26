@@ -2,6 +2,8 @@
 // Dia normal: (1) hábitos de ontem que ficaram em branco, (2) o que ficou pra trás, (3) qual é a primeira de hoje.
 // Depois de 3 ou mais dias sem abrir: começa perguntando se foi viagem (aí o modo VIAGEM congela esses dias) ou se é só retomar.
 // Tudo aqui usa as ações que já existem (marcar hábito, concluir, aguardando, cancelar): nenhuma regra nova de XP.
+import { fig } from './elenco.js';
+import { setDue } from './remarcar.js';
 import { S } from './store.js';
 import * as A from './actions.js';
 import * as R from './rules.js';
@@ -135,7 +137,7 @@ function draw() {
   const m = document.querySelector('.modal');
   if (!m || !st) return;
   const key = st.steps[st.i], v = VIEW[key](), n = st.steps.length;
-  m.innerHTML = `<div class="brief review"><canvas class="pcv pmini" data-portrait="mini" aria-hidden="true"></canvas>
+  m.innerHTML = `<div class="brief review">${fig('primo', 1, 'pav', 'PRIMO')}
     <div class="px meta" style="font-size:7px;text-align:center">${st.gap >= GAP_DAYS ? 'REVISÃO DE RETORNO' : 'ENTREVISTA DO DIA'} · PASSO ${st.i + 1} DE ${n}</div>
     <h2>${esc(v.title)}</h2><div class="speech" id="rv-say"></div>${v.body}
     <div class="actions"><div class="left"><button class="btn sm ghost" data-rv="skip">PULAR TUDO</button></div>
@@ -151,14 +153,19 @@ export function openReview(gap = 0, prev = null, only = null) {
   mig = { skip: new Set() };
   if (st.steps.includes('mes')) A.markMigrated(); // oferecida uma vez por mês (dá pra abrir de novo em PERKS → 🧠)
   if (st.steps.includes('boss')) ls.set(BOSS_NUDGE, today());
+  mountReview();
+}
+/** v9.1: a entrevista volta de onde parou depois de uma pergunta do remarcar */
+function reopenReview() { if (st) mountReview(); }
+function mountReview() {
   const m = openModal('', { onClose: () => { st = null; } });
   m.addEventListener('change', (e) => { // escolheu o dia novo de uma atrasada: remarca na hora (segue a regra de custo)
     const el = e.target.closest?.('[data-rv-date]');
     if (!el || !el.value || !st) return;
     const t = S.quests.tasks.find((x) => x.id === el.dataset.id);
-    const cost = t ? A.reschedCost(t, el.value) : 0, r = t && A.updateTask(t.id, { due: el.value });
-    if (r?.error) toast(esc(r.error), 'bad'); else toast(`📅 Remarcada pra ${fmtDM(el.value)}${cost ? ` · −${cost} XP` : ''}.`);
-    if (document.querySelector('.modal') === m) draw();
+    if (!t) return;
+    // v9.1: o caminho único de remarcar; se ele precisar perguntar (bloco, time box, custo), a entrevista volta depois
+    const keep = st; setDue(t.id, el.value, { reopen: () => { st = keep; reopenReview(); } }).then(() => { if (document.querySelector('.modal') === m) draw(); });
   });
   m.addEventListener('click', (e) => {
     const off = e.target.closest('[data-rv-off]');

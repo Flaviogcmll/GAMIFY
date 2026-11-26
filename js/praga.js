@@ -5,6 +5,8 @@
 // Moscas = podridão ("onde tem mosca, tem coisa podre"): a mosca guia pousa onde o trem está e as tarefas mostram 1, 2 ou 3 moscas.
 // Janelas: com o app na fase 3 ou pior, CADA infectada aparece dentro de 7 minutos. Nunca por cima de outra janela,
 // nunca enquanto você digita, nunca depois da hora de dormir. Tudo que anda na tela deixa o clique passar (pointer-events: none).
+import { fig } from './elenco.js';
+import { setDue } from './remarcar.js';
 import { S } from './store.js';
 import * as R from './rules.js';
 import * as A from './actions.js';
@@ -175,7 +177,7 @@ function popHtml(x) {
   return `<div class="praga-pop" data-praga="${x.phase}"><div class="pp-bar"><span>${x.phase >= 3 ? '⚠ ERRO NA FITA' : '⚠ ' + R.PRAGA_NAMES[x.phase]}</span><span>${String(Math.floor(Math.random() * 0xffff).toString(16)).toUpperCase().padStart(4, '0')}:${x.days}D</span></div>
     ${nav}
     <h2>${x.phase >= 4 ? '🐺' : '🪰'} ${R.PRAGA_NAMES[x.phase]} <small>fase ${x.phase} de 4</small></h2>
-    <div class="pp-row"><canvas class="pcv" data-portrait="mini" aria-hidden="true"></canvas>
+    <div class="pp-row">${fig('primo', 4, 'pav', 'PRIMO bravo')}
       <div><p class="pp-t"><b>${esc(x.text)}</b></p><p class="meta">${isT ? 'atrasada' : 'ritual atrasado'} há ${x.days} dia${x.days > 1 ? 's' : ''}</p>
       <p class="speech">${esc(L[Math.floor(Math.random() * L.length)])}</p></div></div>
     ${isT ? `<form class="pp-resched" data-form="praga-resched" data-id="${x.id}" autocomplete="off"><label class="lbl">📅 Remarcar pra</label>
@@ -257,9 +259,8 @@ export function extendPraga(ACTIONS, FORMS, jump) {
     const t = S.quests.tasks.find((y) => y.id === id); if (!t) return;
     const at = f.box_at?.value, box = at ? { at, min: +(f.box_min?.value || 25) } : null;
     if (f.box_at && !at) { toast('🔒 Marque o horário do time box pra empurrar de novo (ou cancele).', 'bad'); sfx('error'); return; }
-    const r = A.updateTask(id, { due, pragaLog: [...(t.pragaLog || []), { d: today(), why }].slice(-10), ...(box ? { box } : {}) });
-    if (r?.error) { toast(r.error, 'bad'); return; }
-    popNext(id);
+    // v9.1: o caminho único de remarcar (bloco junto e custo perguntados na hora)
+    setDue(id, due, { extra: { pragaLog: [...(t.pragaLog || []), { d: today(), why }].slice(-10), ...(box ? { box } : {}) }, reopen: () => pragaPop(id) }).then((ok) => { if (ok) popNext(id); });
   };
   FORMS['praga-ritual'] = (f) => { const id = f.dataset.id; if (!f.plan.value) return; A.planRitual(id, f.plan.value); popNext(id); };
 }

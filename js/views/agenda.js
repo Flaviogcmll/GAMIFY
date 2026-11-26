@@ -28,7 +28,7 @@ function timelineCard(ui) {
     const sk = skulls(b.block);
     const dues = Object.keys(b.counts).sort();
     const endD = b.due || dues[dues.length - 1];
-    return `<tr><td class="name" data-act="jump-block" data-id="${b.block}" style="cursor:pointer">${esc(b.title || b.name)}</td>${days.map((d) => {
+    return `<tr><td class="name" data-act="jump-block" data-id="${b.block}" style="cursor:var(--cur-hand,pointer)">${esc(b.title || b.name)}</td>${days.map((d) => {
       const inSpan = endD && d >= td && d <= endD, left = inSpan ? Math.round((new Date(endD) - new Date(d)) / 864e5) : 0;
       const heat = !inSpan ? '' : left <= 1 ? 'h-urg' : left <= 3 ? 'h-quase' : left <= 7 ? 'h-atencao' : 'h-ok'; // v6: as cores das listas (HOJE, AMANHÃ, SEMANA, DEPOIS)
       return cell(d, b.counts[d], `${inSpan ? 'span ' + heat : ''} ${b.due === d ? 'end' : ''} ${sk[d] ? 'skull' : ''}`).replace('></td>', `>${b.due === d && !b.counts[d] ? '◆' : ''}</td>`).replace(/<\/td>$/, sk[d] ? `<i class="tl-skull" title="🪰 O TREM chega aqui: vira TREM TRAPAIADO se ninguém fizer até a véspera · ${esc(sk[d].slice(0, 3).join(' · ').slice(0, 120))}">${miniMosca()}</i></td>` : '</td>');
@@ -61,7 +61,7 @@ export function viewAgenda(ui) {
   // v6: os rituais dos próximos 14 dias entram na fila, em azul (azul = ritual/destaque), na ordem da data
   const rits = (S.core.rituals || []).map((r) => ({ r, s: R.ritualStatus(r, td) })).filter((x) => x.s.next && x.s.left <= 14 && (!q || x.r.name.toLowerCase().includes(q)) && (fb !== 'late' || x.s.left < 0) && (fb !== 'today' || x.s.left === 0) && (fb !== 'week' || x.s.left <= 7));
   const rows = [...queue.slice(0, 80).map((t) => ({ t, k: t.due || '9999' })), ...rits.map((x) => ({ ...x, k: x.s.next }))].sort((a, b) => a.k.localeCompare(b.k));
-  const ritRow = (r, s) => `<div class="li rit" ${R.pragaOf(S, r.id) ? `data-praga="${R.pragaOf(S, r.id).phase}"` : ''} title="Ritual: ${esc(r.every ? `a cada ${r.every} dias` : 'sem frequência')}"><div class="lt" data-act="edit-ritual" data-id="${r.id}" style="cursor:pointer">🔁 ${esc(r.name)}<small>ritual${s.plan ? ' · dia marcado por você' : ''}</small></div>
+  const ritRow = (r, s) => `<div class="li rit" ${R.pragaOf(S, r.id) ? `data-praga="${R.pragaOf(S, r.id).phase}"` : ''} title="Ritual: ${esc(r.every ? `a cada ${r.every} dias` : 'sem frequência')}"><div class="lt" data-act="edit-ritual" data-id="${r.id}" style="cursor:var(--cur-hand,pointer)">🔁 ${esc(r.name)}<small>ritual${s.plan ? ' · dia marcado por você' : ''}</small></div>
     <div class="row" style="flex-wrap:nowrap;gap:6px"><span class="chip ${s.left <= 0 ? 'late' : s.left <= 1 ? 'week' : 'rit'}">${esc(s.label)}</span>${r.last === td ? '' : `<button class="btn sm" data-act="ritual-done" data-id="${r.id}" title="Fiz">✓</button>`}</div></div>`;
   const blow = R.blowState(S), blowPct = Math.round((R.BLOW_MULT - 1) * 100);
   return `<div class="page-title"><div><h1><em>agenda</em>.</h1></div></div>

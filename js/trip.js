@@ -36,7 +36,7 @@ function backModal() {
   openModal(`<form data-tripform="back" autocomplete="off"><h2>🏠 de volta!</h2>
     <p class="muted">Você ficou <b>${p.days} dia${p.days === 1 ? '' : 's'}</b> fora (desde ${fmtDM(p.from)}). Ao confirmar: os hábitos desses dias ficam como folga${p.late ? ` e <b>${p.late} prazo${p.late > 1 ? 's' : ''}</b> que vence${p.late > 1 ? 'ram' : 'u'} na viagem anda${p.late > 1 ? 'm' : ''} ${p.days} dia${p.days === 1 ? '' : 's'} pra frente, sem custo` : ''}.</p>
     <label class="lbl">Tarefas de volta (desmarque o que não precisa)</label>
-    <div class="list">${BACK_TASKS.map((t) => `<label class="li" style="cursor:pointer"><span class="lt"><input type="checkbox" name="bt" value="${esc(t)}" checked> ${esc(t)}</span></label>`).join('')}</div>
+    <div class="list">${BACK_TASKS.map((t) => `<label class="li" style="cursor:var(--cur-hand,pointer)"><span class="lt"><input type="checkbox" name="bt" value="${esc(t)}" checked> ${esc(t)}</span></label>`).join('')}</div>
     <input class="inp" name="extra" placeholder="+ outra tarefa de volta (opcional)" aria-label="Outra tarefa de volta" style="margin-top:8px">
     <p class="meta" style="margin:8px 0 0">Elas entram na lista de hoje. Depois, o botão 📅 DISTRIBUIR reorganiza o resto dos prazos.</p>
     <div class="actions"><button type="button" class="btn" data-close>AINDA NÃO</button><button class="btn pri" autofocus>🏠 VOLTAR AO JOGO</button></div></form>`);

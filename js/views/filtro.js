@@ -44,7 +44,7 @@ export function filtroBody(ui) {
       <label class="row" style="gap:4px"><span class="px" style="font-size:7px">PESSOA</span><select class="inp" style="width:auto" data-change="filtro" data-k="who">${opt(uniq('who'), f.who || '')}</select></label>
       <span class="meta">${rows.length} linha(s)</span>${any ? '<button class="btn sm ghost" data-act="fclear">✕ LIMPAR</button>' : ''}</div></div>
     <div class="card ftab" style="padding:0"><table><thead><tr>${COLS.map(([key, n]) => `<th data-act="fsort" data-k="${key}">${n}${f.sort === key ? (f.dir > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('')}</tr></thead>
-      <tbody>${rows.map((r) => `<tr data-act="${r.kind === 'ritual' ? 'edit-ritual' : 'jump'}" data-id="${r.id}" data-b="${r.status === '⏳ AGUARDANDO' ? 'wait' : BKEY[r.bucket] || ''}">
+      <tbody>${rows.map((r) => `<tr data-act="${r.kind === 'ritual' ? 'jump-rit' : 'jump'}" data-id="${r.id}" data-b="${r.status === '⏳ AGUARDANDO' ? 'wait' : BKEY[r.bucket] || ''}">
         <td class="ft">${esc(r.text)}</td><td>${esc(r.where)}</td><td>${esc(r.cat)}</td><td>${r.date ? fmtDM(r.date) : ''}</td>
         <td class="${r.left != null && r.left < 0 ? 'bad' : ''}">${r.left ?? ''}</td><td>${esc(r.bucket)}</td><td>${r.status === 'ABERTA' ? esc(r.status) : `<span class="chip ${r.status === '▶ FAZENDO' ? 'doing' : 'wait'}">${esc(r.status)}</span>`}</td><td>${esc(r.who || '')}</td><td>${esc(r.type)}</td><td>${SQ[r.color] || ''}</td><td>${r.marks}</td><td class="gold">${r.xp || ''}</td></tr>`).join('') || `<tr><td colspan="${COLS.length}" class="empty">nada com esse filtro.</td></tr>`}</tbody></table></div>`;
 }

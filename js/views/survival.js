@@ -38,7 +38,7 @@ function grid(ui) {
     return `<tr><th class="hn" title="${esc(h.name)}">${h.icon} <span class="hname">${esc(h.name)}</span></th>${cells}<td class="info">${info}</td></tr>`;
   }).join('');
   const xpRow = days.map((d, i) => `${i === 7 ? '<td class="sep"></td>' : ''}<td style="text-align:center;font:700 12px var(--f-display);color:var(--accent-2)">${S.marks.days[d]?.xp || ''}</td>`).join('');
-  const stRow = days.map((d, i) => `${i === 7 ? '<td class="sep"></td>' : ''}<td style="text-align:center;font-size:12px;cursor:pointer" data-act="day-status" data-d="${d}" title="${R.dayStatus(S, d).list.map((x) => x.name).join(', ')}">${d <= td ? R.dayStatus(S, d).list.filter((x) => x.key !== 'sabado').map((x) => x.icon).join('') : ''}</td>`).join('');
+  const stRow = days.map((d, i) => `${i === 7 ? '<td class="sep"></td>' : ''}<td style="text-align:center;font-size:12px;cursor:var(--cur-hand,pointer)" data-act="day-status" data-d="${d}" title="${R.dayStatus(S, d).list.map((x) => x.name).join(', ')}">${d <= td ? R.dayStatus(S, d).list.filter((x) => x.key !== 'sabado').map((x) => x.icon).join('') : ''}</td>`).join('');
   // v9.0 (pedido do dono): HÁBITOS e RITUAIS ganharam banner (com personagem), como a REFLEXÃO
   return vitrine({ k: 'c:survival:habitos', v: 'habitos', title: '✓ HÁBITOS', sub: 'Toque na casinha: ✓ fiz → – folga → vazio. 66 dias forjam um hábito.', topo: topoOf('survival'), host: ['eve-la', 3, 'EVE LÃ: cuidar de si também é tarefa'], shut: isCollapsed('c:survival:habitos'), body: `
       <div class="row hweek-nav"><button class="btn sm" data-act="hweek" data-dir="-1" aria-label="Semana anterior">◄</button><span class="meta">${fmtDM(days[0])} – ${fmtDM(days[6])}</span><button class="btn sm" data-act="hweek" data-dir="1" aria-label="Próxima semana" ${(ui.hweek || 0) >= 0 ? 'disabled' : ''}>►</button></div>
@@ -81,7 +81,7 @@ const RIT_ICON = { pessoa: '👥', rotina: '🔁', trabalho: '💼' };
 /** uma linha de ritual: nome, quando, selo, 📅 marcar o dia e ✓ FIZ */
 export function ritualRow(r, td = today()) {
   const s = R.ritualStatus(r, td);
-  return `<div class="li" data-rit="${r.id}"><div class="lt" data-act="edit-ritual" data-id="${r.id}" style="cursor:pointer">${RIT_ICON[r.type] || '🔁'} ${esc(r.name)}<small>${s.next ? DOW[weekday(s.next)] + ' ' + fmtDM(s.next) : '—'}${s.plan ? ' · dia marcado por você' : r.every ? ` · a cada ${r.every} dias` : r.dom ? ` · todo dia ${r.dom}` : ''}</small></div>
+  return `<div class="li" data-rit="${r.id}"><div class="lt" data-act="edit-ritual" data-id="${r.id}" style="cursor:var(--cur-hand,pointer)">${RIT_ICON[r.type] || '🔁'} ${esc(r.name)}<small>${s.next ? DOW[weekday(s.next)] + ' ' + fmtDM(s.next) : '—'}${s.plan ? ' · dia marcado por você' : r.every ? ` · a cada ${r.every} dias` : r.dom ? ` · todo dia ${r.dom}` : ''}${r.at ? ` · às ${esc(r.at)}` : ''}</small></div>
       <div class="row" style="flex-wrap:nowrap;gap:6px"><span class="chip ${s.left != null && s.left <= 0 ? 'late' : s.tone === 'bad' ? 'late' : s.tone === 'warn' || (s.left != null && s.left <= 1) ? 'week' : 'soon'}">${esc(s.label)}</span><button class="btn sm ghost" data-act="ritual-plan" data-id="${r.id}" title="Marcar o dia em que vou fazer">📅</button>${r.last === td ? `<button class="btn sm ghost" data-act="ritual-undo" data-id="${r.id}" title="Desfazer">↺</button>` : `<button class="btn sm" data-act="ritual-done" data-id="${r.id}">✓ FIZ</button>`}</div></div>`;
 }
 function ritualsMini(td) {
