@@ -504,7 +504,7 @@ export function addTask({ text, area = 'hoje', block = null, due = null, parent 
       const nextOrd = c[i + 1]?.ord ?? anchor.ord + 1;
       t.ord = (anchor.ord + nextOrd) / 2;
     }
-    if (color) { t.color = color; if (color === 'red' && !t.due) t.due = today(); } // v8.4: adicionada numa lista de cor (URGENTE sempre tem prazo)
+    if (color) { t.color = color; if (color === 'red' && !t.due) t.due = today(); if (t.due && t.due <= today()) t.autoUrg = t.due; } // v9.1: a cor escolhida na hora vale (não vira URGENTE sozinha) // v8.4: adicionada numa lista de cor (URGENTE sempre tem prazo)
     if (t.due) t.dueSet = today(); // v8.8: prazo nascido hoje pode mudar hoje sem custo
     S.quests.tasks.push(t);
     return { task: t, feedback: { newTrem: t.due ? t : null } }; // v8: "Que trem é esse, sô?"
@@ -1025,6 +1025,12 @@ export function deleteWindow(id) {
   }, { label: 'janela apagada' });
 }
 /** marca (ou limpa) o dia em que você vai fazer o ritual */
+/** v9.1: o horário do ritual (aparece no MEU DIA, na hora certa, todo dia que ele cair). '' tira */
+export function setRitualAt(id, at) {
+  const r = S.core.rituals.find((x) => x.id === id);
+  if (!r) return;
+  return commit(['core'], () => { if (at) r.at = at; else delete r.at; });
+}
 export function planRitual(id, date) {
   const r = S.core.rituals.find((x) => x.id === id);
   if (!r) return;

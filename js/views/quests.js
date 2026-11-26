@@ -32,10 +32,12 @@ function sortBlocks(list, mode, td = today()) {
 }
 /** blocos em 3 colunas fixas: abrir um bloco só empurra os de baixo dele.
  *  v7.0: o bloco guarda a coluna (b.col, 0 a 2) quando você arrasta ele pra outra; sem isso, fica na coluna i % 3 (como antes) */
-const colOf = (b, i) => (Number.isInteger(b?.col) && b.col >= 0 && b.col < 3 ? b.col : i % 3);
+// v9.1 (pedido do dono: "blocos maiores, tá difícil de ler"): em tela até 1700 px os blocos ficam em 2 colunas (mais largos); a coluna 3 guardada cai na 1
+const NCOL = () => { try { return matchMedia('(min-width: 1700px)').matches ? 3 : 2; } catch { return 3; } };
+const colOf = (b, i, n = NCOL()) => (Number.isInteger(b?.col) && b.col >= 0 ? b.col % n : i % n);
 const cols3 = (items, blocks = []) => {
-  const cs = [[], [], []];
-  items.forEach((h, i) => cs[colOf(blocks[i], i)].push(`<div class="mitem" style="order:${i}">${h}</div>`));
+  const n = NCOL(), cs = Array.from({ length: n }, () => []);
+  items.forEach((h, i) => cs[colOf(blocks[i], i, n)].push(`<div class="mitem" style="order:${i}">${h}</div>`));
   return cs.map((c, k) => `<div class="mcol" data-col="${k}">${c.join('')}</div>`).join('');
 };
 /** sem MOSTRAR FEITAS: some tudo que foi feito ou cancelado (o ↩ desfaz um clique errado) */
@@ -63,7 +65,7 @@ function listCard(cor, ui) {
   const rv = R.listReviewed(S, cor);
   const coming = cor === 'urg' && R.neuroOn(S, 'praga') ? open.filter((t) => t.due === td && t.st !== 'wait' && !t.who && !t.mother && R.pragaDay(S, t.due, 1) === addDays(td, 1)).length : 0;
   const ck = 'l:' + cor;
-  return `<section class="list-card ${isCollapsed(ck) ? 'collapsed' : ''} ${rv ? 'reviewed' : ''}" data-list="${COR_LIST[cor]}" data-cor="${cor}" data-drop-cor="${cor}"><header><h2 data-act="collapse" data-k="${ck}" style="cursor:pointer"><span class="chev">${isCollapsed(ck) ? '▸' : '▾'}</span> ${R.COR_NAMES[cor]}</h2>
+  return `<section class="list-card ${isCollapsed(ck) ? 'collapsed' : ''} ${rv ? 'reviewed' : ''}" data-list="${COR_LIST[cor]}" data-cor="${cor}" data-drop-cor="${cor}"><header><h2 data-act="collapse" data-k="${ck}" style="cursor:var(--cur-hand,pointer)"><span class="chev">${isCollapsed(ck) ? '▸' : '▾'}</span> ${R.COR_NAMES[cor]}</h2>
       <span class="row" style="gap:4px"><span class="meta">${open.length}${late ? ` · <span class="bad">${late} atrasada${late > 1 ? 's' : ''}</span>` : ''}</span>${coming ? `<span class="pg-coming" title="🪰 ${coming} tarefa${coming > 1 ? 's' : ''} de hoje vira${coming > 1 ? 'm' : ''} TREM TRAPAIADO amanhã se ficar${coming > 1 ? 'em' : ''} sem fazer">${miniMosca(coming)}</span>` : ''}</span></header>
     <form class="addline" data-form="add-task" data-cor="${cor}" autocomplete="off"><input class="inp" name="text" placeholder="+ adicionar ${COR_HINT[cor]}" aria-label="Adicionar em ${R.COR_NAMES[cor]}"></form>
     ${cor === 'urg' ? overflowBar() : ''}<ul class="tasks">${show.map((t) => taskRow(t, { list: !t.block, go: !!t.block, sub: sub(t) })).join('')}${show.length ? '' : `<div class="empty">${wait ? 'ninguém te segurando. 👏' : 'vazio.'}</div>`}</ul>
@@ -149,8 +151,8 @@ export function filaCard(td) {
   // v8.3 (pedido do dono): os RITUAIS dos próximos 14 dias também entram na fila, na ordem da data (são coisas a fazer)
   const rits = (S.core.rituals || []).map((r) => ({ r, s: R.ritualStatus(r, td) })).filter((x) => x.s.next && x.s.left != null && x.s.left <= 14);
   const rows = [...q.map((t) => ({ t, k: t.due || '9999' })), ...rits.map((x) => ({ ...x, k: x.s.next }))].sort((a, b) => a.k.localeCompare(b.k));
-  const taskLi = (t) => `<div class="li" data-act="jump" data-id="${t.id}" data-list="${R.listOf(t, td)}" style="cursor:pointer"><div class="lt">${t.st === 'doing' ? '▶ ' : ''}${t.prio ? '<b class="bad">!</b> ' : ''}${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}<small>${esc(where(t))}</small></div><div class="row" style="flex-wrap:nowrap;gap:4px">${((m) => moscasHtml(m.n, m.title))(R.moscasOf(S, t, td))}${dueChip(t.due, false, true)}</div></div>`;
-  const ritLi = (r, st) => { const pg = R.pragaOf(S, r.id); return `<div class="li rit" data-rit="${r.id}" ${pg ? `data-praga="${pg.phase}"` : ''} data-act="jump-rit" data-id="${r.id}" style="cursor:pointer" title="Ir até o ritual"><div class="lt">${esc(r.name)}<small>ritual${st.plan ? ' · dia marcado' : ''}</small></div><div class="row" style="flex-wrap:nowrap;gap:4px">${pg ? moscasHtml(pg.phase >= 4 ? 'aur' : 3, `🪰 ritual atrasado há ${pg.days} dia(s)`) : ''}<span class="chip ${st.left < 0 ? 'late' : st.left <= 1 ? 'week' : 'rit'}">${esc(st.label)}</span></div></div>`; };
+  const taskLi = (t) => `<div class="li" data-act="jump" data-id="${t.id}" data-list="${R.listOf(t, td)}" style="cursor:var(--cur-hand,pointer)"><div class="lt">${t.st === 'doing' ? '▶ ' : ''}${t.prio ? '<b class="bad">!</b> ' : ''}${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}<small>${esc(where(t))}</small></div><div class="row" style="flex-wrap:nowrap;gap:4px">${((m) => moscasHtml(m.n, m.title))(R.moscasOf(S, t, td))}${dueChip(t.due, false, true)}</div></div>`;
+  const ritLi = (r, st) => { const pg = R.pragaOf(S, r.id); return `<div class="li rit" data-rit="${r.id}" ${pg ? `data-praga="${pg.phase}"` : ''} data-act="jump-rit" data-id="${r.id}" style="cursor:var(--cur-hand,pointer)" title="Ir até o ritual"><div class="lt">${esc(r.name)}<small>ritual${st.plan ? ' · dia marcado' : ''}</small></div><div class="row" style="flex-wrap:nowrap;gap:4px">${pg ? moscasHtml(pg.phase >= 4 ? 'aur' : 3, `🪰 ritual atrasado há ${pg.days} dia(s)`) : ''}<span class="chip ${st.left < 0 ? 'late' : st.left <= 1 ? 'week' : 'rit'}">${esc(st.label)}</span></div></div>`; };
   return `<div class="card fila-q"><header><h2 title="Tudo que tem prazo, do mais perto pro mais longe (rituais incluídos)">⏰ Fila de prazos</h2><span class="meta">${rows.length}</span></header>
     <div class="list">${rows.map((x) => (x.t ? taskLi(x.t) : ritLi(x.r, x.s))).join('') || '<div class="empty">nenhuma tarefa com prazo.</div>'}</div></div>`;
 }

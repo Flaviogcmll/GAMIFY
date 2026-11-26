@@ -70,8 +70,8 @@ export function corOf(s, t) {
   return COLOR_COR[colorOfTask(s, t)] || 'semcor';
 }
 // ───── NOMES PERSONALIZÁVEIS: só o texto muda; as chaves (hoje, bd, tr…) e as regras continuam as mesmas ─────
-const NAMES_DEFAULT = { 'tab:listas': 'MISSÕES', 'tab:boss': 'BOSSES' };
-export const TAB_NAMES = { listas: 'MISSÕES', boss: 'BOSSES' }; // v8.4: LISTAS virou MISSÕES (pedido do dono; a chave continua 'listas')
+const NAMES_DEFAULT = { 'tab:listas': 'TODAS', 'tab:boss': 'BOSSES' };
+export const TAB_NAMES = { listas: 'TODAS', boss: 'BOSSES' }; // v9.1: a aba QUESTS virou MISSÕES e a janela-mãe dela virou TODAS // v8.4: LISTAS virou MISSÕES (pedido do dono; a chave continua 'listas')
 /** tudo que dá pra renomear: [chave, nome padrão] */
 export function labelFields() {
   return [['tab:listas', NAMES_DEFAULT['tab:listas']], ...AREA_KEYS.map((k) => ['area:' + k, NAMES_DEFAULT['area:' + k]]), ['tab:boss', NAMES_DEFAULT['tab:boss']], ...['bd', 'tr', 'cap', 'gs'].map((g) => ['group:' + g, NAMES_DEFAULT['group:' + g]])];

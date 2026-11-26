@@ -1,5 +1,6 @@
 // v3.5 — o PRIMO vivo (falas, voz, carinho, pergunta do dia, amizade), o REINO em tela cheia, a abertura do dia,
 // um feed bem mais rico, cartões que recolhem, painel que você organiza arrastando, cores por aba e a CRÔNICA do progresso.
+import { fig } from './elenco.js';
 import { S } from './store.js';
 
 import * as A from './actions.js';
@@ -111,7 +112,7 @@ export function brief() {
   const open = R.openTasks(S), over = open.filter((t) => t.due && t.due < td).length, hoje = open.filter((t) => t.due === td).length;
   const wk = R.weeklyMissions(S, td), sunday = weekday(td) === 0 && !(S.core.sundays || []).some((x) => x.date === td);
   const hi = hr < 5 ? 'madrugada acordado, primo?' : hr < 12 ? 'bom dia, primo.' : hr < 18 ? 'boa tarde, primo.' : 'boa noite, primo.';
-  const m = openModal(`<div class="brief"><canvas id="brief-canvas" class="pcv pmini" data-portrait="mini" aria-hidden="true"></canvas>
+  const m = openModal(`<div class="brief">${fig('primo', 1, 'pav', 'PRIMO')}
     <h2>${hi}</h2><div class="speech" id="brief-say"></div>
     <div class="brief-grid">
       <div><small>HOJE</small><b>${SEASON_NAME[k.season]} · ${esc(WEATHER_NAME[k.weather])}</b></div>
@@ -168,7 +169,7 @@ function arrangeModal(key) {
   const pref = orderOf(key), labels = LABELS[key] || [], ids = labels.map((l) => l[0]);
   const order = [...pref.order.filter((id) => ids.includes(id)), ...ids.filter((id) => !pref.order.includes(id))];
   openModal(`<form data-v35form="arrange" data-key="${key}"><h2>⚙ personalizar</h2><p class="muted">Marque o que aparece e use ↑ ↓ pra ordem. Dica: também dá pra arrastar cada cartão pela alça ⠿ no topo dele.</p>
-    <div class="list" id="arr-list">${order.map((id) => `<div class="li" data-id="${id}"><label class="lt" style="cursor:pointer"><input type="checkbox" name="v" value="${id}" ${(pref.hidden || []).includes(id) ? '' : 'checked'}> ${esc(labels.find((l) => l[0] === id)?.[1] || id)}</label><span class="row" style="gap:4px"><button type="button" class="icon-btn" data-act="arr-mv" data-d="-1">↑</button><button type="button" class="icon-btn" data-act="arr-mv" data-d="1">↓</button></span></div>`).join('')}</div>
+    <div class="list" id="arr-list">${order.map((id) => `<div class="li" data-id="${id}"><label class="lt" style="cursor:var(--cur-hand,pointer)"><input type="checkbox" name="v" value="${id}" ${(pref.hidden || []).includes(id) ? '' : 'checked'}> ${esc(labels.find((l) => l[0] === id)?.[1] || id)}</label><span class="row" style="gap:4px"><button type="button" class="icon-btn" data-act="arr-mv" data-d="-1">↑</button><button type="button" class="icon-btn" data-act="arr-mv" data-d="1">↓</button></span></div>`).join('')}</div>
     <div class="actions"><button type="button" class="btn ghost" data-act="arr-reset" data-key="${key}">PADRÃO</button><button type="button" class="btn" data-close>CANCELAR</button><button class="btn pri">SALVAR</button></div></form>`);
 }
 let sdrag = null;

@@ -220,6 +220,13 @@ const MOOD_SAY = {
   cansado: () => 'o dia tá pesado. Vai com calma, sô',
   satisfeito: () => 'tudo nos trilhos, graças a Deus',
 };
+/** v9.1 (pedido do dono): o PRIMO e a BRASINHA com as ARTES NOVAS no painel (sem a animação antiga). A pose segue o humor:
+ *  paranoico/com medo = bravo, com fumaça no nariz (4) · orgulhoso = com o haltere (2) · focado = andando com a planta (3) · resto = padrão (1) */
+const HERO_POSE = { medo: 4, paranoico: 4, orgulhoso: 2, focado: 3, cansado: 1, satisfeito: 1 };
+export function heroStage(c, pet, mk) {
+  const st = Math.max(0, Math.min(4, S.core.brasinha?.stage ?? 0));
+  return `<div class="pstage hero"><span class="p-hero" data-act="comp-poke" title="Toque no ${esc(c.name)}">${fig('primo', HERO_POSE[mk] || 1, '', c.name, false, 2)}</span><span class="b-hero" data-act="mascot-info" title="${esc(pet.title)}">${fig('brasinha', st + 1, '', 'BRASINHA', false, 2)}</span></div>`;
+}
 const moodLine = (mk, m, name) => `<span title="${esc(m.tip)}">${m.ico} ${esc(name)} está <b>${m.label}</b><span class="msay">: ${esc(MOOD_SAY[mk]?.() || '')}</span></span>`;
 /** v9.0: as dicas do relógio do corpo (neurociência) viram fala do PRIMO, em cima dele (antes ficavam no FOCO AGORA) */
 function primoTip() {
@@ -289,8 +296,7 @@ function body(big, compact = false) {
   const trip = R.tripNow(S);
   // v8.5 (pedido do dono): a imagem, a fala e o "PRIMO está…" ficam juntos em .phead, preso no topo do painel; o resto rola por baixo
   const pstat = `<div class="meta pstat">${status}${st.left ? ` · <span data-countdown="${Date.now() + st.left}">${mmss(st.left)}</span>` : ''}</div>`;
-  return `<div class="pcard ${big ? 'big' : ''} ${compact ? 'compact' : ''}" data-mood="${mk}">${compact ? '' : `<div class="phead"><div class="pstage"><canvas class="pcv" data-portrait="${big ? 'full' : 'card'}" data-act="comp-poke" aria-label="${esc(c.name)}"></canvas>
-      <canvas class="pcv pmascot" data-mascot title="${esc(pet.title)}" data-act="mascot-info"></canvas></div>
+  return `<div class="pcard ${big ? 'big' : ''} ${compact ? 'compact' : ''}" data-mood="${mk}">${compact ? '' : `<div class="phead">${heroStage(c, pet, mk)}
       <div class="speech" id="comp-speech" data-pspeech="ambient" data-act="comp-poke" title="toque pra ouvir outra"></div>${pstat}</div>`}
     <div class="pcol">
       ${statusIcons()}
@@ -312,8 +318,7 @@ export function questsBanner() {
 export function primoHead() {
   const c = R.companion(S), pet = PS.petState(), mk = primoMood(), m = MOODS[mk], st = primoState();
   const status = st.act !== 'idle' ? `${esc(c.name)} está ${esc(st.label)}` : moodLine(mk, m, c.name);
-  return `<div class="pcard side-head" data-mood="${mk}">${primoTip()}<div class="phead"><div class="pstage"><canvas class="pcv" data-portrait="card" data-act="comp-poke" aria-label="${esc(c.name)}"></canvas>
-      <canvas class="pcv pmascot" data-mascot title="${esc(pet.title)}" data-act="mascot-info"></canvas></div>
+  return `<div class="pcard side-head" data-mood="${mk}">${primoTip()}<div class="phead">${heroStage(c, pet, mk)}
       <div class="speech" id="comp-speech" data-pspeech="ambient" data-act="comp-poke" title="toque pra ouvir outra"></div>
       <div class="meta pstat">${status}${st.left ? ` · <span data-countdown="${Date.now() + st.left}">${mmss(st.left)}</span>` : ''}</div></div></div>`;
 }
@@ -336,7 +341,7 @@ const rehub = () => { closeModal(); setTimeout(openPrimoHub, 40); };
 function openSaber(g = 'all') {
   const chips = [['all', '🎲 TUDO'], ...Object.entries(GROUPS).map(([k, v]) => [k, v[0]])].map(([k, n]) => `<button class="btn sm ${k === g ? 'pri' : 'ghost'}" data-act="saber-go" data-g="${k}">${n}</button>`).join('');
   openModal(`<h2>📚 o PRIMO conta</h2><div class="chips" style="flex-wrap:wrap">${chips}</div>
-    <div class="pcard"><div class="pstage" style="min-height:150px"><canvas class="pcv" data-portrait="card" aria-label="PRIMO"></canvas></div><div class="speech" id="saber-say" data-pspeech="saber:${g}" style="font-size:13.5px;line-height:1.5"></div></div>
+    <div class="pcard"><div class="pstage hero" style="min-height:150px"><span class="p-hero">${fig('primo', 3, '', 'PRIMO', false, 1)}</span></div><div class="speech" id="saber-say" data-pspeech="saber:${g}" style="font-size:13.5px;line-height:1.5"></div></div>
     <div class="actions"><button class="btn" data-act="saber-go" data-g="${g}">OUTRA ▶</button><button class="btn pri" data-close>FECHAR</button></div>`, { wide: true });
   mountPortraits(document.querySelector('.modal'));
 }

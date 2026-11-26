@@ -1,5 +1,6 @@
 // v4 — conforto: desfazer (Ctrl+Z), clique exato, sons em tudo, editores de regras e loja (PERKS AND RULES),
 // diário/históricos que dá pra corrigir e cartões que você arrasta em todas as abas.
+import { setDue } from './remarcar.js';
 import { S, exportAll } from './store.js';
 import { markBackup } from './backup.js';
 
@@ -248,13 +249,7 @@ document.addEventListener('drop', (e) => {
   e.preventDefault();
   const id = dragTid; dragTid = null;
   const t = S.quests.tasks.find((x) => x.id === id), due = d.dataset.d;
-  (async () => {
-    if (t && !(await confirmResched(t, due))) return;
-    const cost = A.reschedCost(t, due), r = A.updateTask(id, { due });
-    if (r?.error) { toast(esc(r.error), 'bad'); return; }
-    sfx('drop'); toast(`📅 Prazo: <b>${fmtDM(due)}</b>${cost ? ` · −${cost} XP` : ''}`);
-    if (cost) primoReact('remarcou', { xp: cost });
-  })();
+  setDue(id, due); // v9.1: o caminho único de remarcar
 });
 
 // ───────────────────────── ORDEM DAS JANELAS DO QUESTS (arrastar o nome da janela) ─────────────────────────

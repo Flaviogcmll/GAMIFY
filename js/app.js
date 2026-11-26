@@ -1,4 +1,5 @@
 // APP — liga tudo: abas (como na planilha), dia/noite, cliques, janelas, PRIMO, SOS, arrastar e soltar, sons.
+import { setDue } from './remarcar.js';
 import { FALAS, NOMES } from './elenco.js';
 import { S, status, init, onChange, replaceAll, exportAll } from './store.js';
 
@@ -49,7 +50,7 @@ import { renderPostit } from './postit.js';
 
 // abas na mesma ordem da planilha
 const ROUTES = [
-  ['quests', 'QUESTS', 'quests', viewQuests, 'q'], ['survival', 'SURVIVAL', 'survival', viewSurvival, 's'], ['agenda', 'AGENDA', 'agenda', viewAgenda, 'a'],
+  ['quests', 'MISSÕES', 'quests', viewQuests, 'q'], ['survival', 'SURVIVAL', 'survival', viewSurvival, 's'], ['agenda', 'AGENDA', 'agenda', viewAgenda, 'a'],
   ['shop', 'FEIRA', 'shop', viewShop, 'l'], ['domingo', 'REFLEXÃO', 'domingo', (u) => { setTimeout(() => { history.replaceState(null, '', '#survival'); document.getElementById('reflexao')?.scrollIntoView({ block: 'start' }); }, 80); return viewSurvival(u); }, 'b'], ['conquistas', 'CONQUISTAS', 'conquistas', viewConquistas, ''],
   ['filtro', 'FILTRO', 'filtro', (u) => { setTimeout(() => { history.replaceState(null, '', '#agenda'); document.getElementById('filtro-v')?.scrollIntoView({ block: 'start' }); }, 80); return viewAgenda(u); }, 'f'], ['rotina', 'ROTINA', 'rotina', viewRotina, 'r'], ['regras', 'PERKS AND RULES', 'regras', viewRegras, 'p'],
   ['arquivo', 'ARQUIVO', 'arquivo', viewArquivo3, ''],
@@ -131,7 +132,7 @@ function render() {
   document.getElementById('top').innerHTML = header();
   document.getElementById('tabs').innerHTML = tabOrder().map(([k, n, ic]) => `<a href="#${k}" draggable="true" data-tabk="${k}" class="${k === cur ? 'on' : ''}">${px(ic, 12)}${n}</a>`).join('');
   const bn = (k, n, ic, cls = '') => `<a href="#${k}" class="${cls} ${k === cur ? 'on' : ''}">${px(ic, 18)}${n}</a>`;
-  document.getElementById('bottom').innerHTML = bn('quests', 'QUESTS', 'quests') + bn('survival', 'SURVIVAL', 'survival') + bn('shop', 'FEIRA', 'shop', 'primo-btn') + bn('agenda', 'AGENDA', 'agenda') + `<a href="#" data-act="more">${px('regras', 18)}MAIS</a>`;
+  document.getElementById('bottom').innerHTML = bn('quests', 'MISSÕES', 'quests') + bn('survival', 'SURVIVAL', 'survival') + bn('shop', 'FEIRA', 'shop', 'primo-btn') + bn('agenda', 'AGENDA', 'agenda') + `<a href="#" data-act="more">${px('regras', 18)}MAIS</a>`;
   const banners = [];
   if (status.error) banners.push(`<div class="banner bad">${esc(status.error)}</div>`);
   if (status.stale) banners.push('<div class="banner info">Ainda não consegui confirmar os dados com o servidor. Pode estar desatualizado.</div>');
@@ -185,6 +186,7 @@ function setStick() {
 }
 const stickSoon = () => { if (!stickRaf) stickRaf = requestAnimationFrame(() => { stickRaf = 0; setStick(); }); };
 addEventListener('resize', stickSoon);
+try { matchMedia('(min-width: 1700px)').addEventListener('change', () => render()); } catch { /* */ } // v9.1: blocos em 2 ou 3 colunas
 addEventListener('scroll', stickSoon, { passive: true });
 
 // ───────────────────────── TEXTO NÃO SE PERDE ─────────────────────────
@@ -350,7 +352,7 @@ function editTask(id) {
     <div class="waitbox"><label class="lbl" for="t-who">⏳ Aguardando quem ou o quê</label><div class="row">
       <input class="inp grow" id="t-who" name="who" value="${esc(t.who || '')}" list="who-list" placeholder="PREFEITURA, CLIENTE, FULANO…" autocomplete="off"><datalist id="who-list">${R.people(S).map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
       <select class="inp" name="dep" aria-label="Depende de outra tarefa" style="flex:1 1 220px;min-width:0"><option value="">— não depende de outra tarefa —</option>${R.openTasks(S).filter((x) => x.id !== t.id && x.dep !== t.id).sort((x, y) => (x.block === t.block ? 0 : 1) - (y.block === t.block ? 0 : 1) || x.text.localeCompare(y.text)).map((x) => `<option value="${x.id}" ${t.dep === x.id ? 'selected' : ''}>🔗 ${esc(x.text.replace(/\s*\(\d+\s*XP\)/i, '').slice(0, 60))}</option>`).join('')}</select></div></div>
-    <label class="lbl" for="t-due">Prazo <span class="meta">· ⏰ horário (opcional: aparece no MEU DIA da AGENDA)</span></label><div class="row"><input class="inp" type="date" id="t-due" name="due" value="${t.due || ''}" ${cap ? `max="${cap}" title="Até o prazo do bloco"` : ''} style="width:auto"><input class="inp" type="time" name="at" value="${esc(t.at || '')}" style="width:auto" aria-label="Horário">
+    <label class="lbl" for="t-due">Prazo <span class="meta">· ⏰ horário (opcional: aparece no MEU DIA da AGENDA)</span></label><div class="row"><input class="inp" type="date" id="t-due" name="due" value="${t.due || ''}" ${cap ? `title="O bloco termina em ${fmtDM(cap)}: se passar disso, o app pergunta se empurra o bloco junto"` : ''} style="width:auto"><input class="inp" type="time" name="at" value="${esc(t.at || '')}" style="width:auto" aria-label="Horário">
       ${[['HOJE', td], ['AMANHÃ', addDays(td, 1)], ['+3', addDays(td, 3)], ['PRÓX. SEG', nextMon], ['SEM', '']].map(([n, d]) => `<button type="button" class="pill" data-act="due-quick" data-d="${d}"><span>${n}</span></button>`).join('')}
       ${t.due ? `<span class="minfo" title="${t.due < td ? `Atrasada: concluir agora paga ${Math.round(Math.max(R.C.LATE_MIN, 1 - R.C.LATE_DAY * diffDays(t.due, td)) * 100)}% do XP. ` : ''}Empurrar o prazo custa ${A.reschedBase({ ...t, due: '0' }, '9')} XP${A.freeResched() ? ' (a 1ª da semana é grátis)' : ''}. Antecipar é de graça.">${t.due < td ? '⏰' : 'ⓘ'}${t.rs ? ` remarcada ${t.rs}x` : ''}</span>` : ''}</div>
     ${R.reschedLocked(S, t) && R.isOpen(t) ? `<div class="boxlock"><b>🔒 Já remarcada ${t.rs}x.</b> Pra empurrar de novo, marque um horário e quanto tempo (time box). Ou cancele: se não vale fazer, tudo bem.
@@ -365,7 +367,7 @@ function editTask(id) {
     ${(t.duck || []).length ? `<p class="meta" style="margin:8px 0 0">🦆 ${esc([t.duck.at(-1).tried, t.duck.at(-1).nok].filter(Boolean).join(' · ').slice(0, 140))} <a href="#" data-act="duck" data-id="${id}">explicar de novo</a></p>` : ''}
     ${imgSection(t)}
     <div class="actions"><div class="left">
-      ${t.block && !p.step ? `<button type="button" class="btn sm" data-act="add-step" data-id="${id}">+ ↳ PASSO</button>` : ''}<button type="button" class="btn sm" data-act="sos" data-id="${id}">${px('sos', 10)} TRAVEI</button>${t.link ? `<button type="button" class="btn sm" data-act="unlink" data-id="${id}" title="Separa a tarefa do bloco ligado a ela">↯ DESVINCULAR</button>` : ''}<button type="button" class="btn sm danger" data-act="del-task" data-id="${id}">APAGAR</button></div>
+      ${route() !== 'quests' || !document.querySelector(`.board li.task[data-id="${id}"]`) ? `<button type="button" class="btn sm" data-act="jump" data-id="${id}" title="Vai até o lugar dela no QUESTS e pisca">📍 ONDE ELA ESTÁ</button>` : ''}${t.block && !p.step ? `<button type="button" class="btn sm" data-act="add-step" data-id="${id}">+ ↳ PASSO</button>` : ''}<button type="button" class="btn sm" data-act="sos" data-id="${id}">${px('sos', 10)} TRAVEI</button>${t.link ? `<button type="button" class="btn sm" data-act="unlink" data-id="${id}" title="Separa a tarefa do bloco ligado a ela">↯ DESVINCULAR</button>` : ''}<button type="button" class="btn sm danger" data-act="del-task" data-id="${id}">APAGAR</button></div>
       <button type="button" class="btn" data-close>FECHAR</button><button class="btn pri">SALVAR</button></div></form>`, { wide: true });
   fillImgs();
 }
@@ -464,7 +466,7 @@ function redemption() {
   const td = today(), done = S.marks.days[td]?.h?.rd === 'x';
   const opts = ['1 AULA DE CURSO', 'MEDITAÇÃO'];
   openModal(`<h2>⚔ missão de redenção</h2><p class="muted">+${R.C.RD_XP} XP e cura ☠ envenenado e 🌫 neblina. Escolha a sua:</p>
-    <div class="list">${opts.map((o) => `<button class="li" style="width:100%;text-align:left;border:0;background:none;cursor:pointer" data-act="rd-do" data-o="${esc(o)}"><span class="lt">⚔ ${esc(o)}</span><span class="chip xp">+${R.C.RD_XP}</span></button>`).join('')}</div>
+    <div class="list">${opts.map((o) => `<button class="li" style="width:100%;text-align:left;border:0;background:none;cursor:var(--cur-hand,pointer)" data-act="rd-do" data-o="${esc(o)}"><span class="lt">⚔ ${esc(o)}</span><span class="chip xp">+${R.C.RD_XP}</span></button>`).join('')}</div>
     <div class="actions">${done ? '<button class="btn danger" data-act="rd-undo">DESFAZER A DE HOJE</button>' : ''}<button class="btn" data-close>FECHAR</button></div>`);
 }
 function tour(step = 0) {
@@ -495,7 +497,7 @@ function sos(taskId) {
   const phase2 = () => {
     clearInterval(sosTimer);
     m.innerHTML = `<h2>o menor passo.</h2><p class="muted">Escolha UMA coisa e combine só 10 minutos. Não precisa terminar.</p>
-      <div class="list">${(t ? [t] : smallest).map((x) => `<button class="li" style="width:100%;text-align:left;border:0;background:none;cursor:pointer" data-act="sos-pick" data-id="${x.id}"><span class="lt">${esc(x.text)}<small>${esc(x.block ? R.findBlock(S, x.block)?.title : R.AREAS[x.area])}</small></span><span class="chip">10 MIN</span></button>`).join('')}</div>
+      <div class="list">${(t ? [t] : smallest).map((x) => `<button class="li" style="width:100%;text-align:left;border:0;background:none;cursor:var(--cur-hand,pointer)" data-act="sos-pick" data-id="${x.id}"><span class="lt">${esc(x.text)}<small>${esc(x.block ? R.findBlock(S, x.block)?.title : R.AREAS[x.area])}</small></span><span class="chip">10 MIN</span></button>`).join('')}</div>
       ${R.neuroOn(S, 'pato') ? `<p class="meta" style="margin:10px 0 0">Nem sabe por onde começar? <a href="#" data-act="duck" data-id="${t?.id || ''}">🦆 explique pro PRIMO</a>: o que tentou, o que funcionou, o que não.</p>` : ''}
       <form data-form="sos-tiny" class="row" style="margin-top:10px"><input class="inp grow" name="text" placeholder="ou escreva um micro-passo (ex.: abrir o arquivo)" aria-label="Micro-passo"><button class="btn">OK</button></form>
       <div class="actions"><button class="btn" data-close>FECHAR</button></div>`;
@@ -587,8 +589,9 @@ const goldByKey = (k) => [...R.goldPrompts(S)].find((p) => p.key === k);
 /** v5.16: abre o que estiver recolhido (janela, bloco, lista) pra o item aparecer */
 function openUp(keys) { for (const k of keys) if (k && isCollapsed(k)) toggleCollapse(k); }
 /** rola até o elemento e faz ele brilhar (com a cor do que ele é: urgente, aguardando…) */
-function glow(sel) {
-  setTimeout(() => { const el = [].concat(sel).map((x) => document.querySelector(x)).find(Boolean); if (!el) return; el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.classList.remove('glow'); void el.offsetWidth; el.classList.add('glow'); setTimeout(() => el.classList.remove('glow'), 3200); }, 90);
+function glow(sel, tries = 0) {
+  // v9.1: espera a tela nova aparecer (trocar de aba redesenha depois); tenta por até ~2 s
+  setTimeout(() => { const el = [].concat(sel).map((x) => document.querySelector(x)).find(Boolean); if (!el) { if (tries < 12) glow(sel, tries + 1); return; } el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.classList.remove('glow'); void el.offsetWidth; el.classList.add('glow'); setTimeout(() => el.classList.remove('glow'), 3200); }, tries ? 160 : 90);
 }
 /** v9.0 (pedido do dono): tocar num ritual (fila de prazos, busca, moscas) leva até ele no SURVIVAL, como acontece com os blocos */
 function jumpRit(id) {
@@ -602,8 +605,11 @@ function jump(id) {
   if (!t) return;
   const b = t.block && R.findBlock(S, t.block);
   if (!R.isOpen(t) || b?.color === 'black') ui.showDone = true;
-  closeModal();
-  openUp(b ? ['b:' + b.id, 'g:' + b.group, 'g:bs'] : ['l:' + t.area]);
+  closeModal(); ui.mm = false;
+  // v9.1 (pedido do dono): abre TUDO no caminho (a lista da cor dela, o bloco, o boss) e a janela certa, depois pisca a tarefa
+  const bo = b && S.quests.bosses.find((x) => x.block === b.id);
+  openUp(b ? ['b:' + b.id, 'g:' + b.group, 'g:bs', bo && 'b:' + b.id] : ['l:' + R.corOf(S, t)]);
+  if (t.color === 'black' || b?.color === 'black') ui.showStalled = true;
   ui.qtab = b ? tabOfBlock(b) : 'listas';
   if (route() !== 'quests') location.hash = '#quests'; else render();
   glow([`.board :is(.list-card, .block) li.task[data-id="${id}"]`, `.board li.task[data-id="${id}"]`]);
@@ -705,7 +711,7 @@ const ACTIONS = {
   'review-list': (d) => { A.reviewList(d.k); sfx('tab'); },
   'curfew-skip': () => { curfewSkip(); render(); },
   'pin-block': (d) => { toast(togglePin(d.id) ? '📌 Virou post-it: ele acompanha você em todas as abas.' : '📌 Post-it guardado.'); render(); sfx('tab'); },
-  fullscreen: () => { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); } catch { toast('Este navegador não deixou abrir em tela cheia.', 'bad'); } },
+  fullscreen: () => { try { if (document.fullscreenElement) { navigator.keyboard?.unlock?.(); document.exitFullscreen(); } else document.documentElement.requestFullscreen().then(() => navigator.keyboard?.lock?.(['Escape'])).catch(() => {}); } /* v9.1: Esc fecha só a janela; sair da tela cheia é no botão (no Chrome; segurar Esc ainda sai) */ catch { toast('Este navegador não deixou abrir em tela cheia.', 'bad'); } },
   'win-new': () => windowModal(),
   'win-edit': (d) => windowModal(d.id),
   'win-del': async (d) => { const w = R.windows(S).find((x) => x.id === d.id); closeModal(); if (w && await ask(`Apagar a janela ${w.name}?`, `Os blocos dela não são apagados: voltam pra ${R.GROUPS[w.base].short}.`, 'APAGAR', true)) { A.deleteWindow(d.id); ui.qtab = w.base; render(); } },
@@ -899,12 +905,12 @@ const FORMS = {
     if (patch.color === 'red' && !patch.due && R.isOpen(t)) { patch.due = today(); toast('🟥 URGENTE sempre tem prazo: ficou pra hoje.', 'gold'); } // v8.4 (pedido do dono)
     if (t.link && 'color' in patch && patch.color && patch.color !== 'wait') { const lb = R.findBlock(S, t.link); if (lb && lb.color !== patch.color) A.updateBlock(lb.id, { color: patch.color }); } // tarefa-mãe e bloco têm a mesma cor
     if (f.pin) patch.pin = f.pin.value || undefined;
-    if (patch.due && t.due && patch.due > t.due && R.reschedLocked(S, t) && !patch.box) { sfx('error'); toast('🔒 Marque o horário (⏰) do time box pra empurrar de novo, ou cancele a tarefa.', 'bad'); f.box_at?.focus(); return; }
-    if (!(await confirmResched(t, patch.due))) return;
-    const cost = A.reschedCost(t, patch.due || null), r = A.updateTask(t.id, patch);
+    // v9.1: o prazo passa pelo caminho único de remarcar (remarcar.js): ele resolve bloco, time box e custo numa janela só
+    const { due, box, ...rest } = patch;
+    const r = A.updateTask(t.id, rest);
     if (r?.error) { toast(esc(r.error), 'bad'); return; }
-    if (cost) primoReact('remarcou', { xp: cost });
     closeModal();
+    if ((due || null) !== (t.due || null) || box) { const cost = A.reschedCost(t, due || null); if (await setDue(t.id, due, { extra: box ? { box } : {}, reopen: () => editTask(t.id) }) && cost) primoReact('remarcou', { xp: cost }); }
   },
   block: async (f) => {
     const b = S.quests.blocks.find((x) => x.id === f.dataset.id);

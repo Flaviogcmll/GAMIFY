@@ -8,6 +8,7 @@ import { esc, today, addDays, fmtDM, weekday, DOW, lightNow } from './util.js';
 import { openModal, closeModal, modalOpen, toast } from './ui.js';
 import { sfx } from './audio.js';
 import { vitrine, fig, NOMES } from './elenco.js';
+import { setDue } from './remarcar.js';
 import { tone } from './views/rotina.js';
 
 const ls = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* */ } } };
@@ -22,7 +23,7 @@ function dayItems(d) {
   const td = today(), hoje = d === td; // v9.0: HOJE também traz o que está atrasado (é do dia: precisa de um horário)
   const tasks = R.openTasks(S).filter((t) => t.due && (hoje ? t.due <= d : t.due === d) && t.st !== 'wait' && !t.who && !t.mother);
   const rits = (S.core.rituals || []).filter((r) => { const n = R.ritualStatus(r, td).next; return n && (hoje ? n <= d : n === d); });
-  return { timed: tasks.filter(hourOf).sort((a, b) => toMin(hourOf(a)) - toMin(hourOf(b))), loose: tasks.filter((t) => !hourOf(t)), rits };
+  return { timed: tasks.filter(hourOf).sort((a, b) => toMin(hourOf(a)) - toMin(hourOf(b))), loose: tasks.filter((t) => !hourOf(t)), rits: rits.filter((r) => !r.at), ritsAt: rits.filter((r) => r.at) };
 }
 
 /** v9.0 (pedido do dono): o MEU DIA virou BANNER, com o visual da ROTINA (cada hora com a cor da atividade) e, do lado,
@@ -35,33 +36,48 @@ let picked = null; // celular: a tarefa escolhida esperando a hora
 export function diaCard(ui, shut = false) {
   const td = today(), d = addDays(td, ui.agDay || 0), r = S.core.routine, plan = r?.plans?.[Math.min(r.active ?? 0, (r.plans?.length || 1) - 1)];
   const hours = r?.hours?.length ? r.hours : ['07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22'];
-  const wd = WD[weekday(d)], { timed, loose, rits } = dayItems(d);
+  const wd = WD[weekday(d)], { timed, loose, rits, ritsAt } = dayItems(d);
   const now = new Date(), nowM = now.getHours() * 60 + now.getMinutes();
   const slotOf = (hm) => [...hours].reverse().find((h) => toMin(h) <= toMin(hm)) || hours[0];
   const bySlot = {}; for (const t of timed) (bySlot[slotOf(hourOf(t))] ||= []).push(t);
+  for (const r of ritsAt) (bySlot[slotOf(r.at)] ||= []).push({ rit: r });
   const cur = d === td ? [...hours].reverse().find((h) => toMin(h) <= nowM) : null;
-  const chip = (t) => `<button class="dia-t dia-drag" data-act="edit-task" data-id="${t.id}" data-color="${R.colorOfTask(S, t) || ''}" title="Toque pra abrir · arraste pra outra hora ou de volta pra bagunça"><b>${esc(hourOf(t))}</b> ${esc(clean(t.text))}</button>`;
+  // v9.1: tarefas E rituais funcionam igual: tocar abre (PC) ou escolhe (celular), arrastar muda a hora
+  const chip = (t) => (t.rit ? `<button class="dia-t dia-drag rit" data-act="dia-pick" data-rit="${t.rit.id}" title="Ritual: toque pra ir até ele · arraste pra outra hora ou de volta pra bagunça"><b>${esc(t.rit.at)}</b> 🔁 ${esc(t.rit.name)}</button>`
+    : `<button class="dia-t dia-drag ${picked === t.id ? 'picked' : ''}" data-act="dia-pick" data-id="${t.id}" data-color="${R.colorOfTask(S, t) || ''}" title="Toque pra abrir · arraste pra outra hora, pra AMANHÃ, pra FEITA ou de volta pra bagunça"><b>${esc(hourOf(t))}</b> ${esc(clean(t.text))}</button>`);
   const rows = hours.map((h) => { const rot = plan?.grid?.[`${wd}|${h}`] || '', items = bySlot[h] || [], past = d < td || (d === td && cur && toMin(h) < toMin(cur));
     return `<div class="dia-h ${h === cur ? 'now' : ''} ${past ? 'past' : ''} ${items.length ? 'has' : ''}" data-dia-h="${esc(h)}"><span class="dia-hh">${esc(h)}${String(h).includes(':') ? '' : 'h'}</span><span class="dia-rot" style="${rot ? tone(rot) : ''}" title="${esc(rot)}">${esc(rot)}</span><span class="dia-ts">${items.map(chip).join('')}</span></div>`; }).join('');
   // a bagunça: posição e inclinação "aleatórias" mas fixas por tarefa (não pulam a cada redesenho)
   const mess = loose.map((t, i) => { const k = seed(t.id), rot = (k % 9) - 4, dx = (k >> 4) % 9, dy = (k >> 9) % 7;
     return `<button class="dia-t dia-drag solto ${picked === t.id ? 'picked' : ''}" data-act="dia-pick" data-id="${t.id}" data-color="${R.colorOfTask(S, t) || ''}" style="--r:${rot}deg;--dx:${i % 2 ? dx : -dx}px;--dy:${dy}px" title="Arraste até uma hora (no celular: toque aqui e depois na hora)">${esc(clean(t.text))}</button>`; }).join('');
-  const ritsH = rits.map((x) => `<button class="dia-t rit solto" data-act="jump-rit" data-id="${x.id}" style="--r:${(seed(x.id) % 7) - 3}deg" title="Ritual do dia: toque pra ir até ele">🔁 ${esc(x.name)}</button>`).join('');
+  const ritsH = rits.map((x) => `<button class="dia-t dia-drag rit solto ${picked === 'r:' + x.id ? 'picked' : ''}" data-act="dia-pick" data-rit="${x.id}" style="--r:${(seed(x.id) % 7) - 3}deg" title="Ritual do dia: arraste até uma hora (no celular: toque e depois na hora)">🔁 ${esc(x.name)}</button>`).join('');
   const lv = [...timed, ...loose].map((t) => tremLevel(t, td)).filter(Boolean);
   const nT = [1, 2, 3].map((n) => lv.filter((x) => x === n).length);
   const trens = [3, 2, 1].flatMap((n) => Array.from({ length: Math.min(nT[n - 1], 4) }, (_, i) => fig('trem-' + n, (i % 3) + 1, 'dia-trem', `${NOMES['trem-' + n]}${nT[n - 1] > 1 ? ` (${nT[n - 1]} no dia)` : ''}`, true))).slice(0, 8).join('');
   const resumo = [nT[2] && `${nT[2]} TRAPAIADO`, nT[1] && `${nT[1]} CUSTOSO`, nT[0] && `${nT[0]} FEI`].filter(Boolean).join(' · ');
   const nav = `<div class="row dia-nav"><button class="btn sm" data-act="ag-dia" data-dir="-1" aria-label="Dia anterior">◄</button><span class="meta dia-n"><b>${dayName(d)}</b> ${fmtDM(d)}</span><button class="btn sm" data-act="ag-dia" data-dir="1" aria-label="Próximo dia">►</button>${ui.agDay ? '<button class="btn sm ghost" data-act="ag-dia" data-dir="0">HOJE</button>' : ''}<span class="grow"></span><button class="btn sm" data-act="plan-tomorrow">🌙 PLANEJAR AMANHÃ</button><button class="btn sm" data-act="plan-change">🔀 MUDANÇA DE PLANOS</button></div>`;
   const body = `${nav}<div class="dia-wrap"><div class="dia-grid rot-look">${rows}</div>
-    <aside class="dia-mess" data-dia-mess="1"><header><b>🧺 BAGUNÇA DO DIA</b><small class="meta">${loose.length ? `${loose.length} sem horário: arraste pra uma hora${picked ? ' · agora toque na hora' : ''}` : 'tudo encaixado. Trem bão!'}</small></header>
+    <aside class="dia-mess" data-dia-mess="1"><header><b>🧺 BAGUNÇA DO DIA</b><small class="meta">${loose.length + rits.length ? `${loose.length + rits.length} sem horário: arraste pra uma hora${picked ? ' · <b>agora toque na hora (ou em AMANHÃ / FEITA)</b>' : ''}` : 'tudo encaixado. Trem bão!'}</small></header>
+      <form class="addline" data-form="dia-add" data-d="${d}" autocomplete="off"><input class="inp" name="text" placeholder="+ o que fazer ${dayName(d) === 'HOJE' ? 'hoje' : 'nesse dia'} (Enter: o app pergunta a cor)" aria-label="Nova tarefa nesse dia"></form>
+      <div class="dia-zones"><span class="dia-zone" data-dia-zone="amanha" data-act="dia-zone" data-z="amanha" title="Solte aqui (ou toque, no celular) pra passar pro dia seguinte">→ ${d === td ? 'AMANHÃ' : 'DIA SEGUINTE'}</span><span class="dia-zone ok" data-dia-zone="feita" data-act="dia-zone" data-z="feita" title="Solte aqui pra marcar como feita">✓ FEITA</span></div>
       <div class="mess-pile">${mess}${ritsH}${loose.length || rits.length ? '' : '<p class="meta" style="margin:6px 0">Nada solto. Arraste uma tarefa da hora pra cá pra tirar o horário.</p>'}</div>
       ${trens ? `<div class="dia-trens" title="Os TREM do dia: quanto mais perto do prazo, mais feio">${trens}</div><small class="meta dia-tr-n">${resumo}</small>` : ''}</aside></div>`;
   return vitrine({ k: 'c:agenda:meu-dia', v: 'meu-dia', title: `🗓 MEU DIA · ${dayName(d)} ${fmtDM(d)}`, sub: `${timed.length} com hora · ${loose.length} na bagunça${rits.length ? ` · ${rits.length} ritual(is)` : ''}`, topo: `assets/topo/rotina-${lightNow() === 'noite' ? 'noite' : 'dia'}.webp`, host: ['primo', 3, 'PRIMO com a lista do dia'], shut, body });
 }
 
-/** encaixa a tarefa numa hora (ou tira a hora, h = '') */
+const hhmm = (h) => (h ? (String(h).includes(':') ? String(h).padStart(5, '0') : String(h).padStart(2, '0') + ':00') : '');
+/** v9.1: soltar numa zona: AMANHÃ (o caminho único de remarcar) ou FEITA. key = id da tarefa ou 'r:<id>' do ritual */
+async function dropZone(key, z) {
+  picked = null;
+  const ui = window.__ui || {}, d = addDays(today(), ui.agDay || 0), nx = addDays(d, 1);
+  if (key.startsWith('r:')) { const id = key.slice(2); if (z === 'feita') { A.ritualDone(id); sfx('ready'); } else { A.planRitual(id, nx); sfx('drop'); toast(`📅 Ritual pro dia ${fmtDM(nx)}.`); } window.__render?.(); return; }
+  if (z === 'feita') { A.setStatus(key, 'done'); window.__render?.(); return; }
+  await setDue(key, nx); window.__render?.();
+}
+/** encaixa a tarefa (ou o ritual, 'r:<id>') numa hora (ou tira a hora, h = '') */
 function placeAt(id, h) {
-  const at = h ? (String(h).includes(':') ? String(h).padStart(5, '0') : String(h).padStart(2, '0') + ':00') : undefined;
+  const at = hhmm(h) || undefined;
+  if (id.startsWith('r:')) { A.setRitualAt(id.slice(2), at || ''); picked = null; sfx('tab'); toast(at ? `🕐 Ritual às ${at} (todo dia que ele cair).` : '🧺 Ritual voltou pra bagunça.'); window.__render?.(); return; }
   const t = S.quests.tasks.find((x) => x.id === id); if (!t) return;
   const patch = { at }; if (!at && t.box?.at) patch.box = { ...t.box, at: '' };
   const r = A.updateTask(id, patch); picked = null;
@@ -72,24 +88,24 @@ function placeAt(id, h) {
 let drag = null;
 function onDown(e) {
   const el = e.target.closest?.('.dia-drag'); if (!el || e.pointerType !== 'mouse' || e.button !== 0) return;
-  drag = { el, id: el.dataset.id, x: e.clientX, y: e.clientY, on: false };
+  drag = { el, id: el.dataset.id || 'r:' + el.dataset.rit, x: e.clientX, y: e.clientY, on: false };
 }
 function onMove(e) {
   if (!drag) return;
   if (!drag.on) { if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 6) return; drag.on = true; drag.ghost = drag.el.cloneNode(true); drag.ghost.classList.add('dia-ghost'); document.body.appendChild(drag.ghost); drag.el.classList.add('dragging'); }
   drag.ghost.style.left = e.clientX + 8 + 'px'; drag.ghost.style.top = e.clientY + 8 + 'px';
-  document.querySelectorAll('.dia-h.over,.dia-mess.over').forEach((x) => x.classList.remove('over'));
-  document.elementFromPoint(e.clientX, e.clientY)?.closest?.('.dia-h,.dia-mess')?.classList.add('over');
+  document.querySelectorAll('.dia-h.over,.dia-mess.over,.dia-zone.over').forEach((x) => x.classList.remove('over'));
+  document.elementFromPoint(e.clientX, e.clientY)?.closest?.('.dia-zone,.dia-h,.dia-mess')?.classList.add('over');
   if (e.clientY < 80) scrollBy(0, -14); else if (e.clientY > innerHeight - 60) scrollBy(0, 14); // perto da borda, a tela rola
 }
 function onUp(e) {
   const d = drag; drag = null; if (!d?.on) return;
-  d.ghost.remove(); d.el.classList.remove('dragging'); document.querySelectorAll('.dia-h.over,.dia-mess.over').forEach((x) => x.classList.remove('over'));
+  d.ghost.remove(); d.el.classList.remove('dragging'); document.querySelectorAll('.dia-h.over,.dia-mess.over,.dia-zone.over').forEach((x) => x.classList.remove('over'));
   const tgt = document.elementFromPoint(e.clientX, e.clientY);
-  const row = tgt?.closest?.('[data-dia-h]'), mess = tgt?.closest?.('[data-dia-mess]');
+  const row = tgt?.closest?.('[data-dia-h]'), mess = tgt?.closest?.('[data-dia-mess]'), zone = tgt?.closest?.('[data-dia-zone]');
   // o clique que vem depois de soltar não pode abrir a tarefa
   addEventListener('click', (c) => { c.stopPropagation(); c.preventDefault(); }, { capture: true, once: true });
-  if (row) placeAt(d.id, row.dataset.diaH); else if (mess) placeAt(d.id, '');
+  if (zone) dropZone(d.id, zone.dataset.diaZone); else if (row) placeAt(d.id, row.dataset.diaH); else if (mess) placeAt(d.id, '');
 }
 
 // ───── 🌙 PLANEJAR AMANHÃ: o que vai pra amanhã, com horário, e o que sobrou de hoje ─────
@@ -103,7 +119,7 @@ function planHtml() {
     ${left.length ? `<h3 class="px" style="font-size:8px;margin:14px 0 6px">SOBROU DE HOJE (${left.length})</h3><div class="list">${left.map((t) => `<div class="li"><div class="lt">${esc(clean(t.text))}<small>${t.due < td ? 'atrasada' : 'hoje'}</small></div><span class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn sm good" data-act="plan-done" data-id="${t.id}" title="Já fiz">✓</button><button class="btn sm" data-act="plan-move" data-id="${t.id}" data-d="${tm}" title="Vai pra amanhã">→ AMANHÃ</button></span></div>`).join('')}</div>` : ''}
     <div class="actions"><button class="btn pri" data-close>BOA NOITE ▸</button></div></div>`;
 }
-export function openPlanTomorrow() { ls.set('gamify-ui:plan-ask', today()); openModal(planHtml(), { wide: true }); }
+export function openPlanTomorrow() { lastPlan = 'tomorrow'; ls.set('gamify-ui:plan-ask', today()); openModal(planHtml(), { wide: true }); }
 /** à noite (DESACELERAR ou TOQUE DE RECOLHER), uma vez por dia, o app pergunta o plano de amanhã (pedido do dono) */
 export function maybePlanAsk() {
   if (!R.neuroOn(S, 'clock') || modalOpen() || ls.get('gamify-ui:plan-ask') === today() || ls.get('gamify-ui:plan-ask-off') === '1') return;
@@ -129,13 +145,34 @@ function changeHtml() {
     <p class="meta" style="margin:8px 0 0">Empurrar segue a regra de sempre (a 1ª remarcação da semana é grátis). Mudança na hora: a janela se atualiza sozinha.</p>
     <div class="actions"><button class="btn pri" data-close>PRONTO</button></div></div>`;
 }
-export function openPlanChange(tab = 'hoje') { pcTab = tab; openModal(changeHtml(), { wide: true }); }
+export function openPlanChange(tab = 'hoje') { lastPlan = 'change'; pcTab = tab; openModal(changeHtml(), { wide: true }); }
+/** reabre a janela de planos que estava aberta (depois de uma pergunta do remarcar) */
+let lastPlan = 'change';
+const reopenPlanos = () => (lastPlan === 'change' ? openPlanChange(pcTab) : openPlanTomorrow());
 const redraw = () => { const m = document.querySelector('.modal .planos'); if (!m) return; m.outerHTML = m.querySelector('[data-act="pc-tab"]') ? changeHtml() : planHtml(); window.__deaccent?.(document.querySelector('.modal')); };
 
+const coarse = () => { try { return matchMedia('(pointer: coarse)').matches; } catch { return false; } };
+/** pergunta a cor de uma tarefa nova (URGENTE, ESQUENTANDO, ESTÁVEL ou AGUARDANDO). Devolve 'red' | 'yellow' | 'green' | 'wait' | null */
+export function askColor(text) {
+  return new Promise((resolve) => {
+    let done = false;
+    const opts = [['red', R.COR_NAMES.urg, 'urg', 'Pra hoje, faz primeiro'], ['yellow', R.COR_NAMES.chega, 'atencao', 'Logo mais'], ['green', R.COR_NAMES.estavel, 'ok', 'Sem pressa'], ['wait', R.COR_NAMES.wait, 'espera', 'Depende de alguém']];
+    const m = openModal(`<h2>🎨 Qual a cor?</h2><p class="muted">"<b>${esc(text)}</b>": a cor diz a pressa e decide a lista em TODAS.</p>
+      <div class="cor-pick">${opts.map(([k, n, tone, tip], i) => `<button type="button" class="btn cor-b" data-cor="${k}" data-tone="${tone}" title="${tip}" ${i === 0 ? 'autofocus' : ''}><i></i>${n}<small>${tip}</small></button>`).join('')}</div>
+      <div class="actions"><button type="button" class="btn" data-close>CANCELAR</button></div>`, { onClose: () => { if (!done) resolve(null); } });
+    m.addEventListener('click', (e) => { const b = e.target.closest('[data-cor]'); if (!b) return; done = true; closeModal(); resolve(b.dataset.cor); });
+  });
+}
 export function extendPlanos(ACTIONS, FORMS) {
   Object.assign(ACTIONS, {
     // v9.0: na BAGUNÇA, tocar escolhe (e tocar de novo abre a tarefa); depois tocar numa hora encaixa
-    'dia-pick': (d) => { if (picked === d.id) { picked = null; ACTIONS['edit-task']?.({ id: d.id }); return; } picked = d.id; sfx('tab'); window.__render?.(); },
+    // no PC (mouse) tocar ABRE (tarefa: a janela dela; ritual: vai até ele); no celular tocar escolhe e o 2º toque abre
+    'dia-pick': (d) => {
+      const key = d.id || 'r:' + d.rit, open = () => (d.rit ? ACTIONS['jump-rit']?.({ id: d.rit }) : ACTIONS['edit-task']?.({ id: d.id }));
+      if (!coarse() || picked === key) { picked = null; open(); return; }
+      picked = key; sfx('tab'); window.__render?.();
+    },
+    'dia-zone': (d) => { if (picked) dropZone(picked, d.z); else toast('Arraste uma tarefa até aqui (no celular: toque na tarefa e depois aqui).'); },
     'ag-dia': (d) => { const ui = window.__ui; if (!ui) return; ui.agDay = +d.dir === 0 ? 0 : (ui.agDay || 0) + +d.dir; window.__render?.(); },
     'plan-tomorrow': () => openPlanTomorrow(),
     'plan-change': () => openPlanChange('hoje'),
@@ -143,8 +180,18 @@ export function extendPlanos(ACTIONS, FORMS) {
     'pc-cor': (d) => { A.setCor(d.id, d.cor); redraw(); },
     'plan-done': (d) => { A.setStatus(d.id, 'done'); setTimeout(redraw, 30); },
     'plan-cancel': (d) => { A.setStatus(d.id, 'cancel'); setTimeout(redraw, 30); },
-    'plan-move': (d) => { const r = A.updateTask(d.id, { due: d.d }); if (r?.error) { toast(esc(r.error), 'bad'); sfx('error'); if (r.locked) { closeModal(); setTimeout(() => ACTIONS['edit-task']?.({ id: d.id }), 60); return; } } redraw(); }, // travada (remarcada 3x): abre a tarefa, que tem o time box
+    'plan-move': async (d) => { await setDue(d.id, d.d, { reopen: reopenPlanos }); redraw(); }, // v9.1: caminho único (bloco junto, time box e custo na mesma hora)
   });
+  // v9.1 (pedido do dono): escrever no MEU DIA o que fazer. Sempre pergunta a COR (assim nada fica sem rumo) e já aparece em TODAS
+  FORMS['dia-add'] = async (f) => {
+    const text = f.text.value.trim(); if (!text) return;
+    const d = f.dataset.d || today();
+    const cor = await askColor(text); if (!cor) return;
+    f.text.value = '';
+    const r = A.addTask({ text, area: 'sem', due: d, color: cor === 'wait' ? null : cor });
+    if (cor === 'wait' && r?.task) A.setStatus(r.task.id, 'wait');
+    sfx('tab'); toast(`🧺 "${esc(text.slice(0, 40))}" entrou na BAGUNÇA de ${fmtDM(d)} e em TODAS.`); window.__render?.();
+  };
   FORMS['plan-add'] = (f) => {
     const text = f.text.value.trim(); if (!text) return; f.text.value = '';
     const d = f.dataset.d || addDays(today(), 1);
@@ -163,6 +210,6 @@ export function extendPlanos(ACTIONS, FORMS) {
     const at = e.target.closest?.('[data-plan-at]');
     if (at) { A.updateTask(at.dataset.planAt, { at: at.value || undefined }); sfx('tab'); return; }
     const pd = e.target.closest?.('[data-pc-due]');
-    if (pd && pd.value) { const r = A.updateTask(pd.dataset.pcDue, { due: pd.value }); if (r?.error) { toast(esc(r.error), 'bad'); sfx('error'); } redraw(); }
+    if (pd && pd.value) setDue(pd.dataset.pcDue, pd.value, { reopen: reopenPlanos }).then(redraw);
   });
 }
