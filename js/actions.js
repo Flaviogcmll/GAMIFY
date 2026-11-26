@@ -1212,7 +1212,9 @@ export function updateChapter(ch) {
       // v5.16 (1A): recomeçar XP, nível e tickets a partir de hoje (gold, compras, conquistas e histórico ficam)
       if (ch.reset) {
         S.core.season = { from: today(), n, tickets: 0, minus: R.idx(S).xpByDay[today()] || 0, spentMinus: S.loja.purchases.filter((p) => p.date === today()).reduce((a, p) => a + (p.xp || 0), 0), ladder: S.core.ladder || [] };
-        S.core.ladder = []; S.core.seasonAch = {}; delete S.core.ladderDown; // v6 (1B): escada, chama e conquistas recomeçam; o histórico fica
+        S.core.ladder = []; S.core.seasonAch = {}; delete S.core.ladderDown;
+        // v9.6 (bug: o capítulo novo dava ~870 XP de cara): as conquistas que JÁ estão batidas entram no capítulo novo como "trazidas", sem XP; só as novas pagam
+        for (const a of R.newAchievements(S)) S.core.seasonAch[a.key] = { date: today(), xp: 0, carried: true }; // v6 (1B): escada, chama e conquistas recomeçam; o histórico fica
       }
     }
     delete ch.reset;

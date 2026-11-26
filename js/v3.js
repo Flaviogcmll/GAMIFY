@@ -1,4 +1,5 @@
 // v3 — companheiro, cenários por aba, fogueira de foco, arrastar com dedo/mouse, recolher e arquivo com filtro.
+import { vozDaAba } from './vozes.js';
 import { fig, ANFITRIAO } from './elenco.js';
 import { historyCard, dropTaskSmart } from './v4.js';
 
@@ -42,7 +43,7 @@ export function sceneBanner(route, ui) {
   const src = pph >= 3 && R.PRAGA_TOPOS.includes(key) ? `assets/topo/${key}-praga.webp` : key === 'shop' ? `assets/primo/cena/feira-${night ? 'noite' : tarde ? 'tarde' : 'dia'}.webp` : `assets/topo/${TOPOS.includes(key) ? key : 'survival'}-${night ? 'noite' : 'dia'}.webp`;
   return `<div class="scene pstrip ${tarde ? 'tarde' : ''}" style="--img:url('${new URL(src, document.baseURI).href}')"><canvas id="scene" data-interior="${interiorOf(key) || 'rotina'}" aria-hidden="true"></canvas><img class="topo" src="${src}" alt="" aria-hidden="true">${pph >= 2 ? '<span class="pg-fog" aria-hidden="true"></span><span class="pg-eyes" aria-hidden="true"></span>' : ''}${R.praga(S).noite ? '<span class="pg-moon" aria-hidden="true" title="PRAGA"></span>' : ''}
     <div class="pst-face" data-act="primo-hub" title="Falar com o PRIMO">${fig('primo', 1, '', 'PRIMO')}</div>${((h) => (h ? `<div class="pst-host" data-host="${h[0]}">${fig(h[0], h[1], '', h[2], true)}</div>` : ''))(ANFITRIAO[key])}
-    <div class="pst-txt"><div class="scene-title">${esc(t)}</div><div class="scene-sub">${esc(sub.toUpperCase())}</div><div class="pst-say" data-pspeech="tab:${key}"></div></div></div>`;
+    <div class="pst-txt"><div class="scene-title">${esc(t)}</div><div class="scene-sub">${esc(sub.toUpperCase())}</div>${((v) => (v ? `<div class="pst-say host-say" data-act="voz" data-k="${v.who}" title="Toque pra ouvir"><b>${esc(v.nome)}:</b> ${esc(v.text)}</div>` : `<div class="pst-say" data-pspeech="tab:${key}"></div>`))(vozDaAba(key))}</div></div>`; // v9.6: quem fala é o dono do lugar
 }
 const TOPOS = ['survival', 'agenda', 'shop', 'ferreiro', 'domingo', 'conquistas', 'filtro', 'rotina', 'regras', 'arquivo'];
 export function mountScenes() {
