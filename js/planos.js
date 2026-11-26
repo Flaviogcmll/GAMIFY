@@ -86,12 +86,17 @@ function placeAt(id, h) {
 }
 // arrastar com o mouse (no celular: tocar e depois tocar na hora; o dedo continua rolando a tela normalmente)
 let drag = null;
+// v9.4 (sugestão 13): no celular, SEGURAR o dedo meio segundo "pega" a tarefa (vibra) e aí dá pra arrastar até a hora ou a zona
 function onDown(e) {
-  const el = e.target.closest?.('.dia-drag'); if (!el || e.pointerType !== 'mouse' || e.button !== 0) return;
-  drag = { el, id: el.dataset.id || 'r:' + el.dataset.rit, x: e.clientX, y: e.clientY, on: false };
+  const el = e.target.closest?.('.dia-drag'); if (!el || (e.pointerType === 'mouse' && e.button !== 0)) return;
+  drag = { el, id: el.dataset.id || 'r:' + el.dataset.rit, x: e.clientX, y: e.clientY, on: false, touch: e.pointerType !== 'mouse', armed: e.pointerType === 'mouse' };
+  if (drag.touch) { const d = drag; d.timer = setTimeout(() => { if (drag === d) { d.armed = true; el.classList.add('armed'); try { navigator.vibrate?.(15); } catch { /* */ } } }, 450); }
 }
+addEventListener('touchmove', (e) => { if (drag?.armed && drag.touch) e.preventDefault(); }, { passive: false }); // pegou: a tela não rola enquanto arrasta
+addEventListener('pointercancel', () => { if (drag?.touch && !drag.armed) { clearTimeout(drag.timer); drag = null; } });
 function onMove(e) {
   if (!drag) return;
+  if (drag.touch && !drag.armed) { if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 8) { clearTimeout(drag.timer); drag = null; } return; } // mexeu antes: é rolagem
   if (!drag.on) { if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 6) return; drag.on = true; drag.ghost = drag.el.cloneNode(true); drag.ghost.classList.add('dia-ghost'); document.body.appendChild(drag.ghost); drag.el.classList.add('dragging'); }
   drag.ghost.style.left = e.clientX + 8 + 'px'; drag.ghost.style.top = e.clientY + 8 + 'px';
   document.querySelectorAll('.dia-h.over,.dia-mess.over,.dia-zone.over').forEach((x) => x.classList.remove('over'));
@@ -99,7 +104,7 @@ function onMove(e) {
   if (e.clientY < 80) scrollBy(0, -14); else if (e.clientY > innerHeight - 60) scrollBy(0, 14); // perto da borda, a tela rola
 }
 function onUp(e) {
-  const d = drag; drag = null; if (!d?.on) return;
+  const d = drag; drag = null; if (d) { clearTimeout(d.timer); d.el.classList.remove('armed'); } if (!d?.on) return;
   d.ghost.remove(); d.el.classList.remove('dragging'); document.querySelectorAll('.dia-h.over,.dia-mess.over,.dia-zone.over').forEach((x) => x.classList.remove('over'));
   const tgt = document.elementFromPoint(e.clientX, e.clientY);
   const row = tgt?.closest?.('[data-dia-h]'), mess = tgt?.closest?.('[data-dia-mess]'), zone = tgt?.closest?.('[data-dia-zone]');
@@ -112,11 +117,14 @@ function onUp(e) {
 function planHtml() {
   const td = today(), tm = addDays(td, 1), items = R.openTasks(S).filter((t) => t.due === tm && t.st !== 'wait' && !t.mother).sort((a, b) => (hourOf(a) || '99').localeCompare(hourOf(b) || '99'));
   const left = R.openTasks(S).filter((t) => t.due && t.due <= td && t.st !== 'wait' && !t.mother);
-  return `<div class="planos">${quem('rosemia', 1, sorte(['As cartas querem saber: o que vem amanhã? Dá um horário pro que importa.', 'Amanhã a gente vê? Não. Amanhã a gente PLANEJA hoje.']))}<h2>🌙 planejar amanhã <small class="meta">${DOW[weekday(tm)]} ${fmtDM(tm)}</small></h2>
+  // v9.4 (sugestão 11): RESUMO DA NOITE: o que você fez hoje, o que sobrou, e empurrar tudo que sobrou de uma vez
+  const feitas = S.quests.tasks.filter((t) => t.st === 'done' && t.doneAt === td), xpHoje = R.idx(S).xpByDay[td] || 0;
+  const resumo = `<div class="noite-res"><b>✓ Hoje: ${feitas.length} feita${feitas.length === 1 ? '' : 's'} · +${xpHoje} XP</b>${feitas.length ? `<small>${feitas.slice(0, 5).map((t) => esc(clean(t.text))).join(' · ')}${feitas.length > 5 ? ' …' : ''}</small>` : '<small>Amanhã é outro jogo.</small>'}</div>`;
+  return `<div class="planos">${resumo}${quem('rosemia', 1, sorte(['As cartas querem saber: o que vem amanhã? Dá um horário pro que importa.', 'Amanhã a gente vê? Não. Amanhã a gente PLANEJA hoje.']))}<h2>🌙 planejar amanhã <small class="meta">${DOW[weekday(tm)]} ${fmtDM(tm)}</small></h2>
     <p class="meta" style="margin:0 0 8px">Dê um horário pro que importa: amanhã cedo é só seguir o MEU DIA na AGENDA.</p>
     <div class="list">${items.map((t) => `<div class="li"><div class="lt">${esc(clean(t.text))}<small>${esc(R.COR_NAMES[R.corOf(S, t)] || '')}</small></div><input class="inp" type="time" value="${esc(hourOf(t))}" data-plan-at="${t.id}" aria-label="Horário" style="width:auto"></div>`).join('') || '<div class="empty">nada marcado pra amanhã ainda.</div>'}</div>
     <form class="addline" data-form="plan-add" autocomplete="off" style="margin-top:8px"><input class="inp" name="text" placeholder="+ mais uma pra amanhã (Enter)" aria-label="Nova tarefa pra amanhã"></form>
-    ${left.length ? `<h3 class="px" style="font-size:8px;margin:14px 0 6px">SOBROU DE HOJE (${left.length})</h3><div class="list">${left.map((t) => `<div class="li"><div class="lt">${esc(clean(t.text))}<small>${t.due < td ? 'atrasada' : 'hoje'}</small></div><span class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn sm good" data-act="plan-done" data-id="${t.id}" title="Já fiz">✓</button><button class="btn sm" data-act="plan-move" data-id="${t.id}" data-d="${tm}" title="Vai pra amanhã">→ AMANHÃ</button></span></div>`).join('')}</div>` : ''}
+    ${left.length ? `<div class="row" style="justify-content:space-between;align-items:center;margin:14px 0 6px"><h3 class="px" style="font-size:8px;margin:0">SOBROU DE HOJE (${left.length})</h3><button class="btn sm" data-act="plan-push-all" title="Passa tudo que sobrou pra amanhã (o custo e o time box são perguntados, se precisar)">→ TUDO PRA AMANHÃ</button></div><div class="list">${left.map((t) => `<div class="li"><div class="lt">${esc(clean(t.text))}<small>${t.due < td ? 'atrasada' : 'hoje'}</small></div><span class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn sm good" data-act="plan-done" data-id="${t.id}" title="Já fiz">✓</button><button class="btn sm" data-act="plan-move" data-id="${t.id}" data-d="${tm}" title="Vai pra amanhã">→ AMANHÃ</button></span></div>`).join('')}</div>` : ''}
     <div class="actions"><button class="btn pri" data-close>BOA NOITE ▸</button></div></div>`;
 }
 export function openPlanTomorrow() { lastPlan = 'tomorrow'; ls.set('gamify-ui:plan-ask', today()); openModal(planHtml(), { wide: true }); }
@@ -177,6 +185,7 @@ export function extendPlanos(ACTIONS, FORMS) {
     'hab-ask': () => openHabitsAsk(),
     'ag-dia': (d) => { const ui = window.__ui; if (!ui) return; ui.agDay = +d.dir === 0 ? 0 : (ui.agDay || 0) + +d.dir; window.__render?.(); },
     'plan-tomorrow': () => openPlanTomorrow(),
+    'plan-push-all': async () => { const td = today(), tm = addDays(td, 1), ids = R.openTasks(S).filter((t) => t.due && t.due <= td && t.st !== 'wait' && !t.mother).map((t) => t.id); let ok = 0; for (const id of ids) if (await setDue(id, tm)) ok++; toast(`🌙 ${ok} de ${ids.length} foram pra amanhã.`, 'good'); openPlanTomorrow(); },
     'plan-change': () => openPlanChange('hoje'),
     'pc-tab': (d) => { pcTab = d.v; redraw(); },
     'pc-cor': (d) => { A.setCor(d.id, d.cor); redraw(); },

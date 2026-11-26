@@ -1,4 +1,5 @@
 // APP — liga tudo: abas (como na planilha), dia/noite, cliques, janelas, PRIMO, SOS, arrastar e soltar, sons.
+import { extendOrganiza, maybeOrganiza } from './organiza.js';
 import { extendLobo, loboTermo } from './lobo.js';
 import { checkAvisos } from './planos.js';
 import { setDue } from './remarcar.js';
@@ -157,6 +158,7 @@ function render() {
   try { maybeReview(); } catch (err) { console.error(err); }
   try { maybePlanAsk(); } catch (err) { console.error(err); } // v8.7: à noite, o plano de amanhã
   try { maybeHabitsAsk(); } catch (err) { console.error(err); } // v9.3: os hábitos de hoje, toda vez que o app abre
+  try { maybeOrganiza(); } catch (err) { console.error(err); } // v9.4: revisão de domingo, limite de URGENTE, sem rumo
   try { afterRender(cur); } catch (err) { console.error(err); }
   try { afterRender4(cur); } catch (err) { console.error(err); }
   try { afterRenderBujo(); } catch (err) { console.error(err); }
@@ -352,6 +354,7 @@ function editTask(id) {
     <div class="msplit">
       <div><label class="lbl">Status</label><div class="pills">${[['', '○ ABERTA', 'Ainda por fazer'], ['done', '✓ FEITA', 'Concluída (ganha o XP)'], ['cancel', '✕ CANCELADA', 'Não vale mais: sem XP e sem punição']].map(([k, n, tip]) => `<button type="button" class="pill ${st === k ? 'on' : ''}" data-act="set-status" data-id="${id}" data-st="${k}" title="${tip}"><span>${n}</span></button>`).join('')}</div></div>
       <div><label class="lbl">Cor</label>${swatches(color, true)}</div></div>
+    ${t.block ? '' : `<label class="lbl" for="t-cat">Assunto <span class="meta">· o grupo dela na TODAS (sem assunto = CAIXA DE ENTRADA)</span></label><select class="inp" id="t-cat" name="cat">${R.assuntos(S).map(([k, n]) => `<option value="${k}" ${R.catOf(S, t) === k ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>`}
     <div class="waitbox"><label class="lbl" for="t-who">⏳ Aguardando quem ou o quê</label><div class="row">
       <input class="inp grow" id="t-who" name="who" value="${esc(t.who || '')}" list="who-list" placeholder="PREFEITURA, CLIENTE, FULANO…" autocomplete="off"><datalist id="who-list">${R.people(S).map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
       <select class="inp" name="dep" aria-label="Depende de outra tarefa" style="flex:1 1 220px;min-width:0"><option value="">— não depende de outra tarefa —</option>${R.openTasks(S).filter((x) => x.id !== t.id && x.dep !== t.id).sort((x, y) => (x.block === t.block ? 0 : 1) - (y.block === t.block ? 0 : 1) || x.text.localeCompare(y.text)).map((x) => `<option value="${x.id}" ${t.dep === x.id ? 'selected' : ''}>🔗 ${esc(x.text.replace(/\s*\(\d+\s*XP\)/i, '').slice(0, 60))}</option>`).join('')}</select></div></div>
@@ -370,7 +373,7 @@ function editTask(id) {
     ${(t.duck || []).length ? `<p class="meta" style="margin:8px 0 0">🦆 ${esc([t.duck.at(-1).tried, t.duck.at(-1).nok].filter(Boolean).join(' · ').slice(0, 140))} <a href="#" data-act="duck" data-id="${id}">explicar de novo</a></p>` : ''}
     ${imgSection(t)}
     <div class="actions"><div class="left">
-      ${route() !== 'quests' || !document.querySelector(`.board li.task[data-id="${id}"]`) ? `<button type="button" class="btn sm" data-act="jump" data-id="${id}" title="Vai até o lugar dela no QUESTS e pisca">📍 ONDE ELA ESTÁ</button>` : ''}${t.block && !p.step ? `<button type="button" class="btn sm" data-act="add-step" data-id="${id}">+ ↳ PASSO</button>` : ''}<button type="button" class="btn sm" data-act="sos" data-id="${id}">${px('sos', 10)} TRAVEI</button>${t.link ? `<button type="button" class="btn sm" data-act="unlink" data-id="${id}" title="Separa a tarefa do bloco ligado a ela">↯ DESVINCULAR</button>` : ''}<button type="button" class="btn sm danger" data-act="del-task" data-id="${id}">APAGAR</button></div>
+      ${route() !== 'quests' || !document.querySelector(`.board li.task[data-id="${id}"]`) ? `<button type="button" class="btn sm" data-act="jump" data-id="${id}" title="Vai até o lugar dela no QUESTS e pisca">📍 ONDE ELA ESTÁ</button>` : ''}${R.isOpen(t) ? `<button type="button" class="btn sm" data-act="foco-open" data-id="${id}" title="Esconde o resto do app: só esta tarefa, os passos e o cronômetro">▶ MODO FOCO</button>` : ''}${t.block && !p.step ? `<button type="button" class="btn sm" data-act="add-step" data-id="${id}">+ ↳ PASSO</button>` : ''}<button type="button" class="btn sm" data-act="sos" data-id="${id}">${px('sos', 10)} TRAVEI</button>${t.link ? `<button type="button" class="btn sm" data-act="unlink" data-id="${id}" title="Separa a tarefa do bloco ligado a ela">↯ DESVINCULAR</button>` : ''}<button type="button" class="btn sm danger" data-act="del-task" data-id="${id}">APAGAR</button></div>
       <button type="button" class="btn" data-close>FECHAR</button><button class="btn pri">SALVAR</button></div></form>`, { wide: true });
   fillImgs();
 }
@@ -423,9 +426,11 @@ function editRitual(id) {
   openModal(`<form data-form="ritual" data-id="${id || ''}" autocomplete="off">${quem('tia-mia', 2, sorte(['Ritual é igual chá da tarde: todo dia, sem falta.', 'O que volta sempre merece hora marcada.']))}<h2>${id ? 'ritual' : 'novo ritual'}</h2>
     <div class="row"><div style="width:150px"><label class="lbl" for="r-type">Tipo</label><select class="inp" id="r-type" name="type"><option value="pessoa" ${r.type === 'pessoa' ? 'selected' : ''}>👥 PESSOA</option><option value="rotina" ${r.type === 'rotina' ? 'selected' : ''}>🔁 ROTINA</option><option value="trabalho" ${r.type === 'trabalho' ? 'selected' : ''}>💼 TRABALHO</option></select></div>
       <div class="grow"><label class="lbl" for="r-name">O quê / quem</label><input class="inp" id="r-name" name="name" value="${esc(r.name)}" required autofocus></div></div>
-    <div class="row"><div><label class="lbl" for="r-mode">Repete</label><select class="inp" id="r-mode" name="mode"><option value="every" ${!r.dom ? 'selected' : ''}>A CADA N DIAS</option><option value="dom" ${r.dom ? 'selected' : ''}>TODO MÊS NO DIA</option></select></div>
+    <div class="row"><div><label class="lbl" for="r-mode">Repete</label><select class="inp" id="r-mode" name="mode"><option value="every" ${r.every || (!r.dom && !r.doms && !r.wd) ? 'selected' : ''}>A CADA N DIAS</option><option value="wd" ${r.wd ? 'selected' : ''}>DIAS DA SEMANA</option><option value="dom" ${r.dom || r.doms ? 'selected' : ''}>DIAS DO MÊS</option></select></div>
       <div style="width:96px"><label class="lbl" for="r-every">N dias</label><input class="inp" id="r-every" name="every" type="number" min="1" value="${r.every || 7}"></div>
-      <div style="width:96px"><label class="lbl" for="r-dom">Dia</label><input class="inp" id="r-dom" name="dom" type="number" min="1" max="28" value="${r.dom || 5}"></div>
+      <div style="width:120px"><label class="lbl" for="r-dom">Dias do mês</label><input class="inp" id="r-dom" name="dom" placeholder="5, 15" value="${esc((r.doms || (r.dom ? [r.dom] : [5])).join(', '))}"></div></div>
+    <div class="row wd-pick" title="Escolha os dias (vale quando REPETE = DIAS DA SEMANA)">${['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'].map((n, i) => `<label class="btn sm ghost"><input type="checkbox" name="wd" value="${i}" ${r.wd?.includes(i) ? 'checked' : ''}> ${n}</label>`).join('')}</div>
+    <div class="row">
       <div class="grow"><label class="lbl" for="r-last">Última vez</label><input class="inp" id="r-last" name="last" type="date" value="${r.last || ''}"></div></div>
     <label class="lbl" for="r-plan">📅 Vou fazer em (opcional: o dia que você escolheu; aparece na AGENDA)</label><input class="inp" id="r-plan" name="plan" type="date" value="${(id && R.ritualPlan(r)) || ''}" style="width:auto">
     <label class="lbl" for="r-notes">Notas</label><input class="inp" id="r-notes" name="notes" value="${esc(r.notes || '')}">
@@ -682,6 +687,8 @@ const ACTIONS = {
     if (b && n && await ask('Concluir tudo?', `Marca as ${n} tarefa(s) abertas de "${b.title}" como feitas (dá pra desfazer com ↩).`, 'CONCLUIR TUDO')) A.doneAll(d.id); },
   'jump-block': (d) => jumpBlock(d.id),
   'jump-rit': (d) => jumpRit(d.id),
+  // v9.4 (H2): a linha única de escrever da TODAS abre o anotar rápido já com o texto (pergunta cor, dia e assunto)
+
   voz: (d) => { voz(d.k); const f = FALAS[d.k]; if (f) toast(`<b>${esc(NOMES[d.k] || '')}:</b> ${esc(f[Math.floor(Math.random() * f.length)])}`); }, // v9.0: tocar num personagem = a voz e uma fala dele
   'edit-block': (d) => editBlock(d.id),
   'move-block': (d) => A.moveBlock(d.id, +d.dir),
@@ -908,6 +915,7 @@ const FORMS = {
     if (t.link && 'color' in patch && patch.color && patch.color !== 'wait') { const lb = R.findBlock(S, t.link); if (lb && lb.color !== patch.color) A.updateBlock(lb.id, { color: patch.color }); } // tarefa-mãe e bloco têm a mesma cor
     if (f.pin) patch.pin = f.pin.value || undefined;
     // v9.1: o prazo passa pelo caminho único de remarcar (remarcar.js): ele resolve bloco, time box e custo numa janela só
+    if (f.cat && (f.cat.value || '') !== (t.cat || '')) A.setCat(t.id, f.cat.value); // v9.4: assunto
     const { due, box, ...rest } = patch;
     const r = A.updateTask(t.id, rest);
     if (r?.error) { toast(esc(r.error), 'bad'); return; }
@@ -936,7 +944,7 @@ const FORMS = {
     else if (st !== 'pause' && R.bossPaused(b)) A.resumeBoss(b.id);
     closeModal();
   },
-  ritual: (f) => { A.saveRitual({ id: f.dataset.id, type: f.type.value, name: f.name.value, mode: f.mode.value, every: f.every.value, dom: f.dom.value, last: f.last.value, plan: f.plan.value, notes: f.notes.value }); closeModal(); },
+  ritual: (f) => { A.saveRitual({ id: f.dataset.id, type: f.type.value, name: f.name.value, mode: f.mode.value, every: f.every.value, dom: f.dom.value, wd: [...f.querySelectorAll('[name=wd]:checked')].map((x) => x.value), last: f.last.value, plan: f.plan.value, notes: f.notes.value }); closeModal(); },
   'ritual-plan': (f) => { A.planRitual(f.dataset.id, f.plan.value || null); closeModal(); sfx('tab'); },
   item: (f) => {
     const k = f.dataset.kind;
@@ -977,7 +985,8 @@ FORMS['rot-hours'] = (f) => { const v = f.h.value; if (!v) return; A.setRoutineH
 extendBujo(ACTIONS, FORMS);
 extendMapa(ACTIONS, FORMS);
 extendPlanos(ACTIONS, FORMS);
-extendLobo(ACTIONS); // depois do extendPrimo: a linha do lobo abre a janela do termômetro
+extendLobo(ACTIONS);
+extendOrganiza(ACTIONS, FORMS); // depois do extendPrimo: a linha do lobo abre a janela do termômetro
 extendPraga(ACTIONS, FORMS, jump);
 extendPraga2(ACTIONS, jump);
 document.addEventListener('submit', (e) => { const f = e.target.closest('form[data-form]'); if (!f) return; e.preventDefault(); FORMS[f.dataset.form]?.(f); });

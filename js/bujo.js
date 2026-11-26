@@ -13,16 +13,17 @@ import { sfx } from './audio.js';
 const clean = (t) => String(t || '').replace(/\s*\(\d+\s*XP\)/i, '').trim();
 
 // ───────────── Q1: ANOTAR RÁPIDO ─────────────
-function quickAdd() {
+export function quickAdd(text = '') {
   if (modalOpen()) return;
   const td = today();
   // v9.2 (pedido do dono, 8B): o anotar rápido também pergunta a COR e o DIA (nada fica sem rumo); igual ao MEU DIA
   const cores = [['red', R.COR_NAMES.urg, 'urg'], ['yellow', R.COR_NAMES.chega, 'atencao'], ['green', R.COR_NAMES.estavel, 'ok'], ['wait', R.COR_NAMES.wait, 'espera'], ['', R.COR_NAMES.semcor, 'neutro']];
   openModal(`<form data-form="quick" autocomplete="off">${quem('brasinha', Math.max(0, Math.min(4, S.core.brasinha?.stage ?? 0)) + 1, 'Piu! Escreve com a minha pena: nada fica sem rumo.')}<h2>✎ anotar rápido</h2>
-    <input class="inp" name="text" placeholder="o que veio na cabeça?" aria-label="Tarefa" autofocus data-kbd maxlength="200">
+    <input class="inp" name="text" placeholder="o que veio na cabeça?" aria-label="Tarefa" autofocus data-kbd maxlength="200" value="${esc(text)}">
     <label class="lbl">Cor</label><div class="row qcor">${cores.map(([k, n, tone], i) => `<label class="btn sm ghost qc" data-tone="${tone}"><input type="radio" name="cor" value="${k}" ${i === 1 ? 'checked' : ''}><i></i> ${n}</label>`).join('')}</div>
     <label class="lbl">Dia</label><div class="row seg qwhen">${[[td, 'HOJE'], [addDays(td, 1), 'AMANHÃ'], ['outro', 'OUTRO'], ['', 'SEM PRAZO']].map(([d, n], i) => `<label class="btn sm ghost"><input type="radio" name="due" value="${d}" ${i ? '' : 'checked'}> ${n}</label>`).join('')}<input class="inp" type="date" name="dia" aria-label="Outro dia" style="width:auto"></div>
-    <p class="meta" style="margin:6px 0 0">Enter salva. Vai pra TODAS, na lista da cor, e pro MEU DIA se tiver dia.</p>
+    <label class="lbl">Assunto</label><select class="inp" name="cat" aria-label="Assunto">${R.assuntos(S).map(([k, n]) => `<option value="${k}">${esc(n)}</option>`).join('')}</select>
+    <p class="meta" style="margin:6px 0 0">Enter salva. Vai pra TODAS (AGORA ou DEPOIS, pela cor e pela data), no assunto escolhido, e pro MEU DIA se tiver dia.</p>
     <div class="actions"><button type="button" class="btn" data-close>FECHAR</button><button class="btn pri">ANOTAR</button></div></form>`);
 }
 function fab() {
@@ -117,6 +118,7 @@ export function extendBujo(ACTIONS, FORMS) {
     duck: (d) => { closeModal(); duckModal(d.id || null); },
   });
   Object.assign(FORMS, {
+    'todas-add': (f) => { const text = f.text.value.trim(); if (!text) return; f.text.value = ''; quickAdd(text); }, // v9.4 (H2)
     quick: (f) => {
       const text = f.text.value.trim();
       if (!text) return;
@@ -125,6 +127,7 @@ export function extendBujo(ACTIONS, FORMS) {
       const cor = f.querySelector('[name=cor]:checked')?.value ?? 'yellow';
       const r = A.addTask({ text, area: due ? R.listOf({ due }) : 'sem', due, color: cor && cor !== 'wait' ? cor : null });
       if (cor === 'wait' && r?.task) A.setStatus(r.task.id, 'wait');
+      if (f.cat?.value && r?.task) A.setCat(r.task.id, f.cat.value); // v9.4: o assunto (sem = CAIXA DE ENTRADA)
       closeModal(); sfx('tab');
       const lista = cor === 'wait' ? R.COR_NAMES.wait : R.COR_NAMES[{ red: 'urg', yellow: 'chega', green: 'estavel', '': 'semcor' }[cor]];
       toast(`✎ Anotado em <b>${esc(lista)}</b>${due ? ` · ${due === today() ? 'HOJE' : due === addDays(today(), 1) ? 'AMANHÃ' : due.slice(8) + '/' + due.slice(5, 7)}` : ''}.`);
