@@ -28,10 +28,10 @@ export function closeModal() {
 export const modalOpen = () => !!modalClose;
 
 /** pergunta sim/não dentro da página (o claude.ai bloqueia confirm()) */
-export function ask(title, text, okLabel = 'CONFIRMAR', danger = false) {
+export function ask(title, text, okLabel = 'CONFIRMAR', danger = false, who = '') { // v9.3: who = um personagem falando (quem() de elenco.js)
   return new Promise((resolve) => {
     let answered = false;
-    const m = openModal(`<h2>${esc(title)}</h2><p class="muted">${esc(text)}</p>
+    const m = openModal(`${who}<h2>${esc(title)}</h2><p class="muted">${esc(text)}</p>
       <div class="actions"><button class="btn" data-x="no">CANCELAR</button><button class="btn ${danger ? 'danger' : 'pri'}" data-x="yes" autofocus>${esc(okLabel)}</button></div>`,
     { onClose: () => { if (!answered) resolve(false); } });
     m.addEventListener('click', (e) => {
@@ -111,7 +111,7 @@ export function taskRow(t, opts = {}) {
   const p = R.parse(t.text);
   const cls = ['task', t.st, p.step ? 'step' : '', p.mini ? 'mini' : ''].filter(Boolean).join(' ');
   const rounds = (t.rounds || []).length;
-  const xp = t.st === 'done' ? `+${t.xp || 0}` : t.st === 'cancel' ? '' : t.st === 'sent' ? '' : `${R.taskXp(S, t).xp}`;
+  // v9.3 (pedido do dono): o XP saiu da linha da tarefa (aparece na janela dela, ao tocar); nos blocos continua no cabeçalho
   const sub = opts.sub ? `<small>${esc(opts.sub)}</small>` : '';
   const sent = t.st === 'sent' ? `<small class="info">📨 enviada ${fmtDM(t.sentAt)} · aguardando retorno</small>
     <span class="row" style="gap:6px;margin-top:5px"><button class="btn sm" data-act="cycle-back" data-id="${t.id}">↩ VOLTOU</button><button class="btn sm good" data-act="cycle-ok" data-id="${t.id}">✓ APROVADO</button></span>` : '';
@@ -128,7 +128,7 @@ export function taskRow(t, opts = {}) {
   return `<li class="${cls}" data-id="${t.id}" ${col ? `data-color="${col}"` : ''} ${cat ? `data-cat="${cat}"` : ''} ${ms.n ? `data-moscas="${ms.n}"` : ''} ${pg ? `data-praga="${pg.phase}" title="🪰 ${R.PRAGA_NAMES[pg.phase]}: atrasada há ${pg.days} dia(s) · fase ${pg.phase} de 4"` : ''}>${pg ? quedaHtml(t.id, today()) : ''}<span class="handle" data-handle="task" data-id="${t.id}" title="Segure e arraste">⠿</span>
     <button class="check" data-act="toggle" data-id="${t.id}" aria-label="Concluir ${esc(t.text)}">${CHECK[t.st] || ''}</button>
     <div class="txt" data-act="${opts.go ? 'jump' : 'edit-task'}" data-id="${t.id}" ${opts.go ? 'title="Toque pra ir até a tarefa"' : ''}>${t.link ? `<button class="lnk-dot" data-g="${lb?.group === 'bs' ? 'bs' : lw ? 'win' : lb?.group || 'bd'}" data-act="jump-block" data-id="${t.link}" title="Está na janela ${esc(wname || 'BREAKDOWN')}. Toque pra ir lá." aria-label="Ir pro bloco em ${esc(wname || 'BREAKDOWN')}"></button>` : ''}${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}${sub}${sent}</div>
-    <div class="info">${t.color === 'black' && R.isOpen(t) ? moscaMortaHtml() : moscasHtml(ms.n, ms.title)}${!t.link && opts.list && !p.step && R.isOpen(t) ? `<button class="icon-btn mini" data-act="to-breakdown" data-id="${t.id}" title="Mandar pra uma janela (BREAKDOWN, TRABALHO, GESTÃO…)" aria-label="Mandar pra uma janela">⤴</button>` : ''}${t.who || t.dep ? `<span class="chip wait" title="aguardando: ${esc(R.waitingOn(S, t).label)}">⏳ ${esc((t.who || '🔗').slice(0, 14))}</span>` : ''}${t.prio ? '<span class="chip prio">!</span>' : ''}${t.box && R.isOpen(t) ? `<span class="chip box" title="time box: ${esc(t.box.at || '')}${t.box.min ? ' por ' + t.box.min + ' min' : ''}">${esc(t.box.at || t.box.min + 'min')}</span>` : ''}${t.cycle ? `<span class="chip cyc" title="vai e volta">🔁${rounds ? ' ' + rounds : ''}</span>` : ''}${t.imgs?.length ? `<span class="chip" title="${t.imgs.length} imagem(ns): abra a tarefa pra ver">🖼${t.imgs.length > 1 ? ' ' + t.imgs.length : ''}</span>` : ''}${opts.list && (t.due === today() || t.due === addDays(today(), 1)) && R.isOpen(t) ? '' : dueChip(t.due, !R.isOpen(t))}${xp ? `<span class="chip xp">${xp}</span>` : ''}</div>
+    <div class="info">${t.color === 'black' && R.isOpen(t) ? moscaMortaHtml() : moscasHtml(ms.n, ms.title)}${!t.link && opts.list && !p.step && R.isOpen(t) ? `<button class="icon-btn mini" data-act="to-breakdown" data-id="${t.id}" title="Mandar pra uma janela (BREAKDOWN, TRABALHO, GESTÃO…)" aria-label="Mandar pra uma janela">⤴</button>` : ''}${t.who || t.dep ? `<span class="chip wait" title="aguardando: ${esc(R.waitingOn(S, t).label)}">⏳ ${esc((t.who || '🔗').slice(0, 14))}</span>` : ''}${t.prio ? '<span class="chip prio">!</span>' : ''}${t.box && R.isOpen(t) ? `<span class="chip box" title="time box: ${esc(t.box.at || '')}${t.box.min ? ' por ' + t.box.min + ' min' : ''}">${esc(t.box.at || t.box.min + 'min')}</span>` : ''}${t.cycle ? `<span class="chip cyc" title="vai e volta">🔁${rounds ? ' ' + rounds : ''}</span>` : ''}${t.imgs?.length ? `<span class="chip" title="${t.imgs.length} imagem(ns): abra a tarefa pra ver">🖼${t.imgs.length > 1 ? ' ' + t.imgs.length : ''}</span>` : ''}${opts.list && (t.due === today() || t.due === addDays(today(), 1)) && R.isOpen(t) ? '' : dueChip(t.due, !R.isOpen(t))}</div>
   </li>`;
 }
 

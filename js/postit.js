@@ -37,12 +37,22 @@ function one(id, i) {
     const b0 = pos.b != null ? pos.b : Math.max(8, innerHeight - (pos.y + 60)); // posição antiga (topo) vira distância do pé da tela
     el.style.left = Math.max(4, Math.min(pos.x, innerWidth - 120)) + 'px'; el.style.bottom = Math.max(4, Math.min(b0, innerHeight - 60)) + 'px'; el.style.right = 'auto'; el.style.top = 'auto';
   }
+  fitPostit(el);
   const ni = el.querySelector('input[name="text"]');
   if (ni && draft) ni.value = draft;
   if (ni && focused) ni.focus();
   window.__deaccent?.(el);
 }
 
+/** v9.3 (bug do dono: o post-it subia por cima do topo): ele cresce pra cima a partir do pé, mas NUNCA passa do topo da tela.
+ *  A altura máxima é o espaço que sobra acima dele; a lista rola por dentro. */
+function fitPostit(el) {
+  const stick = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--stick')) || 100;
+  let b = parseFloat(el.style.bottom); if (isNaN(b)) b = parseFloat(getComputedStyle(el).bottom) || 18;
+  if (innerHeight - b - stick < 180) { b = Math.max(4, innerHeight - stick - 180); el.style.bottom = b + 'px'; } // arrastado alto demais: desce até caber
+  el.style.maxHeight = Math.max(140, innerHeight - b - stick - 10) + 'px';
+}
+addEventListener('resize', () => document.querySelectorAll('aside.postit').forEach(fitPostit));
 // recolher e arrastar (cada post-it por si)
 document.addEventListener('click', (e) => {
   const b = e.target.closest?.('aside.postit [data-pi="min"]');
@@ -66,5 +76,5 @@ document.addEventListener('pointerup', () => {
   if (!drag) return;
   const el = drag.el, r = el.getBoundingClientRect(), b = Math.max(4, Math.round(innerHeight - r.bottom));
   ls.set(POS + ':' + el.dataset.id, JSON.stringify({ x: Math.round(r.left), b }));
-  Object.assign(el.style, { top: 'auto', bottom: b + 'px' }); drag = null;
+  Object.assign(el.style, { top: 'auto', bottom: b + 'px' }); drag = null; fitPostit(el);
 });

@@ -177,7 +177,7 @@ function popHtml(x) {
   return `<div class="praga-pop" data-praga="${x.phase}"><div class="pp-bar"><span>${x.phase >= 3 ? '⚠ ERRO NA FITA' : '⚠ ' + R.PRAGA_NAMES[x.phase]}</span><span>${String(Math.floor(Math.random() * 0xffff).toString(16)).toUpperCase().padStart(4, '0')}:${x.days}D</span></div>
     ${nav}
     <h2>${x.phase >= 4 ? '🐺' : '🪰'} ${R.PRAGA_NAMES[x.phase]} <small>fase ${x.phase} de 4</small></h2>
-    <div class="pp-row">${fig('primo', 4, 'pav', 'PRIMO bravo')}
+    <div class="pp-row">${fig(x.phase >= 4 ? 'lambehomi' : 'trem-3', 2, 'pav', x.phase >= 4 ? 'LAMBEHOMI' : 'TREM TRAPAIADO', true)}
       <div><p class="pp-t"><b>${esc(x.text)}</b></p><p class="meta">${isT ? 'atrasada' : 'ritual atrasado'} há ${x.days} dia${x.days > 1 ? 's' : ''}</p>
       <p class="speech">${esc(L[Math.floor(Math.random() * L.length)])}</p></div></div>
     ${isT ? `<form class="pp-resched" data-form="praga-resched" data-id="${x.id}" autocomplete="off"><label class="lbl">📅 Remarcar pra</label>

@@ -208,7 +208,6 @@ export function sidePanel(ui) {
     // v7.2: STATUS DO DIA (em ícones) e COMANDOS moram dentro do cartão do PRIMO
     ['primo', '🔥 PRIMO', companionCard()],
     ['ouro', '💰 Carteira (quando tem)', goldCard(td)],
-    ['habitos', '✓ Hábitos de hoje', habitsCard(td)],
     ['fila', '⏰ Fila de prazos', filaCard(td)],
   ])}
     <p class="meta" style="text-align:center">${weekday(td) === 5 ? '⚠ sexta-feira: o dia em que mais se quebra sequência. marque os hábitos!' : ''}</p>

@@ -2211,3 +2211,22 @@ img.elenco.pav { height: 64px; width: auto; flex: none; }
 @keyframes ant-voa { 0% { opacity: 0; transform: translate(0, 0) rotate(0); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(-90px, 40px) rotate(-300deg); } }
 @keyframes ant-espiral { 0% { opacity: 1; transform: rotate(var(--a)) translateX(4px) rotate(calc(-1 * var(--a))); } 100% { opacity: 0; transform: rotate(calc(var(--a) + 240deg)) translateX(110px) rotate(calc(-1 * var(--a))); } }
 @media (prefers-reduced-motion: reduce) { .antidoto *, .ant-cena * { animation-duration: .01s !important; animation-delay: 0s !important; } }
+aside.postit .tasks { flex: 1 1 auto; min-height: 0; }
+
+/* ═════════════ v9.3 — personagens nas janelas, hábitos ao abrir, XP só na janela ═════════════ */
+.quem { display: flex; align-items: flex-end; gap: 10px; margin: -4px 0 12px; }
+.quem img.elenco { height: 96px; width: auto; flex: none; pointer-events: auto; cursor: var(--cur-hand, pointer); filter: drop-shadow(2px 2px 0 rgba(46, 36, 48, .35)); }
+.quem-fala { position: relative; flex: 1; margin: 0 0 10px; padding: 8px 11px; border: 2px solid var(--edge); border-radius: 12px; background: var(--panel-2); font-size: 12.5px; line-height: 1.45; }
+.quem-fala::before { content: ''; position: absolute; left: -8px; bottom: 12px; width: 12px; height: 12px; background: inherit; border-left: 2px solid var(--edge); border-bottom: 2px solid var(--edge); transform: rotate(45deg); }
+.quem-fala b { font: 700 10.5px var(--f-mono); color: var(--accent-2, var(--ink)); }
+@media (max-width: 600px) { .quem img.elenco { height: 72px; } }
+.hab-row.ok .lt { color: var(--c-ok); } .hab-row.folga .lt { color: var(--muted); }
+/* TREM maiores no MEU DIA e os personagens entrando em "pulinhos" (passos, como pixel art) */
+.dia-trens { gap: 2px 4px; }
+.dia-trens img.elenco { height: 96px; margin-right: -4px; }
+.dia-trens img.elenco:nth-child(2n) { height: 86px; }
+@media (max-width: 860px) { .dia-trens img.elenco { height: 72px; } .dia-trens img.elenco:nth-child(2n) { height: 64px; } }
+@keyframes sprite-in { 0% { opacity: 0; transform: translateY(10px) scale(.92); } 60% { opacity: 1; transform: translateY(-3px); } 100% { transform: none; } }
+.quem img.elenco, .pst-host img.elenco, .vit-host img.elenco, .dia-trens img.elenco, .termo-art img.elenco { animation: sprite-in .45s steps(4) both; }
+.dia-trens img.elenco:nth-child(2) { animation-delay: .06s; } .dia-trens img.elenco:nth-child(3) { animation-delay: .12s; } .dia-trens img.elenco:nth-child(4) { animation-delay: .18s; } .dia-trens img.elenco:nth-child(n+5) { animation-delay: .24s; }
+@media (prefers-reduced-motion: reduce) { .quem img.elenco, .pst-host img.elenco, .vit-host img.elenco, .dia-trens img.elenco, .termo-art img.elenco { animation: none; } }

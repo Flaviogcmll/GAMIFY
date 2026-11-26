@@ -45,3 +45,9 @@ export const FALAS = {
   cumpadi: ['Os CUMPADIS tão aqui pra ajudar!', 'Piu piu! Um passo de cada vez.'],
   'trem-1': ['TREM FEI: ainda dá tempo, mas não esquece de mim.'], 'trem-2': ['TREM CUSTOSO: vence já já, hein!'], 'trem-3': ['TREM TRAPAIADO: passei do prazo e tô fazendo bagunça!'],
 };
+
+/** v9.3 (pedido do dono): o personagem certo aparece nas janelas, com uma fala da lore dele. Tocar nele = a voz.
+ *  Use no começo do conteúdo da janela: quem('megg', 1, 'Regra é regra.') */
+export const quem = (nome, pose, fala) => `<div class="quem" data-who="${nome}">${fig(nome, pose, '', NOMES[nome] || '', true)}<p class="quem-fala"><b>${esc(NOMES[nome] || '')}:</b> ${esc(fala)}</p></div>`;
+/** uma fala sorteada da lista */
+export const sorte = (arr) => arr[Math.floor(Math.random() * arr.length)];
