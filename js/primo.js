@@ -1,5 +1,6 @@
 // O PRIMO — o centro do jogo. Rosto e busto desenhados (pdraw.js), expressões e um banco enorme de frases (falas.js),
 // pedido do dia, a BRASINHA e diário (pstate.js). Aqui ficam a tela, as animações e as reações.
+import { espiralCalor } from './espiral.js';
 import { antidotoScreen } from './lobo.js';
 import { fig } from './elenco.js';
 import { S } from './store.js';
@@ -270,7 +271,7 @@ export function primoSay(text, expr) { rx = { text, expr: expr || lastExpr(), un
 /** v7.3b: a BRASINHA e o CALOR 🔥 dela, numa linha */
 function brasLine(p) {
   const st = Math.max(0, Math.min(4, S.core.brasinha?.stage ?? 0)); // v9.0: a arte da BRASINHA na fase dela (OVO → FÊNIX)
-  return `<div class="pbras" title="${esc(p.title)}" data-act="mascot-info"><span>${fig('brasinha', st + 1, 'pmini')} <b>${esc(p.name)}</b></span>${p.max ? '<span class="meta">FÊNIX!</span>' : `${segBar(p.pct, 'sm')}<span class="meta">🔥 ${Math.max(0, p.calor + p.hoje)}/${p.need}</span>`}</div>`;
+  return `<div class="pbras" title="${esc(p.title)}" data-act="mascot-info"><span>${fig('brasinha', st + 1, 'pmini')} <b>${esc(p.name)}</b></span>${p.max ? `${espiralCalor(1, 30, 'FÊNIX: calor no máximo')}<span class="meta">FÊNIX!</span>` : `${espiralCalor(Math.max(0, p.calor + p.hoje) / p.need, 30, `CALOR: ${Math.max(0, p.calor + p.hoje)} de ${p.need} pra crescer`)}<span class="meta">🔥 ${Math.max(0, p.calor + p.hoje)}/${p.need}</span>`}</div>`;
 }
 /** v8: o LOBO numa linha (GUARANÁ calmo · emburrado · de trégua · LAMBEHOMI). Tocar mostra o que é e ele fala uma. */
 const LOBO_FALAS = {

@@ -2289,3 +2289,16 @@ aside.postit .tasks { flex: 1 1 auto; min-height: 0; }
 .pcard .pstage.hero, :root[data-mode="night"] .pcard .pstage.hero { background-image: radial-gradient(ellipse at 50% 95%, color-mix(in srgb, var(--t-mel-2) 45%, transparent) 0, transparent 60%), linear-gradient(180deg, var(--t-papel-2) 0%, var(--t-mel-3) 55%, var(--t-rosa) 100%) !important; background-size: cover !important; }
 :root[data-light="noite"] .pcard .pstage.hero { background-image: radial-gradient(ellipse at 50% 95%, color-mix(in srgb, var(--brasa, #e8893a) 35%, transparent) 0, transparent 60%), linear-gradient(180deg, #2b2040 0%, var(--t-ameixa) 55%, var(--t-couro) 100%) !important; }
 :root[data-light="tarde"] .pcard .pstage.hero { background-image: radial-gradient(ellipse at 50% 95%, color-mix(in srgb, var(--t-mel-2) 50%, transparent) 0, transparent 60%), linear-gradient(180deg, var(--t-mel-3) 0%, var(--t-brasa-3) 60%, var(--t-brasa-2) 100%) !important; }
+
+/* ═════════════ v9.6 — guia de interface, etapas 4 e 5: espirais e a voz de cada aba ═════════════ */
+.espiral { display: inline-block; vertical-align: middle; image-rendering: pixelated; color: var(--line); flex: none; }
+.pbras .espiral { margin: -4px 2px; }
+/* carregando: a espiral se desenhando, quadradinho por quadradinho, de dentro pra fora */
+.espiral.loader rect { opacity: 0; animation: esp-acende 2.4s steps(1) infinite; animation-delay: calc(var(--i) * 28ms); }
+@keyframes esp-acende { 0% { opacity: 0; } 4% { opacity: 1; } 78% { opacity: 1; } 92%, 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .espiral.loader rect { animation: none; opacity: 1; } }
+.boot .espiral { display: block; margin: 0 auto 12px; }
+/* separadores com o cachinho no meio (a assinatura do artista nas janelas) */
+.modal .actions { position: relative; }
+.modal .actions::before { content: ''; position: absolute; left: 50%; top: -9px; width: 16px; height: 16px; transform: translateX(-50%); background: var(--panel) var(--espiral) center / 14px no-repeat; image-rendering: pixelated; }
+.host-say { cursor: var(--cur-hand, pointer); } .host-say b { color: var(--t-mel-3); font-weight: 700; }
