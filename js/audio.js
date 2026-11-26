@@ -306,3 +306,60 @@ export function zumbido(vol = 1) {
 }
 /** música desafinada (0 = normal; 0.06 = bem torta) */
 export const pragaWarp = (v) => { warp = v || 0; };
+
+// ───── v9.0 (pedidos do dono): SONS DO ELENCO, gerados no aparelho (sem arquivo, sem direitos autorais), no clima cozy ─────
+const ok = () => { if (!heard || prefs.sfx <= 0) return false; try { if (!ensure()) return false; if (ctx.state === 'suspended') ctx.resume(); return true; } catch { return false; } };
+/** voz "de bicho": uma onda passando por 2 filtros (as vogais), com a altura e as vogais mudando no tempo */
+function voice(t, dur, { f0 = [300, 300], f1 = [700, 700], f2 = [1200, 1200], vol = 0.12, type = 'sawtooth', vib = 0, trem = 0, q = 9 } = {}) {
+  const o = ctx.createOscillator(), a = ctx.createBiquadFilter(), b = ctx.createBiquadFilter(), g = ctx.createGain(), mix = ctx.createGain();
+  o.type = type;
+  const ramp = (p, arr) => { p.setValueAtTime(arr[0], t); arr.slice(1).forEach((v, i) => p.linearRampToValueAtTime(v, t + (dur * (i + 1)) / (arr.length - 1))); };
+  ramp(o.frequency, f0); a.type = b.type = 'bandpass'; a.Q.value = b.Q.value = q; ramp(a.frequency, f1); ramp(b.frequency, f2);
+  if (vib) { const l = ctx.createOscillator(), lg = ctx.createGain(); l.frequency.value = 6; lg.gain.value = vib; l.connect(lg).connect(o.frequency); l.start(t); l.stop(t + dur + 0.05); }
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + Math.min(0.06, dur / 4)); g.gain.setValueAtTime(vol, t + dur * 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  if (trem) { const l = ctx.createOscillator(), lg = ctx.createGain(); l.frequency.value = trem; lg.gain.value = vol * 0.8; l.connect(lg).connect(g.gain); l.start(t); l.stop(t + dur + 0.05); }
+  o.connect(a).connect(mix); o.connect(b).connect(mix); mix.gain.value = 1.6; mix.connect(g).connect(bus.sfx);
+  o.start(t); o.stop(t + dur + 0.05);
+}
+/** lata/panela batendo: parciais "tortos" (som de metal) que somem rápido + o estalo */
+function lata(t, f = 900, vol = 0.07) {
+  for (const [k, d, v] of [[1, 0.35, 1], [2.76, 0.22, 0.6], [5.4, 0.12, 0.4], [8.93, 0.08, 0.25]]) tone(f * k, t, d + Math.random() * 0.1, { type: 'sine', vol: vol * v, attack: 0.002 });
+  noise(t, 0.04, { freq: 3500, q: 0.8, vol: vol * 1.6 });
+}
+const miau = (t, base = 1, vol = 0.1) => voice(t, 0.55 * (0.85 + Math.random() * 0.3), { f0: [480 * base, 760 * base, 430 * base], f1: [350, 850, 420], f2: [2300, 1250, 800], vol, vib: 12 });
+const chiadoGato = (t, vol = 0.12) => noise(t, 0.38, { type: 'highpass', freq: 3200, q: 0.7, vol });
+const boing = (t) => tone(180, t, 0.35, { type: 'sine', vol: 0.09, slide: 3.2, vib: 25 });
+/** a BAGUNÇA dos TREM: latas, panela, tralha caindo e, às vezes, gato brigando. Tom e Jerry de roça. n = quanto barulho (1 a 3) */
+export function bagunca(n = 2) {
+  if (!ok()) return;
+  const t = ctx.currentTime + 0.03, k = Math.max(1, Math.min(3, n));
+  for (let i = 0; i < 2 + k * 2; i++) lata(t + Math.random() * (0.5 + k * 0.35), 500 + Math.random() * 1500, 0.04 + Math.random() * 0.04);
+  if (Math.random() < 0.5) boing(t + 0.2 + Math.random() * 0.5);
+  if (Math.random() < 0.35 + k * 0.15) { miau(t + 0.3 + Math.random() * 0.4, 0.9 + Math.random() * 0.4); if (k >= 2 && Math.random() < 0.6) { chiadoGato(t + 0.9); miau(t + 1.05, 1.35, 0.08); } }
+  // o tombo final: tralha no chão
+  noise(t + 0.9 + k * 0.25, 0.3, { type: 'lowpass', freq: 700, q: 0.5, vol: 0.18 }); lata(t + 0.92 + k * 0.25, 420, 0.08);
+}
+/** BANHO DE SAL GROSSO: grãos caindo (chuvinha de cliques agudos), um sininho e um suspiro de alívio */
+export function salGrosso() {
+  if (!ok()) return;
+  const t = ctx.currentTime + 0.03;
+  for (let i = 0; i < 46; i++) { const u = t + (i / 46) ** 1.6 * 1.3 + Math.random() * 0.03; noise(u, 0.012 + Math.random() * 0.02, { freq: 5000 + Math.random() * 4000, q: 4, vol: 0.05 + Math.random() * 0.05 }); }
+  [84, 88, 91, 96].forEach((m, i) => tone(mtof(m), t + 0.5 + i * 0.12, 1.6, { type: 'sine', vol: 0.07 - i * 0.01 }));
+  noise(t + 1.2, 1.2, { type: 'lowpass', freq: 600, vol: 0.06 }); // o "ufa"
+}
+/** a voz de cada um do ELENCO (toque no personagem do banner) */
+const VOZES = {
+  primo: (t) => { voice(t, 0.16, { f0: [130, 110], f1: [500, 400], f2: [1100, 900], vol: 0.13, q: 6 }); voice(t + 0.2, 0.22, { f0: [125, 95], f1: [520, 380], f2: [1000, 850], vol: 0.12, q: 6 }); }, // ronc ronc
+  brasinha: (t) => { for (let i = 0; i < 3; i++) tone(mtof(91 + i * 3), t + i * 0.09, 0.08, { type: 'sine', vol: 0.08, slide: 1.25 }); for (let i = 0; i < 6; i++) noise(t + Math.random() * 0.4, 0.02, { freq: 2500, vol: 0.06 }); },
+  cajulina: (t) => miau(t, 1.25), rosemia: (t) => { miau(t, 1.05); [96, 100, 103].forEach((m, i) => tone(mtof(m), t + 0.45 + i * 0.07, 0.5, { type: 'sine', vol: 0.03 })); },
+  'tia-mia': (t) => voice(t, 0.8, { f0: [380, 520, 330], f1: [380, 800, 400], f2: [2100, 1150, 760], vol: 0.09, vib: 22 }), // miau de vó, tremido
+  'eve-la': (t) => voice(t, 0.7, { f0: [330, 310, 290], f1: [520, 560, 500], f2: [1900, 1850, 1700], vol: 0.11, trem: 9 }), // béééé
+  'frog-lipe': (t) => { for (const u of [0, 0.22]) voice(t + u, 0.16, { f0: [95, 80], f1: [300, 260], f2: [800, 700], vol: 0.16, trem: 38, q: 5 }); }, // croac croac
+  'boi-nilton': (t) => voice(t, 1.0, { f0: [120, 128, 92], f1: [300, 520, 380], f2: [700, 900, 650], vol: 0.15, q: 5 }), // múúú
+  megg: (t) => { for (let i = 0; i < 3; i++) voice(t + i * 0.13, 0.08, { f0: [620, 520], f1: [800, 700], f2: [1800, 1500], vol: 0.09, q: 4 }); voice(t + 0.42, 0.35, { f0: [600, 780, 560], f1: [800, 900, 700], f2: [1900, 2000, 1600], vol: 0.08, q: 4 }); }, // có có có cocóóó
+  guarana: (t) => { noise(t, 0.25, { type: 'bandpass', freq: 900, q: 1.5, vol: 0.08 }); voice(t + 0.05, 0.3, { f0: [520, 600, 480], f1: [700, 800, 600], f2: [1400, 1500, 1200], vol: 0.06, type: 'triangle' }); }, // bufo e latidinho
+  lambehomi: () => uivo(0.8),
+  cumpadi: (t) => { for (let i = 0; i < 4; i++) tone(mtof(93 + ((i * 5) % 7)), t + i * 0.08, 0.07, { type: 'sine', vol: 0.07, slide: 1.4 }); }, // piu piu
+  'trem-1': () => bagunca(1), 'trem-2': () => bagunca(2), 'trem-3': () => bagunca(3),
+};
+export function voz(nome) { if (!ok()) return; try { VOZES[nome]?.(ctx.currentTime + 0.03); } catch { /* sem som */ } }

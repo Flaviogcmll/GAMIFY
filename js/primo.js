@@ -1,5 +1,6 @@
 // O PRIMO — o centro do jogo. Rosto e busto desenhados (pdraw.js), expressões e um banco enorme de frases (falas.js),
 // pedido do dia, a BRASINHA e diário (pstate.js). Aqui ficam a tela, as animações e as reações.
+import { fig } from './elenco.js';
 import { S } from './store.js';
 import * as R from './rules.js';
 import * as A from './actions.js';
@@ -42,7 +43,7 @@ function baseExpr() {
   const c = R.companion(S), st = primoState();
   if (st.expr) return st.expr;
   if (c.mood === 'envenenado') return 'enjoado';
-  return MOODS[primoMood()].expr; // v7.2: o rosto segue o humor (com a Praga ele fica PARANOICO, desconfiado; medo só na NOITE DA DISGRAMA)
+  return MOODS[primoMood()].expr; // v7.2: o rosto segue o humor (com a Praga ele fica PARANOICO, desconfiado; medo só na PRAGA)
 }
 
 // ───────────────────────── expressão e fala atuais ─────────────────────────
@@ -62,7 +63,7 @@ const TIPS = ['Dica, sô: no rascunho da REFLEXÃO, Enter solta e Shift+Enter pu
   'Na AGENDA, o azul é ritual. Não deixa a amizade esfriar, sô.'];
 function ambient() {
   const now = Date.now();
-  const pl = pragaLine(); if (pl && Math.random() < 0.75) return { text: pl, expr: R.praga(S).noite ? 'preocupado' : 'suspeito', at: now }; // v7.3: paranoico (medo só na NOITE DA DISGRAMA)
+  const pl = pragaLine(); if (pl && Math.random() < 0.75) return { text: pl, expr: R.praga(S).noite ? 'preocupado' : 'suspeito', at: now }; // v7.3: paranoico (medo só na PRAGA)
   if (!amb || now - amb.at > 3 * 60000) { const tip = Math.random() < 0.45, text = tip ? TIPS[Math.floor(Math.random() * TIPS.length)] : primoLine('auto'); amb = { text, expr: tip ? 'piscada' : lastExpr(), at: now, shownAt: now, typed: false }; }
   return amb;
 }
@@ -185,7 +186,7 @@ export function primoAfterRender() {
   for (const e of evs || []) {
     if (e.k === 'up' || e.k === 'reborn') { toast(e.k === 'reborn' ? `🐣 Valeu a PENA! A MEGG DE FÁTIMA chocou e o ovo rachou: a BRASINHA renasceu! <b>${R.BRAS_NAMES[e.stage]}</b>, com um pouco de cinza na cabeça.` : `🐣 A BRASINHA cresceu: <b>${R.BRAS_NAMES[e.stage]}</b>! Bão demais da conta!`, 'gold'); sfx('level'); primoSay(e.k === 'reborn' ? 'Valeu a pena, sô. Cinza na cabeça e fogo no peito.' : 'Óia o tamanho dela! Tá ficando braba, uai.', 'orgulhoso'); }
     if (e.k === 'down') { toast(`🐺 O LAMBEHOMI chegou em <b>${esc(String(e.text).slice(0, 40))}</b>: a BRASINHA perdeu força (agora ${R.BRAS_NAMES[e.stage]}).`, 'bad'); sfx('error'); primoSay('Ele soprou forte. Fica atrás de mim, pequena.', 'suspeito'); }
-    if (e.k === 'roubo' || e.k === 'egg') { toast('🌕 NOITE DA DISGRAMA: o LAMBEHOMI roubou a BRASINHA. A chama dela curou ele, que voltou a ser GUARANÁ (trégua até amanhã). Ela virou OVO e a MEGG DE FÁTIMA já tá chocando: com calor ela renasce.', 'bad'); primoSay('Ele levou a chama dela… e se curou. A MEGG tá chocando o ovo. A gente começa de novo, sô.', 'preocupado'); }
+    if (e.k === 'roubo' || e.k === 'egg') { toast('🌕 PRAGA: o LAMBEHOMI roubou a BRASINHA. A chama dela curou ele, que voltou a ser GUARANÁ (trégua até amanhã). Ela virou OVO e a MEGG DE FÁTIMA já tá chocando: com calor ela renasce.', 'bad'); primoSay('Ele levou a chama dela… e se curou. A MEGG tá chocando o ovo. A gente começa de novo, sô.', 'preocupado'); }
     if (e.k === 'lobo-vira') { toast('🐺 Uma tarefa apodreceu (passou do limite de TREM TRAPAIADO): o GUARANÁ se isolou e virou LAMBEHOMI. Resolve TODAS as atrasadas que a CAJULINA e a EVE LÃ acham o antídoto.', 'bad'); sfx('error'); primoSay('Uai… o GUARANÁ sumiu no mato. Quem voltou foi o outro.', 'suspeito'); }
     if (e.k === 'antidoto') { toast('🧪 ANTÍDOTO! Sem nenhuma atrasada, a CAJULINA achou a receita nos livros e a EVE LÃ fez a garrafada: o LAMBEHOMI voltou a ser GUARANÁ e a BRASINHA ficou com a gente. Trégua até amanhã.', 'gold'); sfx('level'); confetti(40); primoSay('Nó! Curou sem levar a pequena. Trem bão demais, sô.', 'orgulhoso'); }
   }
@@ -203,13 +204,32 @@ function askHtml() {
 /** v7.2: o HUMOR do PRIMO, um só, que manda no rosto, na cor do cartão e na frase.
  *  paranoico (Praga ou 3+ atrasadas) · orgulhoso (bateu a meta) · focado (tarefa ▶ fazendo) · cansado (debuff de cansaço) · satisfeito (o resto) */
 export const MOODS = {
-  medo: { label: 'com medo', ico: '😱', expr: 'preocupado', tip: 'NOITE DA DISGRAMA: tarefas demais no LAMBEHOMI. É a única hora em que ele tem medo de verdade.' },
-  paranoico: { label: 'paranoico', ico: '👀', expr: 'suspeito', tip: 'Tem TREM TRAPAIADO rondando: atrasadas ou Praga. Ele fica desconfiado, não com medo.' },
+  medo: { label: 'com medo', ico: '😱', expr: 'preocupado', tip: 'PRAGA: tarefas demais no LAMBEHOMI. É a única hora em que ele tem medo de verdade.' },
+  paranoico: { label: 'paranoico', ico: '👀', expr: 'suspeito', tip: 'Tem TREM TRAPAIADO rondando: tem coisa atrasada. Ele fica desconfiado, não com medo.' },
   orgulhoso: { label: 'orgulhoso', ico: '😤', expr: 'orgulhoso', tip: 'A meta do dia foi batida.' },
   focado: { label: 'focado', ico: '🎯', expr: 'pensativo', tip: 'Tem tarefa em ▶ FAZENDO.' },
   cansado: { label: 'cansado', ico: '😮‍💨', expr: 'cansado', tip: 'Cansaço, neblina ou preguiça no status do dia.' },
   satisfeito: { label: 'satisfeito', ico: '😌', expr: 'feliz', tip: 'Tudo nos trilhos.' },
 };
+/** v9.0 (pedido do dono): um pedaço da legenda aparece na frente do humor, do jeito do PRIMO falar */
+const MOOD_SAY = {
+  medo: () => 'é a PRAGA, sô! Trem demais virou LAMBEHOMI',
+  paranoico: () => { const n = R.overdueTasks(S).length; return n > 1 ? `tem ${n} TREM TRAPAIADO rondando a casa, uai` : 'tem um TREM TRAPAIADO por perto, uai'; },
+  orgulhoso: () => 'bateu a meta do dia. Trem bão!',
+  focado: () => 'tá com a mão na massa, não atrapalha',
+  cansado: () => 'o dia tá pesado. Vai com calma, sô',
+  satisfeito: () => 'tudo nos trilhos, graças a Deus',
+};
+const moodLine = (mk, m, name) => `<span title="${esc(m.tip)}">${m.ico} ${esc(name)} está <b>${m.label}</b><span class="msay">: ${esc(MOOD_SAY[mk]?.() || '')}</span></span>`;
+/** v9.0: as dicas do relógio do corpo (neurociência) viram fala do PRIMO, em cima dele (antes ficavam no FOCO AGORA) */
+function primoTip() {
+  if (!R.neuroOn(S, 'clock')) return '';
+  const c = R.bodyClock(S);
+  const h = (m) => (m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? String(m % 60).padStart(2, '0') : ''}` : `${m} min`);
+  const meta = [c.key === 'sono' ? `acordar ${c.wake}` : `dormir ${c.bed} (faltam ${h(c.toBed)})`, c.meal ? `comer ${c.meal.at}${c.meal.in ? ` (em ${h(c.meal.in)})` : ' (agora)'}` : '', ['despertar', 'foco', 'vale'].includes(c.key) ? `café até ${c.coffeeUntil}` : '', ['vale', 'pico2'].includes(c.key) ? `treino até ${c.trainUntil}` : ''].filter(Boolean).join(' · ');
+  const curto = c.tip.split(/(?<=[.!?])\s/)[0];
+  return `<div class="ptip" data-phase="${c.key}" title="Relógio do corpo (PERKS → 🧠): ${esc(c.tip)}"><b>${c.icon} ${esc(c.name)}</b> ${esc(curto)}<small>${esc(meta)}</small></div>`;
+}
 export function primoMood() {
   const g = R.dailyGoal(S), st = R.dayStatus(S, today());
   const pg = R.praga(S);
@@ -241,7 +261,8 @@ const CMD_LINES = {
 export function primoSay(text, expr) { rx = { text, expr: expr || lastExpr(), until: Date.now() + 14000, typed: false }; paintSpeech(); }
 /** v7.3b: a BRASINHA e o CALOR 🔥 dela, numa linha */
 function brasLine(p) {
-  return `<div class="pbras" title="${esc(p.title)}" data-act="mascot-info"><span>🐣 <b>${esc(p.name)}</b></span>${p.max ? '<span class="meta">FÊNIX!</span>' : `${segBar(p.pct, 'sm')}<span class="meta">🔥 ${Math.max(0, p.calor + p.hoje)}/${p.need}</span>`}</div>`;
+  const st = Math.max(0, Math.min(4, S.core.brasinha?.stage ?? 0)); // v9.0: a arte da BRASINHA na fase dela (OVO → FÊNIX)
+  return `<div class="pbras" title="${esc(p.title)}" data-act="mascot-info"><span>${fig('brasinha', st + 1, 'pmini')} <b>${esc(p.name)}</b></span>${p.max ? '<span class="meta">FÊNIX!</span>' : `${segBar(p.pct, 'sm')}<span class="meta">🔥 ${Math.max(0, p.calor + p.hoje)}/${p.need}</span>`}</div>`;
 }
 /** v8: o LOBO numa linha (GUARANÁ calmo · emburrado · de trégua · LAMBEHOMI). Tocar mostra o que é e ele fala uma. */
 const LOBO_FALAS = {
@@ -252,7 +273,8 @@ const LOBO_FALAS = {
 };
 function loboLine() {
   const l = R.lobo(S); if (!l.on) return '';
-  return `<div class="plobo" data-mood="${l.mood}" data-act="lobo-info" title="${esc(l.tip)}"><span>${l.ico} <b>${l.name}</b> <span class="meta">${esc(l.sub)}</span></span></div>`;
+  const art = l.mood === 'lambehomi' ? fig('lambehomi', 4, 'pmini') : fig('guarana', { calmo: 4, tregua: 2, emburrado: 3 }[l.mood] || 4, 'pmini'); // v9.0: a arte do lobo no humor dele
+  return `<div class="plobo" data-mood="${l.mood}" data-act="lobo-info" title="${esc(l.tip)}"><span>${art} <b>${l.name}</b> <span class="meta">${esc(l.sub)}</span></span></div>`;
 }
 function statusIcons() {
   const st = R.dayStatus(S, today()), al = R.alerts(S, today());
@@ -263,7 +285,7 @@ function statusIcons() {
 }
 function body(big, compact = false) {
   const c = R.companion(S), st = primoState(), pet = PS.petState(), mk = primoMood(), m = MOODS[mk];
-  const status = st.act !== 'idle' ? `${esc(c.name)} está ${esc(st.label)}` : `<span title="${esc(m.tip)}">${m.ico} ${esc(c.name)} está <b>${m.label}</b></span>`;
+  const status = st.act !== 'idle' ? `${esc(c.name)} está ${esc(st.label)}` : moodLine(mk, m, c.name);
   const trip = R.tripNow(S);
   // v8.5 (pedido do dono): a imagem, a fala e o "PRIMO está…" ficam juntos em .phead, preso no topo do painel; o resto rola por baixo
   const pstat = `<div class="meta pstat">${status}${st.left ? ` · <span data-countdown="${Date.now() + st.left}">${mmss(st.left)}</span>` : ''}</div>`;
@@ -276,7 +298,7 @@ function body(big, compact = false) {
       ${loboLine()}
       ${askHtml()}
       <div class="pcmds">${CMDS.map(([k, i, l, t]) => `<button class="btn sm ${k === 'trip' && trip ? 'pri' : ''}" data-act="pcmd" data-k="${k}" title="${esc(t)}"><span>${i}</span>${k === 'trip' && trip ? 'VOLTEI' : l}</button>`).join('')}</div>
-      <div class="pcmds pcmds3"><button class="btn sm" data-act="saber" data-g="all" title="Uma curiosidade verdadeira, com fonte"><span>📚</span>ME CONTA</button><button class="btn sm" data-act="primo-prosa" title="Piada, ditado ou causo da roça"><span>😂</span>PROSA</button><button class="btn sm" data-act="diary" title="O diário que ele escreve toda semana"><span>📖</span>DIÁRIO</button></div></div></div>`; // v7.7: tudo na mesma grade
+      <div class="pcmds pcmds3"><button class="btn sm" data-act="saber" data-g="all" title="Uma curiosidade verdadeira, com fonte"><span>📚</span>ME CONTA</button><button class="btn sm" data-act="plan-change" title="Mudança de planos: mexer no HOJE e no AMANHÃ de uma vez"><span>🔀</span>MUDOU O PLANO</button><button class="btn sm" data-act="diary" title="O diário que ele escreve toda semana"><span>📖</span>DIÁRIO</button></div></div></div>`; // v7.7: tudo na mesma grade
 }
 /** cartão da aba QUESTS */
 /** v6 (4A): banner do QUESTS com o cenário, o PRIMO passeando, a BRASINHA e a fala (dicas do app de vez em quando) */
@@ -289,8 +311,8 @@ export function questsBanner() {
 /** v8.5 (pedido do dono): imagem, fala e "PRIMO está…" presos no topo do painel da direita; o cartão (status, BRASINHA, lobo, pedido, botões) rola por baixo */
 export function primoHead() {
   const c = R.companion(S), pet = PS.petState(), mk = primoMood(), m = MOODS[mk], st = primoState();
-  const status = st.act !== 'idle' ? `${esc(c.name)} está ${esc(st.label)}` : `<span title="${esc(m.tip)}">${m.ico} ${esc(c.name)} está <b>${m.label}</b></span>`;
-  return `<div class="pcard side-head" data-mood="${mk}"><div class="phead"><div class="pstage"><canvas class="pcv" data-portrait="card" data-act="comp-poke" aria-label="${esc(c.name)}"></canvas>
+  const status = st.act !== 'idle' ? `${esc(c.name)} está ${esc(st.label)}` : moodLine(mk, m, c.name);
+  return `<div class="pcard side-head" data-mood="${mk}">${primoTip()}<div class="phead"><div class="pstage"><canvas class="pcv" data-portrait="card" data-act="comp-poke" aria-label="${esc(c.name)}"></canvas>
       <canvas class="pcv pmascot" data-mascot title="${esc(pet.title)}" data-act="mascot-info"></canvas></div>
       <div class="speech" id="comp-speech" data-pspeech="ambient" data-act="comp-poke" title="toque pra ouvir outra"></div>
       <div class="meta pstat">${status}${st.left ? ` · <span data-countdown="${Date.now() + st.left}">${mmss(st.left)}</span>` : ''}</div></div></div>`;
@@ -334,7 +356,7 @@ export function extendPrimo(ACTIONS) {
     saber: (d) => { primoReact('saber', { group: d.g || 'all' }); if (!document.querySelector('.modal')) openSaber(d.g || 'all'); },
     'saber-go': (d) => { closeModal(); setTimeout(() => { openSaber(d.g); }, 30); },
     diary: () => openDiary(),
-    'mascot-info': () => { const p = PS.petState(); toast(`🐣 <b>${esc(p.title)}</b>. Tarefa no prazo esquenta, dia na meta esquenta mais; atrasada esfria. TREM no LAMBEHOMI tira 1 fase; na NOITE DA DISGRAMA o lobo rouba ela (vira ovo e a MEGG DE FÁTIMA choca de novo).`, 'gold'); primoReact('mascote'); },
+    'mascot-info': () => { const p = PS.petState(); toast(`🐣 <b>${esc(p.title)}</b>. Tarefa no prazo esquenta, dia na meta esquenta mais; atrasada esfria. TREM no LAMBEHOMI tira 1 fase; na PRAGA o lobo rouba ela (vira ovo e a MEGG DE FÁTIMA choca de novo).`, 'gold'); primoReact('mascote'); },
     'lobo-info': () => { const l = R.lobo(S), F = LOBO_FALAS[l.mood], c = l.curas; toast(`${l.ico} <b>${l.name}</b> (${esc(l.sub)}): “${esc(F[Math.floor(Math.random() * F.length)])}”<br><small>${esc(l.tip)} Curas até hoje: ${c.noite || 0} pela NOITE, ${c.antidoto || 0} pelo ANTÍDOTO.</small>`, l.st === 'lambehomi' ? 'bad' : 'gold'); },
     'ask-claim': () => { const r = PS.claimAsk(); if (r?.error) { sfx('error'); toast(esc(r.error), 'bad'); return; } sfx('chest'); confetti(40); if (document.querySelector('.modal')) rehub(); },
     // v7.2: comando do cartão do PRIMO = o comando de sempre + uma frase dele

@@ -13,7 +13,7 @@ const TONES = [
   [/SOFTWARE|PROJETO|ESTUD|CURSO|LEITURA|DETOX|STORIES|REELS|YOUTUBE|FEED|POSTAR|GRAVAR|IG|ANALISE|GAMIFY/, 'c-acao', 20],
   [/ALMO|CAF|MARMITA|BULLET|CASA|LIMPAR/, 'c-neutro', 18],
 ];
-const tone = (t) => { const m = TONES.find(([re]) => re.test(t || '')); return m ? `background:color-mix(in srgb, var(--${m[1]}) ${m[2]}%, var(--panel));color:var(--ink)` : 'background:var(--panel-2)'; };
+export const tone = (t) => { const m = TONES.find(([re]) => re.test(t || '')); return m ? `background:color-mix(in srgb, var(--${m[1]}) ${m[2]}%, var(--panel));color:var(--ink)` : 'background:var(--panel-2)'; };
 
 export function viewRotina(ui) {
   const r = S.core.routine;

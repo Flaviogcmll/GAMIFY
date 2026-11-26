@@ -3,9 +3,12 @@ import { S } from '../store.js';
 
 import * as R from '../rules.js';
 import { tiles } from '../telas.js';
-import { esc, today, fmtDM, DOW, addDays, weekStart, range, weekday } from '../util.js';
+import { esc, today, fmtDM, DOW, addDays, weekStart, range, weekday, lightNow } from '../util.js';
 import { pbar, segBar, statusChips } from '../ui.js';
 import { reflexaoBanner, resumoSemana } from './extras.js';
+import { vitrine } from '../elenco.js';
+import { isCollapsed } from '../v3.js';
+const topoOf = (k) => `assets/topo/${k}-${lightNow() === 'noite' ? 'noite' : 'dia'}.webp`;
 
 
 function grid(ui) {
@@ -36,13 +39,13 @@ function grid(ui) {
   }).join('');
   const xpRow = days.map((d, i) => `${i === 7 ? '<td class="sep"></td>' : ''}<td style="text-align:center;font:700 12px var(--f-display);color:var(--accent-2)">${S.marks.days[d]?.xp || ''}</td>`).join('');
   const stRow = days.map((d, i) => `${i === 7 ? '<td class="sep"></td>' : ''}<td style="text-align:center;font-size:12px;cursor:pointer" data-act="day-status" data-d="${d}" title="${R.dayStatus(S, d).list.map((x) => x.name).join(', ')}">${d <= td ? R.dayStatus(S, d).list.filter((x) => x.key !== 'sabado').map((x) => x.icon).join('') : ''}</td>`).join('');
-  return `<div class="card c12"><header><h2>Hábitos</h2>
-      <div class="row"><button class="btn sm" data-act="hweek" data-dir="-1" aria-label="Semana anterior">◄</button><span class="meta">${fmtDM(days[0])} – ${fmtDM(days[6])}</span><button class="btn sm" data-act="hweek" data-dir="1" aria-label="Próxima semana" ${(ui.hweek || 0) >= 0 ? 'disabled' : ''}>►</button></div></header>
+  // v9.0 (pedido do dono): HÁBITOS e RITUAIS ganharam banner (com personagem), como a REFLEXÃO
+  return vitrine({ k: 'c:survival:habitos', v: 'habitos', title: '✓ HÁBITOS', sub: 'Toque na casinha: ✓ fiz → – folga → vazio. 66 dias forjam um hábito.', topo: topoOf('survival'), host: ['eve-la', 3, 'EVE LÃ: cuidar de si também é tarefa'], shut: isCollapsed('c:survival:habitos'), body: `
+      <div class="row hweek-nav"><button class="btn sm" data-act="hweek" data-dir="-1" aria-label="Semana anterior">◄</button><span class="meta">${fmtDM(days[0])} – ${fmtDM(days[6])}</span><button class="btn sm" data-act="hweek" data-dir="1" aria-label="Próxima semana" ${(ui.hweek || 0) >= 0 ? 'disabled' : ''}>►</button></div>
     <div class="grid2w"><table class="hg"><thead><tr><th></th>${head}<th></th></tr></thead><tbody>${body}
       <tr><th class="hn dim">XP DO DIA</th>${xpRow}<td></td></tr><tr><th class="hn dim">STATUS <span class="meta">(toque)</span></th>${stRow}<td></td></tr></tbody></table></div>
     <div class="hleg" title="Toque na casinha: ✓ fiz → – folga → vazio"><span class="chip soon">✓ fez</span><span class="chip late">✕ falhou</span><span class="chip calm">🛡 perdoada</span><span class="chip">🔥 sequência · 🏆 recorde</span></div>
-  <div class="wk-split">${weekCard(today(), ui, true)}${resumoSemana()}</div>
-  </div>`; // v8.6: DESAFIOS na metade, RESUMO DA SEMANA ao lado
+  <div class="wk-split">${weekCard(today(), ui, true)}${resumoSemana()}</div>` }); // v8.6: DESAFIOS na metade, RESUMO DA SEMANA ao lado
 }
 
 export function viewSurvival(ui) {
@@ -59,7 +62,7 @@ export function viewSurvival(ui) {
       { label: '✨ XP hoje', value: S.marks.days[td]?.xp || 0, cls: 'gold', tone: 'premio', tip: `Multiplicador dos hábitos hoje: x${st.habitMult.toFixed(2).replace('.', ',')}` },
     ])}
     <div class="card status-sv"><header><h2 title="Toque num status pra ver o que é e como resolver">🎭 Status do dia</h2></header><div class="status-line">${statusChips(st, R.alerts(S, td)) || '<span class="meta">nenhum buff nem debuff hoje.</span>'}</div></div>
-    <div class="grid">${grid(ui)}${ritualsMini(td)}</div>
+    ${grid(ui)}${ritualsMini(td)}
     ${reflexaoBanner()}`;
 }
 
@@ -83,8 +86,7 @@ export function ritualRow(r, td = today()) {
 }
 function ritualsMini(td) {
   const list = [...S.core.rituals].sort((a, b) => (R.ritualStatus(a, td).left ?? 99) - (R.ritualStatus(b, td).left ?? 99));
-  return `<div class="card c12"><header><h2>🔁 Rituais</h2><button class="btn sm" data-act="edit-ritual">+ RITUAL</button></header>
-    <div class="list">${list.map((r) => ritualRow(r, td)).join('') || '<div class="empty">nenhum ritual.</div>'}</div>
-</div>`;
+  return vitrine({ k: 'c:survival:rituais', v: 'rituais', title: '🔁 RITUAIS', sub: 'O que volta de tempos em tempos: gente, casa, trabalho.', topo: topoOf('rotina'), host: ['tia-mia', 2, 'TIA MIA: o chá é toda tarde, sem falta'], shut: isCollapsed('c:survival:rituais'), body: `<div class="row" style="justify-content:flex-end;margin-bottom:8px"><button class="btn sm" data-act="edit-ritual">+ RITUAL</button></div>
+    <div class="list">${list.map((r) => ritualRow(r, td)).join('') || '<div class="empty">nenhum ritual.</div>'}</div>` });
 }
 

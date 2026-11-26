@@ -46,8 +46,10 @@ const CURSORS = {
   mao: ['....KK..........', '...KWWK.........', '...KWWK.........', '...KWWK.........', '...KWWKKK.......', '...KWWKWWKKK....', '.KKKWWKWWKWWKK..', 'KWWKWWWWWWWWKWK.',
     'KWWKWWWWWWWWWWK.', '.KWWWWWWWWWWWCK.', '..KWWWWWWWWWWCK.', '..KWWWWWWWWWCK..', '...KWWWWWWWCK...', '...KWWWWWWWCK...', '....KKKKKKKK....', '................'],
   pincel: ['kk..............', 'kwyk...s........', '.kyok..........s', '..kook.....s....', '...kook.........', '....kgk.........', '.....kgk........', '......kbk.......', '.......kbk......', '........kbk.....', '.........kbk....', '..........kbk...', '...........kdk..', '............kdk.', '.............kk.', '................'],
-  // v8.9 (pedido do dono): a PENA DA BRASINHA (cor de brasa), ponta em cima à esquerda; é o cursor padrão
-  pena: ['k...............', 'kyk.............', 'kyok............', '.kooyk..........', '.koyook.........', '..kooyok........', '..koyooyk.......', '...kooyoyk......', '....kooyook.....', '.....kooyook....', '......koyoyok...', '.......kkoyok...', '.........kdk....', '..........kdk...', '...........kdk..', '............kk..'],
+  // v8.9 (pedido do dono): a PENA DA BRASINHA (cor de brasa); é o cursor padrão. v9.0: virada, com a PONTA dura onde o clique acontece e as plumas pra baixo
+  pena: ['kk..............', 'kdk.............', '.kdk............', '..kdk...........', '.koyokk.........', '.koyoyok........', '..kooyook.......', '...kooyook......', '....kyoyook.....', '.....kyooyok....', '......koyook....', '.......kooyok...', '........kyook...', '..........koyk..', '...........kyk..', '.............k..'],
+  // v9.0 (pedido do dono): nos botões, em vez da mãozinha, a pena PEGA FOGO
+  penaFogo: ['kk..............', 'kdk.............', '.kdk............', '..kdk......s....', '.koyokk...sys...', '.koyoyok..syos..', '..kooyook.syos..', '...kooyookyoos..', '....kyoyookoos..', '.....kyooyokoys.', '......koyookoys.', '.......kooyokos.', '........kyookos.', '..........koykys', '...........kykos', '.............ks.'],
   patinha: ['.kk..kk.........', 'kPPkkPPk........', 'kPpkkpPk........', 'kPpkkpPk........', '.kppppk.........', '.kppppk.........', 'kppppppk........', 'kppwwppk........', 'kpppppppk.......', '.kpppppppk......', '..kppppppk......', '...kpppppk......', '....kkkkk.......', '................', '................', '................'],
 };
 const curUrl = (rows, hx = 1, hy = 1) => {
@@ -58,8 +60,8 @@ export const CURSOR_KEY = 'gamify-ui:cursor';
 export function applyCursor() {
   let k = 'pena'; try { k = localStorage.getItem(CURSOR_KEY) || 'pena'; } catch { /* */ }
   const root = document.documentElement;
-  if (!CURSORS[k] || k === 'mao') { root.style.removeProperty('--cur'); root.style.removeProperty('--cur-hand'); delete root.dataset.cursor; return; }
+  if (!CURSORS[k] || k === 'mao' || k === 'penaFogo') { root.style.removeProperty('--cur'); root.style.removeProperty('--cur-hand'); delete root.dataset.cursor; return; }
   root.style.setProperty('--cur', curUrl(CURSORS[k]) + ', auto');
-  root.style.setProperty('--cur-hand', k === 'seta' || k === 'pena' ? curUrl(CURSORS.mao, 9, 1) + ', pointer' : curUrl(CURSORS[k]) + ', pointer'); // pena: a mãozinha continua nos botões (dá pra ver o que é clicável)
+  root.style.setProperty('--cur-hand', k === 'pena' ? curUrl(CURSORS.penaFogo) + ', pointer' : k === 'seta' ? curUrl(CURSORS.mao, 9, 1) + ', pointer' : curUrl(CURSORS[k]) + ', pointer'); // v9.0: pena = a pena em chamas nos botões
   root.dataset.cursor = k;
 }

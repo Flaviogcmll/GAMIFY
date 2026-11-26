@@ -58,7 +58,7 @@ export const AREA_KEYS = ['hoje', 'amanha', 'semana', 'depois', 'sem', 'wait'];
 // (HOJE cheio, fechamento do dia, fila…), mas a tela mostra URGENTE · CHEGANDO · ESTÁVEL · A CLASSIFICAR · AGUARDANDO · PARADO.
 // A cor da tarefa-mãe é a do bloco ligado (mexeu num, muda no outro). Quando o prazo chega, ela sobe sozinha pra URGENTE (syncLists).
 export const COR_KEYS = ['urg', 'chega', 'estavel', 'semcor', 'wait', 'parado'];
-export const COR_NAMES = { urg: 'URGENTE', chega: 'CHEGANDO', estavel: 'ESTÁVEL', semcor: 'A CLASSIFICAR', wait: 'AGUARDANDO', parado: 'PARADO' };
+export const COR_NAMES = { urg: 'URGENTE', chega: 'ESQUENTANDO', estavel: 'ESTÁVEL', semcor: 'A CLASSIFICAR', wait: 'AGUARDANDO', parado: 'PARADO' };
 export const COR_COLOR = { urg: 'red', chega: 'yellow', estavel: 'green', semcor: '', parado: 'black' };
 const COLOR_COR = { red: 'urg', yellow: 'chega', green: 'estavel', black: 'parado', purple: 'wait' };
 /** a cor que vale pra uma tarefa das listas: a do bloco ligado (tarefa-mãe) ou a dela */
@@ -387,11 +387,11 @@ export const STATUS_INFO = {
   devendo: { icon: '💸', name: 'DEVENDO', kind: 'debuff', desc: '2+ compras "fiz sem comprar" na semana: ALQUIMISTA x1,25.', cure: 'Compre ANTES de aproveitar por 7 dias.' },
   vazando: { icon: '🕳', name: 'VAZANDO', kind: 'debuff', desc: 'Mês passado: besteira acima de 40% ou crédito acima de 70% do gasto (planilha): ALQUIMISTA x1,15.', cure: 'Passa quando o mês virar com números melhores.' },
   // v6.7: A PRAGA no STATUS DO DIA (o castigo de XP já vem do praga(); aqui é pra explicar ao tocar)
-  // v8: a Praga é o SOPRO DO LAMBEHOMI contra a casa do PRIMO. Ele quase nunca tem medo: fica PARANOICO. Medo de verdade só na NOITE DA DISGRAMA.
+  // v8: a Praga é o SOPRO DO LAMBEHOMI contra a casa do PRIMO. Ele quase nunca tem medo: fica PARANOICO. Medo de verdade só na PRAGA.
   paranoico: { icon: '👀', name: 'PARANOICO', kind: 'debuff', desc: 'Tem TREM TRAPAIADO rondando: uma tarefa ou ritual estourou o prazo. Ela vira o FOCO AGORA e o PRIMO fica desconfiado, olhando de lado.', cure: '🧂 BANHO DE SAL GROSSO: resolva a tarefa (ou remarque com motivo, ou cancele). Siga a mosca: ela pousa onde o trem está.' },
   trapaiado: { icon: '🪰', name: 'TREM TRAPAIADO', kind: 'debuff', desc: 'O TREM TRAPAIADO tá soltando chorume e chamando mosca. A faixa ERRO NA FITA aparece em todas as abas e a janela pula a cada 7 min. Se ficar, a tarefa apodrece: vira LAMBEHOMI e a BRASINHA perde uma fase.', cure: '🧂 BANHO DE SAL GROSSO na tarefa que a mosca mostra.' },
   lambehomi: { icon: '🐺', name: 'LAMBEHOMI', kind: 'debuff', desc: 'Uma tarefa apodreceu (passou dos dias de TREM TRAPAIADO, padrão 3) e o GUARANÁ virou LAMBEHOMI: ele sopra a casa, a BRASINHA perde uma fase, a loja tranca e a tela fica vermelha e preta.', cure: '🧂 BANHO DE SAL GROSSO. Resolvendo TODAS as atrasadas, a CAJULINA e a EVE LÃ acham o ANTÍDOTO e ele volta a ser GUARANÁ (sem XP: ninguém fabrica Praga pra ganhar ponto).' },
-  noitedisgrama: { icon: '🌕', name: 'NOITE DA DISGRAMA', kind: 'debuff', desc: 'Tarefas demais no LAMBEHOMI ao mesmo tempo: a noite fica vermelha, três lobisomens nos morros, a tela treme. É a única hora em que o PRIMO tem medo de verdade. O LAMBEHOMI rouba a BRASINHA: a chama dela cura ele (volta a ser GUARANÁ), ela vira OVO e a MEGG DE FÁTIMA choca de novo.', cure: '🧂 BANHO DE SAL GROSSO até ficar abaixo do limite (PERKS → 🧠).' },
+  noitedisgrama: { icon: '🌕', name: 'PRAGA', kind: 'debuff', desc: 'Tarefas demais no LAMBEHOMI ao mesmo tempo: a noite fica vermelha, três lobisomens nos morros, a tela treme. É a única hora em que o PRIMO tem medo de verdade. O LAMBEHOMI rouba a BRASINHA: a chama dela cura ele (volta a ser GUARANÁ), ela vira OVO e a MEGG DE FÁTIMA choca de novo.', cure: '🧂 BANHO DE SAL GROSSO até ficar abaixo do limite (PERKS → 🧠).' },
 };
 
 export function dayStatus(s, d) {
@@ -503,7 +503,7 @@ export function taskXp(s, t, d = today()) {
   }
   if (p.mini && ev?.type === 'mini') { m *= 2; parts.push('⚔ x2'); }
   if ((s.core?.weekly?.[weekStart(d)] || []).includes(t.id)) { m *= 1.5; parts.push('📌 missão da semana x1,5'); }
-  if (d === today()) { const pg = praga(s, d); if (pg.mult < 1 && !pg.list.some((x) => x.id === t.id)) { m *= pg.mult; parts.push(`🐛 A Praga −${Math.round((1 - pg.mult) * 100)}%`); } }
+  if (d === today()) { const pg = praga(s, d); if (pg.mult < 1 && !pg.list.some((x) => x.id === t.id)) { m *= pg.mult; parts.push(`🐛 TREM TRAPAIADO −${Math.round((1 - pg.mult) * 100)}%`); } }
   const tm = dayStatus(s, d).taskMult;
   if (tm !== 1) { m *= tm; parts.push(`${tm > 1 ? '✨' : '⚠'} status ${tm > 1 ? '+' : ''}${Math.round((tm - 1) * 100)}%`); }
   return { xp: Math.round(base * m), base, onTime, early, parts };
@@ -684,7 +684,7 @@ export const ACHIEVEMENTS = [
   ['eyes10', 'OLHO DE ÁGUIA', 'Deixe 10 blocos 👁 REVISADOS ao mesmo tempo', 'reviewedNow', 10, 80], ['window1', 'DONO DA CASA', 'Crie uma janela sua no QUESTS', 'windows', 1, 40],
   ['trip1', 'MOCHILEIRO', 'Use o ✈ modo VIAGEM e volte', 'trips', 1, 50], ['clean30', 'FICHA LIMPA', '30 dias sem castigo 💥 de prazo estourado', 'cleanDays', 30, 200],
   ['storm10', 'FURACÃO', '10 tarefas num dia só', 'maxDone', 10, 150], ['clock100', 'RELÓGIO SUÍÇO', '100 tarefas feitas no prazo', 'onTime', 100, 400],
-  ['exo', 'BANHO TOMADO', 'Resolva uma tarefa que já estava no LAMBEHOMI', 'pragaExo', 1, 150], ['calma7', 'NOITE TRANQUILA', '7 dias seguidos sem Praga no jogo', 'pragaCalm', 7, 120], ['alma10', 'XÔ, ASSOMBRAÇÃO', 'Toque na assombração que passa 10 vezes', 'pragaGhosts', 10, 80],
+  ['exo', 'BANHO TOMADO', 'Resolva uma tarefa que já estava no LAMBEHOMI', 'pragaExo', 1, 150], ['calma7', 'NOITE TRANQUILA', '7 dias seguidos sem TREM TRAPAIADO', 'pragaCalm', 7, 120], ['alma10', 'XÔ, ASSOMBRAÇÃO', 'Toque na assombração que passa 10 vezes', 'pragaGhosts', 10, 80],
   ['imuno', 'BENZEDEIRA', 'Resolva 3 TREM TRAPAIADO no 1º ou 2º dia', 'pragaEarly', 3, 120], ['imuno10', 'CASA DE TIJOLO', 'Limpe 10 pragas', 'pragaCured', 10, 200], ['antidoto', 'RECEITA DA EVE LÃ', 'A CAJULINA e a EVE LÃ acharam o ANTÍDOTO: o lobo se curou e a BRASINHA ficou', 'antidoto', 1, 0],
   ['done500', 'MÃO DE OBRA PESADA', 'Conclua 500 tarefas', 'done', 500, 500], ['done1000', 'MIL E UMA', 'Conclua 1.000 tarefas', 'done', 1000, 1000],
 ].map(([key, name, desc, metric, goal, xp]) => ({ key, name, desc, metric, goal, xp }));
@@ -941,7 +941,7 @@ export function alerts(s, d = today()) {
   const over = overdueTasks(s, d);
   if (over.length >= 3) out.push({ icon: '⏰', name: 'ATOLADO', desc: `${over.length} tarefas atrasadas: loja trancada até zerar (concluir ou remarcar).`, tone: 'bad' });
   const forgotten = over.filter((t) => diffDays(t.due, d) >= 7);
-  if (forgotten.length) out.push({ icon: '💀', name: 'ESQUECIDA', desc: `${forgotten.length} tarefa(s) atrasada(s) há 7+ dias. Resolva, quebre em pedaços ou remarque com honestidade.`, tone: 'bad' });
+  if (forgotten.length) out.push({ icon: '🪰', name: 'ESQUECIDA', desc: `${forgotten.length} tarefa(s) atrasada(s) há 7+ dias. Resolva, quebre em pedaços ou remarque com honestidade.`, tone: 'bad' });
   const start = s.core?.startDate || d;
   if (diffDays(start, d) >= 5 && range(addDays(d, -4), 5).every((x) => !tasksDoneOn(s, x)))
     out.push({ icon: '🗿', name: 'ESTAGNADO', desc: '5 dias sem concluir nada. Pegue a menor subtarefa e faça 10 minutos.', tone: 'warn' });
@@ -1391,7 +1391,7 @@ export function neuroRoutine(plan, hours) {
 // Cada tarefa é um TREM: TREM FEI (prazo longe) › TREM CUSTOSO (vence hoje ou amanhã) › estourou = Praga, 4 fases, 1 por dia de atraso:
 // 1-3 TREM TRAPAIADO (os efeitos crescem por dentro: 2 = FOCO AGORA e PRIMO paranoico; 3 = faixa nas abas e janelas a cada 7 min)
 // · 4 LAMBEHOMI (a tarefa apodreceu: tela vermelha e preta, a BRASINHA perde 1 fase, loja trancada). Castigos não somam (sem −XP).
-// NOITE DA DISGRAMA = noiteN(s) ou mais no LAMBEHOMI ao mesmo tempo (o PRIMO com medo de verdade; o lobo rouba a BRASINHA).
+// PRAGA = noiteN(s) ou mais no LAMBEHOMI ao mesmo tempo (o PRIMO com medo de verdade; o lobo rouba a BRASINHA).
 // Cada atrasada tem a sua fase; o app mostra a PIOR. Feriado, dia de DESCANSO e VIAGEM não contam.
 // Cura (BANHO DE SAL GROSSO): resolver, remarcar (custa o de sempre) ou cancelar. Limpar NÃO dá XP. Sem CORPO FECHADO e sem vacina.
 export const PRAGA_POP_MS = 7 * 60e3;
@@ -1407,7 +1407,7 @@ export function moscaCfg(s) {
   const mosca2 = clampN(n.mosca2, MOSCA_PADRAO.mosca2, 0, 7);
   return { mosca2, mosca1: Math.max(mosca2, clampN(n.mosca1, MOSCA_PADRAO.mosca1, 0, 60)), podre: clampN(n.podre, MOSCA_PADRAO.podre, 1, 10) };
 }
-/** v8: quantas tarefas no LAMBEHOMI ao mesmo tempo viram NOITE DA DISGRAMA. Ajustável em PERKS → 🧠. */
+/** v8: quantas tarefas no LAMBEHOMI ao mesmo tempo viram PRAGA. Ajustável em PERKS → 🧠. */
 export const NOITE_N = 3;
 export const noiteN = (s) => Math.max(1, Math.min(10, Math.round(+(s.core?.settings?.neuro?.noiteN) || NOITE_N)));
 export function praga(s, td = today()) {
@@ -1483,7 +1483,7 @@ export function pragaWhere(s, id) {
 // ───────────────────────── v7.3b: a BRASINHA (pintinho vermelho de fênix) e o CALOR 🔥 ─────────────────────────
 // Cada tarefa é um TREM atrás da BRASINHA. Ela cresce com o CALOR: tarefa feita NO PRAZO esquenta, dia na meta esquenta mais
 // (e a sequência mais ainda), tarefa feita atrasada esfria. O dia é fechado na virada (o crescimento aparece de manhã).
-// Perde 1 fase por TREM que chega no LAMBEHOMI (nunca abaixo de PINTINHO) e só vira OVO na NOITE DA DISGRAMA (o lobo rouba). Os números ficam aqui pra ajustar.
+// Perde 1 fase por TREM que chega no LAMBEHOMI (nunca abaixo de PINTINHO) e só vira OVO na PRAGA (o lobo rouba). Os números ficam aqui pra ajustar.
 export const BRAS_NAMES = ['OVO', 'PINTINHO', 'CRISTA DE FOGO', 'PÁSSARO DE FOGO', 'FÊNIX'];
 export const BRAS_FRAME = [0, 1, 3, 6, 7]; // quadro da arte de 8 quadros (até chegar a arte nova da BRASINHA)
 export const BRAS_NEED = [15, 45, 80, 110]; // calor pra sair de cada fase: ~1 mês do OVO à FÊNIX num ritmo bom (escolha do dono)
@@ -1528,7 +1528,7 @@ export function moscasOf(s, t, td = today()) {
 // ───────────────────────── v8: o LOBO (GUARANÁ ⇄ LAMBEHOMI, o mesmo bicho em dois estados) ─────────────────────────
 // O ciclo infinito, como a lua: GUARANÁ calmo (tudo em dia) → emburrado/isolado (existe TREM TRAPAIADO: é o aviso)
 // → LAMBEHOMI (1 tarefa apodreceu, passou de `podre` dias, padrão 3). Ele volta a ser GUARANÁ de dois jeitos:
-//   1) NOITE DA DISGRAMA: rouba a BRASINHA, a chama dela o cura, ela vira OVO e a MEGG DE FÁTIMA choca de novo
+//   1) PRAGA: rouba a BRASINHA, a chama dela o cura, ela vira OVO e a MEGG DE FÁTIMA choca de novo
 //      (se a BRASINHA já é OVO, não tem o que roubar: ele continua LAMBEHOMI);
 //   2) ANTÍDOTO: todas as atrasadas resolvidas → a CAJULINA e a EVE LÃ acham o antídoto, a BRASINHA fica (sem XP).
 // TRÉGUA: depois de qualquer cura ele fica GUARANÁ até o fim do dia seguinte. Dados: core.lobo = { st, since, tregua, curas: { noite, antidoto }, hist[] }.
@@ -1537,7 +1537,7 @@ export const LOBO_STATES = {
   calmo: { ico: '🥭', name: 'GUARANÁ', sub: 'chupando manga', tip: 'Tudo em dia. O GUARANÁ tá na dele: solitário, cheirando o chão, chupando manga.' },
   tregua: { ico: '🥭', name: 'GUARANÁ', sub: 'de trégua', tip: 'Acabou de se curar: fica GUARANÁ até o fim de amanhã, aconteça o que acontecer.' },
   emburrado: { ico: '😒', name: 'GUARANÁ', sub: 'emburrado, se isolando', tip: 'Tem TREM TRAPAIADO. Ele tá se isolando e a raiva tá voltando. Se uma tarefa apodrecer, ele vira LAMBEHOMI.' },
-  lambehomi: { ico: '🐺', name: 'LAMBEHOMI', sub: 'à solta', tip: 'A raiva tomou conta. Resolva TODAS as atrasadas e a CAJULINA e a EVE LÃ acham o ANTÍDOTO. Se chegar a NOITE DA DISGRAMA, ele rouba a BRASINHA.' },
+  lambehomi: { ico: '🐺', name: 'LAMBEHOMI', sub: 'à solta', tip: 'A raiva tomou conta. Resolva TODAS as atrasadas e a CAJULINA e a EVE LÃ acham o ANTÍDOTO. Se chegar a PRAGA, ele rouba a BRASINHA.' },
 };
 export function lobo(s, td = today()) {
   const L = s.core?.lobo || { st: 'guarana' }, pg = praga(s, td);

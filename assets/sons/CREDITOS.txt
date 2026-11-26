@@ -2,9 +2,8 @@ Sons da PRAGA (v6.6). Todos CC0 (domínio público), do OpenGameArt.org. Cortado
 - praga-chiado.mp3 ← "Frequency Static Sound Effects" (bretbernhoft)  https://opengameart.org/content/frequency-static-sound-effects
 - praga-sino.mp3   ← "Bell dings/chimes" (pwl), afinado mais grave com eco  https://opengameart.org/content/bell-dingschimes
 - praga-drone.mp3  ← "Ambient Horror" (techiew)            https://opengameart.org/content/ambient-horror
-- praga-fita.mp3   ← "Reversing Time / Stuck in Time" (isaiah658)  https://opengameart.org/content/reversing-time-stuck-in-time
-- praga-canto.mp3  ← "Creepy incoherent chanting" (owlishmedia)  https://opengameart.org/content/creepy-incoherent-chanting
-- sal-grosso.mp3   ← (era reza.mp3) "ethereal chant" do mesmo pacote (owlishmedia) + "Bell dings/chimes" (pwl)
 - praga-alma.mp3   ← "Air whoosh" (pyranostudios) + "Ghost" (ogrebane), misturados  https://opengameart.org/content/air-whoosh · https://opengameart.org/content/ghost
 
 (v8) O zumbido da mosca e o uivo do LAMBEHOMI são gerados no aparelho (audio.js), sem arquivo.
+
+(v9.0) A BAGUNÇA dos TREM (latas, tralha, gato), o BANHO DE SAL GROSSO (grãos + sininho) e a voz de cada personagem do elenco também são gerados no aparelho (audio.js). Os arquivos praga-fita, praga-canto e sal-grosso saíram.

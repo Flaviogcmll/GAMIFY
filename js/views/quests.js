@@ -8,7 +8,7 @@ import { isCollapsed, companionCard } from '../v3.js';
 import { primoHead } from '../primo.js';
 import { arrange } from '../v35.js';
 import { overflowBar } from '../bujo.js';
-import { moscasHtml, moscaMortaHtml } from '../moscas.js';
+import { moscasHtml, moscaMortaHtml, miniMosca } from '../moscas.js';
 
 const sortOrd = (a, b) => a.ord - b.ord;
 /** v7.1: ORDENAR pelo menu ≡ (só na tela: a ordem guardada não muda). Uma escolha por janela, lembrada no aparelho.
@@ -46,7 +46,7 @@ const revBtn = (act, attr, on) => `<button class="rev-btn ${on ? 'on' : ''}" dat
 const stalledOff = (ui) => (t) => t.color !== 'black' || ui.showStalled;
 
 /** v8.4: as listas são pela COR (URGENTE · CHEGANDO · ESTÁVEL · A CLASSIFICAR · AGUARDANDO · PARADO); dentro de cada uma, pela data */
-const COR_HINT = { urg: 'urgente (prazo hoje)', chega: 'chegando', estavel: 'estável, sem pressa', semcor: 'pra classificar depois', wait: 'aguardando alguém', parado: 'parado de propósito' };
+const COR_HINT = { urg: 'urgente (prazo hoje)', chega: 'esquentando (logo mais)', estavel: 'estável, sem pressa', semcor: 'pra classificar depois', wait: 'aguardando alguém', parado: 'parado de propósito' };
 const COR_LIST = { urg: 'hoje', chega: 'semana', estavel: 'depois', semcor: 'sem', wait: 'wait', parado: 'sem' }; // cor do cabeçalho (mesmas cores das listas antigas)
 function listCard(cor, ui) {
   const td = today(), wait = cor === 'wait';
@@ -64,7 +64,7 @@ function listCard(cor, ui) {
   const coming = cor === 'urg' && R.neuroOn(S, 'praga') ? open.filter((t) => t.due === td && t.st !== 'wait' && !t.who && !t.mother && R.pragaDay(S, t.due, 1) === addDays(td, 1)).length : 0;
   const ck = 'l:' + cor;
   return `<section class="list-card ${isCollapsed(ck) ? 'collapsed' : ''} ${rv ? 'reviewed' : ''}" data-list="${COR_LIST[cor]}" data-cor="${cor}" data-drop-cor="${cor}"><header><h2 data-act="collapse" data-k="${ck}" style="cursor:pointer"><span class="chev">${isCollapsed(ck) ? '▸' : '▾'}</span> ${R.COR_NAMES[cor]}</h2>
-      <span class="row" style="gap:4px"><span class="meta">${open.length}${late ? ` · <span class="bad">${late} atrasada${late > 1 ? 's' : ''}</span>` : ''}</span>${coming ? `<span class="pg-coming" title="💀 ${coming} tarefa${coming > 1 ? 's' : ''} de hoje vira${coming > 1 ? 'm' : ''} TREM TRAPAIADO amanhã se ficar${coming > 1 ? 'em' : ''} sem fazer">💀${coming}</span>` : ''}</span></header>
+      <span class="row" style="gap:4px"><span class="meta">${open.length}${late ? ` · <span class="bad">${late} atrasada${late > 1 ? 's' : ''}</span>` : ''}</span>${coming ? `<span class="pg-coming" title="🪰 ${coming} tarefa${coming > 1 ? 's' : ''} de hoje vira${coming > 1 ? 'm' : ''} TREM TRAPAIADO amanhã se ficar${coming > 1 ? 'em' : ''} sem fazer">${miniMosca(coming)}</span>` : ''}</span></header>
     <form class="addline" data-form="add-task" data-cor="${cor}" autocomplete="off"><input class="inp" name="text" placeholder="+ adicionar ${COR_HINT[cor]}" aria-label="Adicionar em ${R.COR_NAMES[cor]}"></form>
     ${cor === 'urg' ? overflowBar() : ''}<ul class="tasks">${show.map((t) => taskRow(t, { list: !t.block, go: !!t.block, sub: sub(t) })).join('')}${show.length ? '' : `<div class="empty">${wait ? 'ninguém te segurando. 👏' : 'vazio.'}</div>`}</ul>
     ${!ui.showDone && nHidden ? `<button class="more" data-act="toggle-done">✓ ${nHidden} feitas · mostrar</button>` : ''}
@@ -149,8 +149,8 @@ export function filaCard(td) {
   // v8.3 (pedido do dono): os RITUAIS dos próximos 14 dias também entram na fila, na ordem da data (são coisas a fazer)
   const rits = (S.core.rituals || []).map((r) => ({ r, s: R.ritualStatus(r, td) })).filter((x) => x.s.next && x.s.left != null && x.s.left <= 14);
   const rows = [...q.map((t) => ({ t, k: t.due || '9999' })), ...rits.map((x) => ({ ...x, k: x.s.next }))].sort((a, b) => a.k.localeCompare(b.k));
-  const taskLi = (t) => `<div class="li" data-act="jump" data-id="${t.id}" data-list="${R.listOf(t, td)}" style="cursor:pointer"><div class="lt">${t.st === 'doing' ? '▶ ' : ''}${t.prio ? '<b class="bad">!</b> ' : ''}${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}<small>${esc(where(t))}</small></div><div class="row" style="flex-wrap:nowrap">${dueChip(t.due, false, true)}</div>${((m) => moscasHtml(m.n, m.title, true))(R.moscasOf(S, t, td))}</div>`;
-  const ritLi = (r, st) => { const pg = R.pragaOf(S, r.id); return `<div class="li rit" data-rit="${r.id}" ${pg ? `data-praga="${pg.phase}"` : ''} data-act="edit-ritual" data-id="${r.id}" style="cursor:pointer"><div class="lt">🔁 ${esc(r.name)}<small>ritual${st.plan ? ' · dia marcado' : ''}</small></div><div class="row" style="flex-wrap:nowrap"><span class="chip ${st.left < 0 ? 'late' : st.left <= 1 ? 'week' : 'rit'}">${esc(st.label)}</span></div>${pg ? moscasHtml(pg.phase >= 4 ? 'aur' : 3, `🪰 ritual atrasado há ${pg.days} dia(s)`, true) : ''}</div>`; };
+  const taskLi = (t) => `<div class="li" data-act="jump" data-id="${t.id}" data-list="${R.listOf(t, td)}" style="cursor:pointer"><div class="lt">${t.st === 'doing' ? '▶ ' : ''}${t.prio ? '<b class="bad">!</b> ' : ''}${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}<small>${esc(where(t))}</small></div><div class="row" style="flex-wrap:nowrap;gap:4px">${((m) => moscasHtml(m.n, m.title))(R.moscasOf(S, t, td))}${dueChip(t.due, false, true)}</div></div>`;
+  const ritLi = (r, st) => { const pg = R.pragaOf(S, r.id); return `<div class="li rit" data-rit="${r.id}" ${pg ? `data-praga="${pg.phase}"` : ''} data-act="jump-rit" data-id="${r.id}" style="cursor:pointer" title="Ir até o ritual"><div class="lt">${esc(r.name)}<small>ritual${st.plan ? ' · dia marcado' : ''}</small></div><div class="row" style="flex-wrap:nowrap;gap:4px">${pg ? moscasHtml(pg.phase >= 4 ? 'aur' : 3, `🪰 ritual atrasado há ${pg.days} dia(s)`) : ''}<span class="chip ${st.left < 0 ? 'late' : st.left <= 1 ? 'week' : 'rit'}">${esc(st.label)}</span></div></div>`; };
   return `<div class="card fila-q"><header><h2 title="Tudo que tem prazo, do mais perto pro mais longe (rituais incluídos)">⏰ Fila de prazos</h2><span class="meta">${rows.length}</span></header>
     <div class="list">${rows.map((x) => (x.t ? taskLi(x.t) : ritLi(x.r, x.s))).join('') || '<div class="empty">nenhuma tarefa com prazo.</div>'}</div></div>`;
 }
@@ -228,15 +228,6 @@ const CURFEW_KEY = 'gamify-ui:curfew-off';
 const curfewOff = () => { try { return +localStorage.getItem(CURFEW_KEY) > Date.now(); } catch { return false; } };
 export const curfewSkip = () => { try { localStorage.setItem(CURFEW_KEY, String(Date.now() + 15 * 60e3)); } catch { /* */ } };
 export const inCurfew = () => R.neuroOn(S, 'curfew') && ['recolher', 'sono'].includes(R.bodyClock(S).key) && !curfewOff();
-/** v8: o RELÓGIO DO CORPO numa linha, dentro do FOCO AGORA (fase do dia, dica, dormir, refeição e café). Antes era um cartão que repetia a tarefa do FOCO. */
-function clockLine() {
-  if (!R.neuroOn(S, 'clock')) return '';
-  const c = R.bodyClock(S);
-  const h = (m) => (m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? String(m % 60).padStart(2, '0') : ''}` : `${m} min`);
-  const meta = [c.key === 'sono' ? `acordar ${c.wake}` : `dormir ${c.bed} (faltam ${h(c.toBed)})`, c.meal ? `🍽 ${c.meal.at}${c.meal.in ? ` (em ${h(c.meal.in)})` : ' (agora)'}` : '', ['despertar', 'foco', 'vale'].includes(c.key) ? `☕ até ${c.coffeeUntil}` : '', ['vale', 'pico2'].includes(c.key) ? `🏋 até ${c.trainUntil}` : ''].filter(Boolean).join(' · ');
-  const curto = c.tip.split(/(?<=[.!?])\s/)[0]; // v8.3: só a 1ª frase (a dica inteira fica na legenda): o relógio estava ocupando o cartão todo
-  return `<div class="fn-clock" data-phase="${c.key}" title="Relógio do corpo (PERKS → 🧠): ${esc(c.tip)}"><b>${c.icon} ${esc(c.name)}</b> <span>${esc(curto)}</span> <small>${esc(meta)}</small></div>`;
-}
 /** depois da hora: no lugar das listas, o fechamento do dia (o que fiz, o que fica pra amanhã, hábitos) */
 function closingView() {
   const td = today(), c = R.bodyClock(S), done = S.quests.tasks.filter((t) => t.st === 'done' && t.doneAt === td);
@@ -283,7 +274,7 @@ export function viewQuests(ui) {
             <button class="btn sm ${ui.showDone ? 'pri' : 'ghost'}" data-act="toggle-done">${ui.showDone ? '☑' : '☐'} FEITAS</button>
             <button class="btn sm ${ui.showStalled ? 'pri' : 'ghost'}" data-act="toggle-stalled" title="⬛ parados: blocos e tarefas com a cor PARADO">${ui.showStalled ? '☑' : '☐'} PARADOS</button>
             <small class="qpop-h">Dica: Shift + clique no ☐ conclui um intervalo inteiro${matchMedia('(pointer: coarse)').matches ? ' · no celular: segure numa tarefa e arraste o dedo' : ''}</small></div></details></div></div>
-      ${ui.mm ? mementoCard(ui) : `${chapterDue()}${focusCard(ui)}${topStrip()}${body}`}
+      ${ui.mm ? mementoCard(ui) : `${chapterDue()}${topStrip()}${body}`}
     </div>${sidePanel(ui)}</div>`;
 }
 
@@ -291,18 +282,7 @@ function chapterDue() {
   const ch = S.core.chapter || {}, td = today();
   return ch.until && ch.until < td ? `<div class="banner info" style="margin-bottom:12px">📖 O capítulo <b>${esc(ch.title)}</b> venceu em ${fmtDM(ch.until)}. Em <a href="#regras">PERKS AND RULES</a> troque o número, o título, a missão e a data pra começar o próximo (a carta do capítulo é guardada).</div>` : '';
 }
-/** v5.16 (2E + 5A) FOCO AGORA: uma tarefa só, e o porquê (o app junta prazo, boss parado, missão, horário do corpo e prioridade) */
-function focusCard(ui) {
-  if (!R.neuroOn(S, 'foco')) return '';
-  const f = R.focusNow(S, today(), ui.focusSkip || []);
-  if (!f) return `<div class="focus-now card empty-f"><span class="fn-k">🎯 FOCO AGORA</span><span class="meta">nada urgente: escolha você ${ui.focusSkip?.length ? '<a href="#" data-act="focus-reset">ver de novo as sugestões</a>' : ''}</span>${clockLine()}</div>`;
-  const t = f.task, b = t.block && R.findBlock(S, t.block);
-  const ph = R.neuroOn(S, 'clock') ? R.bodyClock(S).key : ''; // v8.3: o cartão ganha uma cor bem leve conforme a fase do dia
-  return `<div class="focus-now card ${f.praga ? 'praga' : ''}" ${f.praga ? `data-praga="${f.praga}"` : ''} ${ph ? `data-phase="${ph}"` : ''}><span class="fn-k" title="O PRIMO escolhe UMA tarefa pra você não perder tempo decidindo">🎯 FOCO AGORA</span>
-    <button class="check" data-act="toggle" data-id="${t.id}" aria-label="Concluir">${t.st === 'doing' ? '▶' : ''}</button>
-    <div class="fn-t" data-act="jump" data-id="${t.id}" title="Toque pra ir até a tarefa"><b>${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}</b><small>${b ? esc(b.title) + ' · ' : ''}porque ${esc(f.why)}</small></div>
-    ${((m) => moscasHtml(m.n, m.title))(R.moscasOf(S, t))}<span class="chip xp">${R.taskXp(S, t).xp}</span>${f.praga ? `<span class="chip praga-chip" title="Enquanto ela estiver infectada, não dá pra trocar">🪰 FASE ${f.praga}</span>` : `<button class="btn sm ghost" data-act="focus-skip" data-id="${t.id}" title="Agora não: mostra outra sugestão">OUTRA ▸</button>`}${clockLine()}</div>`;
-}
+// v9.0 (pedido do dono): o FOCO AGORA saiu (confundia: o que fazer está na FILA DE PRAZOS e no FILTRO). As dicas do relógio do corpo viraram fala do PRIMO (primo.js → primoTip).
 /** v6 MEMENTO MORI: tocar de novo na janela aberta recolhe tudo e mostra o tempo passando (lembra de parar de procrastinar) */
 const MM_LINES = ['Memento mori: o tempo não volta. Faça hoje o que importa.', 'Cada minuto aqui é um minuto a menos lá fora. Escolha UMA coisa.', 'O dia está passando agora, enquanto você lê isto.', 'Você não tem todo o tempo do mundo. Tem o de hoje.'];
 function mementoCard(ui) {
@@ -311,7 +291,6 @@ function mementoCard(ui) {
   const h = (m) => `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}`;
   // v7.1: o FOCO AGORA é o grande (é o que fazer com o tempo que resta); o relógio fica pequeno, embaixo
   return `<div class="memento v71 card" data-act="mm-off" title="Toque pra voltar">
-    <div class="mm-foco">${focusCard(ui)}</div>
     <div class="mm-row"><span class="mm-art">${px('hourglass', 56)}</span>
     <div class="mm-col"><div class="mm-clock" data-clock>${now.toLocaleTimeString('pt-BR')}</div>
       <div class="mm-bar">${segBar(pct, 'sm')}</div>

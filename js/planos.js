@@ -4,9 +4,11 @@
 import { S } from './store.js';
 import * as R from './rules.js';
 import * as A from './actions.js';
-import { esc, today, addDays, fmtDM, weekday, DOW } from './util.js';
+import { esc, today, addDays, fmtDM, weekday, DOW, lightNow } from './util.js';
 import { openModal, closeModal, modalOpen, toast } from './ui.js';
 import { sfx } from './audio.js';
+import { vitrine, fig, NOMES } from './elenco.js';
+import { tone } from './views/rotina.js';
 
 const ls = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* */ } } };
 const WD = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
@@ -17,13 +19,20 @@ const dayName = (d) => (d === today() ? 'HOJE' : d === addDays(today(), 1) ? 'AM
 
 /** as tarefas abertas de um dia (com horário e sem), mais os rituais marcados pra ele */
 function dayItems(d) {
-  const tasks = R.openTasks(S).filter((t) => t.due === d && t.st !== 'wait' && !t.mother);
-  const rits = (S.core.rituals || []).filter((r) => R.ritualStatus(r, today()).next === d);
+  const td = today(), hoje = d === td; // v9.0: HOJE também traz o que está atrasado (é do dia: precisa de um horário)
+  const tasks = R.openTasks(S).filter((t) => t.due && (hoje ? t.due <= d : t.due === d) && t.st !== 'wait' && !t.who && !t.mother);
+  const rits = (S.core.rituals || []).filter((r) => { const n = R.ritualStatus(r, td).next; return n && (hoje ? n <= d : n === d); });
   return { timed: tasks.filter(hourOf).sort((a, b) => toMin(hourOf(a)) - toMin(hourOf(b))), loose: tasks.filter((t) => !hourOf(t)), rits };
 }
 
-/** 🗓 MEU DIA: as horas do dia (as da ROTINA), o que a rotina manda em cada hora e as tarefas com horário. ◄ ► troca o dia. */
-export function diaCard(ui) {
+/** v9.0 (pedido do dono): o MEU DIA virou BANNER, com o visual da ROTINA (cada hora com a cor da atividade) e, do lado,
+ *  a BAGUNÇA: o que é do dia e ainda não tem horário fica solto, meio torto, esperando ser arrumado. Arraste (mouse) ou
+ *  toque e depois toque na hora (celular) pra encaixar; arrastar de volta pra bagunça tira o horário. Os TREM do dia
+ *  (FEI, CUSTOSO, TRAPAIADO) ficam ali, um por tarefa, cada um numa pose. */
+const seed = (str) => [...String(str)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+const tremLevel = (t, td) => { const tr = R.tremOf(S, t, td); return !tr ? 0 : tr.k === 'praga' ? 3 : tr.k === 'custoso' ? 2 : tr.moscas ? 1 : 0; };
+let picked = null; // celular: a tarefa escolhida esperando a hora
+export function diaCard(ui, shut = false) {
   const td = today(), d = addDays(td, ui.agDay || 0), r = S.core.routine, plan = r?.plans?.[Math.min(r.active ?? 0, (r.plans?.length || 1) - 1)];
   const hours = r?.hours?.length ? r.hours : ['07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22'];
   const wd = WD[weekday(d)], { timed, loose, rits } = dayItems(d);
@@ -31,14 +40,56 @@ export function diaCard(ui) {
   const slotOf = (hm) => [...hours].reverse().find((h) => toMin(h) <= toMin(hm)) || hours[0];
   const bySlot = {}; for (const t of timed) (bySlot[slotOf(hourOf(t))] ||= []).push(t);
   const cur = d === td ? [...hours].reverse().find((h) => toMin(h) <= nowM) : null;
-  const chip = (t) => `<button class="dia-t" data-act="edit-task" data-id="${t.id}" data-color="${R.colorOfTask(S, t) || ''}" title="Abrir a tarefa (dá pra mudar o horário lá)"><b>${esc(hourOf(t))}</b> ${esc(clean(t.text))}</button>`;
-  const rows = hours.map((h) => { const rot = plan?.grid?.[`${wd}|${h}`] || '', items = bySlot[h] || [];
-    return `<div class="dia-h ${h === cur ? 'now' : ''} ${items.length ? 'has' : ''}"><span class="dia-hh">${esc(h)}${String(h).includes(':') ? '' : 'h'}</span><span class="dia-rot">${esc(rot)}</span><span class="dia-ts">${items.map(chip).join('')}</span></div>`; }).join('');
-  return `<div class="card c12 dia-card" data-gk="meu-dia"><header><h2>🗓 Meu dia</h2>
-      <div class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn sm" data-act="ag-dia" data-dir="-1" aria-label="Dia anterior">◄</button><span class="meta dia-n"><b>${dayName(d)}</b> ${fmtDM(d)}</span><button class="btn sm" data-act="ag-dia" data-dir="1" aria-label="Próximo dia">►</button>${ui.agDay ? '<button class="btn sm ghost" data-act="ag-dia" data-dir="0">HOJE</button>' : ''}</div></header>
-    <div class="dia-actions"><button class="btn sm" data-act="plan-tomorrow">🌙 PLANEJAR AMANHÃ</button><button class="btn sm" data-act="plan-change">🔀 MUDANÇA DE PLANOS</button></div>
-    <div class="dia-grid">${rows}</div>
-    ${loose.length || rits.length ? `<div class="dia-loose"><small class="meta">sem horário (toque pra marcar a hora)</small>${loose.map((t) => `<button class="dia-t" data-act="edit-task" data-id="${t.id}" data-color="${R.colorOfTask(S, t) || ''}">${esc(clean(t.text))}</button>`).join('')}${rits.map((x) => `<button class="dia-t rit" data-act="edit-ritual" data-id="${x.id}">🔁 ${esc(x.name)}</button>`).join('')}</div>` : `<p class="meta" style="margin:8px 0 0">${timed.length ? '' : 'Nada marcado pra esse dia.'}</p>`}</div>`;
+  const chip = (t) => `<button class="dia-t dia-drag" data-act="edit-task" data-id="${t.id}" data-color="${R.colorOfTask(S, t) || ''}" title="Toque pra abrir · arraste pra outra hora ou de volta pra bagunça"><b>${esc(hourOf(t))}</b> ${esc(clean(t.text))}</button>`;
+  const rows = hours.map((h) => { const rot = plan?.grid?.[`${wd}|${h}`] || '', items = bySlot[h] || [], past = d < td || (d === td && cur && toMin(h) < toMin(cur));
+    return `<div class="dia-h ${h === cur ? 'now' : ''} ${past ? 'past' : ''} ${items.length ? 'has' : ''}" data-dia-h="${esc(h)}"><span class="dia-hh">${esc(h)}${String(h).includes(':') ? '' : 'h'}</span><span class="dia-rot" style="${rot ? tone(rot) : ''}" title="${esc(rot)}">${esc(rot)}</span><span class="dia-ts">${items.map(chip).join('')}</span></div>`; }).join('');
+  // a bagunça: posição e inclinação "aleatórias" mas fixas por tarefa (não pulam a cada redesenho)
+  const mess = loose.map((t, i) => { const k = seed(t.id), rot = (k % 9) - 4, dx = (k >> 4) % 9, dy = (k >> 9) % 7;
+    return `<button class="dia-t dia-drag solto ${picked === t.id ? 'picked' : ''}" data-act="dia-pick" data-id="${t.id}" data-color="${R.colorOfTask(S, t) || ''}" style="--r:${rot}deg;--dx:${i % 2 ? dx : -dx}px;--dy:${dy}px" title="Arraste até uma hora (no celular: toque aqui e depois na hora)">${esc(clean(t.text))}</button>`; }).join('');
+  const ritsH = rits.map((x) => `<button class="dia-t rit solto" data-act="jump-rit" data-id="${x.id}" style="--r:${(seed(x.id) % 7) - 3}deg" title="Ritual do dia: toque pra ir até ele">🔁 ${esc(x.name)}</button>`).join('');
+  const lv = [...timed, ...loose].map((t) => tremLevel(t, td)).filter(Boolean);
+  const nT = [1, 2, 3].map((n) => lv.filter((x) => x === n).length);
+  const trens = [3, 2, 1].flatMap((n) => Array.from({ length: Math.min(nT[n - 1], 4) }, (_, i) => fig('trem-' + n, (i % 3) + 1, 'dia-trem', `${NOMES['trem-' + n]}${nT[n - 1] > 1 ? ` (${nT[n - 1]} no dia)` : ''}`, true))).slice(0, 8).join('');
+  const resumo = [nT[2] && `${nT[2]} TRAPAIADO`, nT[1] && `${nT[1]} CUSTOSO`, nT[0] && `${nT[0]} FEI`].filter(Boolean).join(' · ');
+  const nav = `<div class="row dia-nav"><button class="btn sm" data-act="ag-dia" data-dir="-1" aria-label="Dia anterior">◄</button><span class="meta dia-n"><b>${dayName(d)}</b> ${fmtDM(d)}</span><button class="btn sm" data-act="ag-dia" data-dir="1" aria-label="Próximo dia">►</button>${ui.agDay ? '<button class="btn sm ghost" data-act="ag-dia" data-dir="0">HOJE</button>' : ''}<span class="grow"></span><button class="btn sm" data-act="plan-tomorrow">🌙 PLANEJAR AMANHÃ</button><button class="btn sm" data-act="plan-change">🔀 MUDANÇA DE PLANOS</button></div>`;
+  const body = `${nav}<div class="dia-wrap"><div class="dia-grid rot-look">${rows}</div>
+    <aside class="dia-mess" data-dia-mess="1"><header><b>🧺 BAGUNÇA DO DIA</b><small class="meta">${loose.length ? `${loose.length} sem horário: arraste pra uma hora${picked ? ' · agora toque na hora' : ''}` : 'tudo encaixado. Trem bão!'}</small></header>
+      <div class="mess-pile">${mess}${ritsH}${loose.length || rits.length ? '' : '<p class="meta" style="margin:6px 0">Nada solto. Arraste uma tarefa da hora pra cá pra tirar o horário.</p>'}</div>
+      ${trens ? `<div class="dia-trens" title="Os TREM do dia: quanto mais perto do prazo, mais feio">${trens}</div><small class="meta dia-tr-n">${resumo}</small>` : ''}</aside></div>`;
+  return vitrine({ k: 'c:agenda:meu-dia', v: 'meu-dia', title: `🗓 MEU DIA · ${dayName(d)} ${fmtDM(d)}`, sub: `${timed.length} com hora · ${loose.length} na bagunça${rits.length ? ` · ${rits.length} ritual(is)` : ''}`, topo: `assets/topo/rotina-${lightNow() === 'noite' ? 'noite' : 'dia'}.webp`, host: ['primo', 3, 'PRIMO com a lista do dia'], shut, body });
+}
+
+/** encaixa a tarefa numa hora (ou tira a hora, h = '') */
+function placeAt(id, h) {
+  const at = h ? (String(h).includes(':') ? String(h).padStart(5, '0') : String(h).padStart(2, '0') + ':00') : undefined;
+  const t = S.quests.tasks.find((x) => x.id === id); if (!t) return;
+  const patch = { at }; if (!at && t.box?.at) patch.box = { ...t.box, at: '' };
+  const r = A.updateTask(id, patch); picked = null;
+  if (r?.error) { toast(esc(r.error), 'bad'); sfx('error'); } else { sfx('tab'); toast(at ? `🕐 Encaixada às ${at}.` : '🧺 Voltou pra bagunça (sem horário).'); }
+  window.__render?.();
+}
+// arrastar com o mouse (no celular: tocar e depois tocar na hora; o dedo continua rolando a tela normalmente)
+let drag = null;
+function onDown(e) {
+  const el = e.target.closest?.('.dia-drag'); if (!el || e.pointerType !== 'mouse' || e.button !== 0) return;
+  drag = { el, id: el.dataset.id, x: e.clientX, y: e.clientY, on: false };
+}
+function onMove(e) {
+  if (!drag) return;
+  if (!drag.on) { if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 6) return; drag.on = true; drag.ghost = drag.el.cloneNode(true); drag.ghost.classList.add('dia-ghost'); document.body.appendChild(drag.ghost); drag.el.classList.add('dragging'); }
+  drag.ghost.style.left = e.clientX + 8 + 'px'; drag.ghost.style.top = e.clientY + 8 + 'px';
+  document.querySelectorAll('.dia-h.over,.dia-mess.over').forEach((x) => x.classList.remove('over'));
+  document.elementFromPoint(e.clientX, e.clientY)?.closest?.('.dia-h,.dia-mess')?.classList.add('over');
+  if (e.clientY < 80) scrollBy(0, -14); else if (e.clientY > innerHeight - 60) scrollBy(0, 14); // perto da borda, a tela rola
+}
+function onUp(e) {
+  const d = drag; drag = null; if (!d?.on) return;
+  d.ghost.remove(); d.el.classList.remove('dragging'); document.querySelectorAll('.dia-h.over,.dia-mess.over').forEach((x) => x.classList.remove('over'));
+  const tgt = document.elementFromPoint(e.clientX, e.clientY);
+  const row = tgt?.closest?.('[data-dia-h]'), mess = tgt?.closest?.('[data-dia-mess]');
+  // o clique que vem depois de soltar não pode abrir a tarefa
+  addEventListener('click', (c) => { c.stopPropagation(); c.preventDefault(); }, { capture: true, once: true });
+  if (row) placeAt(d.id, row.dataset.diaH); else if (mess) placeAt(d.id, '');
 }
 
 // ───── 🌙 PLANEJAR AMANHÃ: o que vai pra amanhã, com horário, e o que sobrou de hoje ─────
@@ -83,6 +134,8 @@ const redraw = () => { const m = document.querySelector('.modal .planos'); if (!
 
 export function extendPlanos(ACTIONS, FORMS) {
   Object.assign(ACTIONS, {
+    // v9.0: na BAGUNÇA, tocar escolhe (e tocar de novo abre a tarefa); depois tocar numa hora encaixa
+    'dia-pick': (d) => { if (picked === d.id) { picked = null; ACTIONS['edit-task']?.({ id: d.id }); return; } picked = d.id; sfx('tab'); window.__render?.(); },
     'ag-dia': (d) => { const ui = window.__ui; if (!ui) return; ui.agDay = +d.dir === 0 ? 0 : (ui.agDay || 0) + +d.dir; window.__render?.(); },
     'plan-tomorrow': () => openPlanTomorrow(),
     'plan-change': () => openPlanChange('hoje'),
@@ -99,6 +152,12 @@ export function extendPlanos(ACTIONS, FORMS) {
     if (r?.task && d !== r.task.due) A.updateTask(r.task.id, { due: d });
     sfx('tab'); redraw(); setTimeout(() => document.querySelector('.modal form[data-form="plan-add"] input')?.focus(), 40);
   };
+  addEventListener('pointerdown', onDown); addEventListener('pointermove', onMove); addEventListener('pointerup', onUp);
+  // celular: com uma tarefa escolhida na bagunça, tocar numa hora encaixa ela ali
+  document.addEventListener('click', (e) => {
+    if (!picked) return; const row = e.target.closest?.('[data-dia-h]'); if (!row || e.target.closest('.dia-t')) return;
+    e.stopPropagation(); placeAt(picked, row.dataset.diaH);
+  }, true);
   // horário digitado no PLANEJAR AMANHÃ e outro dia escolhido na MUDANÇA DE PLANOS
   document.addEventListener('change', (e) => {
     const at = e.target.closest?.('[data-plan-at]');
