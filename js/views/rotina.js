@@ -15,9 +15,10 @@ const TONES = [
 ];
 export const tone = (t) => { const m = TONES.find(([re]) => re.test(t || '')); return m ? `background:color-mix(in srgb, var(--${m[1]}) ${m[2]}%, var(--panel));color:var(--ink)` : 'background:var(--panel-2)'; };
 
-export function viewRotina(ui) {
+/** v9.5 (pedido do dono): a ROTINA virou um banner dentro da SOBREVIVÊNCIA, embaixo dos RITUAIS (este é o miolo dele) */
+export function rotinaBody(ui) {
   const r = S.core.routine;
-  if (!r?.plans?.length) return `<div class="page-title"><div><h1><em>rotina</em>.</h1></div></div><div class="card"><p>Sem rotina cadastrada ainda.</p><button class="btn pri" data-act="routine-new">CRIAR ROTINA</button></div>`;
+  if (!r?.plans?.length) return `<div class="card"><p>Sem rotina cadastrada ainda.</p><button class="btn pri" data-act="routine-new">CRIAR ROTINA</button></div>`;
   const pi = Math.min(ui.rplan ?? r.active ?? 0, r.plans.length - 1), plan = r.plans[pi];
   const now = new Date(), wd = WD[weekday(today())];
   // v6: horários podem ter minutos ("07:30"); a linha de agora é o último horário que já começou
@@ -40,8 +41,7 @@ export function viewRotina(ui) {
   // v5.16: balõezinhos com × pra tirar e + pra pôr (sem a caixa de texto)
   const chips = (list, k) => `<div class="chips rchips">${(list || []).map((x, i) => `<span class="chip rchip">${esc(x)}<button type="button" class="rx" data-act="rot-chip-del" data-k="${k}" data-i="${i}" aria-label="Tirar ${esc(x)}" title="Tirar">×</button></span>`).join('')}
     <form class="rchip-add" data-form="rot-chip-add" data-k="${k}" autocomplete="off"><input class="inp" name="v" placeholder="+" aria-label="Adicionar" maxlength="40"></form></div>`;
-  return `<div class="page-title"><div><h1><em>rotina</em>.</h1></div></div>
-    <div class="grid">
+  return `<div class="grid">
       <div class="card c12" data-gk="rot-agora"><header><h2>⏱ Agora · ${hh}${hh.includes(':') ? '' : 'h'}</h2><span class="meta">${plan.name}${pi === r.active ? ' ★' : ''}</span></header>
         <div class="rot-now"><b style="${tone(cur)}">${esc(cur || 'livre')}</b><div class="rn-info">${curSeg ? `<span class="meta">até ${hhmm(curSeg.to)} · falta${leftM > 1 ? 'm' : ''} <b>${hm(leftM)}</b></span>${segBar(pct, 'sm')}` : ''}${nxt ? `<span class="meta">depois, às ${nxt[0]}h: <b>${esc(nxt[1])}</b></span>` : ''}</div></div>
         ${strip}</div>
@@ -51,3 +51,5 @@ export function viewRotina(ui) {
       <div class="card c6" data-gk="rot-ativ"><header><h2>Atividades</h2></header>${chips(r.atividades, 'atividades')}</div>
       <div class="card c6" data-gk="rot-ctrl"><header><h2 title="O que manter sob controle">Controle</h2></header>${chips(r.controle, 'controle')}</div></div>`;
 }
+
+export const viewRotina = rotinaBody;

@@ -11,8 +11,12 @@ export const C = {
   LVL_BASE: 500, LVL_CURVE: 150,
   RIT_PESSOA: 15, RIT_OUTRO: 20,
   BAU_BASE: 50, BAU_NOTE: 10,
-  FERREIRO_XP: 100, MYSTERY: 150, OFFER: 0.3, MAX_PER_DAY: 6, DAILY_GOAL: 80, LOOT_PER_DAY: 2, FOCUS_XP: 10,
+  FERREIRO_XP: 150, /* v9.5: forjar pede mais suor (era 100 por nível) */ MYSTERY: 150, OFFER: 0.3, MAX_PER_DAY: 6, DAILY_GOAL: 80, LOOT_PER_DAY: 2, FOCUS_XP: 10,
   X_TASK: 3, X_FOCUS: 60, LATE_DAY: 0.2, LATE_MIN: 0.4, RESCHED: 10,
+  // v9.5 (economia rebalanceada: o dono ganhava ~240 XP/dia e gastava quase tudo; as conquistas davam 37% do XP):
+  PRICE_MULT: 1.3, // a vida no BARRANCO BAIXO encareceu: preços da feira x1,3
+  REPEAT_MULT: 0.3, // levar o MESMO prêmio de novo no mesmo dia: +30% a cada vez (o prazer repetido vale menos)
+  ACH_MULT: 0.5, // conquista nova paga a metade do valor escrito (é espelho do progresso, não salário)
 };
 
 // v4: valores editáveis em PERKS AND RULES (guardados em core.settings.rules). Padrões ficam em DEFAULT_C.
@@ -24,6 +28,7 @@ export const RULE_FIELDS = [
   ['Rotina e foco', [['HABIT_XP', 'hábito'], ['RD_XP', '⚔ redenção'], ['FOCUS_XP', 'foco 25 min'], ['DAILY_GOAL', 'meta do dia (XP)'], ['RIT_PESSOA', 'ritual 👥'], ['RIT_OUTRO', 'ritual 🔁']]],
   ['Expedições · aceleração', [['X_TASK', 'minutos por tarefa concluída'], ['X_FOCUS', 'minutos por 25 min de foco']]],
   ['Prazos · consequências', [['LATE_DAY', 'XP perdido por dia de atraso (0–1)'], ['LATE_MIN', 'mínimo de XP ao concluir atrasada (0–1)'], ['RESCHED', 'XP da 1ª remarcação (dobra a cada nova)']]],
+  ['Economia', [['PRICE_MULT', 'preços da feira (x)'], ['REPEAT_MULT', 'repetir o prêmio no dia (+ por vez)'], ['ACH_MULT', 'conquistas pagam (x)']]],
   ['Loja', [['MYSTERY', 'baú misterioso'], ['FERREIRO_XP', 'ferreiro (XP por nível)'], ['OFFER', 'oferta do dia (desconto 0–1)'], ['MAX_PER_DAY', 'máx. prazos por dia útil']]],
 ];
 const getPath = (o, k) => k.split('.').reduce((a, x) => a?.[x], o);
@@ -43,7 +48,7 @@ export const TITLES = [
 ];
 
 export const GROUPS = {
-  bd: { name: 'BREAKDOWN MACHINE', short: 'BREAKDOWN' },
+  bd: { name: 'GERAL', short: 'GERAL' }, // v9.5: BREAKDOWN virou GERAL (pedido do dono; a chave continua 'bd')
   tr: { name: 'TRABALHO', short: 'TRABALHO' },
   cap: { name: 'CAPTAÇÕES', short: 'CAPTAÇÕES' },
   gs: { name: 'GESTÃO', short: 'GESTÃO' },
@@ -195,6 +200,7 @@ export function idx(s) {
   }
   for (const p of s.loja?.purchases || []) {
     if (p.kind === 'taverna' || p.kind === 'bau') buysByDay[p.date] = (buysByDay[p.date] || 0) + (p.qty || 1);
+    else if (p.kind === 'resumo') buysByDay[p.date] = (buysByDay[p.date] || 0) + (p.buys || 0); // v9.5: meses antigos da NOTA FISCAL juntados num só
   }
   c.idx = { tasks, comps, doneByDay, buysByDay, xpByDay, onTimeByDay, lateByDay };
   return c.idx;
@@ -290,7 +296,9 @@ export function habitXpForDay(s, d) {
   let sum = 0;
   for (const h of habitIds(s)) {
     if (!did(s, h, d)) continue;
-    let x = C.HABIT_XP * streak(s, h, d).mult;
+    const sk = streak(s, h, d);
+    let x = C.HABIT_XP * sk.mult;
+    if (sk.forged) x *= 0.5; // v9.5 (PDF de gamificação: hábito formado fica insensível à recompensa): FORJADO vale a metade, vira peça de coleção
     if (ev?.type === 'habit' && ev.habit === h) x *= 3;
     sum += x;
   }
@@ -686,6 +694,12 @@ export const ACHIEVEMENTS = [
   ['storm10', 'FURACÃO', '10 tarefas num dia só', 'maxDone', 10, 150], ['clock100', 'RELÓGIO SUÍÇO', '100 tarefas feitas no prazo', 'onTime', 100, 400],
   ['exo', 'BANHO TOMADO', 'Resolva uma tarefa que já estava no LAMBEHOMI', 'pragaExo', 1, 150], ['calma7', 'NOITE TRANQUILA', '7 dias seguidos sem TREM TRAPAIADO', 'pragaCalm', 7, 120], ['alma10', 'XÔ, ASSOMBRAÇÃO', 'Toque na assombração que passa 10 vezes', 'pragaGhosts', 10, 80],
   ['imuno', 'BENZEDEIRA', 'Resolva 3 TREM TRAPAIADO no 1º ou 2º dia', 'pragaEarly', 3, 120], ['imuno10', 'CASA DE TIJOLO', 'Limpe 10 pragas', 'pragaCured', 10, 200], ['antidoto', 'RECEITA DA EVE LÃ', 'A CAJULINA e a EVE LÃ acharam o ANTÍDOTO: o lobo se curou e a BRASINHA ficou', 'antidoto', 1, 0],
+  // v9.5: conquistas das mecânicas novas (ORGANIZAÇÃO)
+  ['foco1', 'CABEÇA NO LUGAR', 'Termine 1 tarefa no MODO FOCO', 'focos', 1, 30], ['foco25', 'MONGE DA ROÇA', 'Termine 25 tarefas no MODO FOCO', 'focos', 25, 200],
+  ['rev1', 'DOMINGO ARRUMADO', 'Faça 1 REVISÃO DA SEMANA', 'revisoes', 1, 40], ['rev8', 'CASA EM ORDEM', 'Faça 8 REVISÕES DA SEMANA', 'revisoes', 8, 250],
+  ['rito20', 'DEVOTO', 'Cumpra 20 rituais', 'ritos', 20, 100], ['rito100', 'PROCISSÃO', 'Cumpra 100 rituais', 'ritos', 100, 300],
+  ['mud1', 'MUDANÇA FEITA', 'Dê casa pras tarefas que ficaram soltas', 'mudanca', 1, 30], ['plan7', 'AS CARTAS APROVAM', 'Planeje o amanhã 7 vezes (BOA NOITE no PLANEJAR AMANHÃ)', 'planejados', 7, 120],
+  ['nf1', 'FEIRA LIMPA', 'Esvazie a NOTA FISCAL', 'nfLimpa', 1, 20],
   ['done500', 'MÃO DE OBRA PESADA', 'Conclua 500 tarefas', 'done', 500, 500], ['done1000', 'MIL E UMA', 'Conclua 1.000 tarefas', 'done', 1000, 1000],
 ].map(([key, name, desc, metric, goal, xp]) => ({ key, name, desc, metric, goal, xp }));
 
@@ -698,6 +712,7 @@ function extraMetrics(s) {
     missionWeeks: (s.core?.bonus || []).filter((b) => b.kind === 'missoes').length,
     petStage: s.core?.brasinha?.max || 0, // v7.3b: maior fase que a BRASINHA já alcançou
     pragaEarly: s.core?.praga?.early || 0, pragaCured: s.core?.praga?.cured || 0,
+    focos: s.core?.stats?.foco || 0, revisoes: s.core?.stats?.revisao || 0, ritos: (s.core?.ritualLog || []).length, mudanca: s.core?.stats?.mudanca || 0, planejados: s.core?.stats?.plan || 0, nfLimpa: s.core?.stats?.nf || 0,
     pragaExo: s.core?.praga?.exo || 0, antidoto: s.core?.lobo?.curas?.antidoto || 0, pragaGhosts: s.core?.praga?.ghosts || 0, pragaCalm: s.core?.praga?.start ? Math.max(0, diffDays(s.core.praga.lastSeen && s.core.praga.lastSeen > s.core.praga.start ? s.core.praga.lastSeen : s.core.praga.start, today())) : 0,
     ...(() => {
       const comps = idx(s).comps, closed = allBlocks(s).filter((b) => b.st === 'done'), td = today();
@@ -784,6 +799,8 @@ export function tavernaPrice(s, item, d = today()) {
   let m = dayStatus(s, d).shopMult;
   const offer = offerOfDay(s, d);
   if (offer && offer.id === item.id) m *= 1 - C.OFFER;
+  const again = (s.loja?.purchases || []).filter((p) => p.itemId === item.id && p.date === d && p.kind === 'taverna').length; // v9.5: o mesmo prêmio de novo hoje custa mais
+  m *= (C.PRICE_MULT || 1) * (1 + (C.REPEAT_MULT || 0) * again);
   return Math.max(1, Math.round(((lockedPrice(item.name) ?? item.xp) * m * econIndex(s, d)) / 5) * 5);
 }
 /** "fiz sem comprar": quanto a mais se paga (v5.8: era o dobro) */
@@ -1524,13 +1541,16 @@ export function tremOf(s, t, td = today()) {
 }
 /** v9: as moscas de uma tarefa pra tela: n (0, 1, 2, 3 ou 'aur') e a legenda. Tarefa sem prazo, feita ou esperando alguém não tem mosca. */
 export function moscasOf(s, t, td = today()) {
-  if (!t || !isOpen(t) || !t.due || t.st === 'wait' || t.who || t.dep || !neuroOn(s, 'praga')) return { n: 0, title: '' };
-  const tr = tremOf(s, t, td);
-  if (!tr || !tr.moscas) return { n: 0, title: '' };
-  const cfg = moscaCfg(s), left = diffDays(td, t.due);
-  const why = tr.k === 'praga' ? (tr.aureola ? `apodreceu: mais de ${cfg.podre} dia${cfg.podre > 1 ? 's' : ''} de atraso` : 'estourou o prazo') : left <= 0 ? 'vence hoje' : left === 1 ? 'vence amanhã' : `faltam ${left} dias`;
-  return { n: tr.moscas, title: `🪰 ${tr.name}${tr.boss ? ' 👹' : ''}: ${why}. Onde tem mosca, tem coisa podre.` };
+  // v9.5 (pedido do dono): as moscas contam quantas vezes a tarefa foi REMARCADA (1, 2, 3+). A pressa agora é a COR (sai do prazo).
+  // A auréola do LAMBEHOMI continua: tarefa apodrecida (passou de `podre` dias de atraso).
+  if (!t || !isOpen(t) || t.st === 'wait' || t.who || t.dep) return { n: 0, title: '' };
+  const pg = neuroOn(s, 'praga') ? pragaOf(s, t.id) : null;
+  if (pg && pg.phase >= 4) return { n: 'aur', title: `🪰 LAMBEHOMI: apodreceu (${pg.days} dias de atraso). Onde tem mosca, tem coisa podre.` };
+  const n = Math.min(3, t.rs || 0);
+  return n ? { n, title: `🪰 Remarcada ${t.rs} vez${t.rs > 1 ? 'es' : ''}: cada remarcação junta uma mosca${t.rs >= 3 ? ' (travou: pra empurrar de novo precisa de time box)' : ''}.` } : { n: 0, title: '' };
 }
+/** v9.5: as moscas de um ritual (quantas vezes você empurrou o dia dele; zera quando faz) */
+export const moscasRit = (r) => { const n = Math.min(3, r?.rs || 0); return n ? { n, title: `🪰 Ritual empurrado ${r.rs} vez${r.rs > 1 ? 'es' : ''}` } : { n: 0, title: '' }; };
 
 // ───────────────────────── v8: o LOBO (GUARANÁ ⇄ LAMBEHOMI, o mesmo bicho em dois estados) ─────────────────────────
 // O ciclo infinito, como a lua: GUARANÁ calmo (tudo em dia) → emburrado/isolado (existe TREM TRAPAIADO: é o aviso)
@@ -1586,4 +1606,19 @@ export function ritualRepete(r) {
   if (r.wd?.length) return `toda ${[...r.wd].sort((a, b) => a - b).map((x) => DW[x]).join(', ')}`;
   const ds = r.doms?.length ? r.doms : r.dom ? [r.dom] : [];
   return ds.length ? `todo dia ${ds.join(' e ')}` : 'sem frequência';
+}
+
+// ───────────────────────── v9.5: COR AUTOMÁTICA PELO PRAZO (pedido do dono) ─────────────────────────
+/** a cor de uma tarefa (ou bloco) sai do prazo: vence até amanhã (ou atrasada) = URGENTE · até 7 dias = ESQUENTANDO · mais longe = ESTÁVEL ·
+ *  sem prazo = sem cor. AGUARDANDO (st 'wait') e PARADO (cor preta) são escolhas suas e ficam. Os dias são os mesmos das moscas (PERKS → 🧠). */
+export function autoCor(s, due, td = today()) {
+  if (!due) return '';
+  const cfg = moscaCfg(s), left = diffDays(td, due);
+  return left <= cfg.mosca2 ? 'red' : left <= cfg.mosca1 ? 'yellow' : 'green';
+}
+/** o prazo que manda na cor do bloco: o dele, ou a subtarefa aberta com prazo mais perto */
+export function blockDue(s, b) {
+  const ds = (s.quests?.tasks || []).filter((t) => t.block === b.id && isOpen(t) && t.due).map((t) => t.due);
+  if (b.due) ds.push(b.due);
+  return ds.sort()[0] || null;
 }

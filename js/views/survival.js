@@ -7,6 +7,8 @@ import { esc, today, fmtDM, DOW, addDays, weekStart, range, weekday, lightNow } 
 import { pbar, segBar, statusChips } from '../ui.js';
 import { reflexaoBanner, resumoSemana } from './extras.js';
 import { vitrine } from '../elenco.js';
+import { moscasHtml } from '../moscas.js';
+import { rotinaBody } from './rotina.js';
 import { isCollapsed } from '../v3.js';
 const topoOf = (k) => `assets/topo/${k}-${lightNow() === 'noite' ? 'noite' : 'dia'}.webp`;
 
@@ -54,7 +56,7 @@ export function viewSurvival(ui) {
   let perfectRun = 0;
   for (let d = addDays(td, -1); R.isPerfect(S, d); d = addDays(d, -1)) perfectRun++;
   if (R.isPerfect(S, td)) perfectRun++;
-  return `<div class="page-title"><div><h1><em>survival</em>.</h1></div></div>
+  return `<div class="page-title"><div><h1><em>sobrevivência</em>.</h1></div></div>
     <div class="page-actions"><button class="btn" data-act="rest-day">🏕 DESCANSO HOJE</button><button class="btn ${R.tripNow(S) ? 'pri' : ''}" data-act="trip" title="Viagem ou visitas: congela o jogo enquanto você está fora">✈ ${R.tripNow(S) ? 'VOLTEI' : 'VIAGEM'}</button><button class="btn" data-act="edit-habits">✎ HÁBITOS</button><button class="btn" data-act="revisao" title="Domingo, 10 minutos: arquivar, esvaziar a caixa de entrada, escolher as 3 missões e planejar a segunda">🧭 REVISÃO DA SEMANA</button></div> <!-- v7.7: os botões vêm antes dos quadrinhos -->
     ${tiles([
       { label: '🌟 Perfeitos seguidos', value: perfectRun, tone: 'ok', tip: 'Dias seguidos com todos os hábitos feitos' },
@@ -62,7 +64,7 @@ export function viewSurvival(ui) {
       { label: '✨ XP hoje', value: S.marks.days[td]?.xp || 0, cls: 'gold', tone: 'premio', tip: `Multiplicador dos hábitos hoje: x${st.habitMult.toFixed(2).replace('.', ',')}` },
     ])}
     <div class="card status-sv"><header><h2 title="Toque num status pra ver o que é e como resolver">🎭 Status do dia</h2></header><div class="status-line">${statusChips(st, R.alerts(S, td)) || '<span class="meta">nenhum buff nem debuff hoje.</span>'}</div></div>
-    ${grid(ui)}${ritualsMini(td)}
+    ${grid(ui)}${ritualsMini(td)}${vitrine({ k: 'c:survival:rotina', v: 'rotina', title: '🕰 ROTINA', sub: 'A semana-tipo hora a hora, o que fazer agora e o que vem depois.', topo: topoOf('rotina'), host: ['tia-mia', 3, 'TIA MIA e a lida de todo dia'], shut: isCollapsed('c:survival:rotina'), body: rotinaBody(ui) })}
     ${reflexaoBanner()}`;
 }
 
@@ -82,7 +84,7 @@ const RIT_ICON = { pessoa: '👥', rotina: '🔁', trabalho: '💼' };
 export function ritualRow(r, td = today()) {
   const s = R.ritualStatus(r, td);
   return `<div class="li" data-rit="${r.id}"><div class="lt" data-act="edit-ritual" data-id="${r.id}" style="cursor:var(--cur-hand,pointer)">${RIT_ICON[r.type] || '🔁'} ${esc(r.name)}<small>${s.next ? DOW[weekday(s.next)] + ' ' + fmtDM(s.next) : '—'}${s.plan ? ' · dia marcado por você' : ' · ' + R.ritualRepete(r)}${r.at ? ` · às ${esc(r.at)}` : ''}</small></div>
-      <div class="row" style="flex-wrap:nowrap;gap:6px"><span class="chip ${s.left != null && s.left <= 0 ? 'late' : s.tone === 'bad' ? 'late' : s.tone === 'warn' || (s.left != null && s.left <= 1) ? 'week' : 'soon'}">${esc(s.label)}</span><button class="btn sm ghost" data-act="ritual-plan" data-id="${r.id}" title="Marcar o dia em que vou fazer">📅</button>${r.last === td ? `<button class="btn sm ghost" data-act="ritual-undo" data-id="${r.id}" title="Desfazer">↺</button>` : `<button class="btn sm" data-act="ritual-done" data-id="${r.id}">✓ FIZ</button>`}</div></div>`;
+      <div class="row" style="flex-wrap:nowrap;gap:6px">${((m) => moscasHtml(m.n, m.title))(R.moscasRit(r))}<span class="chip ${s.left != null && s.left <= 0 ? 'late' : s.tone === 'bad' ? 'late' : s.tone === 'warn' || (s.left != null && s.left <= 1) ? 'week' : 'soon'}">${esc(s.label)}</span><button class="btn sm ghost" data-act="ritual-plan" data-id="${r.id}" title="Marcar o dia em que vou fazer">📅</button>${r.last === td ? `<button class="btn sm ghost" data-act="ritual-undo" data-id="${r.id}" title="Desfazer">↺</button>` : `<button class="btn sm" data-act="ritual-done" data-id="${r.id}">✓ FIZ</button>`}</div></div>`;
 }
 function ritualsMini(td) {
   const list = [...S.core.rituals].sort((a, b) => (R.ritualStatus(a, td).left ?? 99) - (R.ritualStatus(b, td).left ?? 99));

@@ -8,6 +8,7 @@ import { esc, today, addDays, fmtDM, weekday, DOW, lightNow } from './util.js';
 import { openModal, closeModal, modalOpen, toast } from './ui.js';
 import { sfx } from './audio.js';
 import { vitrine, fig, NOMES, quem, sorte } from './elenco.js';
+import { askDestino } from './organiza.js';
 import { setDue } from './remarcar.js';
 import { tone } from './views/rotina.js';
 
@@ -125,7 +126,7 @@ function planHtml() {
     <div class="list">${items.map((t) => `<div class="li"><div class="lt">${esc(clean(t.text))}<small>${esc(R.COR_NAMES[R.corOf(S, t)] || '')}</small></div><input class="inp" type="time" value="${esc(hourOf(t))}" data-plan-at="${t.id}" aria-label="Horário" style="width:auto"></div>`).join('') || '<div class="empty">nada marcado pra amanhã ainda.</div>'}</div>
     <form class="addline" data-form="plan-add" autocomplete="off" style="margin-top:8px"><input class="inp" name="text" placeholder="+ mais uma pra amanhã (Enter)" aria-label="Nova tarefa pra amanhã"></form>
     ${left.length ? `<div class="row" style="justify-content:space-between;align-items:center;margin:14px 0 6px"><h3 class="px" style="font-size:8px;margin:0">SOBROU DE HOJE (${left.length})</h3><button class="btn sm" data-act="plan-push-all" title="Passa tudo que sobrou pra amanhã (o custo e o time box são perguntados, se precisar)">→ TUDO PRA AMANHÃ</button></div><div class="list">${left.map((t) => `<div class="li"><div class="lt">${esc(clean(t.text))}<small>${t.due < td ? 'atrasada' : 'hoje'}</small></div><span class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn sm good" data-act="plan-done" data-id="${t.id}" title="Já fiz">✓</button><button class="btn sm" data-act="plan-move" data-id="${t.id}" data-d="${tm}" title="Vai pra amanhã">→ AMANHÃ</button></span></div>`).join('')}</div>` : ''}
-    <div class="actions"><button class="btn pri" data-close>BOA NOITE ▸</button></div></div>`;
+    <div class="actions"><button class="btn pri" data-act="plan-ok">BOA NOITE ▸</button></div></div>`;
 }
 export function openPlanTomorrow() { lastPlan = 'tomorrow'; ls.set('gamify-ui:plan-ask', today()); openModal(planHtml(), { wide: true }); }
 /** à noite (DESACELERAR ou TOQUE DE RECOLHER), uma vez por dia, o app pergunta o plano de amanhã (pedido do dono) */
@@ -144,7 +145,7 @@ function changeHtml() {
   return `<div class="planos">${quem('rosemia', 2, sorte(['Mudou o plano? Eu já tinha visto isso na bola de cristal.', 'O futuro mudou, menino. Arruma aqui que eu leio de novo.']))}<h2>🔀 mudança de planos</h2>
     <div class="seg" style="margin:6px 0 10px"><button class="${pcTab === 'hoje' ? 'on' : ''}" data-act="pc-tab" data-v="hoje">HOJE ${fmtDM(td)}</button><button class="${pcTab === 'amanha' ? 'on' : ''}" data-act="pc-tab" data-v="amanha">AMANHÃ ${fmtDM(tm)}</button></div>
     <div class="list">${list.map((t) => `<div class="li pc-row"><div class="lt">${esc(clean(t.text))}<small>${t.due < td ? '⏰ atrasada · ' : ''}${esc(R.COR_NAMES[R.corOf(S, t)] || '')}${hourOf(t) ? ' · ' + esc(hourOf(t)) : ''}</small></div>
-      <span class="row pc-acts">${dot(t, 'urg', 'red')}${dot(t, 'chega', 'yellow')}${dot(t, 'estavel', 'green')}
+      <span class="row pc-acts">
         <button class="btn sm good" data-act="plan-done" data-id="${t.id}" title="Feita">✓</button>
         ${pcTab === 'hoje' ? `<button class="btn sm" data-act="plan-move" data-id="${t.id}" data-d="${tm}" title="Empurrar pra amanhã">→ AMANHÃ</button>` : `<button class="btn sm" data-act="plan-move" data-id="${t.id}" data-d="${td}" title="Trazer pra hoje">← HOJE</button>`}
         <input class="inp pc-date" type="date" value="${t.due}" min="${td}" data-pc-due="${t.id}" aria-label="Outro dia">
@@ -185,6 +186,7 @@ export function extendPlanos(ACTIONS, FORMS) {
     'hab-ask': () => openHabitsAsk(),
     'ag-dia': (d) => { const ui = window.__ui; if (!ui) return; ui.agDay = +d.dir === 0 ? 0 : (ui.agDay || 0) + +d.dir; window.__render?.(); },
     'plan-tomorrow': () => openPlanTomorrow(),
+    'plan-ok': () => { A.stat('plan'); closeModal(); sfx('ready'); toast('🌙 Amanhã planejado. As cartas aprovam. Boa noite, sô.'); },
     'plan-push-all': async () => { const td = today(), tm = addDays(td, 1), ids = R.openTasks(S).filter((t) => t.due && t.due <= td && t.st !== 'wait' && !t.mother).map((t) => t.id); let ok = 0; for (const id of ids) if (await setDue(id, tm)) ok++; toast(`🌙 ${ok} de ${ids.length} foram pra amanhã.`, 'good'); openPlanTomorrow(); },
     'plan-change': () => openPlanChange('hoje'),
     'pc-tab': (d) => { pcTab = d.v; redraw(); },
@@ -197,18 +199,18 @@ export function extendPlanos(ACTIONS, FORMS) {
   FORMS['dia-add'] = async (f) => {
     const text = f.text.value.trim(); if (!text) return;
     const d = f.dataset.d || today();
-    const cor = await askColor(text); if (!cor) return;
+    // v9.5: a cor vem do prazo (sozinha); o app pergunta ONDE a tarefa mora (janela e bloco)
+    const block = await askDestino(text); if (!block) return;
     f.text.value = '';
-    const r = A.addTask({ text, area: 'sem', due: d, color: cor === 'wait' ? null : cor });
-    if (cor === 'wait' && r?.task) A.setStatus(r.task.id, 'wait');
-    sfx('tab'); toast(`🧺 "${esc(text.slice(0, 40))}" entrou na BAGUNÇA de ${fmtDM(d)} e em TODAS.`); window.__render?.();
+    A.addTask({ text, block, due: d, area: 'block' });
+    sfx('tab'); toast(`🧺 "${esc(text.slice(0, 40))}" entrou na BAGUNÇA de ${fmtDM(d)}.`); window.__render?.();
   };
-  FORMS['plan-add'] = (f) => {
+  FORMS['plan-add'] = async (f) => {
     const text = f.text.value.trim(); if (!text) return; f.text.value = '';
-    const d = f.dataset.d || addDays(today(), 1);
-    const r = A.addTask({ text, area: 'sem', due: d, color: d <= addDays(today(), 1) ? 'red' : null });
-    if (r?.task && d !== r.task.due) A.updateTask(r.task.id, { due: d });
-    sfx('tab'); redraw(); setTimeout(() => document.querySelector('.modal form[data-form="plan-add"] input')?.focus(), 40);
+    const d = f.dataset.d || addDays(today(), 1), back = lastPlan;
+    const block = await askDestino(text); // fecha a janela de planos pra perguntar; depois ela volta
+    if (block) { A.addTask({ text, block, due: d, area: 'block' }); sfx('tab'); }
+    setTimeout(() => (back === 'change' ? openPlanChange(pcTab) : openPlanTomorrow()), 60);
   };
   addEventListener('pointerdown', onDown); addEventListener('pointermove', onMove); addEventListener('pointerup', onUp);
   // celular: com uma tarefa escolhida na bagunça, tocar numa hora encaixa ela ali

@@ -9,13 +9,14 @@ import { primoHead } from '../primo.js';
 import { arrange } from '../v35.js';
 import { overflowBar } from '../bujo.js';
 import { moscasHtml, moscaMortaHtml, miniMosca } from '../moscas.js';
+import { soltas } from '../organiza.js';
 
 const sortOrd = (a, b) => a.ord - b.ord;
 /** v7.1: ORDENAR pelo menu ≡ (só na tela: a ordem guardada não muda). Uma escolha por janela, lembrada no aparelho.
  *  'date' = prazo mais perto em cima · 'urg' = pela cor da urgência (vermelho, laranja, amarelo, verde, cinza, roxo) */
 export function qsortOf(ui, tab) {
   if (!ui.qsort) { try { ui.qsort = JSON.parse(localStorage.getItem('gamify-ui:qsort')) || {}; } catch { ui.qsort = {}; } }
-  return ui.qsort[tab] || '';
+  return ''; // v9.5 (pedido do dono): ORDENAR por data/urgência saiu do ≡ (a cor já vem do prazo); a ordem é a que você arrasta
 }
 const URG_RANK = { hoje: 0, amanha: 1, semana: 2, depois: 3, sem: 4, wait: 5 };
 const byDue = (a, b) => (a.due || '9').localeCompare(b.due || '9') || sortOrd(a, b);
@@ -155,7 +156,10 @@ function blockCard(b, ui, opts = {}) {
 function group(g, ui, win = null) {
   const blocks = R.tabBlocks(S, win ? 'w:' + win.id : g).sort(sortOrd);
   const qs = qsortOf(ui, win ? 'w:' + win.id : g), active = sortBlocks(blocks.filter(stalledOff(ui)), qs); // v7.7: ordenado = em sequência nas 3 colunas (a coluna guardada vale sem ordenar)
+  // v9.5 (pedido do dono): toda janela tem no topo a linha de escrever (pergunta o dia e o bloco), o ORGANIZAR e o 🔥 das urgentes
+  const key = win ? 'w:' + win.id : g, urg = S.quests.tasks.filter((t) => t.block && R.isOpen(t) && t.st !== 'wait' && t.color === 'red' && R.catOf(S, t) === key).length;
   return `<div class="group" data-group="${g}">
+    <div class="todas-top"><form class="addline todas-add" data-form="win-add" data-win="${key}" autocomplete="off"><input class="inp" name="text" placeholder="+ escrever uma tarefa nesta janela (Enter: o app pergunta o dia e o bloco)" aria-label="Nova tarefa nesta janela"></form><button class="btn sm" data-act="organizar" title="Dar prazo pro que está sem">🗂 ORGANIZAR</button><button class="btn sm ${urg ? 'urg-n' : ''}" data-act="urg-open" title="As URGENTES (vencem até amanhã)">🔥 ${urg}</button></div>
     <form class="row" data-form="add-block" data-group="${g}" ${win ? `data-win="${win.id}"` : ''} autocomplete="off"><input class="inp grow" name="title" placeholder="+ novo bloco${g === 'bd' ? ' (🎯 meta)' : ' (3000$ · / MES DIA 05)'}" aria-label="Novo bloco">${win ? `<button type="button" class="btn sm ghost" data-act="win-edit" data-id="${win.id}" title="Renomear, mudar o tipo ou apagar a janela ${esc(win.name)} (funciona como ${esc(R.GROUPS[g].short)})">✎ JANELA</button>` : ''}</form>
     ${active.length ? `<div class="mcols">${cols3(active.map((b) => blockCard(b, ui)), qs ? [] : active)}</div>` : '<div class="empty">nenhum bloco.</div>'}
     ${blocks.length > active.length ? `<button class="more" data-act="toggle-stalled">⬛ ${blocks.length - active.length} parado(s) · mostrar</button>` : ''}</div>`;
@@ -181,7 +185,7 @@ export function filaCard(td) {
   const rits = (S.core.rituals || []).map((r) => ({ r, s: R.ritualStatus(r, td) })).filter((x) => x.s.next && x.s.left != null && x.s.left <= 14);
   const rows = [...q.map((t) => ({ t, k: t.due || '9999' })), ...rits.map((x) => ({ ...x, k: x.s.next }))].sort((a, b) => a.k.localeCompare(b.k));
   const taskLi = (t) => `<div class="li" data-act="jump" data-id="${t.id}" data-list="${R.listOf(t, td)}" style="cursor:var(--cur-hand,pointer)"><div class="lt">${t.st === 'doing' ? '▶ ' : ''}${t.prio ? '<b class="bad">!</b> ' : ''}${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}<small>${esc(where(t))}</small></div><div class="row" style="flex-wrap:nowrap;gap:4px">${((m) => moscasHtml(m.n, m.title))(R.moscasOf(S, t, td))}${dueChip(t.due, false, true)}</div></div>`;
-  const ritLi = (r, st) => { const pg = R.pragaOf(S, r.id); return `<div class="li rit" data-rit="${r.id}" ${pg ? `data-praga="${pg.phase}"` : ''} data-act="jump-rit" data-id="${r.id}" style="cursor:var(--cur-hand,pointer)" title="Ir até o ritual"><div class="lt">${esc(r.name)}<small>ritual${st.plan ? ' · dia marcado' : ''}</small></div><div class="row" style="flex-wrap:nowrap;gap:4px">${pg ? moscasHtml(pg.phase >= 4 ? 'aur' : 3, `🪰 ritual atrasado há ${pg.days} dia(s)`) : ''}<span class="chip ${st.left < 0 ? 'late' : st.left <= 1 ? 'week' : 'rit'}">${esc(st.label)}</span></div></div>`; };
+  const ritLi = (r, st) => { const pg = R.pragaOf(S, r.id); return `<div class="li rit" data-rit="${r.id}" ${pg ? `data-praga="${pg.phase}"` : ''} data-act="jump-rit" data-id="${r.id}" style="cursor:var(--cur-hand,pointer)" title="Ir até o ritual"><div class="lt">${esc(r.name)}<small>ritual${st.plan ? ' · dia marcado' : ''}</small></div><div class="row" style="flex-wrap:nowrap;gap:4px">${((m) => moscasHtml(m.n, m.title))(R.moscasRit(r))}<span class="chip ${st.left < 0 ? 'late' : st.left <= 1 ? 'week' : 'rit'}">${esc(st.label)}</span></div></div>`; };
   return `<div class="card fila-q"><header><h2 title="Tudo que tem prazo, do mais perto pro mais longe (rituais incluídos)">⏰ Fila de prazos</h2><span class="meta">${rows.length}</span></header>
     <div class="list">${rows.map((x) => (x.t ? taskLi(x.t) : ritLi(x.r, x.s))).join('') || '<div class="empty">nenhuma tarefa com prazo.</div>'}</div></div>`;
 }
@@ -244,13 +248,13 @@ export function sidePanel(ui) {
 }
 
 /** janelas do QUESTS: LISTAS é a janela mãe; depois as fixas e, por fim, as que você criou (chave "w:<id>") */
-const qtAll = () => [['listas', R.TAB_NAMES.listas], ['boss', R.TAB_NAMES.boss], ['bd', R.GROUPS.bd.short], ['tr', R.GROUPS.tr.short], ['cap', R.GROUPS.cap.short], ['gs', R.GROUPS.gs.short], ...R.windows(S).map((w) => ['w:' + w.id, w.name])];
+const qtAll = () => [['boss', R.TAB_NAMES.boss], ['bd', R.GROUPS.bd.short], ['tr', R.GROUPS.tr.short], ['cap', R.GROUPS.cap.short], ['gs', R.GROUPS.gs.short], ...R.windows(S).map((w) => ['w:' + w.id, w.name])];
 /** a ordem das janelas é sua: arraste um nome de janela sobre outro (PC). LISTAS fica sempre na frente: é dela que tudo deriva. */
 function qtabs() {
   let saved = [];
   try { saved = JSON.parse(localStorage.getItem('gamify-ui:qtabs')) || []; } catch { /* */ }
   const all = qtAll(), ids = all.map((x) => x[0]), order = [...saved.filter((i) => ids.includes(i)), ...ids.filter((i) => !saved.includes(i))];
-  return ['listas', ...order.filter((i) => i !== 'listas')].map((id) => all.find((x) => x[0] === id));
+  return order.map((id) => all.find((x) => x[0] === id)).filter(Boolean); // v9.5: a TODAS saiu (só as janelas)
 }
 // ───────────── v5.14: relógio do corpo e toque de recolher (neurociência) ─────────────
 const CURFEW_KEY = 'gamify-ui:curfew-off';
@@ -277,7 +281,7 @@ function closingView() {
 export function viewQuests(ui) {
   if (inCurfew()) return `<div class="quests"><div class="board">${closingView()}</div>${sidePanel(ui)}</div>`;
   const QTABS = qtabs();
-  const tab = QTABS.some(([k]) => k === ui.qtab) ? ui.qtab : 'listas';
+  const tab = QTABS.some(([k]) => k === ui.qtab) ? ui.qtab : 'bd'; // v9.5: sem a TODAS, a janela padrão é a GERAL
   const win = tab.startsWith('w:') ? R.windows(S).find((w) => 'w:' + w.id === tab) : null;
   const n = { listas: S.quests.tasks.filter((t) => !t.block && !t.mother && !t.link && R.isOpen(t)).length, boss: S.quests.bosses.filter((b) => b.st !== 'done').length };
   for (const [k] of QTABS) if (!(k in n)) n[k] = R.tabBlocks(S, k).filter((b) => b.st !== 'done').length;
@@ -289,6 +293,8 @@ export function viewQuests(ui) {
   ckeys.push(new Date().getDay() === 0 ? 'c:quests:missoes-da-proxima-semana' : 'c:quests:missoes-da-semana'); if (R.chapterBoss(S)) ckeys.push('c:quests:boss-do-capitulo');
   const qs = qsortOf(ui, tab);
   const allCol = ckeys.length > 0 && ckeys.every(isCollapsed); // v6.1: o botão voltou (pedido do dono); tocar de novo na janela aberta continua sendo o memento mori
+  const sem = soltas().length; // v9.5: tarefas sem casa (eram da TODAS): o app pergunta pra onde vão
+  const mudanca = sem ? `<div class="banner info mud-b">📦 <b>${sem} tarefa${sem === 1 ? '' : 's'} sem casa</b> (eram da janela TODAS, que saiu). <button class="btn sm pri" data-act="mudanca">ESCOLHER PRA ONDE VÃO</button></div>` : '';
   const body = tab === 'listas' ? `<div class="todas">${todasView(ui)}</div>`
     : tab === 'boss' ? bossPanel(ui)
     : group(win ? win.base : tab, ui, win).replace('class="group ', 'class="group wide ');
@@ -296,14 +302,11 @@ export function viewQuests(ui) {
       <div class="band qbar"><div class="seg">${QTABS.map(([k, t]) => `<button class="${tab === k ? 'on' : ''} ${k === 'listas' ? 'mae' : 'filha'} ${R.tabReviewed(S, k) ? 'allrev' : ''}" data-act="qtab" data-tab="${k}" ${k === 'listas' ? 'title="Janela mãe: tudo passa por aqui"' : 'draggable="true" title="arraste pra mudar a ordem"'}>${k === 'listas' ? '◆ ' : ''}${esc(t)}${n[k] != null ? ' · ' + n[k] : ''}</button>`).join('')}<button class="qadd" data-act="win-new" title="Criar uma janela nova">＋</button></div>
         <div class="qtools">${win ? `<button class="btn sm ghost" data-act="win-edit" data-id="${win.id}" title="Renomear ou apagar esta janela (${esc(win.name)})">✎</button>` : ''}<button class="btn sm ghost qcol" data-act="collapse-all" title="Recolhe ou abre tudo desta janela de uma vez">${allCol ? '▾ ABRIR' : '▸ RECOLHER'}</button>
         <details class="qmenu"><summary class="btn sm ghost qham" title="Abrir/recolher, ordenar, concluir e o que aparece">≡${qs ? `<small class="qh-m">${qs === 'urg' ? 'URGÊNCIA' : 'DATA'}</small>` : ''}${ui.showDone || ui.showStalled ? '<small class="qh-m">👁</small>' : ''}</summary><div class="qpop">
-            <small class="qpop-h">ORDENAR ${tab === 'listas' ? 'AS TAREFAS' : 'OS BLOCOS'} (só na tela)</small>
-            <button class="btn sm ${qs === 'date' ? 'pri' : 'ghost'}" data-act="qsort" data-v="date" title="${tab === 'listas' ? 'Prazo mais perto em cima' : 'Blocos com o prazo mais perto primeiro'}">${qs === 'date' ? '☑' : '☐'} POR DATA</button>
-            <button class="btn sm ${qs === 'urg' ? 'pri' : 'ghost'}" data-act="qsort" data-v="urg" title="${tab === 'listas' ? 'Vermelho (hoje e atrasadas) primeiro, depois laranja, amarelo, verde, cinza e roxo' : 'Bloco com atrasada primeiro, depois URGENTE, FAZENDO, ESTÁVEL, AGUARDANDO e PARADO'}">${qs === 'urg' ? '☑' : '☐'} POR URGÊNCIA</button>
             <small class="qpop-h">MOSTRAR</small>
             <button class="btn sm ${ui.showDone ? 'pri' : 'ghost'}" data-act="toggle-done">${ui.showDone ? '☑' : '☐'} FEITAS</button>
             <button class="btn sm ${ui.showStalled ? 'pri' : 'ghost'}" data-act="toggle-stalled" title="⬛ parados: blocos e tarefas com a cor PARADO">${ui.showStalled ? '☑' : '☐'} PARADOS</button>
             <small class="qpop-h">Dica: Shift + clique no ☐ conclui um intervalo inteiro${matchMedia('(pointer: coarse)').matches ? ' · no celular: segure numa tarefa e arraste o dedo' : ''}</small></div></details></div></div>
-      ${ui.mm ? mementoCard(ui) : `${chapterDue()}${topStrip()}${body}`}
+      ${ui.mm ? mementoCard(ui) : `${chapterDue()}${mudanca}${topStrip()}${body}`}
     </div>${sidePanel(ui)}</div>`;
 }
 

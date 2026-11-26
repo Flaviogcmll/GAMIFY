@@ -9,6 +9,7 @@ import { sundayTarget } from '../actions.js';
 
 import { esc, today, fmtDM, fmtDMY, weekday, fmtN, DOW, weekStart, addDays, lightNow } from '../util.js';
 import { isCollapsed } from '../v3.js';
+import { vitrine, quem, sorte } from '../elenco.js';
 
 import { settingsV35 } from '../v35.js';
 import { weekSummary } from '../pstate.js';
@@ -108,14 +109,23 @@ export function reflexaoBanner() {
 // v5.16: faixa de resumo, "quase lá" primeiro (a recompensa perto motiva mais: desconto temporal), filtro de 1 toque,
 // dourado = ganha (recompensa) · cinza com cadeado = falta.
 /** v7.4: CONQUISTAS por categoria (v7.7: em linhas simples, sem banner) */
-const CONQ_CATS = [['tarefas', '✅ TAREFAS E PRAZOS'], ['bosses', '👹 BOSSES E BLOCOS'], ['habitos', '💪 HÁBITOS E CORPO'], ['praga', '🐺 OS TREM E O LOBO'], ['feira', '🎪 FEIRA E OURO'], ['jornada', '🧭 JORNADA'], ['outras', '✨ OUTRAS']];
+const CONQ_CATS = [['organizacao', '🗂 ORGANIZAÇÃO'], ['tarefas', '✅ TAREFAS E PRAZOS'], ['bosses', '👹 BOSSES E BLOCOS'], ['habitos', '💪 HÁBITOS E CORPO'], ['praga', '🐺 OS TREM E O LOBO'], ['feira', '🎪 FEIRA E OURO'], ['jornada', '🧭 JORNADA'], ['outras', '✨ OUTRAS']];
 const CONQ_OF = {
+  organizacao: ['focos', 'revisoes', 'ritos', 'mudanca', 'planejados', 'nfLimpa'],
   tarefas: ['done', 'onTime', 'withDue', 'maxDone', 'early', 'star', 'legendaryDay', 'approved', 'home', 'people'],
   bosses: ['bossDone', 'miniDone', 'stepsDone', 'blocksClosed', 'bdClosed', 'trClosed', 'capClosed', 'gsClosed', 'windows', 'reviewedNow'],
   habitos: ['treino', 'dieta', 'sono', 'selfcare', 'maxStreak', 'perfectRun', 'noPoison', 'cleanDays', 'flame', 'daysRegistered', 'rd'],
   praga: ['pragaCured', 'pragaEarly', 'pragaExo', 'pragaGhosts', 'pragaCalm', 'antidoto'],
   feira: ['goldIn', 'forged', 'ferreiro'],
   jornada: ['level', 'maxAttr', 'minAttr', 'focus', 'sundays', 'missionWeeks', 'legendaryWeeks', 'prazoWeeks', 'trips', 'bond', 'petStage'],
+};
+const topoD = (k) => `assets/topo/${k}-${lightNow() === 'noite' ? 'noite' : 'dia'}.webp`;
+/** cenário e personagem de cada categoria (até chegar a arte própria de cada banner: ver os prompts no Drive) */
+const CONQ_BANNER = {
+  organizacao: [topoD('arquivo'), ['cajulina', 4, 'CAJULINA carimba cada passo']], tarefas: [topoD('agenda'), ['primo', 1, 'PRIMO e as tarefas do dia']],
+  bosses: [topoD('conquistas'), ['boi-nilton', 3, 'BOI NILTON mede a obra']], habitos: [topoD('survival'), ['eve-la', 2, 'EVE LÃ e o cuidado de todo dia']],
+  praga: [topoD('domingo'), ['guarana', 4, 'GUARANÁ cheirando o chão']], feira: [topoD('ferreiro'), ['frog-lipe', 1, 'FROG LIPÊ na ferraria']],
+  jornada: [topoD('rotina'), ['primo', 3, 'PRIMO na estrada']], outras: [topoD('regras'), ['megg', 1, 'MEGG DE FÁTIMA anota tudo']],
 };
 const conqCat = (a) => Object.keys(CONQ_OF).find((k) => CONQ_OF[k].includes(a.metric)) || 'outras';
 export function viewConquistas(ui) {
@@ -129,24 +139,20 @@ export function viewConquistas(ui) {
       <div><div class="mn">${esc(a.name)} <span class="xpc">+${a.xp}</span></div><div class="md">${esc(a.desc)}</div>
       ${a.unlocked ? `<div class="md good">desbloqueada ${fmtDM(a.date)}</div>` : `${segBar(a.pct, 'sm')}<div class="md num">${fmtN(Math.min(a.value, a.goal))}/${fmtN(a.goal)}${a.pct >= 0.5 ? ` · falta${a.goal - a.value > 1 ? 'm' : ''} ${fmtN(a.goal - a.value)}` : ''}</div>`}</div></div>`;
   const sec = (title, items, empty) => `<h2 class="sec-h">${title} <span class="meta">${items.length}</span></h2>${items.length ? `<div class="medals">${items.map(medal).join('')}</div>` : `<div class="empty">${empty}</div>`}`;
+  // v9.5 (pedido do dono): os botões de filtro (QUASE LÁ, FALTAM) saíram; os quadrinhos só informam
   const strip = tiles([
-    { label: '🏆 Desbloqueadas', value: `${got.length}/${list.length}`, tone: 'premio', sub: `${Math.round((got.length / list.length) * 100)}% do salão`, act: 'cq', data: { v: 'ganhas' }, on: f === 'ganhas' },
-    { label: '🎯 Quase lá', value: near.length, tone: 'atencao', sub: 'metade do caminho ou mais', act: 'cq', data: { v: 'quase' }, on: f === 'quase' },
-    { label: '🔒 Faltam', value: left.length, tone: 'neutro', act: 'cq', data: { v: 'faltam' }, on: f === 'faltam' },
+    { label: '🏆 Desbloqueadas', value: `${got.length}/${list.length}`, tone: 'premio', sub: `${Math.round((got.length / list.length) * 100)}% do galpão` },
     { label: '✨ XP de medalhas', value: fmtN(xp), cls: 'gold', tone: 'premio' },
     last && { label: '🕐 Última', value: `<span class="lastm">${esc(last.name)}</span>`, sub: fmtDM(last.date), tone: 'premio' },
   ]); // v9.0 (pedido do dono): o 🎯 FALTA POUCO (as 3 mais perto) saiu; o QUASE LÁ já mostra isso
-  const body = f === 'ganhas' ? sec('🏆 Ganhas', got, 'nenhuma ainda.')
-    : f === 'quase' ? sec('🎯 Quase lá', near, 'nenhuma passou da metade ainda.')
-    : f === 'faltam' ? sec('🔒 Faltam', left, 'você pegou todas!')
-    : `${near.length ? sec('🎯 Quase lá', near.slice(0, 6), '') : ''}${CONQ_CATS.map(([k, t]) => {
-      // v7.4: uma seção (com banner) por categoria: as ganhas primeiro, depois as que faltam (as mais perto na frente)
-      const items = [...got, ...left].filter((a) => conqCat(a) === k);
-      if (!items.length) return '';
-      const n = items.filter((a) => a.unlocked).length; // v7.7: linhas simples (sem banner), recolhem como os outros cartões
-      return `<div class="card conq-l"><header><h2>${t}</h2><span class="meta">${n}/${items.length} ganhas</span></header><div class="medals">${items.map(medal).join('')}</div></div>`;
-    }).join('')}`;
-  return `<div class="page-title"><div><h1><em>conquistas</em>.</h1><p>Toque num quadrinho pra filtrar.${f !== 'todas' ? ' <a href="#" data-act="cq" data-v="todas">ver todas</a>' : ''}${S.core.season?.from ? ` · <span title="As do capítulo anterior ficam guardadas">capítulo anterior: ${Object.keys(S.core.achievements || {}).length} conquistas</span>` : ''}</p></div></div>
+  // v9.5 (pedido do dono): cada categoria é um BANNER (cenário + o personagem que combina), recolhível; dentro, as medalhas
+  const body = CONQ_CATS.map(([k, t]) => {
+    const items = [...got, ...left].filter((a) => conqCat(a) === k);
+    if (!items.length) return '';
+    const n = items.filter((a) => a.unlocked).length, [topo, host] = CONQ_BANNER[k] || CONQ_BANNER.outras;
+    return vitrine({ k: 'c:conq:' + k, v: 'conq-' + k, title: t, sub: `${n} de ${items.length} no galpão`, topo, host, shut: isCollapsed('c:conq:' + k), body: `<div class="medals">${items.map(medal).join('')}</div>` });
+  }).join('');
+  return `<div class="page-title"><div><h1><em>conquistas</em>.</h1><p>O GALPÃO DOS TROFÉUS do BARRANCO BAIXO: toque num banner pra abrir.${f !== 'todas' ? ' <a href="#" data-act="cq" data-v="todas">ver todas</a>' : ''}${S.core.season?.from ? ` · <span title="As do capítulo anterior ficam guardadas">capítulo anterior: ${Object.keys(S.core.achievements || {}).length} conquistas</span>` : ''}</p></div></div>
     ${strip}${body}`;
 }
 
@@ -164,6 +170,10 @@ const RULES = [
 ];
 const card = ([t, items]) => `<div class="rblock"><h3>${esc(t)}</h3><ul>${items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul></div>`;
 
+// v9.5 (pedido do dono: PERKS mais interessante): o PERKS virou um LIVRO com capítulos (banners recolhíveis, cada um com quem cuida dele)
+// e a MEGG abre a página com uma dica sorteada das regras
+const MEGG_DICAS = ['Sabia que tarefa feita no prazo vale x1,5? E 2 dias antes, x2. Tá no livro.', 'Remarcar a 1ª vez na semana é de graça. A 2ª já pesa no bolso, meu filho.', 'Cada remarcação junta uma mosca na tarefa. Três moscas e ela trava: só sai com hora marcada.', 'A cor da tarefa vem do prazo: até amanhã é URGENTE, até 7 dias ESQUENTANDO.', 'Ferro é raro: o FROG LIPÊ só forja com ele. Gasta com juízo.', 'Domingo tem REVISÃO DA SEMANA. Dez minutinhos e a semana anda sozinha.', 'Ritual cumprido zera as moscas dele. Ritual empurrado junta.', 'O LAMBEHOMI aparece quando uma tarefa apodrece. O ANTÍDOTO é zerar as atrasadas.'];
+const capitulo = (k, title, sub, topo, host, body) => vitrine({ k: 'c:perks:' + k, v: 'perks-' + k, title, sub, topo: `assets/topo/${topo}-${lightNow() === 'noite' ? 'noite' : 'dia'}.webp`, host, shut: isCollapsed('c:perks:' + k), body: `<div class="grid">${body}</div>` });
 export function viewRegras() {
   const ch = S.core.chapter || {};
   const tot = R.totals(S);
@@ -180,25 +190,16 @@ export function viewRegras() {
     { label: '📖 Capítulo', value: ch.n || 1, sub: esc(ch.title || ''), tone: 'premio' },
   ]);
   return `<div class="page-title"><div><h1><em>perks and rules</em>.</h1></div></div>
-    ${strip}<div class="grid">
-      ${presetsCard()}
+    ${strip}${quem('megg', 1, sorte(MEGG_DICAS))}
+    ${capitulo('livro', '📖 O LIVRO DA MEGG', 'As regras do jogo do BARRANCO BAIXO: quanto vale cada coisa, os buffs, os castigos.', 'regras', ['megg', 1, 'MEGG DE FÁTIMA, dona das REGRAS'], `      <div class="card c12" data-gk="legenda"><header><h2>📖 Legenda · como marcar e quanto vale</h2></header>${legendHtml()}</div>
+      <div class="card c12" data-gk="ref"><header><h2>📖 Referência · regras com os valores padrão</h2></header><div class="refgrid">${RULES.map(card).join('')}</div></div>
+      ${rulesEditor()}`)}
+    ${capitulo('corpo', '🧠 CORPO E CABEÇA', 'A neurociência que o app usa por você: relógio do corpo, foco, sono, avisos.', 'survival', ['eve-la', 2, 'EVE LÃ cuida do corpo e da cabeça'], `      ${neuroCard()}`)}
+    ${capitulo('casa', '🎛 AJUSTES DA CASA', 'Jeitos salvos, nomes das janelas, sons, cursor, loja e castigo.', 'rotina', ['boi-nilton', 1, 'BOI NILTON ajusta a obra'], `      ${presetsCard()}
       ${settingsV35()}
-      ${neuroCard()}
       <div class="card c12" data-gk="nomes"><header><h2>✏ Nomes das listas e janelas</h2><span class="meta">só o texto muda; as regras continuam as mesmas</span></header>
         <div class="namegrid">${R.labelFields().map(([k, def]) => `<label><span class="px">${esc(def)}</span><input class="inp" data-change="label" data-k="${k}" value="${esc(S.core.labels?.[k] || '')}" placeholder="${esc(def)}" maxlength="24" aria-label="Nome para ${esc(def)}"></label>`).join('')}</div>
         <p class="meta" style="margin:8px 0 0">Deixe em branco pra voltar ao nome padrão. Para criar uma janela nova, use o ＋ na barra das janelas do QUESTS.</p></div>
-      ${rulesEditor()}
-      ${shopEditor()}
-      ${metaCard()}
-      ${driveCard()}
-      <div class="card c12" data-gk="historia"><header><h2>📖 Sua história · o capítulo que você está vivendo</h2><button class="btn sm pri" data-act="new-chapter" title="Fecha este capítulo (vira uma carta guardada) e começa outro">🌅 NOVO CAPÍTULO</button></header>
-        <form data-form="chapter" autocomplete="off">
-          <div class="row"><div style="width:90px"><label class="lbl" for="ch-n">Nº</label><input class="inp" id="ch-n" name="n" type="number" min="1" value="${esc(ch.n)}"></div>
-            <div class="grow"><label class="lbl" for="ch-title">Título</label><input class="inp" id="ch-title" name="title" value="${esc(ch.title)}"></div></div>
-          <label class="lbl" for="ch-mission">Missão (uma só)</label><input class="inp" id="ch-mission" name="mission" value="${esc(ch.mission)}">
-          <label class="lbl" for="ch-why">Por quê</label><input class="inp" id="ch-why" name="why" value="${esc(ch.why)}">
-          <div class="row" style="align-items:end"><div class="grow"><label class="lbl" for="ch-until">Até</label><input class="inp" id="ch-until" name="until" type="date" value="${esc(ch.until || '')}"></div><button class="btn pri">SALVAR CAPÍTULO</button></div>
-        </form></div>
       <div class="card c12" data-gk="ajustes"><header><h2>⚙ Ajustes</h2></header>
         <label class="lbl" for="set-mode">Visual</label><select class="inp" id="set-mode" data-change="mode"><option value="auto" ${mode === 'auto' ? 'selected' : ''}>AUTOMÁTICO (papel 6h–18h · fogueira à noite)</option><option value="day" ${mode === 'day' ? 'selected' : ''}>SEMPRE PAPEL</option><option value="night" ${mode === 'night' ? 'selected' : ''}>SEMPRE FOGUEIRA</option></select>
         <label class="lbl" for="set-primo">Desenho do PRIMO</label><select class="inp" id="set-primo" data-change="primo-art"><option value="novo" ${artWanted() ? 'selected' : ''}>NOVO (arte em alta definição, com cenários)</option><option value="classico" ${artWanted() ? '' : 'selected'}>CLÁSSICO (porquinho em pixel)</option></select>
@@ -210,9 +211,18 @@ export function viewRegras() {
         <div class="row" style="margin-top:12px"><button class="btn sm" data-act="edit-habits">✎ HÁBITOS</button><button class="btn sm" data-act="backup-download">⬇ BAIXAR BACKUP</button><button class="btn sm" data-act="backup-import">IMPORTAR</button><button class="btn sm ghost" data-act="gorder-reset" title="Volta os cartões das telas pra ordem original">↺ ORDEM DOS CARTÕES</button></div>
         ${backupPanel()}
         <p class="meta" style="margin:10px 0 0">Dados: ${backendKind() === 'db' ? '☁ banco do claude.ai (sincroniza celular e PC; precisa de internet)' : '💻 só neste navegador'} · desde ${fmtDMY(S.core.startDate)} · ${fmtN(tot.earned)} XP · quests ${kb(S.quests)} KB${status.error ? ` · <span class="bad">${esc(status.error)}</span>` : ''}</p></div>
-      <div class="card c12" data-gk="legenda"><header><h2>📖 Legenda · como marcar e quanto vale</h2></header>${legendHtml()}</div>
-      <div class="card c12" data-gk="ref"><header><h2>📖 Referência · regras com os valores padrão</h2></header><div class="refgrid">${RULES.map(card).join('')}</div></div>
-    </div>
+      ${shopEditor()}`)}
+    ${capitulo('cofre', '💾 O COFRE', 'Backup, Google Drive e o tamanho dos seus dados.', 'arquivo', ['cajulina', 4, 'CAJULINA guarda tudo no CARTÓRIO'], `      ${metaCard()}
+      ${driveCard()}`)}
+    ${capitulo('historia', '🌅 SUA HISTÓRIA', 'O capítulo que você está vivendo: missão, porquê e até quando.', 'domingo', ['primo', 3, 'PRIMO na estrada'], `      <div class="card c12" data-gk="historia"><header><h2>📖 Sua história · o capítulo que você está vivendo</h2><button class="btn sm pri" data-act="new-chapter" title="Fecha este capítulo (vira uma carta guardada) e começa outro">🌅 NOVO CAPÍTULO</button></header>
+        <form data-form="chapter" autocomplete="off">
+          <div class="row"><div style="width:90px"><label class="lbl" for="ch-n">Nº</label><input class="inp" id="ch-n" name="n" type="number" min="1" value="${esc(ch.n)}"></div>
+            <div class="grow"><label class="lbl" for="ch-title">Título</label><input class="inp" id="ch-title" name="title" value="${esc(ch.title)}"></div></div>
+          <label class="lbl" for="ch-mission">Missão (uma só)</label><input class="inp" id="ch-mission" name="mission" value="${esc(ch.mission)}">
+          <label class="lbl" for="ch-why">Por quê</label><input class="inp" id="ch-why" name="why" value="${esc(ch.why)}">
+          <div class="row" style="align-items:end"><div class="grow"><label class="lbl" for="ch-until">Até</label><input class="inp" id="ch-until" name="until" type="date" value="${esc(ch.until || '')}"></div><button class="btn pri">SALVAR CAPÍTULO</button></div>
+        </form></div>
+`)}
     <p class="creditos-link"><a href="#" data-act="credits" title="Créditos das artes, sons e fontes">ⓘ créditos</a></p>`;
 }
 
