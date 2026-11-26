@@ -1,5 +1,6 @@
 // O PRIMO — o centro do jogo. Rosto e busto desenhados (pdraw.js), expressões e um banco enorme de frases (falas.js),
 // pedido do dia, a BRASINHA e diário (pstate.js). Aqui ficam a tela, as animações e as reações.
+import { antidotoScreen } from './lobo.js';
 import { fig } from './elenco.js';
 import { S } from './store.js';
 import * as R from './rules.js';
@@ -188,7 +189,7 @@ export function primoAfterRender() {
     if (e.k === 'down') { toast(`🐺 O LAMBEHOMI chegou em <b>${esc(String(e.text).slice(0, 40))}</b>: a BRASINHA perdeu força (agora ${R.BRAS_NAMES[e.stage]}).`, 'bad'); sfx('error'); primoSay('Ele soprou forte. Fica atrás de mim, pequena.', 'suspeito'); }
     if (e.k === 'roubo' || e.k === 'egg') { toast('🌕 PRAGA: o LAMBEHOMI roubou a BRASINHA. A chama dela curou ele, que voltou a ser GUARANÁ (trégua até amanhã). Ela virou OVO e a MEGG DE FÁTIMA já tá chocando: com calor ela renasce.', 'bad'); primoSay('Ele levou a chama dela… e se curou. A MEGG tá chocando o ovo. A gente começa de novo, sô.', 'preocupado'); }
     if (e.k === 'lobo-vira') { toast('🐺 Uma tarefa apodreceu (passou do limite de TREM TRAPAIADO): o GUARANÁ se isolou e virou LAMBEHOMI. Resolve TODAS as atrasadas que a CAJULINA e a EVE LÃ acham o antídoto.', 'bad'); sfx('error'); primoSay('Uai… o GUARANÁ sumiu no mato. Quem voltou foi o outro.', 'suspeito'); }
-    if (e.k === 'antidoto') { toast('🧪 ANTÍDOTO! Sem nenhuma atrasada, a CAJULINA achou a receita nos livros e a EVE LÃ fez a garrafada: o LAMBEHOMI voltou a ser GUARANÁ e a BRASINHA ficou com a gente. Trégua até amanhã.', 'gold'); sfx('level'); confetti(40); primoSay('Nó! Curou sem levar a pequena. Trem bão demais, sô.', 'orgulhoso'); }
+    if (e.k === 'antidoto') { antidotoScreen(); primoSay('Ufa! O GUARANÁ voltou. Trem bão, sô.', 'feliz'); } // v9.2: a TELA DO ANTÍDOTO (lobo.js)
   }
   if (ls.get('gamify-ui:diary') !== today()) { ls.set('gamify-ui:diary', today()); PS.diarySync(); }
 }

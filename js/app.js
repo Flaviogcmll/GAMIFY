@@ -1,4 +1,6 @@
 // APP — liga tudo: abas (como na planilha), dia/noite, cliques, janelas, PRIMO, SOS, arrastar e soltar, sons.
+import { extendLobo, loboTermo } from './lobo.js';
+import { checkAvisos } from './planos.js';
 import { setDue } from './remarcar.js';
 import { FALAS, NOMES } from './elenco.js';
 import { S, status, init, onChange, replaceAll, exportAll } from './store.js';
@@ -158,7 +160,8 @@ function render() {
   try { afterRender4(cur); } catch (err) { console.error(err); }
   try { afterRenderBujo(); } catch (err) { console.error(err); }
   try { renderPostit(); } catch (err) { console.error(err); }
-  try { pragaGuide(); } catch (err) { console.error(err); } // v6.7/v8: a mosca pousa onde a tarefa infectada está
+  try { pragaGuide(); } catch (err) { console.error(err); }
+  try { loboTermo(); } catch (err) { console.error(err); } // v9.2: o lobo-termômetro no cantinho // v6.7/v8: a mosca pousa onde a tarefa infectada está
   try { tabTools(cur); } catch (err) { console.error(err); }
   tips($main); // v6.1: os afterRender acima ainda acrescentam botões; eles também ganham legenda
   refocus();
@@ -186,7 +189,6 @@ function setStick() {
 }
 const stickSoon = () => { if (!stickRaf) stickRaf = requestAnimationFrame(() => { stickRaf = 0; setStick(); }); };
 addEventListener('resize', stickSoon);
-try { matchMedia('(min-width: 1700px)').addEventListener('change', () => render()); } catch { /* */ } // v9.1: blocos em 2 ou 3 colunas
 addEventListener('scroll', stickSoon, { passive: true });
 
 // ───────────────────────── TEXTO NÃO SE PERDE ─────────────────────────
@@ -978,6 +980,7 @@ FORMS['rot-hours'] = (f) => { const v = f.h.value; if (!v) return; A.setRoutineH
 extendBujo(ACTIONS, FORMS);
 extendMapa(ACTIONS, FORMS);
 extendPlanos(ACTIONS, FORMS);
+extendLobo(ACTIONS); // depois do extendPrimo: a linha do lobo abre a janela do termômetro
 extendPraga(ACTIONS, FORMS, jump);
 extendPraga2(ACTIONS, jump);
 document.addEventListener('submit', (e) => { const f = e.target.closest('form[data-form]'); if (!f) return; e.preventDefault(); FORMS[f.dataset.form]?.(f); });
@@ -1066,6 +1069,8 @@ setInterval(() => {
   }
 }, 1000);
 setInterval(() => { applyMode(); if (today() !== lastDay) { lastDay = today(); started = false; render(); } }, 60000);
+setInterval(() => { try { if (S.quests) checkAvisos(); } catch { /* */ } }, 20000); // v9.2: aviso 10 min antes do que tem horário
+setTimeout(() => { try { if (S.quests) checkAvisos(); } catch { /* */ } }, 4000);
 
 window.addEventListener('hashchange', () => { closeModal(); render(); scrollTo(0, 0); sfx('tab'); });
 let pendingRender = false;

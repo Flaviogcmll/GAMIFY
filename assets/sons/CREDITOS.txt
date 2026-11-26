@@ -7,3 +7,9 @@ Sons da PRAGA (v6.6). Todos CC0 (domínio público), do OpenGameArt.org. Cortado
 (v8) O zumbido da mosca e o uivo do LAMBEHOMI são gerados no aparelho (audio.js), sem arquivo.
 
 (v9.0) A BAGUNÇA dos TREM (latas, tralha, gato), o BANHO DE SAL GROSSO (grãos + sininho) e a voz de cada personagem do elenco também são gerados no aparelho (audio.js). Os arquivos praga-fita, praga-canto e sal-grosso saíram.
+
+(v9.2) Sons do pacote do KENNEY (www.kenney.nl), licença CC0 (domínio público): "RPG Audio", "Impact Sounds" e "Interface Sounds". Convertidos para mp3 mono.
+- k-moedas.mp3, k-moedas2.mp3 ← handleCoins / handleCoins2 (RPG Audio)
+- k-pano.mp3 ← cloth1 · k-livro.mp3 ← bookFlip1 · k-livro-fecha.mp3 ← bookClose · k-panela1/2.mp3 ← metalPot1/3 · k-rangido.mp3 ← creak1 · k-passo.mp3 ← (Impact Sounds) footstep_grass_000
+- k-lata.mp3 ← impactTin_medium_003 · k-sino.mp3 ← impactBell_heavy_001 (Impact Sounds)
+- k-plim.mp3 ← pluck_002 (Interface Sounds)

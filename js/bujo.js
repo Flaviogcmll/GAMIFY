@@ -16,10 +16,13 @@ const clean = (t) => String(t || '').replace(/\s*\(\d+\s*XP\)/i, '').trim();
 function quickAdd() {
   if (modalOpen()) return;
   const td = today();
+  // v9.2 (pedido do dono, 8B): o anotar rápido também pergunta a COR e o DIA (nada fica sem rumo); igual ao MEU DIA
+  const cores = [['red', R.COR_NAMES.urg, 'urg'], ['yellow', R.COR_NAMES.chega, 'atencao'], ['green', R.COR_NAMES.estavel, 'ok'], ['wait', R.COR_NAMES.wait, 'espera'], ['', R.COR_NAMES.semcor, 'neutro']];
   openModal(`<form data-form="quick" autocomplete="off"><h2>✎ anotar rápido</h2>
     <input class="inp" name="text" placeholder="o que veio na cabeça?" aria-label="Tarefa" autofocus data-kbd maxlength="200">
-    <div class="row seg qwhen" style="margin-top:8px">${[['', 'SEM PRAZO'], [td, 'HOJE'], [addDays(td, 1), 'AMANHÃ']].map(([d, n], i) => `<label class="btn sm ghost"><input type="radio" name="due" value="${d}" ${i ? '' : 'checked'}> ${n}</label>`).join('')}</div>
-    <p class="meta" style="margin:6px 0 0">Enter salva. Depois você dá data e lugar com calma.</p>
+    <label class="lbl">Cor</label><div class="row qcor">${cores.map(([k, n, tone], i) => `<label class="btn sm ghost qc" data-tone="${tone}"><input type="radio" name="cor" value="${k}" ${i === 1 ? 'checked' : ''}><i></i> ${n}</label>`).join('')}</div>
+    <label class="lbl">Dia</label><div class="row seg qwhen">${[[td, 'HOJE'], [addDays(td, 1), 'AMANHÃ'], ['outro', 'OUTRO'], ['', 'SEM PRAZO']].map(([d, n], i) => `<label class="btn sm ghost"><input type="radio" name="due" value="${d}" ${i ? '' : 'checked'}> ${n}</label>`).join('')}<input class="inp" type="date" name="dia" aria-label="Outro dia" style="width:auto"></div>
+    <p class="meta" style="margin:6px 0 0">Enter salva. Vai pra TODAS, na lista da cor, e pro MEU DIA se tiver dia.</p>
     <div class="actions"><button type="button" class="btn" data-close>FECHAR</button><button class="btn pri">ANOTAR</button></div></form>`);
 }
 function fab() {
@@ -117,10 +120,14 @@ export function extendBujo(ACTIONS, FORMS) {
     quick: (f) => {
       const text = f.text.value.trim();
       if (!text) return;
-      const due = f.querySelector('[name=due]:checked')?.value || null;
-      A.addTask({ text, area: due ? R.listOf({ due }) : 'sem', due });
+      let due = f.querySelector('[name=due]:checked')?.value || null;
+      if (due === 'outro' || f.dia.value) due = f.dia.value || null; // digitou uma data: ela vale
+      const cor = f.querySelector('[name=cor]:checked')?.value ?? 'yellow';
+      const r = A.addTask({ text, area: due ? R.listOf({ due }) : 'sem', due, color: cor && cor !== 'wait' ? cor : null });
+      if (cor === 'wait' && r?.task) A.setStatus(r.task.id, 'wait');
       closeModal(); sfx('tab');
-      toast(`✎ Anotado em <b>${esc(R.AREAS[due ? R.listOf({ due }) : 'sem'])}</b>.`);
+      const lista = cor === 'wait' ? R.COR_NAMES.wait : R.COR_NAMES[{ red: 'urg', yellow: 'chega', green: 'estavel', '': 'semcor' }[cor]];
+      toast(`✎ Anotado em <b>${esc(lista)}</b>${due ? ` · ${due === today() ? 'HOJE' : due === addDays(today(), 1) ? 'AMANHÃ' : due.slice(8) + '/' + due.slice(5, 7)}` : ''}.`);
     },
     cheio: (f) => { const ids = [...f.querySelectorAll('[name=id]:checked')].map((x) => x.value); closeModal(); if (ids.length) { A.pushTomorrow(ids); sfx('tab'); } },
     duck: (f) => {
