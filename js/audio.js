@@ -114,9 +114,13 @@ export function sfxMilestone(i) {
   if (prefs.sfx <= 0) return;
   try { if (!ensure()) return; if (ctx.state === 'suspended') ctx.resume(); const t = ctx.currentTime + 0.01, base = [72, 76, 79, 84][i] || 72; for (let k = 0; k <= i; k++) tone(mtof(base + k * 4), t + k * 0.09, 0.22, { type: 'triangle', vol: 0.16 }); if (i === 3) { tone(mtof(96), t + 0.45, 0.7, { type: 'sine', vol: 0.12, vib: 5 }); } } catch { /* sem som */ }
 }
+// v9.2 (pedido do dono: "adicionar alguns, pode pegar da net"): sons de verdade do pacote CC0 do Kenney (assets/sons/k-*.mp3, créditos em CREDITOS.txt)
+// tocam por cima do efeito gerado: moedas na compra, pano ao soltar, livro nas páginas, papel no lixo
+const FILE_FOR = { buy: [['k-moedas', 0.55]], coin: [['k-moedas2', 0.5]], drop: [['k-pano', 0.45]], trash: [['k-livro-fecha', 0.4]], stamp: [['k-livro-fecha', 0.45]], chest: [['k-moedas', 0.4]], open: [['k-livro', 0.18]] };
 export function sfx(name) {
   if (prefs.sfx <= 0) return;
   try { if (!ensure()) return; if (ctx.state === 'suspended') ctx.resume(); detune = 2 ** (((Math.random() - 0.5) * 0.6) / 12); SFX[name]?.(ctx.currentTime + 0.01); detune = 1; } catch { /* sem som */ }
+  for (const [f, v] of FILE_FOR[name] || []) playFile(f, { vol: v });
 }
 
 // ───── lo-fi do aventureiro (gerado) ─────
@@ -333,6 +337,8 @@ const boing = (t) => tone(180, t, 0.35, { type: 'sine', vol: 0.09, slide: 3.2, v
 export function bagunca(n = 2) {
   if (!ok()) return;
   const t = ctx.currentTime + 0.03, k = Math.max(1, Math.min(3, n));
+  // v9.2: panela e lata de verdade (Kenney, CC0) por baixo da bagunça gerada
+  const real = ['k-panela1', 'k-panela2', 'k-lata']; playFile(real[(Math.random() * 3) | 0], { vol: 0.35 + k * 0.08 }); if (k >= 2) setTimeout(() => playFile('k-lata', { vol: 0.35, rate: 0.9 + Math.random() * 0.3 }), 350 + Math.random() * 300);
   for (let i = 0; i < 2 + k * 2; i++) lata(t + Math.random() * (0.5 + k * 0.35), 500 + Math.random() * 1500, 0.04 + Math.random() * 0.04);
   if (Math.random() < 0.5) boing(t + 0.2 + Math.random() * 0.5);
   if (Math.random() < 0.35 + k * 0.15) { miau(t + 0.3 + Math.random() * 0.4, 0.9 + Math.random() * 0.4); if (k >= 2 && Math.random() < 0.6) { chiadoGato(t + 0.9); miau(t + 1.05, 1.35, 0.08); } }
@@ -362,4 +368,6 @@ const VOZES = {
   cumpadi: (t) => { for (let i = 0; i < 4; i++) tone(mtof(93 + ((i * 5) % 7)), t + i * 0.08, 0.07, { type: 'sine', vol: 0.07, slide: 1.4 }); }, // piu piu
   'trem-1': () => bagunca(1), 'trem-2': () => bagunca(2), 'trem-3': () => bagunca(3),
 };
+/** v9.2: sons de arquivo com nome (aviso da hora, lobo, antídoto) */
+export const somArq = (n, vol = 0.6) => playFile(n, { vol });
 export function voz(nome) { if (!ok()) return; try { VOZES[nome]?.(ctx.currentTime + 0.03); } catch { /* sem som */ } }

@@ -213,3 +213,20 @@ export function extendPlanos(ACTIONS, FORMS) {
     if (pd && pd.value) setDue(pd.dataset.pcDue, pd.value, { reopen: reopenPlanos }).then(redraw);
   });
 }
+
+// ───── v9.2 (pedido do dono, 5B): AVISO 10 MIN ANTES do que tem horário (tarefas e rituais de hoje), dentro do app ─────
+const AVISO_MIN = 10, AV_KEY = 'gamify-ui:lembrei';
+let avisos = null;
+export function checkAvisos(now = new Date()) {
+  const td = today();
+  if (!avisos || avisos.d !== td) { try { avisos = JSON.parse(ls.get(AV_KEY) || 'null'); } catch { avisos = null; } if (!avisos || avisos.d !== td) avisos = { d: td, ids: [] }; }
+  const nowM = now.getHours() * 60 + now.getMinutes(), { timed, ritsAt } = dayItems(td);
+  const items = [...timed.map((t) => ({ k: t.id, at: hourOf(t), name: clean(t.text), act: `data-act="edit-task" data-id="${t.id}"` })), ...ritsAt.map((r) => ({ k: 'r:' + r.id, at: r.at, name: '🔁 ' + r.name, act: `data-act="jump-rit" data-id="${r.id}"` }))];
+  for (const x of items) {
+    const left = toMin(x.at) - nowM;
+    if (left > AVISO_MIN || left < 0 || avisos.ids.includes(x.k)) continue;
+    avisos.ids.push(x.k); ls.set(AV_KEY, JSON.stringify(avisos));
+    import('./audio.js').then((a) => a.somArq('k-plim', 0.7));
+    toast(`⏰ ${left ? `Daqui a <b>${left} min</b>` : '<b>Agora</b>'} (${esc(x.at)}): ${esc(x.name.slice(0, 60))} <button class="btn sm" ${x.act}>ABRIR</button>`, 'gold');
+  }
+}

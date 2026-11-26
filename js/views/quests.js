@@ -32,8 +32,8 @@ function sortBlocks(list, mode, td = today()) {
 }
 /** blocos em 3 colunas fixas: abrir um bloco só empurra os de baixo dele.
  *  v7.0: o bloco guarda a coluna (b.col, 0 a 2) quando você arrasta ele pra outra; sem isso, fica na coluna i % 3 (como antes) */
-// v9.1 (pedido do dono: "blocos maiores, tá difícil de ler"): em tela até 1700 px os blocos ficam em 2 colunas (mais largos); a coluna 3 guardada cai na 1
-const NCOL = () => { try { return matchMedia('(min-width: 1700px)').matches ? 3 : 2; } catch { return 3; } };
+// v9.2 (resposta do dono, 11): 3 colunas sempre; os blocos ficaram maiores na VERTICAL (linhas mais altas e letra um pouco maior, no CSS)
+const NCOL = () => 3;
 const colOf = (b, i, n = NCOL()) => (Number.isInteger(b?.col) && b.col >= 0 ? b.col % n : i % n);
 const cols3 = (items, blocks = []) => {
   const n = NCOL(), cs = Array.from({ length: n }, () => []);

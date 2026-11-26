@@ -2159,3 +2159,55 @@ li.task[data-praga] .txt::before, .li.rit[data-praga] .lt::before { content: non
 .pst-face img.elenco { height: 104px; width: auto; filter: drop-shadow(2px 0 0 rgba(46, 36, 48, .4)); }
 @media (max-width: 600px) { .pst-face img.elenco { height: 84px; } }
 img.elenco.pav { height: 64px; width: auto; flex: none; }
+
+/* ═════════════ v9.2 — respostas do questionário ═════════════ */
+.qcor { flex-wrap: wrap; gap: 6px; }
+.qcor .qc { display: inline-flex; align-items: center; gap: 6px; }
+.qcor .qc input { position: absolute; opacity: 0; pointer-events: none; }
+.qcor .qc i { width: 12px; height: 12px; border-radius: 50%; background: var(--c-neutro); display: inline-block; }
+.qcor .qc[data-tone="urg"] i { background: var(--c-urg); } .qcor .qc[data-tone="atencao"] i { background: var(--c-atencao); } .qcor .qc[data-tone="ok"] i { background: var(--c-ok); } .qcor .qc[data-tone="espera"] i { background: var(--c-espera); }
+.qcor .qc:has(input:checked), .qwhen label:has(input:checked) { outline: 2px solid var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--panel)); }
+/* 11: blocos maiores na vertical, letra um pouco maior (sem exagero) */
+.mcol article.block .task, .list-card .task { padding-top: 8px; padding-bottom: 8px; min-height: 40px; }
+.mcol article.block .task .txt, .list-card .task .txt { font-size: 14px; line-height: 1.45; }
+.block .bt { padding: 12px 10px 10px; }
+.block .bt h3 { font-size: 14.5px; line-height: 1.4; }
+.block .bbody { padding-bottom: 6px; }
+/* 9A: o lobo-termômetro (cantinho fixo) — no PC embaixo à esquerda (a setinha ▲ sobe), no celular acima da barra de baixo */
+#lobo-termo { position: fixed; left: 12px; bottom: 74px; z-index: 44; display: flex; align-items: flex-end; gap: 4px; padding: 4px 6px 4px 4px; border: 2px solid var(--edge); border-radius: 14px; background: color-mix(in srgb, var(--panel) 92%, transparent); box-shadow: 3px 3px 0 var(--shadow); cursor: var(--cur-hand, pointer); transition: transform .15s; }
+#lobo-termo:hover { transform: translateY(-2px); }
+#lobo-termo img.lt-art { height: 46px; width: auto; }
+#lobo-termo .lt-bar { display: flex; flex-direction: column; gap: 2px; padding: 2px; border-radius: 6px; background: var(--panel-2); }
+#lobo-termo .lt-bar i { width: 7px; height: 7px; border-radius: 2px; background: color-mix(in srgb, var(--line) 80%, transparent); }
+#lobo-termo .lt-bar i.on[data-i="0"] { background: var(--c-ok); } #lobo-termo .lt-bar i.on[data-i="1"] { background: var(--c-atencao); } #lobo-termo .lt-bar i.on[data-i="2"] { background: var(--c-quase); } #lobo-termo .lt-bar i.on[data-i="3"] { background: var(--c-urg); } #lobo-termo .lt-bar i.on[data-i="4"] { background: var(--plum, #2e2430); box-shadow: 0 0 0 1px var(--c-urg); }
+#lobo-termo[data-mood="lambehomi"] { border-radius: 2px; border-color: var(--c-urg); } /* perigo: canto reto */
+@media (min-width: 861px) { #lobo-termo { bottom: 16px; left: 16px; opacity: .92; } #lobo-termo img.lt-art { height: 52px; } #totop { bottom: 96px !important; } }
+@media print { #lobo-termo { display: none; } }
+.termo { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; }
+.termo-art { display: grid; place-items: end center; min-width: 120px; padding: 8px; border-radius: 12px; background: color-mix(in srgb, var(--c-ok) 10%, var(--panel-2)); }
+.termo-art[data-mood="emburrado"] { background: color-mix(in srgb, var(--c-atencao) 14%, var(--panel-2)); }
+.termo-art[data-mood="lambehomi"] { background: color-mix(in srgb, var(--plum, #2e2430) 70%, var(--panel-2)); border-radius: 2px; }
+.termo-art img.elenco { max-height: 220px; width: auto; pointer-events: auto; cursor: var(--cur-hand, pointer); }
+.termo-escala { list-style: none; padding: 0; margin: 8px 0; display: flex; flex-direction: column-reverse; gap: 3px; }
+.termo-escala li { padding: 4px 8px; border-radius: 8px; font-size: 12px; border-left: 4px solid var(--line); }
+.termo-escala li.past { opacity: .55; } .termo-escala li.cur { background: color-mix(in srgb, var(--accent) 14%, var(--panel)); border-left-color: var(--accent); font-weight: 700; }
+@media (max-width: 600px) { .termo { grid-template-columns: 1fr; } .termo-art img.elenco { max-height: 150px; } }
+/* TELA DO ANTÍDOTO (uns 5 s): CAJULINA e EVE LÃ curam o lobo; faíscas em espiral; o LAMBEHOMI some e o GUARANÁ aparece */
+.ant-modal { overflow: hidden; }
+.antidoto { text-align: center; }
+.ant-cena { position: relative; height: 230px; display: flex; align-items: flex-end; justify-content: center; gap: 18px; border-radius: 12px; overflow: hidden; background: radial-gradient(ellipse at 50% 85%, color-mix(in srgb, var(--t-mel-2, #f8bc56) 55%, transparent), transparent 60%), linear-gradient(color-mix(in srgb, var(--t-ameixa, #352329) 85%, var(--panel)), color-mix(in srgb, var(--t-couro, #77423c) 70%, var(--panel))); }
+.ant-cena img.elenco { height: auto; max-height: 190px; width: auto; }
+.ant-caj, .ant-eve { animation: ant-chega 1s ease-out both; } .ant-eve { animation-delay: .5s; }
+.ant-lobo { position: relative; display: block; }
+.ant-lb { display: block; animation: ant-sai 1.6s ease-in 1.4s both; }
+.ant-gu { position: absolute; inset: auto 0 0 0; display: flex; justify-content: center; animation: ant-entra 1.4s ease-out 2.4s both; }
+.ant-garrafa { position: absolute; left: 62%; bottom: 120px; width: 14px; height: 18px; border-radius: 3px 3px 6px 6px; background: var(--c-ok); box-shadow: inset -3px 0 0 color-mix(in srgb, var(--c-ok) 60%, var(--plum, #2e2430)); animation: ant-voa 1.1s ease-in-out .9s both; }
+.ant-faisca { position: absolute; left: 50%; bottom: 90px; width: 6px; height: 6px; background: var(--t-mel-3, #facf83); border-radius: 1px; opacity: 0; animation: ant-espiral 1.6s ease-out calc(1.8s + var(--i) * .05s) both; --a: calc(var(--i) * 51deg); }
+.ant-t { font: 22px/1.3 var(--f-pixel); color: var(--c-premio); margin: 12px 0 4px; animation: ant-chega .6s ease-out 3s both; }
+.ant-p { max-width: 560px; margin: 0 auto; animation: ant-chega .6s ease-out 3.3s both; }
+@keyframes ant-chega { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes ant-sai { 0% { opacity: 1; filter: none; } 60% { filter: brightness(2.2) saturate(0); } 100% { opacity: 0; filter: brightness(3) saturate(0); transform: scale(.9); } }
+@keyframes ant-entra { from { opacity: 0; transform: scale(.85); filter: brightness(2.5); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes ant-voa { 0% { opacity: 0; transform: translate(0, 0) rotate(0); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(-90px, 40px) rotate(-300deg); } }
+@keyframes ant-espiral { 0% { opacity: 1; transform: rotate(var(--a)) translateX(4px) rotate(calc(-1 * var(--a))); } 100% { opacity: 0; transform: rotate(calc(var(--a) + 240deg)) translateX(110px) rotate(calc(-1 * var(--a))); } }
+@media (prefers-reduced-motion: reduce) { .antidoto *, .ant-cena * { animation-duration: .01s !important; animation-delay: 0s !important; } }
