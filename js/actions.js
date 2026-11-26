@@ -984,10 +984,13 @@ export function ritualUndo(rid) {
 export function saveRitual(data) {
   return commit(['core'], () => {
     const clean = { type: data.type, name: String(data.name || '').trim(), notes: data.notes || '' };
-    if (data.mode === 'dom') { clean.dom = +data.dom || 1; } else { clean.every = Math.max(1, +data.every || 7); }
+    // v9.4: três jeitos de repetir: a cada N dias · dias da semana (wd) · dias do mês (doms, ex.: 5 e 15)
+    if (data.mode === 'dom') { const ds = String(data.doms ?? data.dom ?? '').split(/[^0-9]+/).map(Number).filter((x) => x >= 1 && x <= 31); clean.doms = [...new Set(ds.length ? ds : [1])].sort((a, b) => a - b); }
+    else if (data.mode === 'wd') { const w = (data.wd || []).map(Number).filter((x) => x >= 0 && x <= 6); clean.wd = w.length ? [...new Set(w)] : [1]; }
+    else clean.every = Math.max(1, +data.every || 7);
     if (!clean.name) return;
     const r = data.id && S.core.rituals.find((x) => x.id === data.id);
-    if (r) { delete r.every; delete r.dom; Object.assign(r, clean); if (data.last !== undefined) r.last = data.last || null; if (data.plan !== undefined) { if (data.plan) r.plan = data.plan; else delete r.plan; } }
+    if (r) { delete r.every; delete r.dom; delete r.doms; delete r.wd; Object.assign(r, clean); if (data.last !== undefined) r.last = data.last || null; if (data.plan !== undefined) { if (data.plan) r.plan = data.plan; else delete r.plan; } }
     else S.core.rituals.push({ id: uid('r'), ...clean, last: data.last || null, ...(data.plan ? { plan: data.plan } : {}) });
   });
 }
@@ -1211,6 +1214,11 @@ export function updateMilestones(list) {
 /** v5.14: liga/desliga e horários da neurociência (settings.neuro) */
 /** v8.4: tarefa arrastada pra uma lista de COR. A cor da tarefa-mãe é a do bloco (muda lá também). URGENTE sem prazo ganha prazo hoje.
  *  `before` = soltou em cima de outra tarefa da mesma lista: só muda a ordem. */
+/** v9.4: o ASSUNTO de uma tarefa solta ('' = CAIXA DE ENTRADA) */
+export function setCat(id, cat) {
+  const t = T(id); if (!t || t.block) return;
+  return commit(['quests'], () => { if (cat) t.cat = cat; else delete t.cat; }, { label: 'mudar de assunto' });
+}
 export function setCor(id, cor, before) {
   const t = T(id); if (!t) return;
   return commit(['quests'], () => {

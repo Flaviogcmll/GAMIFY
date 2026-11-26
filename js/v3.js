@@ -135,7 +135,7 @@ function targetAt(x, y, kind) {
   const el = document.elementFromPoint(x, y);
   if (!el) return null;
   if (kind === 'task') {
-    const li = el.closest('li.task'), zone = el.closest('[data-drop-area],[data-drop-block]');
+    const li = el.closest('li.task'), zone = el.closest('[data-drop-cat],[data-drop-area],[data-drop-block],[data-drop-cor]');
     if (!zone) return null;
     const other = li && li.dataset.id !== drag.id ? li : null;
     // v9.0 (pedido do dono): soltar EM CIMA de outra subtarefa do bloco (metade de baixo da linha) = vira passo ↳ dela
@@ -184,6 +184,15 @@ document.addEventListener('pointerup', () => {
   document.querySelectorAll('.drop-before,.drop-zone,.drop-nest').forEach((x) => x.classList.remove('drop-before', 'drop-zone', 'drop-nest'));
   if (!d.on || !d.target) return;
   const z = d.target.zone;
+  // v9.4: TODAS: soltar num grupo = muda o ASSUNTO; trocar de coluna = AGORA vira ESQUENTANDO, DEPOIS vira ESTÁVEL; AGUARDANDO/PARADO = a cor deles
+  if (d.kind === 'task' && (z.dataset.dropCat != null || z.dataset.dropCor)) {
+    const t = S.quests.tasks.find((x) => x.id === d.id);
+    if (t && !t.block) {
+      if (z.dataset.dropCat != null) { if ((t.cat || '') !== z.dataset.dropCat) A.setCat(t.id, z.dataset.dropCat); const now = R.isAgora(S, t); if (z.dataset.dropCol === 'agora' && !now) A.setCor(t.id, 'chega'); else if (z.dataset.dropCol === 'depois' && now) A.setCor(t.id, 'estavel'); }
+      else A.setCor(t.id, z.dataset.dropCor);
+      sfx('drop'); return;
+    }
+  }
   if (d.target.nest) { const r = A.nestTask(d.id, d.target.nest.dataset.id); if (r?.error) toast(esc(r.error), 'bad'); sfx('drop'); return; }
   if (d.target.merge) {
     const src = R.findBlock(S, d.id), dst = R.findBlock(S, d.target.merge.dataset.dropBlock);

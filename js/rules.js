@@ -881,6 +881,13 @@ export function distributePlan(s, opts = {}) {
 // ───────────────────────── RITUAIS ─────────────────────────
 export function ritualNext(r, td = today()) {
   if (r.every) return r.last ? addDays(r.last, r.every) : td;
+  // v9.4 (pedido do dono): toda TERÇA, todo DOMINGO… (r.wd = dias da semana, 0 = domingo) e todo dia 5 e 15 (r.doms)
+  if (r.wd?.length) { let d = r.last ? addDays(r.last, 1) : td; for (let i = 0; i < 14; i++, d = addDays(d, 1)) if (r.wd.includes(weekday(d))) return d; return null; }
+  if (r.doms?.length) {
+    let d = r.last ? addDays(r.last, 1) : td;
+    for (let i = 0; i < 70; i++, d = addDays(d, 1)) { const day = +d.slice(8), last = new Date(+d.slice(0, 4), +d.slice(5, 7), 0).getDate(); /* dia 31 em mês de 30 = dia 30 */ if (r.doms.some((x) => Math.min(x, last) === day)) return d; }
+    return null;
+  }
   if (r.dom) {
     const base = r.last ? addDays(r.last, 1) : td;
     let y = +base.slice(0, 4), m = +base.slice(5, 7);
@@ -1556,4 +1563,27 @@ export function moscaMorta(s, td = today()) {
   const blocks = (s.quests?.blocks || []).filter((b) => b.color === 'black' && b.st !== 'done' && due(b.id)).map((b) => ({ id: b.id, kind: 'block', text: b.title, last: seen[b.id] || null }));
   const tasks = openTasks(s).filter((t) => t.color === 'black' && !(t.block && findBlock(s, t.block)?.color === 'black') && due(t.id)).map((t) => ({ id: t.id, kind: 'task', text: t.text, last: seen[t.id] || null }));
   return [...blocks, ...tasks];
+}
+
+// ───────────────────────── v9.4: a TODAS em AGORA | DEPOIS, agrupada por ASSUNTO ─────────────────────────
+/** os assuntos: CAIXA DE ENTRADA (sem assunto: o que foi jogado e ainda não foi organizado) + as janelas (fixas e as suas) */
+export const assuntos = (s) => [['', 'CAIXA DE ENTRADA'], ...['bd', 'tr', 'cap', 'gs'].map((g) => [g, GROUPS[g].short]), ...windows(s).map((w) => ['w:' + w.id, w.name])];
+/** o assunto de uma tarefa: a da janela do bloco (subtarefa) ou o que você escolheu (t.cat) */
+export function catOf(s, t) {
+  if (t.block) { const b = findBlock(s, t.block); return b ? (b.win ? 'w:' + b.win : b.group === 'bs' ? '' : b.group) : ''; }
+  const c = t.cat || ''; return !c || assuntos(s).some(([k]) => k === c) ? c : '';
+}
+/** AGORA = atrasada, vence até amanhã, URGENTE, ESQUENTANDO ou ▶ fazendo · DEPOIS = o resto (ESTÁVEL, sem cor, prazo longe) */
+export function isAgora(s, t, td = today()) {
+  const c = colorOfTask(s, t);
+  return t.st === 'doing' || c === 'red' || c === 'yellow' || (!!t.due && t.due <= addDays(td, 1));
+}
+
+/** v9.4: "a cada 7 dias" · "toda TER e DOM" · "todo dia 5 e 15" (pra mostrar na tela) */
+export function ritualRepete(r) {
+  const DW = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
+  if (r.every) return `a cada ${r.every} dia${r.every > 1 ? 's' : ''}`;
+  if (r.wd?.length) return `toda ${[...r.wd].sort((a, b) => a - b).map((x) => DW[x]).join(', ')}`;
+  const ds = r.doms?.length ? r.doms : r.dom ? [r.dom] : [];
+  return ds.length ? `todo dia ${ds.join(' e ')}` : 'sem frequência';
 }

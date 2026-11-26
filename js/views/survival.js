@@ -55,7 +55,7 @@ export function viewSurvival(ui) {
   for (let d = addDays(td, -1); R.isPerfect(S, d); d = addDays(d, -1)) perfectRun++;
   if (R.isPerfect(S, td)) perfectRun++;
   return `<div class="page-title"><div><h1><em>survival</em>.</h1></div></div>
-    <div class="page-actions"><button class="btn" data-act="rest-day">🏕 DESCANSO HOJE</button><button class="btn ${R.tripNow(S) ? 'pri' : ''}" data-act="trip" title="Viagem ou visitas: congela o jogo enquanto você está fora">✈ ${R.tripNow(S) ? 'VOLTEI' : 'VIAGEM'}</button><button class="btn" data-act="edit-habits">✎ HÁBITOS</button></div> <!-- v7.7: os botões vêm antes dos quadrinhos -->
+    <div class="page-actions"><button class="btn" data-act="rest-day">🏕 DESCANSO HOJE</button><button class="btn ${R.tripNow(S) ? 'pri' : ''}" data-act="trip" title="Viagem ou visitas: congela o jogo enquanto você está fora">✈ ${R.tripNow(S) ? 'VOLTEI' : 'VIAGEM'}</button><button class="btn" data-act="edit-habits">✎ HÁBITOS</button><button class="btn" data-act="revisao" title="Domingo, 10 minutos: arquivar, esvaziar a caixa de entrada, escolher as 3 missões e planejar a segunda">🧭 REVISÃO DA SEMANA</button></div> <!-- v7.7: os botões vêm antes dos quadrinhos -->
     ${tiles([
       { label: '🌟 Perfeitos seguidos', value: perfectRun, tone: 'ok', tip: 'Dias seguidos com todos os hábitos feitos' },
       { label: '✓ Hábitos hoje', value: `${R.countX(S, td)}/${S.core.habits.length}`, tone: 'ok' },
@@ -81,7 +81,7 @@ const RIT_ICON = { pessoa: '👥', rotina: '🔁', trabalho: '💼' };
 /** uma linha de ritual: nome, quando, selo, 📅 marcar o dia e ✓ FIZ */
 export function ritualRow(r, td = today()) {
   const s = R.ritualStatus(r, td);
-  return `<div class="li" data-rit="${r.id}"><div class="lt" data-act="edit-ritual" data-id="${r.id}" style="cursor:var(--cur-hand,pointer)">${RIT_ICON[r.type] || '🔁'} ${esc(r.name)}<small>${s.next ? DOW[weekday(s.next)] + ' ' + fmtDM(s.next) : '—'}${s.plan ? ' · dia marcado por você' : r.every ? ` · a cada ${r.every} dias` : r.dom ? ` · todo dia ${r.dom}` : ''}${r.at ? ` · às ${esc(r.at)}` : ''}</small></div>
+  return `<div class="li" data-rit="${r.id}"><div class="lt" data-act="edit-ritual" data-id="${r.id}" style="cursor:var(--cur-hand,pointer)">${RIT_ICON[r.type] || '🔁'} ${esc(r.name)}<small>${s.next ? DOW[weekday(s.next)] + ' ' + fmtDM(s.next) : '—'}${s.plan ? ' · dia marcado por você' : ' · ' + R.ritualRepete(r)}${r.at ? ` · às ${esc(r.at)}` : ''}</small></div>
       <div class="row" style="flex-wrap:nowrap;gap:6px"><span class="chip ${s.left != null && s.left <= 0 ? 'late' : s.tone === 'bad' ? 'late' : s.tone === 'warn' || (s.left != null && s.left <= 1) ? 'week' : 'soon'}">${esc(s.label)}</span><button class="btn sm ghost" data-act="ritual-plan" data-id="${r.id}" title="Marcar o dia em que vou fazer">📅</button>${r.last === td ? `<button class="btn sm ghost" data-act="ritual-undo" data-id="${r.id}" title="Desfazer">↺</button>` : `<button class="btn sm" data-act="ritual-done" data-id="${r.id}">✓ FIZ</button>`}</div></div>`;
 }
 function ritualsMini(td) {
