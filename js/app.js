@@ -2,7 +2,7 @@
 import { extendLobo, loboTermo } from './lobo.js';
 import { checkAvisos } from './planos.js';
 import { setDue } from './remarcar.js';
-import { FALAS, NOMES } from './elenco.js';
+import { FALAS, NOMES, quem, sorte } from './elenco.js';
 import { S, status, init, onChange, replaceAll, exportAll } from './store.js';
 
 import * as A from './actions.js';
@@ -42,7 +42,7 @@ import { extendImgs, imgSection, fillImgs } from './imgs.js';
 import { autoSnapshot, backupBanner, extendBackup, markBackup, restoreDocs } from './backup.js';
 import { tripBanner, tripCheck, extendTrip } from './trip.js';
 import { maybeReview, extendReview } from './review.js';
-import { extendPlanos, maybePlanAsk } from './planos.js';
+import { extendPlanos, maybePlanAsk, maybeHabitsAsk } from './planos.js';
 import { extendBujo, afterRenderBujo } from './bujo.js';
 import { perksNav, perksGo, applyCursor, CURSOR_KEY } from './telas.js';
 import { extendMapa } from './mapa.js';
@@ -156,6 +156,7 @@ function render() {
   deaccent(document.body);
   try { maybeReview(); } catch (err) { console.error(err); }
   try { maybePlanAsk(); } catch (err) { console.error(err); } // v8.7: à noite, o plano de amanhã
+  try { maybeHabitsAsk(); } catch (err) { console.error(err); } // v9.3: os hábitos de hoje, toda vez que o app abre
   try { afterRender(cur); } catch (err) { console.error(err); }
   try { afterRender4(cur); } catch (err) { console.error(err); }
   try { afterRenderBujo(); } catch (err) { console.error(err); }
@@ -379,7 +380,6 @@ function editBlock(id) {
   // v9.0 (pedido do dono): a janela do BLOCO tem o mesmo desenho da janela da TAREFA (cabeçalho, título grande, cor ao lado, prazo com atalhos, ações embaixo)
   const color = b.st === 'wait' ? 'wait' : b.color, td = today(), nextMon = addDays(td, ((8 - weekday(td)) % 7) || 7);
   const items = S.quests.tasks.filter((t) => t.block === b.id && t.st !== 'cancel').sort((x, y) => x.ord - y.ord), open = items.filter(R.isOpen);
-  const inh = open.filter((t) => t.dueInh).length;
   openModal(`<form data-form="block" data-id="${id}" autocomplete="off" class="mform">
     <div class="mhead"><span class="mtype">bloco</span><span class="mwhere">${esc(R.winOf(S, b)?.name || R.GROUPS[b.group]?.name || '')}</span>
       <span class="chip xp" title="Fechar o bloco vale isso${R.projectValue(b.title) ? ` · projeto de ${fmtN(R.projectValue(b.title))}: sua metade ${fmtN(R.projectValue(b.title) / 2)} gold` : ''}">${R.blockXp(b)} XP</span></div>
@@ -388,7 +388,7 @@ function editBlock(id) {
       <div><label class="lbl" for="b-group">Janela</label><select class="inp" id="b-group" name="group">${Object.entries(R.GROUPS).map(([g, i]) => `<option value="${g}" ${b.group === g && !R.winOf(S, b) ? 'selected' : ''}>${i.name}</option>`).join('')}${R.windows(S).map((w) => `<option value="win:${w.id}" ${b.win === w.id ? 'selected' : ''}>▣ ${esc(w.name)}</option>`).join('')}</select>
         <p class="meta" style="margin:6px 0 0">${items.length - open.length}/${items.length} feitas${open.length ? ` · ${open.length} em aberto` : ''}</p></div>
       <div><label class="lbl">Cor</label>${swatches(color, true)}</div></div>
-    <label class="lbl" for="b-due">◆ Prazo final <span class="meta">· as subtarefas seguem este prazo, a não ser que você mude a delas${inh ? ` (${inh} seguindo agora)` : ''}</span></label><div class="row"><input class="inp" type="date" id="b-due" name="due" value="${b.due || ''}" style="width:auto">
+    <label class="lbl" for="b-due">◆ Prazo final <span class="meta">· só as subtarefas que você datar têm prazo; nenhuma passa deste</span></label><div class="row"><input class="inp" type="date" id="b-due" name="due" value="${b.due || ''}" style="width:auto">
       ${[['HOJE', td], ['AMANHÃ', addDays(td, 1)], ['+7', addDays(td, 7)], ['PRÓX. SEG', nextMon], ['SEM', '']].map(([n, d]) => `<button type="button" class="pill" data-act="due-quick" data-d="${d}"><span>${n}</span></button>`).join('')}</div>
     ${open.length ? `<label class="lbl">Subtarefas</label><div class="mlist">${open.slice(0, 12).map((t) => `<button type="button" class="dia-t" data-act="edit-task" data-id="${t.id}" data-color="${R.colorOfTask(S, t) || ''}">${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}${t.due ? ` <small class="meta">${fmtDM(t.due)}</small>` : ''}</button>`).join('')}${open.length > 12 ? `<span class="meta">+${open.length - 12}</span>` : ''}</div>` : ''}
     ${b.group !== 'bs' ? `<details class="merge-b"><summary class="meta">↘ virar subtarefa de outro bloco <span class="meta">(ou arraste o bloco pelo ⠿ pra dentro de outro bloco aberto)</span></summary><div class="row" style="margin-top:6px"><select class="inp grow" data-merge-into="${id}" aria-label="Bloco de destino"><option value="">— escolha o bloco —</option>${S.quests.blocks.filter((x) => x.id !== id && x.st !== 'done' && x.group !== 'bs').sort((a, z) => a.title.localeCompare(z.title)).map((x) => `<option value="${x.id}">${esc(x.title)}${R.winOf(S, x) ? ' · ' + esc(R.winOf(S, x).name) : ''}</option>`).join('')}</select></div><p class="meta" style="margin:4px 0 0">O título vira uma tarefa lá dentro e as tarefas daqui viram passos ↳ dela. Dá pra desfazer no ↩.</p></details>` : ''}
@@ -403,7 +403,7 @@ function distribute() {
     const m = document.querySelector('.modal');
     const moved = plan.filter((p) => p.from).length, cost = A.planCost(plan), pace = R.weekdayPace(S), max = S.core.settings?.maxPerDay || R.C.MAX_PER_DAY;
     const paceTxt = pace.some((p) => p != null) ? [1, 2, 3, 4, 5, 6, 0].map((w) => `${DOW[w]} ${pace[w] == null ? '–' : String(Math.round(pace[w] * 10) / 10).replace('.', ',')}`).join(' · ') : '';
-    m.innerHTML = `<h2>📅 distribuir prazos</h2>
+    m.innerHTML = `${quem('tia-mia', 4, 'Deixa comigo, meu fio: um tanto por dia, sem afobação.')}<h2>📅 distribuir prazos</h2>
       <div class="seg" style="margin:8px 0;flex-wrap:wrap">${SC.map(([k, n]) => `<button type="button" class="${scope === k ? 'on' : ''}" data-scope="${k}">${n}</button>`).join('')}</div>
       <p class="meta" style="margin:0">${scope === 'dated' ? 'Remarca só as tarefas que JÁ TINHAM prazo e atrasaram. Quem não tinha data continua sem.' : scope === 'new' ? 'Dá data só à próxima ação de cada bloco que está sem prazo. Não mexe nas atrasadas nem na lista SEM PRAZO.' : 'Remarca as atrasadas e também dá data à próxima ação de cada bloco. A lista SEM PRAZO não é mexida.'}</p>
       <p class="meta" style="margin:6px 0 0">${paceTxt ? `Seu ritmo (tarefas concluídas por dia, últimas 8 semanas): ${paceTxt}. Cada dia recebe até 80% do seu ritmo (a folga cobre imprevisto), no máximo ${max}. ` : `Ainda há pouco histórico: uso o máximo de ${max} por dia útil. `}Ordem: ! prioridade, ⭐, depois a mais atrasada primeiro. Feriado não entra.</p>
@@ -420,7 +420,7 @@ function distribute() {
 }
 function editRitual(id) {
   const r = id ? S.core.rituals.find((x) => x.id === id) : { type: 'pessoa', name: '', every: 7, last: today() };
-  openModal(`<form data-form="ritual" data-id="${id || ''}" autocomplete="off"><h2>${id ? 'ritual' : 'novo ritual'}</h2>
+  openModal(`<form data-form="ritual" data-id="${id || ''}" autocomplete="off">${quem('tia-mia', 2, sorte(['Ritual é igual chá da tarde: todo dia, sem falta.', 'O que volta sempre merece hora marcada.']))}<h2>${id ? 'ritual' : 'novo ritual'}</h2>
     <div class="row"><div style="width:150px"><label class="lbl" for="r-type">Tipo</label><select class="inp" id="r-type" name="type"><option value="pessoa" ${r.type === 'pessoa' ? 'selected' : ''}>👥 PESSOA</option><option value="rotina" ${r.type === 'rotina' ? 'selected' : ''}>🔁 ROTINA</option><option value="trabalho" ${r.type === 'trabalho' ? 'selected' : ''}>💼 TRABALHO</option></select></div>
       <div class="grow"><label class="lbl" for="r-name">O quê / quem</label><input class="inp" id="r-name" name="name" value="${esc(r.name)}" required autofocus></div></div>
     <div class="row"><div><label class="lbl" for="r-mode">Repete</label><select class="inp" id="r-mode" name="mode"><option value="every" ${!r.dom ? 'selected' : ''}>A CADA N DIAS</option><option value="dom" ${r.dom ? 'selected' : ''}>TODO MÊS NO DIA</option></select></div>
@@ -672,7 +672,7 @@ const ACTIONS = {
   'due-quick': (d, e, el) => { el.closest('form').due.value = d.d; },
   'move-task': (d) => A.moveTask(d.id, +d.dir),
   'add-step': (d) => { const t = S.quests.tasks.find((x) => x.id === d.id); closeModal(); stepPrompt(t); },
-  'del-task': async (d) => { closeModal(); if (await ask('Apagar tarefa?', 'Ela some de vez (e os passos ↳ dela também).', 'APAGAR', true)) A.deleteTask(d.id); },
+  'del-task': async (d) => { closeModal(); if (await ask('Apagar tarefa?', 'Ela some de vez (e os passos ↳ dela também).', 'APAGAR', true, quem('megg', 1, 'Apagar é pra sempre, viu? Se não vale mais, CANCELAR deixa registrado.'))) A.deleteTask(d.id); },
   'cycle-back': (d) => A.cycleBack(d.id),
   'cycle-ok': (d) => { A.cycleApprove(d.id); sfx('level'); confetti(50); },
   prio: (d) => { const t = S.quests.tasks.find((x) => x.id === d.id); A.updateTask(d.id, { prio: !t.prio }); },
@@ -685,7 +685,7 @@ const ACTIONS = {
   voz: (d) => { voz(d.k); const f = FALAS[d.k]; if (f) toast(`<b>${esc(NOMES[d.k] || '')}:</b> ${esc(f[Math.floor(Math.random() * f.length)])}`); }, // v9.0: tocar num personagem = a voz e uma fala dele
   'edit-block': (d) => editBlock(d.id),
   'move-block': (d) => A.moveBlock(d.id, +d.dir),
-  'del-block': async (d) => { closeModal(); if (await ask('Apagar bloco inteiro?', 'O bloco e todas as subtarefas somem de vez.', 'APAGAR', true)) A.deleteBlock(d.id); },
+  'del-block': async (d) => { closeModal(); if (await ask('Apagar bloco inteiro?', 'O bloco e todas as subtarefas somem de vez.', 'APAGAR', true, quem('boi-nilton', 4, 'Derrubar a obra inteira? Pensa bem antes, sô.'))) A.deleteBlock(d.id); },
   'boss-toggle': (d, e) => A.toggleBoss(d.id, at(e)),
   'edit-boss': (d) => editBoss(d.id),
   'del-boss': async (d) => { closeModal(); if (await ask('Apagar boss?', 'Essa meta some da lista.', 'APAGAR', true)) A.deleteBoss(d.id); },
@@ -764,7 +764,7 @@ const ACTIONS = {
     const p = A.archivePreview(), n = p.tasks + p.canceled + p.blocks;
     if (!n) { toast('🔄 Nada pra arquivar: o quadro já está em dia.'); return; }
     const parts = [p.tasks && `${p.tasks} tarefa${p.tasks > 1 ? 's' : ''} feita${p.tasks > 1 ? 's' : ''}`, p.canceled && `${p.canceled} cancelada${p.canceled > 1 ? 's' : ''}`, p.blocks && `${p.blocks} bloco${p.blocks > 1 ? 's' : ''} fechado${p.blocks > 1 ? 's' : ''}${p.inBlocks ? ` (com ${p.inBlocks} subtarefa${p.inBlocks > 1 ? 's' : ''})` : ''}`].filter(Boolean);
-    if (await ask(`Arquivar ${n} item${n > 1 ? 'ns' : ''}?`, `Vão pro ARQUIVO: ${parts.join(', ')}. O XP continua valendo.`, `ARQUIVAR ${n}`)) A.archiveNow();
+    if (await ask(`Arquivar ${n} item${n > 1 ? 'ns' : ''}?`, `Vão pro ARQUIVO: ${parts.join(', ')}. O XP continua valendo.`, `ARQUIVAR ${n}`, false, quem('cajulina', 4, 'Feito vai pro CARTÓRIO, bem guardadinho. Carimbo na mão.'))) A.archiveNow();
   },
   distribute: () => distribute(),
   'undo-plan': () => A.undoPlan(),
@@ -920,12 +920,9 @@ const FORMS = {
     const col = f.querySelector('[name=color]:checked')?.value || b.color;
     const patch = { title: A.normalizeMoney(f.title.value.trim()) || b.title, due: f.due.value || null, group: gw ? gw.base : gv, win: gw ? gw.id : undefined };
     if (b.st !== 'done') { if (col === 'wait') patch.st = 'wait'; else { patch.st = ''; patch.color = col; } }
+    // v9.3: a tarefa das listas ligada ao bloco muda de prazo pelo caminho único (custo e time box perguntados ali mesmo)
     const lt = b.src && S.quests.tasks.find((x) => x.id === b.src);
-    if (lt && (lt.due || null) !== patch.due) {
-      if (!(await confirmResched(lt, patch.due))) return;
-      const r = A.updateTask(lt.id, { due: patch.due });
-      if (r?.error) { toast(esc(r.error), 'bad'); return; }
-    }
+    if (lt && (lt.due || null) !== patch.due) { closeModal(); if (!(await setDue(lt.id, patch.due, { reopen: () => editBlock(b.id) }))) return; }
     A.updateBlock(b.id, patch);
     closeModal();
   },

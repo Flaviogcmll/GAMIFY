@@ -2,7 +2,7 @@
 // Q1 anotar rápido (botão + e tecla +) · Q2 v7.1: segurar e arrastar no celular conclui várias
 // F HOJE cheio demais (atenção residual) · G pato de borracha no SOS.
 // A migração do mês e o boss parado ficam na entrevista do dia (review.js); o time box na janela da tarefa (app.js).
-import { fig } from './elenco.js';
+import { fig, quem } from './elenco.js';
 import { S } from './store.js';
 import * as A from './actions.js';
 import * as R from './rules.js';
@@ -18,7 +18,7 @@ function quickAdd() {
   const td = today();
   // v9.2 (pedido do dono, 8B): o anotar rápido também pergunta a COR e o DIA (nada fica sem rumo); igual ao MEU DIA
   const cores = [['red', R.COR_NAMES.urg, 'urg'], ['yellow', R.COR_NAMES.chega, 'atencao'], ['green', R.COR_NAMES.estavel, 'ok'], ['wait', R.COR_NAMES.wait, 'espera'], ['', R.COR_NAMES.semcor, 'neutro']];
-  openModal(`<form data-form="quick" autocomplete="off"><h2>✎ anotar rápido</h2>
+  openModal(`<form data-form="quick" autocomplete="off">${quem('brasinha', Math.max(0, Math.min(4, S.core.brasinha?.stage ?? 0)) + 1, 'Piu! Escreve com a minha pena: nada fica sem rumo.')}<h2>✎ anotar rápido</h2>
     <input class="inp" name="text" placeholder="o que veio na cabeça?" aria-label="Tarefa" autofocus data-kbd maxlength="200">
     <label class="lbl">Cor</label><div class="row qcor">${cores.map(([k, n, tone], i) => `<label class="btn sm ghost qc" data-tone="${tone}"><input type="radio" name="cor" value="${k}" ${i === 1 ? 'checked' : ''}><i></i> ${n}</label>`).join('')}</div>
     <label class="lbl">Dia</label><div class="row seg qwhen">${[[td, 'HOJE'], [addDays(td, 1), 'AMANHÃ'], ['outro', 'OUTRO'], ['', 'SEM PRAZO']].map(([d, n], i) => `<label class="btn sm ghost"><input type="radio" name="due" value="${d}" ${i ? '' : 'checked'}> ${n}</label>`).join('')}<input class="inp" type="date" name="dia" aria-label="Outro dia" style="width:auto"></div>
@@ -58,7 +58,7 @@ function cheioModal() {
 function duckModal(taskId) {
   const t = taskId && S.quests.tasks.find((x) => x.id === taskId);
   const last = (t?.duck || []).at(-1);
-  openModal(`<form data-form="duck" data-id="${taskId || ''}" autocomplete="off"><h2>🦆 pato de borracha</h2>
+  openModal(`<form data-form="duck" data-id="${taskId || ''}" autocomplete="off">${quem('frog-lipe', 1, 'Calma, calabreso. Me conta direitinho onde travou que a gente desenrola.')}<h2>🦆 pato de borracha</h2>
     <p class="muted">Explique pro PRIMO como se ele não soubesse nada. Escrever o problema em voz alta costuma mostrar a saída.${t ? `<br><b>${esc(clean(t.text))}</b>` : ''}</p>
     <label class="lbl" for="dk-t">O que eu tentei</label><textarea class="inp" id="dk-t" name="tried" rows="2" autofocus></textarea>
     <label class="lbl" for="dk-o">O que funcionou</label><textarea class="inp" id="dk-o" name="ok" rows="1"></textarea>

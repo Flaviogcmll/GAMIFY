@@ -10,6 +10,7 @@ import * as A from './actions.js';
 import { esc, fmtDM, fmtN, today, addDays } from './util.js';
 import { openModal, closeModal, toast } from './ui.js';
 import { sfx } from './audio.js';
+import { quem, sorte } from './elenco.js';
 
 const clean = (t) => String(t?.text || '').replace(/\s*\(\d+\s*XP\)/i, '').replace(/^\s*(↳|>)\s*/, '');
 const dayTxt = (d) => (!d ? 'sem prazo' : d === today() ? 'HOJE' : d === addDays(today(), 1) ? 'AMANHÃ' : fmtDM(d));
@@ -46,7 +47,7 @@ export async function setDue(id, due, { extra = {}, reopen } = {}) {
   const b = t.block && R.findBlock(S, t.block), cap = R.dueCap(b);
   if (due && cap && due > cap) {
     asked = true;
-    const r = await choose(`<h2>📦 Empurrar o bloco junto?</h2><p class="muted">"<b>${esc(clean(t))}</b>" é do bloco <b>${esc(b.title)}</b>, que termina em <b>${fmtDM(cap)}</b>. Uma subtarefa não passa do prazo do bloco.</p>`,
+    const r = await choose(`${quem('boi-nilton', 2, sorte(['Bloco é obra, sô: se a parede vai mais longe, o prazo da obra vai junto.', 'Não adianta empurrar um tijolo e deixar a parede no lugar.']))}<h2>📦 Empurrar o bloco junto?</h2><p class="muted">"<b>${esc(clean(t))}</b>" é do bloco <b>${esc(b.title)}</b>, que termina em <b>${fmtDM(cap)}</b>. Uma subtarefa não passa do prazo do bloco.</p>`,
       [['no', 'CANCELAR'], ['bloco', `EMPURRAR O BLOCO PRA ${dayTxt(due)}`, 'pri']]);
     if (!r) return back(false);
     A.updateBlock(b.id, { due });
@@ -55,7 +56,7 @@ export async function setDue(id, due, { extra = {}, reopen } = {}) {
   if (due && t.due && due > t.due && R.reschedLocked(S, t) && !extra.box) {
     asked = true;
     const hours = ['08:00', '10:00', '14:00', '16:00', '19:00'];
-    const r = await choose(`<h2>🔒 Combinar a hora</h2><p class="muted">"<b>${esc(clean(t))}</b>" já foi remarcada ${t.rs}x. Pra empurrar pra <b>${dayTxt(due)}</b>, combine QUANDO e POR QUANTO TEMPO você faz (time box). Aparece no MEU DIA.</p>
+    const r = await choose(`${quem('tia-mia', 3, sorte(['Remarcou de novo, meu fio? Então marca a hora. Devagar, mas marca.', 'Quem marca a hora não esquece. Quem não marca, remarca.']))}<h2>🔒 Combinar a hora</h2><p class="muted">"<b>${esc(clean(t))}</b>" já foi remarcada ${t.rs}x. Pra empurrar pra <b>${dayTxt(due)}</b>, combine QUANDO e POR QUANTO TEMPO você faz (time box). Aparece no MEU DIA.</p>
       <label class="lbl">⏰ às</label><div class="row"><input class="inp" type="time" name="at" required value="${esc(t.box?.at || t.at || '')}" style="width:auto">${hours.map((h) => `<button type="button" class="pill" data-set="at=${h}"><span>${h}</span></button>`).join('')}</div>
       <label class="lbl">⏳ por</label><div class="row">${[15, 25, 50, 90].map((m) => `<button type="button" class="pill ${m === (t.box?.min || 25) ? 'on' : ''}" data-set="min=${m}"><span>${m} min</span></button>`).join('')}<input type="hidden" name="min" value="${t.box?.min || 25}"></div>`,
       [['no', 'CANCELAR'], ['box', 'REMARCAR COM TIME BOX', 'pri']]);
@@ -68,7 +69,7 @@ export async function setDue(id, due, { extra = {}, reopen } = {}) {
     const bal = R.totals(S).balance;
     if (bal < cost) { sfx('error'); toast(`Faltam ${cost - bal} XP pra remarcar "${esc(clean(t))}" (custa ${cost} XP). Conclua algo antes, ou mantenha o prazo.`, 'bad'); return back(false); }
     asked = true;
-    const r = await choose(`<h2>💸 Remarcar custa XP</h2><p class="muted">Empurrar "<b>${esc(clean(t))}</b>" pra <b>${dayTxt(due)}</b> custa <b>${cost} XP</b> (a próxima custa ${Math.min(cost * 2, R.C.RESCHED * R.RESCHED_CAP)}). Seu saldo: ${fmtN(bal)} XP. A 1ª da semana é grátis; prazo posto hoje muda hoje de graça.</p>`,
+    const r = await choose(`${quem('megg', 1, sorte(['Regra é regra, meu filho: remarcar custa XP.', 'Prazo é promessa. Quebrou, paga. Tá no livro.']))}<h2>💸 Remarcar custa XP</h2><p class="muted">Empurrar "<b>${esc(clean(t))}</b>" pra <b>${dayTxt(due)}</b> custa <b>${cost} XP</b> (a próxima custa ${Math.min(cost * 2, R.C.RESCHED * R.RESCHED_CAP)}). Seu saldo: ${fmtN(bal)} XP. A 1ª da semana é grátis; prazo posto hoje muda hoje de graça.</p>`,
       [['no', 'CANCELAR'], ['pay', `PAGAR ${cost} XP`, 'pri']]);
     if (!r) return back(false);
   }

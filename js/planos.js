@@ -7,7 +7,7 @@ import * as A from './actions.js';
 import { esc, today, addDays, fmtDM, weekday, DOW, lightNow } from './util.js';
 import { openModal, closeModal, modalOpen, toast } from './ui.js';
 import { sfx } from './audio.js';
-import { vitrine, fig, NOMES } from './elenco.js';
+import { vitrine, fig, NOMES, quem, sorte } from './elenco.js';
 import { setDue } from './remarcar.js';
 import { tone } from './views/rotina.js';
 
@@ -112,7 +112,7 @@ function onUp(e) {
 function planHtml() {
   const td = today(), tm = addDays(td, 1), items = R.openTasks(S).filter((t) => t.due === tm && t.st !== 'wait' && !t.mother).sort((a, b) => (hourOf(a) || '99').localeCompare(hourOf(b) || '99'));
   const left = R.openTasks(S).filter((t) => t.due && t.due <= td && t.st !== 'wait' && !t.mother);
-  return `<div class="planos"><h2>🌙 planejar amanhã <small class="meta">${DOW[weekday(tm)]} ${fmtDM(tm)}</small></h2>
+  return `<div class="planos">${quem('rosemia', 1, sorte(['As cartas querem saber: o que vem amanhã? Dá um horário pro que importa.', 'Amanhã a gente vê? Não. Amanhã a gente PLANEJA hoje.']))}<h2>🌙 planejar amanhã <small class="meta">${DOW[weekday(tm)]} ${fmtDM(tm)}</small></h2>
     <p class="meta" style="margin:0 0 8px">Dê um horário pro que importa: amanhã cedo é só seguir o MEU DIA na AGENDA.</p>
     <div class="list">${items.map((t) => `<div class="li"><div class="lt">${esc(clean(t.text))}<small>${esc(R.COR_NAMES[R.corOf(S, t)] || '')}</small></div><input class="inp" type="time" value="${esc(hourOf(t))}" data-plan-at="${t.id}" aria-label="Horário" style="width:auto"></div>`).join('') || '<div class="empty">nada marcado pra amanhã ainda.</div>'}</div>
     <form class="addline" data-form="plan-add" autocomplete="off" style="margin-top:8px"><input class="inp" name="text" placeholder="+ mais uma pra amanhã (Enter)" aria-label="Nova tarefa pra amanhã"></form>
@@ -133,7 +133,7 @@ function changeHtml() {
   const td = today(), tm = addDays(td, 1);
   const list = R.openTasks(S).filter((t) => t.st !== 'wait' && !t.mother && t.due && (pcTab === 'hoje' ? t.due <= td : t.due === tm)).sort((a, b) => (a.due || '').localeCompare(b.due || '') || (hourOf(a) || '99').localeCompare(hourOf(b) || '99'));
   const dot = (t, cor, c) => `<button class="pc-cor ${R.corOf(S, t) === cor ? 'on' : ''}" data-act="pc-cor" data-id="${t.id}" data-cor="${cor}" data-c="${c}" title="${R.COR_NAMES[cor]}"></button>`;
-  return `<div class="planos"><h2>🔀 mudança de planos</h2>
+  return `<div class="planos">${quem('rosemia', 2, sorte(['Mudou o plano? Eu já tinha visto isso na bola de cristal.', 'O futuro mudou, menino. Arruma aqui que eu leio de novo.']))}<h2>🔀 mudança de planos</h2>
     <div class="seg" style="margin:6px 0 10px"><button class="${pcTab === 'hoje' ? 'on' : ''}" data-act="pc-tab" data-v="hoje">HOJE ${fmtDM(td)}</button><button class="${pcTab === 'amanha' ? 'on' : ''}" data-act="pc-tab" data-v="amanha">AMANHÃ ${fmtDM(tm)}</button></div>
     <div class="list">${list.map((t) => `<div class="li pc-row"><div class="lt">${esc(clean(t.text))}<small>${t.due < td ? '⏰ atrasada · ' : ''}${esc(R.COR_NAMES[R.corOf(S, t)] || '')}${hourOf(t) ? ' · ' + esc(hourOf(t)) : ''}</small></div>
       <span class="row pc-acts">${dot(t, 'urg', 'red')}${dot(t, 'chega', 'yellow')}${dot(t, 'estavel', 'green')}
@@ -157,7 +157,7 @@ export function askColor(text) {
   return new Promise((resolve) => {
     let done = false;
     const opts = [['red', R.COR_NAMES.urg, 'urg', 'Pra hoje, faz primeiro'], ['yellow', R.COR_NAMES.chega, 'atencao', 'Logo mais'], ['green', R.COR_NAMES.estavel, 'ok', 'Sem pressa'], ['wait', R.COR_NAMES.wait, 'espera', 'Depende de alguém']];
-    const m = openModal(`<h2>🎨 Qual a cor?</h2><p class="muted">"<b>${esc(text)}</b>": a cor diz a pressa e decide a lista em TODAS.</p>
+    const m = openModal(`${quem('cajulina', 2, sorte(['Cada coisa no seu lugar: me diz a cor que eu carimbo.', 'Sem cor fica sem rumo. Escolhe que eu arquivo certinho.']))}<h2>🎨 Qual a cor?</h2><p class="muted">"<b>${esc(text)}</b>": a cor diz a pressa e decide a lista em TODAS.</p>
       <div class="cor-pick">${opts.map(([k, n, tone, tip], i) => `<button type="button" class="btn cor-b" data-cor="${k}" data-tone="${tone}" title="${tip}" ${i === 0 ? 'autofocus' : ''}><i></i>${n}<small>${tip}</small></button>`).join('')}</div>
       <div class="actions"><button type="button" class="btn" data-close>CANCELAR</button></div>`, { onClose: () => { if (!done) resolve(null); } });
     m.addEventListener('click', (e) => { const b = e.target.closest('[data-cor]'); if (!b) return; done = true; closeModal(); resolve(b.dataset.cor); });
@@ -173,6 +173,8 @@ export function extendPlanos(ACTIONS, FORMS) {
       picked = key; sfx('tab'); window.__render?.();
     },
     'dia-zone': (d) => { if (picked) dropZone(picked, d.z); else toast('Arraste uma tarefa até aqui (no celular: toque na tarefa e depois aqui).'); },
+    'hab-set': (d) => { A.setHabit(today(), d.h, d.v); sfx(d.v === 'x' ? 'habit' : 'tab'); const m = document.querySelector('.modal .hab-ask'); if (m) { m.outerHTML = habHtml(); window.__deaccent?.(document.querySelector('.modal')); } },
+    'hab-ask': () => openHabitsAsk(),
     'ag-dia': (d) => { const ui = window.__ui; if (!ui) return; ui.agDay = +d.dir === 0 ? 0 : (ui.agDay || 0) + +d.dir; window.__render?.(); },
     'plan-tomorrow': () => openPlanTomorrow(),
     'plan-change': () => openPlanChange('hoje'),
@@ -229,4 +231,26 @@ export function checkAvisos(now = new Date()) {
     import('./audio.js').then((a) => a.somArq('k-plim', 0.7));
     toast(`⏰ ${left ? `Daqui a <b>${left} min</b>` : '<b>Agora</b>'} (${esc(x.at)}): ${esc(x.name.slice(0, 60))} <button class="btn sm" ${x.act}>ABRIR</button>`, 'gold');
   }
+}
+
+// ───── v9.3 (pedido do dono): os HÁBITOS saíram do painel das MISSÕES; toda vez que o app abre, a EVE LÃ pergunta dos de hoje ─────
+// (só se ainda tiver hábito sem marcar, uma vez por abertura do app, depois da entrevista do dia se ela aparecer)
+let habAsked = false;
+function habHtml() {
+  const td = today(), m = S.marks.days[td]?.h || {}, hs = S.core.habits || [];
+  const falta = hs.filter((h) => !m[h.id]).length;
+  return `<div class="hab-ask">${quem('eve-la', 2, falta ? 'Cuidar de si também é tarefa, sô. Como tão os hábitos de hoje?' : 'Tudo marcado. Agora uma água e segue o baile.')}
+    <div class="list">${hs.map((h) => { const v = m[h.id] || ''; return `<div class="li hab-row ${v === 'x' ? 'ok' : v === '-' ? 'folga' : ''}"><div class="lt">${h.icon} ${esc(h.name)}</div><span class="row" style="gap:6px;flex-wrap:nowrap">
+      <button class="btn sm ${v === 'x' ? 'good' : ''}" data-act="hab-set" data-h="${h.id}" data-v="x">✓ FIZ</button><button class="btn sm ${v === '-' ? 'pri' : 'ghost'}" data-act="hab-set" data-h="${h.id}" data-v="-">– FOLGA</button>${v ? `<button class="btn sm ghost" data-act="hab-set" data-h="${h.id}" data-v="" title="Desmarcar">↺</button>` : ''}</span></div>`; }).join('')}</div>
+    <p class="meta" style="margin:8px 0 0">${falta ? `Faltam ${falta}. Dá pra marcar depois em SURVIVAL.` : '🌟 Todos marcados hoje.'}</p>
+    <div class="actions"><button class="btn" data-close>DEPOIS</button><button class="btn pri" data-close>PRONTO</button></div></div>`;
+}
+export function openHabitsAsk() { openModal(habHtml(), { wide: true }); }
+export function maybeHabitsAsk(tries = 0) {
+  if (habAsked || !S.core?.habits?.length) return;
+  const td = today(), m = S.marks.days[td]?.h || {};
+  if (!S.core.habits.some((h) => !m[h.id])) { habAsked = true; return; }
+  if (modalOpen()) { if (tries < 40) setTimeout(() => maybeHabitsAsk(tries + 1), 3000); return; } // espera a entrevista do dia fechar
+  habAsked = true;
+  setTimeout(() => { if (!modalOpen()) openHabitsAsk(); }, 1200);
 }

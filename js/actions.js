@@ -339,11 +339,11 @@ export function startup() {
     }
     S.core.migrations.push('v8-cores'); changedCore = true;
   }
-  if (!S.core.migrations.includes('v9-subdue')) { // v9.0: subtarefa sem prazo segue o prazo final do bloco (só bloco com prazo de hoje em diante: nada vira atrasada de repente)
-    const td = today();
-    for (const t of S.quests.tasks) { const b = t.block && R.isOpen(t) && !t.due && q.blocks.find((x) => x.id === t.block); if (b && b.st !== 'done' && b.due && b.due >= td) { t.due = b.due; t.dueInh = true; t.dueSet = td; changedQ = true; } }
-    S.core.migrations.push('v9-subdue'); changedCore = true;
+  if (!S.core.migrations.includes('v9-subdue-off')) { // v9.3: desfaz a herança da v9.0 (o dono pediu): quem só tinha o prazo herdado volta a ficar sem prazo
+    for (const t of S.quests.tasks) if (t.dueInh) { const b = t.block && q.blocks.find((x) => x.id === t.block); if (!b || t.due === b.due) { t.due = null; delete t.dueSet; } delete t.dueInh; changedQ = true; }
+    S.core.migrations.push('v9-subdue-off'); changedCore = true;
   }
+  // (v9-subdue, a herança do prazo do bloco, foi desfeita na v9.3: ver v9-subdue-off acima)
   if (!S.core.migrations.includes('v8-mapa-off')) { // v8.6 (pedido do dono, 5B): o MAPA MENTAL saiu do app, e os dados dele também
     delete S.core.mapa;
     S.core.migrations.push('v8-mapa-off'); changedCore = true;
@@ -487,8 +487,7 @@ export function addTask({ text, area = 'hoje', block = null, due = null, parent 
       t.block = block;
       const bl = B(block);
       if (bl?.st === 'done') reopenBlock(bl);
-      // v9.0 (pedido do dono): a subtarefa nasce com o prazo final do bloco (a não ser que você mude: aí ela deixa de seguir)
-      if (!due && bl?.due && bl.due >= today()) { t.due = bl.due; t.dueInh = true; }
+      // v9.3 (pedido do dono, voltou atrás da v9.0): a subtarefa NÃO herda o prazo do bloco; só tem prazo o que você colocar
       const items = S.quests.tasks.filter((x) => x.block === block).sort((a, b) => a.ord - b.ord);
       if (text.startsWith('↳')) t.parent = parent || [...items].reverse().find((x) => !x.text.startsWith('↳'))?.id || null;
       if (!t.parent) delete t.parent;
@@ -765,11 +764,8 @@ export function updateBlock(id, patch) {
   const old = b.due || null;
   return commit(['quests'], () => {
     Object.assign(b, patch); if (!b.due) b.due = null;
-    // v9.0: mudou o prazo final do bloco: as subtarefas que seguem o bloco (ou sem prazo) vão junto
-    if ('due' in patch && (b.due || null) !== old) for (const t of S.quests.tasks.filter((x) => x.block === b.id && R.isOpen(x))) {
-      if (t.dueInh || (!t.due && b.due)) { t.due = b.due || null; t.dueInh = !!b.due; if (!t.dueInh) delete t.dueInh; }
-      else if (b.due && t.due && t.due > b.due) t.due = b.due; // ninguém passa do prazo do bloco
-    }
+    // mudou o prazo final do bloco: só quem passaria do prazo novo é puxado pra ele (as sem prazo continuam sem; v9.3)
+    if ('due' in patch && (b.due || null) !== old && b.due) for (const t of S.quests.tasks.filter((x) => x.block === b.id && R.isOpen(x))) if (t.due && t.due > b.due) t.due = b.due;
   });
 }
 export function deleteBlock(id) {
