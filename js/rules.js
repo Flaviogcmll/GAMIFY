@@ -254,31 +254,39 @@ export function streak(s, h, d = today()) {
   const c = cache(s), key = h + '|' + d;
   if (c.streak[key]) return c.streak[key];
   const start = s.core?.startDate || '2000-01-01';
-  let n = 0, x = d;
+  // v9.7 (pesquisa L, escolha D do dono) NUNCA DUAS SEGUIDAS: uma falta sozinha vira COSTURA 🧵 (a sequência continua e o
+  // multiplicador desce um degrau por costura dos últimos 7 dias); só duas faltas seguidas quebram. Faltar uma vez não atrapalha
+  // formar hábito (Lally 2010); quebrar tudo de uma vez é o que dá o "já era, que se dane".
+  let n = 0, x = d, lastFail = false, lf = d, cost = 0, cost7 = 0;
   if (!marksOf(s, d)[h]) x = addDays(d, -1);
   for (let guard = 0; guard < 800 && x >= start; guard++, x = addDays(x, -1)) {
     const m = marksOf(s, x)[h];
-    if (m === 'x') n++;
-    else if (m === '-' || !registered(s, x) || !failed(s, h, x) || forgiven(s, h, x)) continue;
-    else break;
+    if (m === 'x') { n++; lastFail = false; continue; }
+    if (m === '-' || !registered(s, x) || !failed(s, h, x)) continue;
+    const fz = forgiven(s, h, x); // 🛡 a 1ª falta da semana é perdoada: não baixa o bônus, mas conta pra "duas seguidas"
+    if (lastFail) { if (lastFail === 'c') { cost--; if (diffDays(lf, d) <= 7) cost7--; } break; } // 2ª falta seguida: quebra aqui (a 1ª deixa de ser costura)
+    lastFail = fz ? 'p' : 'c'; lf = x;
+    if (!fz) { cost++; if (diffDays(x, d) <= 7) cost7++; }
   }
+  if (!n) cost = cost7 = 0; // sem nenhum ✓ não há o que costurar
   const total = totalX(s, h, d);
   const forged = total >= C.FORGE;
-  let mult = n >= 14 ? 2 : n >= 7 ? 1.5 : 1;
+  const step = Math.max(0, (n >= 14 ? 2 : n >= 7 ? 1 : 0) - cost7);
+  let mult = [1, 1.5, 2][step];
   if (forged) mult = Math.max(mult, 1.5);
-  return (c.streak[key] = { streak: n, total, forged, mult });
+  return (c.streak[key] = { streak: n, total, forged, mult, cost, cost7 });
 }
 
 /** recorde: a maior sequência que o hábito já teve (mesma regra da sequência atual: folga, sábado e falha perdoada não quebram) */
 export function bestStreak(s, h, d = today()) {
   const c = cache(s), key = 'best|' + h + '|' + d;
   if (c.streak[key] != null) return c.streak[key];
-  let n = 0, best = 0;
+  let n = 0, best = 0, fail = false; // v9.7: mesma regra do NUNCA DUAS SEGUIDAS (uma falta costura, duas seguidas zeram)
   for (let x = s.core?.startDate || d, guard = 0; x <= d && guard < 4000; guard++, x = addDays(x, 1)) {
     const m = marksOf(s, x)[h];
-    if (m === 'x') { n++; if (n > best) best = n; }
-    else if (m === '-' || !registered(s, x) || !failed(s, h, x) || forgiven(s, h, x)) continue;
-    else n = 0;
+    if (m === 'x') { n++; fail = false; if (n > best) best = n; }
+    else if (m === '-' || !registered(s, x) || !failed(s, h, x)) continue;
+    else if (fail) n = 0; else fail = true;
   }
   return (c.streak[key] = Math.max(best, streak(s, h, d).streak));
 }
@@ -1343,6 +1351,8 @@ export function ladderShouldDrop(s, td = today()) {
 }
 // 2A bônus de volta: hoje bateu a meta, ontem não (e anteontem bateu ou foi folga). +25 XP, 1 vez por dia.
 export const COMEBACK_XP = 25;
+/** v9.7 BOAS-VINDAS: depois de quantos dias sem abrir, e quanto vale a 1ª coisa feita na volta */
+export const WELCOME_GAP = 2, WELCOME_XP = 40;
 export function comebackDue(s, td = today()) {
   if ((s.core?.bonus || []).some((b) => b.kind === 'volta' && b.date === td)) return false;
   const xp = idx(s).xpByDay, y = addDays(td, -1), y2 = addDays(td, -2), hit = (x) => (xp[x] || 0) >= goalAt(s, x);

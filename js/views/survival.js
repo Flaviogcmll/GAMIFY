@@ -35,7 +35,7 @@ function grid(ui) {
     if (h.id === 'rd') info = `total: ${R.totalX(S, 'rd')} · +${R.C.RD_XP} cada`;
     else {
       const sk = R.streak(S, h.id, td);
-      info = `🔥${sk.streak} ${sk.mult > 1 ? `x${String(sk.mult).replace('.', ',')}` : ''} · <span title="recorde: maior sequência que você já fez">🏆${R.bestStreak(S, h.id, td)}</span> · <span title="Em média, 66 dias de repetição pra um hábito ficar automático (varia de 18 a 254). Pouco todo dia vence muito de vez em quando.">⚒ ${sk.forged ? 'FORJADO' : `${sk.total}/66`}</span>`;
+      info = `🔥${sk.streak} ${sk.mult > 1 ? `x${String(sk.mult).replace('.', ',')}` : ''}${sk.cost7 ? ` <span title="Costura: faltou um dia sozinho nos últimos 7. A sequência continua; o bônus desce um degrau. Duas faltas SEGUIDAS é que quebram.">🧵</span>` : ''} · <span title="recorde: maior sequência que você já fez">🏆${R.bestStreak(S, h.id, td)}</span> · <span title="Em média, 66 dias de repetição pra um hábito ficar automático (varia de 18 a 254). Pouco todo dia vence muito de vez em quando.">⚒ ${sk.forged ? 'FORJADO' : `${sk.total}/66`}</span>`;
     }
     return `<tr><th class="hn" title="${esc(h.name)}">${h.icon} <span class="hname">${esc(h.name)}</span></th>${cells}<td class="info">${info}</td></tr>`;
   }).join('');

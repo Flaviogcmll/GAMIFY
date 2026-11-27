@@ -2330,7 +2330,7 @@ aside.postit .tasks { flex: 1 1 auto; min-height: 0; }
 .tres-card header .meta { flex: 1; }
 .tres-card.vazio { display: flex; align-items: center; gap: 12px; padding: 10px 14px; flex-wrap: wrap; }
 .tres-card.vazio .tres-txt { flex: 1 1 240px; display: flex; flex-direction: column; gap: 3px; font-size: 13px; }
-.tres-art img { width: 48px; height: auto; image-rendering: pixelated; }
+img.tres-art { height: 70px; width: auto; image-rendering: pixelated; } /* metade exata (140 → 70): pixel continua quadrado */
 .tres-l { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
 .tres-i { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 2px solid var(--line); border-radius: var(--rad, 12px); background: var(--panel); }
 .tres-i.sapo { border-color: color-mix(in srgb, var(--c-ok) 70%, var(--line)); background: color-mix(in srgb, var(--c-ok) 10%, var(--panel)); }
@@ -2360,3 +2360,10 @@ li.task > .info { min-width: 0; flex-wrap: wrap; justify-content: flex-end; }
 .trav-acts { gap: 4px; flex-wrap: wrap; }
 .trav-row { display: flex; flex-direction: column; align-items: stretch; }
 .trav-row .lt { flex: none; width: 100%; }
+/* v9.7 BOAS-VINDAS (review.js, passo 'gap'): o elenco em fila fazendo festa */
+.bv-festa { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; margin: 4px 0 8px; }
+.bv-festa img.bv-f { image-rendering: pixelated; animation: bv-pula 1.2s ease-in-out infinite; max-width: 31%; height: auto; }
+.bv-festa img.bv-f:nth-child(2) { animation-delay: .3s; } .bv-festa img.bv-f:nth-child(3) { animation-delay: .6s; }
+@keyframes bv-pula { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+.bv-bonus { text-align: center; padding: 8px; border: 2px dashed var(--c-premio); border-radius: var(--rad, 12px); }
+@media (prefers-reduced-motion: reduce) { .bv-festa img.bv-f { animation: none; } }
