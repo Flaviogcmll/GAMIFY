@@ -217,6 +217,14 @@ function sync() {
     achievements.push({ name: '3 MISSÕES DA SEMANA (+1 🎟)', xp: 100 });
     changed = true; S._epoch++;
   }
+  // v9.7 (pesquisa L, escolha C do dono) BOAS-VINDAS: voltou depois de 2+ dias sem abrir e fez UMA coisa qualquer (tarefa ou hábito) = bônus.
+  // O nº 1 do megaestudo de Milkman (2021) foi premiar a VOLTA depois de uma falta, não a meta inteira.
+  if (S.core.volta?.d === td && !(S.core.bonus || []).some((b) => b.kind === 'boasvindas' && b.date === td) && (S.quests.tasks.some((t) => t.st === 'done' && t.doneAt === td) || R.countX(S, td) > 0)) {
+    S.core.bonus ||= [];
+    S.core.bonus.push({ id: uid('bv'), date: td, kind: 'boasvindas', xp: R.WELCOME_XP, label: '🏠 boas-vindas' });
+    achievements.push({ name: 'BOAS-VINDAS! Voltou e já fez uma', xp: R.WELCOME_XP });
+    changed = true; S._epoch++;
+  }
   // v5.16 (2A) bônus de volta: bateu a meta hoje depois de um dia abaixo dela (só 1 vez por dia; não vale depois de 2 dias ruins seguidos)
   if (R.comebackDue(S, td)) {
     S.core.bonus ||= [];
@@ -274,6 +282,7 @@ export function startup() {
     const lastMark = Object.keys(S.marks.days || {}).filter((d) => d < td && Object.keys(S.marks.days[d].h || {}).length).sort().at(-1);
     S._prevOpen = S.core.lastOpen && S.core.lastOpen < td ? S.core.lastOpen : lastMark || td;
     S._gap = Math.max(0, diffDays(S._prevOpen, td));
+    if (S._gap >= R.WELCOME_GAP && !R.tripNow(S)) S.core.volta = { d: td, gap: S._gap }; // v9.7 BOAS-VINDAS: voltou depois de 2+ dias sem abrir
     S.core.lastOpen = td; changedCore = true;
   }
   if (closedBlocks.length || oldList.length) {

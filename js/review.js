@@ -14,7 +14,7 @@ import { mountPortraits } from './primo.js';
 import { say } from './v35.js';
 
 const ls = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* */ } } };
-const GAP_DAYS = 3; // a partir de quantos dias sem abrir vira "revisão de retorno"
+const GAP_DAYS = R.WELCOME_GAP; // v9.7: a partir de 2 dias sem abrir vira BOAS-VINDAS (era 3)
 const clean = (t) => String(t || '').replace(/\s*\(\d+\s*XP\)/i, '');
 /** subtarefa: o dia novo vai até o prazo do bloco */
 const where = (t) => (t.block ? R.findBlock(S, t.block)?.title : R.areaName(t.area)) || '';
@@ -84,9 +84,11 @@ const VIEW = {
     };
   },
   gap: () => ({
-    title: `${st.gap} dias fora`,
-    line: `Uai, cê sumiu ${st.gap} dias, sô! Sem bronca: em dois minutinhos a gente bota o trem nos trilhos.`,
-    body: `<p class="muted">Sua última visita foi em <b>${fmtDM(st.prev)}</b>. Os dias sem nenhum registro não quebram a sequência dos hábitos.</p>
+    title: 'boas-vindas!',
+    line: `Ô DE CASA! Cê voltou, sô! ${st.gap} dias fora e o BARRANCO BAIXO inteiro sentiu falta. Sem bronca nenhuma: bora recomeçar devagarinho.`,
+    body: `<div class="bv-festa" aria-hidden="true">${[['eve-la', 3], ['primo', 2], ['cajulina', 2]].map(([n, p]) => fig(n, p, 'bv-f', '', false)).join('')}</div>
+      <p class="bv-bonus">🏠 Faça <b>UMA coisa qualquer</b> hoje (uma tarefa ou um hábito) e ganha <b>+${R.WELCOME_XP} XP de boas-vindas</b>.</p>
+      <p class="muted">Sua última visita foi em <b>${fmtDM(st.prev)}</b>. Os dias sem nenhum registro não quebram a sequência dos hábitos.</p>
       <div class="list">
         <button class="li rv-opt" data-rv="trip"><span class="lt">✈ FOI VIAGEM OU VISITA<small>Congela esses dias: sem multa de atraso, e os prazos que venceram andam pra frente sem custo.</small></span></button>
         <button class="li rv-opt" data-rv="next"><span class="lt">▶ SÓ SUMI, BORA RETOMAR<small>Seguimos a revisão: o que ficou pra trás e por onde recomeçar.</small></span></button></div>`,
@@ -137,7 +139,7 @@ function draw() {
   if (!m || !st) return;
   const key = st.steps[st.i], v = VIEW[key](), n = st.steps.length;
   m.innerHTML = `<div class="brief review">${fig('primo', 1, 'pav', 'PRIMO')}
-    <div class="px meta" style="font-size:7px;text-align:center">${st.gap >= GAP_DAYS ? 'REVISÃO DE RETORNO' : 'ENTREVISTA DO DIA'} · PASSO ${st.i + 1} DE ${n}</div>
+    <div class="px meta" style="font-size:7px;text-align:center">${st.gap >= GAP_DAYS ? 'BOAS-VINDAS' : 'ENTREVISTA DO DIA'} · PASSO ${st.i + 1} DE ${n}</div>
     <h2>${esc(v.title)}</h2><div class="speech" id="rv-say"></div>${v.body}
     <div class="actions"><div class="left"><button class="btn sm ghost" data-rv="skip">PULAR TUDO</button></div>
       ${st.i > 0 ? '<button class="btn" data-rv="prev">◄</button>' : ''}${v.next === false ? '' : `<button class="btn pri" data-rv="${v.last ? 'end' : 'next'}" autofocus>${v.last ? 'BORA ▶' : 'PRÓXIMO ►'}</button>`}</div>
