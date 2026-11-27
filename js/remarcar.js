@@ -1,7 +1,7 @@
 // v9.1 (pedido do dono: "tudo tem que ter um padrão e ser interligado"): UM caminho só pra mudar o prazo de uma tarefa,
 // usado por TODAS as telas (janela da tarefa, MEU DIA, PLANEJAR AMANHÃ, MUDANÇA DE PLANOS, CALENDÁRIO, entrevista do dia…).
 // Em vez de cada lugar dar um erro diferente, ele resolve na hora, numa janela só:
-//  1) subtarefa passando do prazo do bloco → oferece EMPURRAR O BLOCO JUNTO;
+//  (v9.7: bloco e subtarefa têm prazos independentes; o "empurrar o bloco junto" saiu)
 //  2) tarefa já remarcada 3x (travada) → pede o time box (horário + duração) ali mesmo;
 //  3) remarcar custa XP → mostra o preço e pergunta.
 import { S } from './store.js';
@@ -41,17 +41,8 @@ export async function setDue(id, due, { extra = {}, reopen } = {}) {
   if (!t) return false;
   due = due || null;
   let asked = false;
-  const back = (ok) => { if (asked && reopen) setTimeout(reopen, 60); return ok; };
+  const back = (ok) => { if (!ok && asked && reopen) setTimeout(reopen, 60); return ok; }; // v9.7: salvou = a janela NÃO volta (parecia que não tinha salvo); desistiu = volta pra você continuar
   if ((t.due || null) === due && !extra.box) return true;
-  // 1) subtarefa: não passa do prazo do bloco. Em vez de recusar, oferece empurrar o bloco junto.
-  const b = t.block && R.findBlock(S, t.block), cap = R.dueCap(b);
-  if (due && cap && due > cap) {
-    asked = true;
-    const r = await choose(`${quem('boi-nilton', 2, sorte(['Bloco é obra, sô: se a parede vai mais longe, o prazo da obra vai junto.', 'Não adianta empurrar um tijolo e deixar a parede no lugar.']))}<h2>📦 Empurrar o bloco junto?</h2><p class="muted">"<b>${esc(clean(t))}</b>" é do bloco <b>${esc(b.title)}</b>, que termina em <b>${fmtDM(cap)}</b>. Uma subtarefa não passa do prazo do bloco.</p>`,
-      [['no', 'CANCELAR'], ['bloco', `EMPURRAR O BLOCO PRA ${dayTxt(due)}`, 'pri']]);
-    if (!r) return back(false);
-    A.updateBlock(b.id, { due });
-  }
   // 2) travada (remarcada 3x ou mais): só empurra com time box. Pede aqui mesmo.
   if (due && t.due && due > t.due && R.reschedLocked(S, t) && !extra.box) {
     asked = true;

@@ -20,7 +20,6 @@ const FER_ICON = { ARQUITETURA: '📐', CASA: '🏠', EU: '🪞', JOGOS: '🎮',
 const kFer = (it) => (it.icon || FER_ICON[it.cat] ? `<span class="eico">${it.icon || FER_ICON[it.cat]}</span>` : (() => { const [i, sh] = CAT_ICON[it.cat] || [102, 'dungeon']; return kspr(i, sh); })());
 // v7.4: SACOLA (era MOCHILA), CARTEIRA (era BAÚ DE OURO), NOTA FISCAL (era REGISTRO). As chaves internas não mudam.
 const TABS = [['loja', '🎪 BARRACAS'], ['mochila', '🛍 SACOLA'], ['forjados', '⚒ FORJADOS'], ['ouro', '$ CARTEIRA'], ['hist', '🧾 NOTA FISCAL']];
-const slugCat = (c) => String(c).normalize('NFD').replace(/[^A-Za-z0-9]/g, '').toLowerCase();
 const mmss = (ms) => { const s = Math.max(0, Math.round(ms / 1000)); return `${String((s / 60) | 0).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
 
 function taverna(tot, shop) {

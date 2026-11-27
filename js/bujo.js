@@ -20,22 +20,11 @@ export function quickAdd(text = '', where = '') {
   // v9.5 (pedido do dono): a COR sai do prazo sozinha, então o anotar rápido pergunta o DIA e ONDE a tarefa mora (janela/bloco)
   openModal(`<form data-form="quick" autocomplete="off">${quem('brasinha', Math.max(0, Math.min(4, S.core.brasinha?.stage ?? 0)) + 1, 'Piu! Escreve com a minha pena: nada fica sem casa.')}<h2>✎ anotar rápido</h2>
     <input class="inp" name="text" placeholder="o que veio na cabeça?" aria-label="Tarefa" autofocus data-kbd maxlength="200" value="${esc(text)}">
+    <label class="lbl">É</label><div class="row seg qtipo">${[['task', '✎ UMA TAREFA'], ['block', '📦 UM BLOCO NOVO']].map(([v, n], i) => `<label class="btn sm ghost"><input type="radio" name="tipo" value="${v}" ${i ? '' : 'checked'}> ${n}</label>`).join('')}</div>
     <label class="lbl">Dia <span class="meta">· a cor vem do prazo: até amanhã URGENTE, até 7 dias ESQUENTANDO, depois ESTÁVEL</span></label><div class="row seg qwhen">${[[td, 'HOJE'], [addDays(td, 1), 'AMANHÃ'], ['outro', 'OUTRO'], ['', 'SEM PRAZO']].map(([d, n], i) => `<label class="btn sm ghost"><input type="radio" name="due" value="${d}" ${i ? '' : 'checked'}> ${n}</label>`).join('')}<input class="inp" type="date" name="dia" aria-label="Outro dia" style="width:auto"></div>
     <label class="lbl">Onde mora</label><select class="inp" name="dest" aria-label="Janela e bloco">${destOptions(where || 'new:bd')}</select>
     <label class="row" style="gap:6px;margin-top:8px"><input type="checkbox" name="wait"> ⏳ aguardando alguém</label>
     <div class="actions"><button type="button" class="btn" data-close>FECHAR</button><button class="btn pri">ANOTAR</button></div></form>`);
-}
-function fab() {
-  let b = document.getElementById('qadd');
-  if (!b) {
-    b = document.createElement('button');
-    b.id = 'qadd'; b.className = 'qadd'; b.type = 'button';
-    b.setAttribute('aria-label', 'Anotar rápido'); b.title = 'Anotar rápido (tecla +)';
-    b.textContent = '+';
-    b.addEventListener('click', quickAdd);
-    document.body.appendChild(b);
-  }
-  b.hidden = !S.core || !R.neuroOn(S, 'quick');
 }
 
 // ───────────── F: HOJE CHEIO DEMAIS ─────────────
@@ -117,13 +106,22 @@ export function extendBujo(ACTIONS, FORMS) {
     duck: (d) => { closeModal(); duckModal(d.id || null); },
   });
   Object.assign(FORMS, {
-    'todas-add': (f) => { const text = f.text.value.trim(); if (!text) return; f.text.value = ''; quickAdd(text); }, // v9.4 (H2)
     'win-add': (f) => { const text = f.text.value.trim(); if (!text) return; f.text.value = ''; quickAdd(text, 'new:' + f.dataset.win); }, // v9.5: a linha do topo de cada janela
     quick: (f) => {
       const text = f.text.value.trim();
       if (!text) return;
       let due = f.querySelector('[name=due]:checked')?.value || null;
       if (due === 'outro' || f.dia.value) due = f.dia.value || null; // digitou uma data: ela vale
+      // v9.7 (pedido do dono): a mesma linha cria um BLOCO novo, na janela escolhida em "Onde mora"
+      if (f.querySelector('[name=tipo]:checked')?.value === 'block') {
+        const v = f.dest.value, ob = !v.startsWith('new:') && S.quests.blocks.find((x) => x.id === v);
+        const key = v.startsWith('new:') ? v.slice(4) : ob ? (ob.win ? 'w:' + ob.win : ob.group) : 'bd';
+        const w = key.startsWith('w:') && R.windows(S).find((x) => x.id === key.slice(2));
+        const r = A.addBlock(w ? w.base : key, text, { win: w ? w.id : undefined, due });
+        if (r?.block && f.wait.checked) A.updateBlock(r.block.id, { st: 'wait' });
+        closeModal(); sfx('tab'); toast(`📦 Bloco novo: <b>${esc(text)}</b>${due ? ' · prazo ' + fmtDM(due) : ''}.`);
+        return;
+      }
       const block = destBlock(f.dest.value);
       const r = A.addTask({ text, block, due, area: 'block' });
       if (f.wait.checked && r?.task) A.setStatus(r.task.id, 'wait');

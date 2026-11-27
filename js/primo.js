@@ -309,13 +309,6 @@ function body(big, compact = false) {
       <div class="pcmds pcmds3"><button class="btn sm" data-act="saber" data-g="all" title="Uma curiosidade verdadeira, com fonte"><span>📚</span>ME CONTA</button><button class="btn sm" data-act="plan-change" title="Mudança de planos: mexer no HOJE e no AMANHÃ de uma vez"><span>🔀</span>MUDOU O PLANO</button><button class="btn sm" data-act="diary" title="O diário que ele escreve toda semana"><span>📖</span>DIÁRIO</button></div></div></div>`; // v7.7: tudo na mesma grade
 }
 /** cartão da aba QUESTS */
-/** v6 (4A): banner do QUESTS com o cenário, o PRIMO passeando, a BRASINHA e a fala (dicas do app de vez em quando) */
-export function questsBanner() {
-  const c = R.companion(S), pet = PS.petState();
-  return `<div class="qscene pstage"><canvas class="pcv walker" data-portrait="walk" data-act="comp-poke" title="Toque no ${esc(c.name)}" aria-label="${esc(c.name)}"></canvas>
-    <canvas class="pcv pmascot" data-mascot title="${esc(pet.title)}" data-act="mascot-info"></canvas>
-    <div class="qs-say"><div class="speech" data-pspeech="ambient" data-act="comp-poke" title="toque pra ouvir outra"></div></div></div>`;
-}
 /** v8.5 (pedido do dono): imagem, fala e "PRIMO está…" presos no topo do painel da direita; o cartão (status, BRASINHA, lobo, pedido, botões) rola por baixo */
 export function primoHead() {
   const c = R.companion(S), pet = PS.petState(), mk = primoMood(), m = MOODS[mk], st = primoState();

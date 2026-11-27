@@ -16,9 +16,6 @@ import { setDue } from './remarcar.js';
 const ls = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* */ } } };
 const clean = (t) => String(t?.text || '').replace(/\s*\(\d+\s*XP\)/i, '').replace(/^\s*(↳|>)\s*/, '');
 const loose = () => S.quests.tasks.filter((t) => !t.mother && !t.link && R.isOpen(t) && t.st !== 'wait' && t.color !== 'black'); // v9.5: tarefas de verdade (em qualquer janela)
-const DOTS = [['urg', 'red'], ['chega', 'yellow'], ['estavel', 'green']];
-const corDots = (t) => DOTS.map(([k, c]) => `<button class="pc-cor ${R.corOf(S, t) === k ? 'on' : ''}" data-act="org-cor" data-id="${t.id}" data-cor="${k}" data-c="${c}" title="${R.COR_NAMES[k]}"></button>`).join('');
-const catSel = (t) => `<select class="inp org-cat" data-org-cat="${t.id}" aria-label="Assunto">${R.assuntos(S).map(([k, n]) => `<option value="${k}" ${R.catOf(S, t) === k ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>`;
 // v9.5: a cor vem do prazo; organizar = dar um PRAZO (HOJE, AMANHÃ, +7 ou uma data)
 const orgRow = (t) => { const td = today(), b = t.block && R.findBlock(S, t.block); return `<div class="li org-row"><div class="lt">${esc(clean(t))}<small>${b ? esc(b.title) + ' · ' : ''}${t.due ? fmtDM(t.due) : 'sem prazo'}</small></div><span class="row org-acts">${[['HOJE', td], ['AMANHÃ', addDays(td, 1)], ['+7', addDays(td, 7)]].map(([n, d]) => `<button class="btn sm ghost" data-act="org-due" data-id="${t.id}" data-d="${d}">${n}</button>`).join('')}<input class="inp pc-date" type="date" data-org-due="${t.id}" min="${td}" aria-label="Outro dia"></span></div>`; };
 

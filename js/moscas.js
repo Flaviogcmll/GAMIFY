@@ -37,12 +37,6 @@ export function moscasHtml(n, title = '', ov = false) {
 export const miniMosca = (n = 1) => `<span class="mini-mosca" aria-hidden="true">${svg('mosca')}${n > 1 ? `<b>${n}</b>` : ''}</span>`;
 export const moscaMortaHtml = (title = 'Mosca morta: está PARADO', ov = false) => `<span class="mosca-morta ${ov ? 'ov' : ''}" title="${title}" role="img" aria-label="${title}">${svg('morta')}</span>`;
 
-/** v8.8 (pedido do dono): cada vez que a tarefa é adiada (t.rs), o TREM cresce: ×2, ×3, ×4 pixels */
-export function tremHtml(rs) {
-  if (!rs) return '';
-  const k = Math.min(4, rs + 1), tip = `Adiada ${rs}x: o TREM cresceu${rs >= 3 ? ' (travou: pra empurrar de novo precisa de time box)' : ''}`;
-  return `<span class="trem-monte" data-rs="${Math.min(rs, 3)}" title="${tip}" role="img" aria-label="${tip}">${svg('monte', k)}</span>`;
-}
 // o objeto que cai do card: uma vez por tarefa, no dia em que ela atrasa (fica guardado só neste aparelho)
 const K = 'gamify-ui:caiu';
 let caiu = null;

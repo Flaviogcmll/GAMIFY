@@ -7,7 +7,6 @@ import { filtroBody } from './filtro.js';
 
 import * as R from '../rules.js';
 import { esc, today, fmtDM, DOW, addDays, range, weekday, weekStart, holidayName, lightNow } from '../util.js';
-import { dueChip } from '../ui.js';
 import { diaCard } from '../planos.js';
 
 
@@ -43,8 +42,6 @@ export function viewAgenda(ui) {
   const td = today();
   const open = R.openTasks(S);
   const over = open.filter((t) => t.due && t.due < td);
-  const dueToday = open.filter((t) => t.due === td);
-  const next7 = open.filter((t) => t.due && t.due > td && t.due <= addDays(td, 7));
   const done = R.idx(S).comps.filter((c) => c.onTime !== undefined);
   const d30 = R.allTasks(S).filter((t) => t.st === 'done' && t.due && t.doneAt >= addDays(td, -30));
   const punct = d30.length ? Math.round((d30.filter((t) => t.onTime).length / d30.length) * 100) : null;
@@ -61,8 +58,6 @@ export function viewAgenda(ui) {
   // v6: os rituais dos próximos 14 dias entram na fila, em azul (azul = ritual/destaque), na ordem da data
   const rits = (S.core.rituals || []).map((r) => ({ r, s: R.ritualStatus(r, td) })).filter((x) => x.s.next && x.s.left <= 14 && (!q || x.r.name.toLowerCase().includes(q)) && (fb !== 'late' || x.s.left < 0) && (fb !== 'today' || x.s.left === 0) && (fb !== 'week' || x.s.left <= 7));
   const rows = [...queue.slice(0, 80).map((t) => ({ t, k: t.due || '9999' })), ...rits.map((x) => ({ ...x, k: x.s.next }))].sort((a, b) => a.k.localeCompare(b.k));
-  const ritRow = (r, s) => `<div class="li rit" ${R.pragaOf(S, r.id) ? `data-praga="${R.pragaOf(S, r.id).phase}"` : ''} title="Ritual: ${esc(r.every ? `a cada ${r.every} dias` : 'sem frequência')}"><div class="lt" data-act="edit-ritual" data-id="${r.id}" style="cursor:var(--cur-hand,pointer)">🔁 ${esc(r.name)}<small>ritual${s.plan ? ' · dia marcado por você' : ''}</small></div>
-    <div class="row" style="flex-wrap:nowrap;gap:6px"><span class="chip ${s.left <= 0 ? 'late' : s.left <= 1 ? 'week' : 'rit'}">${esc(s.label)}</span>${r.last === td ? '' : `<button class="btn sm" data-act="ritual-done" data-id="${r.id}" title="Fiz">✓</button>`}</div></div>`;
   const blow = R.blowState(S), blowPct = Math.round((R.BLOW_MULT - 1) * 100);
   return `<div class="page-title"><div><h1><em>agenda</em>.</h1></div></div>
     <div class="page-actions"><button class="btn pri" data-act="distribute">📅 DISTRIBUIR PRAZOS</button><button class="btn" data-act="plan-change">🔀 MUDANÇA DE PLANOS</button><button class="btn" data-act="plan-tomorrow">🌙 PLANEJAR AMANHÃ</button></div> <!-- v7.7: os botões vêm antes dos quadrinhos -->

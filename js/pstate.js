@@ -86,4 +86,3 @@ export function diarySync() {
   if (add.length) { p.diary = [...(p.diary || []), ...add].sort((a, b) => a.wk.localeCompare(b.wk)).slice(-40); save('core'); }
   return p.diary || [];
 }
-export const fmtMin = (m) => (m >= 1440 ? `${Math.round(m / 144) / 10} dia` : m >= 60 ? `${Math.round(m / 6) / 10} h`.replace('.', ',') : `${m} min`);

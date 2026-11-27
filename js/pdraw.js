@@ -13,7 +13,6 @@ function rr(c, x, y, w, h, r, col) {
   }
 }
 const rro = (c, x, y, w, h, r, col) => { rr(c, x - 1, y - 1, w + 2, h + 2, r + 1, OL); rr(c, x, y, w, h, r, col); };
-const shade = (hex, k) => { const n = parseInt(hex.slice(1), 16), f = (v) => Math.max(0, Math.min(255, Math.round(v * k))); return '#' + [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => f(v).toString(16).padStart(2, '0')).join(''); };
 
 // expressão = olhos, sobrancelhas (inclinação por lado: + brava, − preocupada; alt = sobe), boca e efeitos
 export const EXPR = {
