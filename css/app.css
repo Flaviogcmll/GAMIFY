@@ -2302,3 +2302,61 @@ aside.postit .tasks { flex: 1 1 auto; min-height: 0; }
 .modal .actions { position: relative; }
 .modal .actions::before { content: ''; position: absolute; left: 50%; top: -9px; width: 16px; height: 16px; transform: translateX(-50%); background: var(--panel) var(--espiral) center / 14px no-repeat; image-rendering: pixelated; }
 .host-say { cursor: var(--cur-hand, pointer); } .host-say b { color: var(--t-mel-3); font-weight: 700; }
+
+/* v9.7 (pedido do dono): a FEIRA em DOURADO, reluzindo de vez em quando (cor de PRÊMIO: --c-premio).
+   O brilho é uma faixa de luz que passa na diagonal e descansa uns segundos; cada janela num tempo diferente. */
+#main[data-route="shop"] .vitrine, #main[data-route="shop"] .card, #main[data-route="shop"] .tiles .stat, #main[data-route="shop"] .scene.pstrip {
+  position: relative; overflow: hidden;
+  border-color: color-mix(in srgb, var(--c-premio) 75%, var(--line));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--c-premio) 35%, transparent), 0 0 14px color-mix(in srgb, var(--c-premio) 22%, transparent), var(--shadow, none);
+  background-image: linear-gradient(160deg, color-mix(in srgb, var(--c-premio) 12%, transparent), transparent 45%, color-mix(in srgb, var(--c-premio) 8%, transparent));
+}
+#main[data-route="shop"] .vitrine::after, #main[data-route="shop"] .card::after {
+  content: ''; position: absolute; top: -20%; bottom: -20%; left: -60%; width: 38%; pointer-events: none; z-index: 3;
+  background: linear-gradient(100deg, transparent 0, rgba(255, 236, 180, .0) 20%, rgba(255, 236, 180, .38) 50%, rgba(255, 236, 180, 0) 80%, transparent 100%);
+  transform: skewX(-18deg); animation: feira-brilho 9s ease-in-out infinite; mix-blend-mode: screen;
+}
+#main[data-route="shop"] .vitrine:nth-of-type(2n)::after, #main[data-route="shop"] .card:nth-of-type(2n)::after { animation-delay: 3.2s; }
+#main[data-route="shop"] .vitrine:nth-of-type(3n)::after, #main[data-route="shop"] .card:nth-of-type(3n)::after { animation-delay: 6.1s; }
+@keyframes feira-brilho { 0%, 78% { left: -60%; opacity: 0; } 80% { opacity: 1; } 96% { left: 130%; opacity: 1; } 100% { left: 130%; opacity: 0; } }
+#main[data-route="shop"] .vit-h h2 { color: #ffe3a3; text-shadow: 0 0 8px color-mix(in srgb, var(--c-premio) 70%, transparent), 0 2px 0 #1f1712; }
+@media (prefers-reduced-motion: reduce) { #main[data-route="shop"] .vitrine::after, #main[data-route="shop"] .card::after { animation: none; display: none; } }
+#main[data-route="shop"] .tiles .stat b, #main[data-route="shop"] .tiles .stat strong { color: var(--c-premio); }
+
+/* v9.7 AS 3 DO DIA (tres.js): cartão no topo das MISSÕES + janela de escolher. Verde-musgo do SAPO = --c-ok (feito/bom). */
+.tres-card { margin: 0 0 12px; border-color: color-mix(in srgb, var(--c-ok) 55%, var(--line)); }
+.tres-card header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tres-card header h2 { margin: 0; }
+.tres-card header .meta { flex: 1; }
+.tres-card.vazio { display: flex; align-items: center; gap: 12px; padding: 10px 14px; flex-wrap: wrap; }
+.tres-card.vazio .tres-txt { flex: 1 1 240px; display: flex; flex-direction: column; gap: 3px; font-size: 13px; }
+.tres-art img { width: 48px; height: auto; image-rendering: pixelated; }
+.tres-l { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.tres-i { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 2px solid var(--line); border-radius: var(--rad, 12px); background: var(--panel); }
+.tres-i.sapo { border-color: color-mix(in srgb, var(--c-ok) 70%, var(--line)); background: color-mix(in srgb, var(--c-ok) 10%, var(--panel)); }
+.tres-i.done { opacity: .6; }
+.tres-i.done .tres-t { text-decoration: line-through; }
+.tres-chk { flex: 0 0 26px; width: 26px; height: 26px; border: 2px solid var(--ink); border-radius: 8px; background: var(--panel); font-weight: 700; cursor: var(--cur-hand, pointer); }
+.tres-i.done .tres-chk { background: var(--c-ok); color: #fffaf1; border-color: var(--c-ok); }
+.tres-t { flex: 1; min-width: 0; cursor: var(--cur-hand, pointer); font-size: 14px; overflow-wrap: anywhere; }
+.tres-t small { display: block; color: var(--muted); font-size: 11px; }
+.tres-x { font: 700 11px/1 'Roboto Mono', monospace; color: var(--c-premio); white-space: nowrap; }
+.tres-card.ok { box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-ok) 45%, transparent), var(--shadow, none); }
+.tres-plan { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 8px 10px; margin: 0 0 10px; border: 2px dashed color-mix(in srgb, var(--c-ok) 60%, var(--line)); border-radius: var(--rad, 12px); font-size: 13px; }
+.tres-sel { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 8px; }
+.tres-slot { flex: 1 1 140px; min-width: 0; padding: 6px 8px; border: 2px dashed var(--line); border-radius: 10px; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tres-slot.on { border-style: solid; border-color: var(--c-ok); }
+.tres-cands { max-height: 46vh; overflow: auto; }
+.tres-c { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; cursor: var(--cur-hand, pointer); }
+.tres-c.on { outline: 2px solid var(--c-ok); outline-offset: -2px; background: color-mix(in srgb, var(--c-ok) 12%, var(--panel)); }
+.tres-n { flex: 0 0 24px; text-align: center; font-weight: 700; }
+.tres-c .lt { flex: 1; min-width: 0; }
+/* v9.7: em qualquer lista (também MISSÕES DA SEMANA), quando não cabe, os chips (prazo, horário, moscas) descem pra linha de baixo
+   em vez de espremer o texto até uma letra por linha */
+li.task { grid-template-columns: auto minmax(110px, 1fr) minmax(0, auto); }
+li.task > .info { min-width: 0; flex-wrap: wrap; justify-content: flex-end; }
+.travou { margin: 0 0 12px; padding: 8px 10px; border: 2px solid color-mix(in srgb, var(--c-ok) 45%, var(--line)); border-radius: var(--rad, 12px); }
+.trav-row { flex-wrap: wrap; gap: 6px; }
+.trav-acts { gap: 4px; flex-wrap: wrap; }
+.trav-row { display: flex; flex-direction: column; align-items: stretch; }
+.trav-row .lt { flex: none; width: 100%; }

@@ -488,6 +488,9 @@ export function taskBaseXp(s, t) {
   return t.area === 'block' ? C.XP_SUB : C.XP_LIST;
 }
 /** XP que a tarefa dá se for concluída no dia `d` (com explicação). */
+/** v9.7 AS 3 DO DIA (tres.js): os ids escolhidos pra um dia (o 1º é o SAPO) e o bônus de cada posição */
+export const TRES_MULT = [1.5, 1.25, 1.25];
+export const tresOf = (s, d = today()) => (s.core?.tres?.[d] || []).filter((id) => (s.quests?.tasks || []).some((t) => t.id === id));
 export function taskXp(s, t, d = today()) {
   const p = parse(t.text), g = groupOf(s, t), ev = eventOfDay(s, d);
   const base = taskBaseXp(s, t);
@@ -511,6 +514,7 @@ export function taskXp(s, t, d = today()) {
   }
   if (p.mini && ev?.type === 'mini') { m *= 2; parts.push('⚔ x2'); }
   if ((s.core?.weekly?.[weekStart(d)] || []).includes(t.id)) { m *= 1.5; parts.push('📌 missão da semana x1,5'); }
+  { const ti = (s.core?.tres?.[d] || []).indexOf(t.id); if (ti >= 0) { const k = TRES_MULT[ti] || 1.25; m *= k; parts.push(ti === 0 ? '🐸 SAPO do dia x1,5' : '⭐ uma das 3 do dia x1,25'); } }
   if (d === today()) { const pg = praga(s, d); if (pg.mult < 1 && !pg.list.some((x) => x.id === t.id)) { m *= pg.mult; parts.push(`🐛 TREM TRAPAIADO −${Math.round((1 - pg.mult) * 100)}%`); } }
   const tm = dayStatus(s, d).taskMult;
   if (tm !== 1) { m *= tm; parts.push(`${tm > 1 ? '✨' : '⚠'} status ${tm > 1 ? '+' : ''}${Math.round((tm - 1) * 100)}%`); }
@@ -871,12 +875,10 @@ export function distributePlan(s, opts = {}) {
     for (let i = 0; i < 400; i++, d = addDays(d, 1)) if ((load[d] || 0) < dayCapacity(s, d, pace, max)) return d;
     return from;
   };
-  const blocksById = new Map((s.quests?.blocks || []).map((b) => [b.id, b])), capOf = (t) => dueCap(t.block && blocksById.get(t.block), td);
   const push = (t, from, why) => {
     if (t.due && t.due >= td) return;
     if (t.due) load[t.due] = Math.max(0, (load[t.due] || 0) - 1);
-    let d = pick(from); const cap = capOf(t);
-    if (cap && d > cap) d = cap; // subtarefa não passa do prazo final do bloco
+    const d = pick(from); // v9.7: o prazo do bloco não segura o da subtarefa
     load[d] = (load[d] || 0) + 1;
     plan.push({ id: t.id, text: t.text, from: t.due || null, to: d, why });
   };
@@ -946,8 +948,6 @@ export function ritualStatus(r, td = today()) {
 export const reviewed = (b, now = Date.now()) => !!b?.rev && now - b.rev < 864e5;
 /** lista do QUESTS marcada como revisada nas últimas 24 h (core.rev = { hoje: hora, amanha: hora… }) */
 export const listReviewed = (s, k, now = Date.now()) => reviewed({ rev: s.core?.rev?.[k] }, now);
-/** prazo máximo de uma subtarefa = o prazo final do bloco dela. Bloco já vencido não limita (mude o prazo do bloco). */
-export const dueCap = (b, td = today()) => (b?.due && b.due >= td ? b.due : null);
 /** os blocos de uma aba do QUESTS: 'bd', 'tr', 'cap', 'gs' (sem os guardados em janelas do dono) ou 'w:<id>' (janela do dono) */
 export const tabBlocks = (s, k) => { const ws = new Set(windows(s).map((w) => w.id)); return (s.quests?.blocks || []).filter((b) => (k.startsWith('w:') ? b.win === k.slice(2) : b.group === k && !ws.has(b.win))); };
 /** aba toda revisada: todas as listas com tarefa aberta, ou todos os blocos ativos (não fechados nem parados) */
@@ -1282,12 +1282,6 @@ export function bodyClock(s, now = new Date()) {
   return { key, ...PHASES[key], toBed: key === 'sono' ? 0 : toBed, bed: n.bed, wake: n.wake, sleepH: Math.round(((wake - bed + 1440) % 1440) / 6) / 10,
     meal: meal ? { at: hhmm(meal.at), in: meal.in } : null, coffeeUntil: hhmm(Math.min(wake + 8 * 60, 15 * 60)), trainUntil: hhmm(bed - 4 * 60) };
 }
-/** a tarefa mais pesada que dá pra fazer hoje (pro pico de foco): ! prioridade, ⭐, atrasada, mais XP */
-export function heaviestTask(s, td = today()) {
-  const ts = openTasks(s).filter((t) => t.st !== 'wait' && !t.who && !t.dep && (!t.due || t.due <= addDays(td, 7)));
-  const score = (t) => (t.prio ? 400 : 0) + (parse(t.text).star ? 200 : 0) + (t.due && t.due < td ? 150 : t.due === td ? 100 : 0) + taskXp(s, t).xp;
-  return ts.sort((a, b) => score(b) - score(a))[0] || null;
-}
 
 // ───────────────────────── v5.16: BULLET JOURNAL (Ryder Carroll) ─────────────────────────
 // A) MIGRAÇÃO DO MÊS: "se não vale reescrever, não vale fazer". Candidatas: tarefas das LISTAS abertas, sem prazo
@@ -1354,38 +1348,6 @@ export function comebackDue(s, td = today()) {
   const xp = idx(s).xpByDay, y = addDays(td, -1), y2 = addDays(td, -2), hit = (x) => (xp[x] || 0) >= goalAt(s, x);
   if (!hit(td) || hit(y) || tripDay(s, y) || y < (s.core?.startDate || y)) return false;
   return hit(y2) || tripDay(s, y2) || weekday(y2) === 0 || weekday(y2) === 6;
-}
-// 2E + 5A FOCO AGORA: uma tarefa só, e o porquê (o "cérebro": junta prazo, boss, missão, horário do corpo e prioridade)
-export function focusNow(s, td = today(), skip = []) {
-  { // v6.5: da fase 2 em diante a tarefa da Praga é o FOCO (sem OUTRA)
-    const pg = praga(s, td), w = pg.list.find((x) => x.kind === 'task' && x.phase >= 2), t = w && (s.quests?.tasks || []).find((x) => x.id === w.id);
-    if (t) return { task: t, why: `${w.phase >= 4 ? '🐺' : '🪰'} ${PRAGA_NAMES[w.phase]}: atrasada há ${w.days} dia(s), fase ${w.phase} de 4`, praga: w.phase };
-  }
-  { // v8.4 (pedido do dono): o que você marcou ▶ FAZENDO vira o FOCO AGORA
-    const doing = openTasks(s).find((t) => t.st === 'doing' && !skip.includes(t.id));
-    if (doing) return { task: doing, why: '▶ você marcou como FAZENDO' };
-  }
-  const wm = new Set(weeklyMissions(s, td).ids || []), clock = neuroOn(s, 'clock') ? bodyClock(s).key : '';
-  const bossOf = (t) => (t.block && (s.quests?.bosses || []).find((b) => b.block === t.block)) || null;
-  const cands = openTasks(s).filter((t) => t.st !== 'wait' && !t.who && !t.dep && !t.mother && !skip.includes(t.id) && (!t.block || findBlock(s, t.block)?.color !== 'black'));
-  const why = (t) => {
-    const r = [];
-    if (t.st === 'doing') r.push([900, 'você já começou']);
-    if (t.due && t.due < td) r.push([600 + diffDays(t.due, td) * 10, `atrasada há ${diffDays(t.due, td)} dia(s)`]);
-    else if (t.due === td) r.push([450, 'o prazo é hoje']);
-    if (t.prio) r.push([400, 'marcada como prioridade']);
-    if (wm.has(t.id)) r.push([350, 'é uma missão da semana']);
-    const bo = bossOf(t), idle = bo ? bossIdle(s, bo, td) : 0;
-    if (bo && idle >= BOSS_IDLE_DAYS) r.push([300, `o boss "${bo.text.replace(/:\s*[\d.]+\s*XP.*$/i, '').slice(0, 28)}" está parado há ${idle} dias`]);
-    if (parse(t.text).star) r.push([200, 'é a chata que você vive adiando']);
-    if (clock === 'foco' && taskXp(s, t, td).xp >= 30) r.push([150, 'é pico de foco: hora da pesada']);
-    if (clock === 'vale' && taskXp(s, t, td).xp < 20) r.push([120, 'no vale da tarde, uma leve rende']);
-    if (t.due && t.due > td && diffDays(td, t.due) <= 2) r.push([100, 'o prazo está perto']);
-    return r.sort((a, b) => b[0] - a[0]);
-  };
-  const ranked = cands.map((t) => ({ t, r: why(t) })).filter((x) => x.r.length).sort((a, b) => b.r.reduce((x, y) => x + y[0], 0) - a.r.reduce((x, y) => x + y[0], 0));
-  const top = ranked[0];
-  return top ? { task: top.t, why: top.r.slice(0, 2).map((x) => x[1]).join(' e '), next: ranked.slice(1, 4).map((x) => x.t.id) } : null;
 }
 
 // ───────────────────────── v6.1: ROTINA "NEURO" (sugestão, a do dono continua igual) ─────────────────────────

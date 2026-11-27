@@ -1,6 +1,7 @@
 // APP — liga tudo: abas (como na planilha), dia/noite, cliques, janelas, PRIMO, SOS, arrastar e soltar, sons.
 import { extendOrganiza, maybeOrganiza } from './organiza.js';
 import { extendLobo, loboTermo } from './lobo.js';
+import { extendTres } from './tres.js';
 import { checkAvisos } from './planos.js';
 import { setDue } from './remarcar.js';
 import { FALAS, NOMES, quem, sorte } from './elenco.js';
@@ -26,15 +27,13 @@ import { viewAgenda } from './views/agenda.js';
 import { viewShop, mmss } from './views/shop.js';
 
 import { viewConquistas, viewRegras } from './views/extras.js';
-import { viewFiltro } from './views/filtro.js';
 
-import { viewRotina } from './views/rotina.js';
 
 import { sceneBanner, mountScenes, extend, viewArquivo3, chapterCard, isCollapsed, toggleCollapse } from './v3.js';
 
 import { afterRender, extend35 } from './v35.js';
 
-import { extend4, afterRender4, captureFocus, checkMilestones, confirmResched, dropTaskSmart } from './v4.js';
+import { extend4, afterRender4, captureFocus, checkMilestones, dropTaskSmart } from './v4.js';
 
 import { extendPrimo, openPrimoHub, primoFeedback, primoReact } from './primo.js';
 
@@ -45,7 +44,7 @@ import { tripBanner, tripCheck, extendTrip } from './trip.js';
 import { maybeReview, extendReview } from './review.js';
 import { extendPlanos, maybePlanAsk, maybeHabitsAsk } from './planos.js';
 import { extendBujo, afterRenderBujo } from './bujo.js';
-import { perksNav, perksGo, applyCursor, CURSOR_KEY } from './telas.js';
+import { perksGo, applyCursor, CURSOR_KEY } from './telas.js';
 import { extendMapa } from './mapa.js';
 import { extendPraga, extendPraga2, pragaPaint, pragaBanner, banhoSal, pragaGuide, salToast } from './praga.js';
 import { renderPostit } from './postit.js';
@@ -330,15 +329,6 @@ function rebuildText(text, { star, home, money, xp, kind }) {
   if (xp) t += ` (${xp}XP)`;
   return t.trim();
 }
-function whereOptions(t) {
-  const lists = `<option value="area:auto" ${!t.block ? 'selected' : ''}>LISTAS (a data decide a lista)</option>`;
-  const groups = Object.entries(R.GROUPS).map(([g, info]) => { const bl = S.quests.blocks.filter((b) => b.group === g).sort((a, b) => a.ord - b.ord); return bl.length ? `<optgroup label="${info.name}">${bl.map((b) => `<option value="block:${b.id}" ${t.block === b.id ? 'selected' : ''}>${esc(b.title)}</option>`).join('')}</optgroup>` : ''; }).join('');
-  return `<optgroup label="LISTAS">${lists}</optgroup>${groups}`;
-}
-const COLORS = [['', 'sem cor'], ['red', '🟥 URGENTE'], ['yellow', '🟨 ESQUENTANDO'], ['green', '🟩 ESTÁVEL'], ['black', '⬛ PARADO']];
-// v5.16: as mesmas bolinhas de cor em toda janela; AGUARDANDO (roxo) virou uma das cores (por baixo continua o estado "aguardando")
-const SWATCH = [['red', 'URGENTE', 'urg', 'Prazo perto ou atrasado: faça primeiro'], ['yellow', 'ESQUENTANDO', 'atencao', 'Tá chegando a hora: vem logo depois das urgentes'], ['green', 'ESTÁVEL', 'ok', 'Tudo em ordem, sem pressa'],
-  ['black', 'PARADO', 'neutro', 'Parado de propósito: some das listas até você mostrar'], ['wait', 'AGUARDANDO', 'espera', 'Depende de outra pessoa ou de outra coisa']];
 // v9.5 (pedido do dono): a COR vem do PRAZO sozinha. Na janela só dá pra escolher AUTOMÁTICA, AGUARDANDO ou PARADO
 const swatches = (cur, withNone = false, due = null) => { void withNone; const auto = R.autoCor(S, due), nm = { red: 'URGENTE', yellow: 'ESQUENTANDO', green: 'ESTÁVEL', '': 'SEM PRAZO' }[auto], tone = { red: 'urg', yellow: 'atencao', green: 'ok', '': 'none' }[auto];
   const k0 = cur === 'wait' || cur === 'black' ? cur : '';
@@ -349,7 +339,6 @@ function editTask(id) {
   const t = S.quests.tasks.find((x) => x.id === id);
   if (!t) return;
   const p = R.parse(t.text), now = R.taskXp(S, t), td = today();
-  const cap = R.dueCap(t.block && R.findBlock(S, t.block), td); // subtarefa: o prazo vai até o do bloco
   const nextMon = addDays(td, ((8 - weekday(td)) % 7) || 7);
   const st = t.st === 'done' || t.st === 'cancel' ? t.st : '';
   const color = t.st === 'wait' ? 'wait' : t.color || '';
@@ -366,7 +355,7 @@ function editTask(id) {
     <div class="waitbox"><label class="lbl" for="t-who">⏳ Aguardando quem ou o quê</label><div class="row">
       <input class="inp grow" id="t-who" name="who" value="${esc(t.who || '')}" list="who-list" placeholder="PREFEITURA, CLIENTE, FULANO…" autocomplete="off"><datalist id="who-list">${R.people(S).map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
       <select class="inp" name="dep" aria-label="Depende de outra tarefa" style="flex:1 1 220px;min-width:0"><option value="">— não depende de outra tarefa —</option>${R.openTasks(S).filter((x) => x.id !== t.id && x.dep !== t.id).sort((x, y) => (x.block === t.block ? 0 : 1) - (y.block === t.block ? 0 : 1) || x.text.localeCompare(y.text)).map((x) => `<option value="${x.id}" ${t.dep === x.id ? 'selected' : ''}>🔗 ${esc(x.text.replace(/\s*\(\d+\s*XP\)/i, '').slice(0, 60))}</option>`).join('')}</select></div></div>
-    <label class="lbl" for="t-due">Prazo <span class="meta">· ⏰ horário (opcional: aparece no MEU DIA da AGENDA)</span></label><div class="row"><input class="inp" type="date" id="t-due" name="due" value="${t.due || ''}" ${cap ? `title="O bloco termina em ${fmtDM(cap)}: se passar disso, o app pergunta se empurra o bloco junto"` : ''} style="width:auto"><input class="inp" type="time" name="at" value="${esc(t.at || '')}" style="width:auto" aria-label="Horário">
+    <label class="lbl" for="t-due">Prazo <span class="meta">· ⏰ horário (opcional: aparece no MEU DIA da AGENDA)</span></label><div class="row"><input class="inp" type="date" id="t-due" name="due" value="${t.due || ''}" style="width:auto"><input class="inp" type="time" name="at" value="${esc(t.at || '')}" style="width:auto" aria-label="Horário">
       ${[['HOJE', td], ['AMANHÃ', addDays(td, 1)], ['+3', addDays(td, 3)], ['PRÓX. SEG', nextMon], ['SEM', '']].map(([n, d]) => `<button type="button" class="pill" data-act="due-quick" data-d="${d}"><span>${n}</span></button>`).join('')}
       ${t.due ? `<span class="minfo" title="${t.due < td ? `Atrasada: concluir agora paga ${Math.round(Math.max(R.C.LATE_MIN, 1 - R.C.LATE_DAY * diffDays(t.due, td)) * 100)}% do XP. ` : ''}Empurrar o prazo custa ${A.reschedBase({ ...t, due: '0' }, '9')} XP${A.freeResched() ? ' (a 1ª da semana é grátis)' : ''}. Antecipar é de graça.">${t.due < td ? '⏰' : 'ⓘ'}${t.rs ? ` remarcada ${t.rs}x` : ''}</span>` : ''}</div>
     ${R.reschedLocked(S, t) && R.isOpen(t) ? `<div class="boxlock"><b>🔒 Já remarcada ${t.rs}x.</b> Pra empurrar de novo, marque um horário e quanto tempo (time box). Ou cancele: se não vale fazer, tudo bem.
@@ -399,7 +388,7 @@ function editBlock(id) {
       <div><label class="lbl" for="b-group">Janela</label><select class="inp" id="b-group" name="group">${Object.entries(R.GROUPS).map(([g, i]) => `<option value="${g}" ${b.group === g && !R.winOf(S, b) ? 'selected' : ''}>${i.name}</option>`).join('')}${R.windows(S).map((w) => `<option value="win:${w.id}" ${b.win === w.id ? 'selected' : ''}>▣ ${esc(w.name)}</option>`).join('')}</select>
         <p class="meta" style="margin:6px 0 0">${items.length - open.length}/${items.length} feitas${open.length ? ` · ${open.length} em aberto` : ''}</p></div>
       <div><label class="lbl">Cor</label>${swatches(color, true, R.blockDue(S, b))}</div></div>
-    <label class="lbl" for="b-due">◆ Prazo final <span class="meta">· só as subtarefas que você datar têm prazo; nenhuma passa deste</span></label><div class="row"><input class="inp" type="date" id="b-due" name="due" value="${b.due || ''}" style="width:auto">
+    <label class="lbl" for="b-due">◆ Prazo final <span class="meta">· só do bloco: as subtarefas têm o prazo que você der a cada uma</span></label><div class="row"><input class="inp" type="date" id="b-due" name="due" value="${b.due || ''}" style="width:auto">
       ${[['HOJE', td], ['AMANHÃ', addDays(td, 1)], ['+7', addDays(td, 7)], ['PRÓX. SEG', nextMon], ['SEM', '']].map(([n, d]) => `<button type="button" class="pill" data-act="due-quick" data-d="${d}"><span>${n}</span></button>`).join('')}</div>
     ${open.length ? `<label class="lbl">Subtarefas</label><div class="mlist">${open.slice(0, 12).map((t) => `<button type="button" class="dia-t" data-act="edit-task" data-id="${t.id}" data-color="${R.colorOfTask(S, t) || ''}">${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}${t.due ? ` <small class="meta">${fmtDM(t.due)}</small>` : ''}</button>`).join('')}${open.length > 12 ? `<span class="meta">+${open.length - 12}</span>` : ''}</div>` : ''}
     ${b.group !== 'bs' ? `<details class="merge-b"><summary class="meta">↘ virar subtarefa de outro bloco <span class="meta">(ou arraste o bloco pelo ⠿ pra dentro de outro bloco aberto)</span></summary><div class="row" style="margin-top:6px"><select class="inp grow" data-merge-into="${id}" aria-label="Bloco de destino"><option value="">— escolha o bloco —</option>${S.quests.blocks.filter((x) => x.id !== id && x.st !== 'done' && x.group !== 'bs').sort((a, z) => a.title.localeCompare(z.title)).map((x) => `<option value="${x.id}">${esc(x.title)}${R.winOf(S, x) ? ' · ' + esc(R.winOf(S, x).name) : ''}</option>`).join('')}</select></div><p class="meta" style="margin:4px 0 0">O título vira uma tarefa lá dentro e as tarefas daqui viram passos ↳ dela. Dá pra desfazer no ↩.</p></details>` : ''}
@@ -920,7 +909,6 @@ const FORMS = {
     const open = !t.st || t.st === 'doing' || t.st === 'wait';
     if (col === 'wait' || patch.who || patch.dep) { if (open) patch.st = 'wait'; } // roxo (ou disse quem segura): vai pra AGUARDANDO
     else { patch.color = col || undefined; if (t.st === 'wait') { patch.st = ''; patch.who = undefined; patch.dep = undefined; } } // outra cor: sai do AGUARDANDO
-    if (t.link && 'color' in patch && patch.color && patch.color !== 'wait') { const lb = R.findBlock(S, t.link); if (lb && lb.color !== patch.color) A.updateBlock(lb.id, { color: patch.color }); } // tarefa-mãe e bloco têm a mesma cor
     if (f.pin) patch.pin = f.pin.value || undefined;
     // v9.1: o prazo passa pelo caminho único de remarcar (remarcar.js): ele resolve bloco, time box e custo numa janela só
     if (f.cat && (f.cat.value || '') !== (t.cat || '')) A.setCat(t.id, f.cat.value); // v9.4: assunto
@@ -930,15 +918,12 @@ const FORMS = {
     closeModal();
     if ((due || null) !== (t.due || null) || box) { const cost = A.reschedCost(t, due || null); if (await setDue(t.id, due, { extra: box ? { box } : {}, reopen: () => editTask(t.id) }) && cost) primoReact('remarcou', { xp: cost }); }
   },
-  block: async (f) => {
+  block: (f) => {
     const b = S.quests.blocks.find((x) => x.id === f.dataset.id);
     const gv = f.group.value, gw = gv.startsWith('win:') ? R.windows(S).find((w) => 'win:' + w.id === gv) : null;
     const col = f.querySelector('[name=color]:checked')?.value ?? b.color;
     const patch = { title: A.normalizeMoney(f.title.value.trim()) || b.title, due: f.due.value || null, group: gw ? gw.base : gv, win: gw ? gw.id : undefined };
     if (b.st !== 'done') { if (col === 'wait') patch.st = 'wait'; else { patch.st = ''; patch.color = col; } }
-    // v9.3: a tarefa das listas ligada ao bloco muda de prazo pelo caminho único (custo e time box perguntados ali mesmo)
-    const lt = b.src && S.quests.tasks.find((x) => x.id === b.src);
-    if (lt && (lt.due || null) !== patch.due) { closeModal(); if (!(await setDue(lt.id, patch.due, { reopen: () => editBlock(b.id) }))) return; }
     A.updateBlock(b.id, patch);
     closeModal();
   },
@@ -994,6 +979,7 @@ extendBujo(ACTIONS, FORMS);
 extendMapa(ACTIONS, FORMS);
 extendPlanos(ACTIONS, FORMS);
 extendLobo(ACTIONS);
+extendTres(ACTIONS); // v9.7 AS 3 DO DIA
 extendOrganiza(ACTIONS, FORMS); // depois do extendPrimo: a linha do lobo abre a janela do termômetro
 extendPraga(ACTIONS, FORMS, jump);
 extendPraga2(ACTIONS, jump);

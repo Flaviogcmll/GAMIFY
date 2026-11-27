@@ -2,14 +2,14 @@
 import { S } from '../store.js';
 import * as R from '../rules.js';
 import { esc, fmtDM, fmtN, today, diffDays, weekday, addDays } from '../util.js';
-import { taskRow, segBar, statusChips, dueChip } from '../ui.js';
+import { taskRow, segBar, dueChip } from '../ui.js';
 import { px } from '../icons.js';
 import { isCollapsed, companionCard } from '../v3.js';
 import { primoHead } from '../primo.js';
 import { arrange } from '../v35.js';
-import { overflowBar } from '../bujo.js';
-import { moscasHtml, moscaMortaHtml, miniMosca } from '../moscas.js';
+import { moscasHtml, moscaMortaHtml } from '../moscas.js';
 import { soltas } from '../organiza.js';
+import { tresCard } from '../tres.js';
 
 const sortOrd = (a, b) => a.ord - b.ord;
 /** v7.1: ORDENAR pelo menu ≡ (só na tela: a ordem guardada não muda). Uma escolha por janela, lembrada no aparelho.
@@ -20,7 +20,6 @@ export function qsortOf(ui, tab) {
 }
 const URG_RANK = { hoje: 0, amanha: 1, semana: 2, depois: 3, sem: 4, wait: 5 };
 const byDue = (a, b) => (a.due || '9').localeCompare(b.due || '9') || sortOrd(a, b);
-const byUrg = (td) => (a, b) => (URG_RANK[R.listOf(a, td)] - URG_RANK[R.listOf(b, td)]) || (!!b.prio - !!a.prio) || byDue(a, b);
 /** v7.7: nas janelas de blocos o ≡ ORDENAR mexe nos BLOCOS inteiros (as subtarefas ficam na ordem delas). Só na tela. */
 const taskSorter = () => sortOrd;
 const blockDate = (b) => { const ds = S.quests.tasks.filter((t) => t.block === b.id && R.isOpen(t) && t.due).map((t) => t.due); if (b.due) ds.push(b.due); return ds.sort()[0] || '9999'; };
@@ -47,62 +46,6 @@ const visible = (t) => R.isOpen(t) || t.st === 'sent';
 const revBtn = (act, attr, on) => `<button class="rev-btn ${on ? 'on' : ''}" data-act="${act}" ${attr} title="${on ? 'Tirar o selo de revisado' : 'Olhei e está tudo em ordem. O selo dura 24 horas.'}">${on ? '👁 revisado · tirar' : '👁 marcar como revisado'}</button>`;
 /** ⬛ parado: só aparece com MOSTRAR PARADOS ligado */
 const stalledOff = (ui) => (t) => t.color !== 'black' || ui.showStalled;
-
-/** v8.4: as listas são pela COR (URGENTE · CHEGANDO · ESTÁVEL · A CLASSIFICAR · AGUARDANDO · PARADO); dentro de cada uma, pela data */
-const COR_HINT = { urg: 'urgente (prazo hoje)', chega: 'esquentando (logo mais)', estavel: 'estável, sem pressa', semcor: 'pra classificar depois', wait: 'aguardando alguém', parado: 'parado de propósito' };
-const COR_LIST = { urg: 'hoje', chega: 'semana', estavel: 'depois', semcor: 'sem', wait: 'wait', parado: 'sem' }; // cor do cabeçalho (mesmas cores das listas antigas)
-function listCard(cor, ui) {
-  const td = today(), wait = cor === 'wait';
-  const own = S.quests.tasks.filter((t) => !t.block && (R.isOpen(t) || t.st === 'sent' || ui.showDone) && R.corOf(S, t) === cor);
-  // v8.4: subtarefa URGENTE de um bloco (mesmo que o bloco esteja aguardando) aparece também em URGENTE, com o nome do bloco
-  const subs = cor === 'urg' ? S.quests.tasks.filter((t) => t.block && R.isOpen(t) && t.color === 'red' && t.st !== 'wait') : [];
-  const winKey = (t) => { const b = t.link && R.findBlock(S, t.link); return b ? (R.winOf(S, b)?.name || (b.group === 'bs' ? 'ZZ' : R.GROUPS[b.group]?.short || '')) : '~'; };
-  const byDate = (a, b) => (a.due || '9').localeCompare(b.due || '9') || sortOrd(a, b);
-  const qs = qsortOf(ui, 'listas');
-  const every = [...own, ...subs].sort(qs === 'urg' ? byUrg(td) : ui.lsort?.[cor] === 'win' ? (a, b) => winKey(a).localeCompare(winKey(b)) || byDate(a, b) : byDate);
-  const open = every.filter(visible), show = ui.showDone ? every : open, nHidden = every.length - open.length;
-  const late = open.filter((t) => t.due && t.due < td).length;
-  const sub = (t) => (t.block ? '↳ ' + (R.findBlock(S, t.block)?.title || '') : wait ? [R.waitingOn(S, t).label && '⏳ ' + R.waitingOn(S, t).label, t.link && R.findBlock(S, t.link)?.st === 'wait' && 'o bloco dela está aguardando'].filter(Boolean).join(' · ') : '');
-  const rv = R.listReviewed(S, cor);
-  const coming = cor === 'urg' && R.neuroOn(S, 'praga') ? open.filter((t) => t.due === td && t.st !== 'wait' && !t.who && !t.mother && R.pragaDay(S, t.due, 1) === addDays(td, 1)).length : 0;
-  const ck = 'l:' + cor;
-  return `<section class="list-card ${isCollapsed(ck) ? 'collapsed' : ''} ${rv ? 'reviewed' : ''}" data-list="${COR_LIST[cor]}" data-cor="${cor}" data-drop-cor="${cor}"><header><h2 data-act="collapse" data-k="${ck}" style="cursor:var(--cur-hand,pointer)"><span class="chev">${isCollapsed(ck) ? '▸' : '▾'}</span> ${R.COR_NAMES[cor]}</h2>
-      <span class="row" style="gap:4px"><span class="meta">${open.length}${late ? ` · <span class="bad">${late} atrasada${late > 1 ? 's' : ''}</span>` : ''}</span>${coming ? `<span class="pg-coming" title="🪰 ${coming} tarefa${coming > 1 ? 's' : ''} de hoje vira${coming > 1 ? 'm' : ''} TREM TRAPAIADO amanhã se ficar${coming > 1 ? 'em' : ''} sem fazer">${miniMosca(coming)}</span>` : ''}</span></header>
-    <form class="addline" data-form="add-task" data-cor="${cor}" autocomplete="off"><input class="inp" name="text" placeholder="+ adicionar ${COR_HINT[cor]}" aria-label="Adicionar em ${R.COR_NAMES[cor]}"></form>
-    ${cor === 'urg' ? overflowBar() : ''}<ul class="tasks">${show.map((t) => taskRow(t, { list: !t.block, go: !!t.block, sub: sub(t) })).join('')}${show.length ? '' : `<div class="empty">${wait ? 'ninguém te segurando. 👏' : 'vazio.'}</div>`}</ul>
-    ${!ui.showDone && nHidden ? `<button class="more" data-act="toggle-done">✓ ${nHidden} feitas · mostrar</button>` : ''}
-    ${revBtn('review-list', `data-k="${cor}"`, rv)}
-  </section>`;
-}
-
-/** v9.4 (entrevista do dono): a TODAS virou AGORA | DEPOIS (C3), cada coluna agrupada por ASSUNTO (B3), linha só com texto, data e
- *  moscas (D), os BLOCOS num cantinho separado (E2), AGUARDANDO e PARADO em listas próprias (F1), tudo aparece (G1) e UMA linha de
- *  escrever no topo, que pergunta cor, dia e assunto (H2). A CAIXA DE ENTRADA é o que foi jogado sem assunto (A3: organizar depois). */
-function todasView(ui) {
-  const td = today();
-  const loose = S.quests.tasks.filter((t) => !t.block && !t.mother && !t.link && (R.isOpen(t) || t.st === 'sent' || (ui.showDone && t.st === 'done')));
-  const subsUrg = S.quests.tasks.filter((t) => t.block && R.isOpen(t) && t.color === 'red' && t.st !== 'wait');
-  const wait = loose.filter((t) => t.st === 'wait'), parado = loose.filter((t) => t.color === 'black' && t.st !== 'wait');
-  const rest = [...loose.filter((t) => t.st !== 'wait' && t.color !== 'black'), ...subsUrg];
-  const rank = (t) => (t.st === 'doing' ? 0 : t.due && t.due < td ? 1 : R.colorOfTask(S, t) === 'red' ? 2 : 3);
-  const order = (a, b) => rank(a) - rank(b) || (a.due || '9').localeCompare(b.due || '9') || sortOrd(a, b);
-  const row = (t) => taskRow(t, { lite: true, go: !!t.block, sub: t.block ? '↳ ' + (R.findBlock(S, t.block)?.title || '') : '' });
-  const col = (key, title, hint, items, drop) => {
-    const groups = R.assuntos(S).map(([k, n]) => [k, n, items.filter((t) => R.catOf(S, t) === k).sort(order)]).filter((g) => g[2].length);
-    return `<section class="todas-col" data-col="${key}" data-drop-cor="${drop}"><header class="tc-h"><h2>${title}</h2><span class="meta">${items.length} · ${hint}</span></header>
-      ${groups.map(([k, n, list]) => { const ck = `tg:${key}:${k || 'cx'}`, shut = isCollapsed(ck); return `<div class="tg ${shut ? 'collapsed' : ''} ${k ? '' : 'inbox'}" data-drop-cat="${k}" data-drop-col="${key}"><h3 class="tg-h" data-act="collapse" data-k="${ck}"><span class="chev">${shut ? '▸' : '▾'}</span> ${esc(n)} <small>${list.length}</small></h3>${shut ? '' : `<ul class="tasks">${list.map(row).join('')}</ul>`}</div>`; }).join('') || `<div class="empty">${key === 'agora' ? 'nada pra agora. Trem bão!' : 'vazio.'}</div>`}</section>`;
-  };
-  // E2: todo bloco ativo (o que era tarefa-mãe ou tarefa ligada a bloco) fica no cantinho BLOCOS, não nas colunas
-  const mothers = S.quests.blocks.filter((b) => b.st !== 'done' && b.group !== 'bs').map((b) => ({ b })).sort((a, b) => (a.b.due || '9').localeCompare(b.b.due || '9') || a.b.title.localeCompare(b.b.title));
-  const small = (k, title, inner, n, extra = '') => { const ck = 'l:' + k, shut = isCollapsed(ck); return `<section class="list-card todas-mini ${shut ? 'collapsed' : ''}" data-cor="${k === 'blocos' ? 'blocos' : k}" ${extra}><header><h2 data-act="collapse" data-k="${ck}" style="cursor:var(--cur-hand,pointer)"><span class="chev">${shut ? '▸' : '▾'}</span> ${title}</h2><span class="meta">${n}</span></header>${shut ? '' : inner}</section>`; };
-  const blocosHtml = `<div class="list blocos-l">${mothers.map(({ b }) => `<div class="li" data-act="jump-block" data-id="${b.id}" data-color="${b.st === 'wait' ? 'purple' : b.color || ''}"><div class="lt">${esc(b.title)}<small>${esc(R.winOf(S, b)?.name || R.GROUPS[b.group]?.short || '')}</small></div>${b.due ? dueChip(b.due) : ''}</div>`).join('') || '<div class="empty">nenhum bloco ativo.</div>'}</div>`;
-  const waitHtml = `<ul class="tasks">${wait.sort(order).map((t) => taskRow(t, { lite: true, sub: R.waitingOn(S, t).label ? '⏳ ' + R.waitingOn(S, t).label : '' })).join('') || '<div class="empty">ninguém te segurando. 👏</div>'}</ul>`;
-  const paradoHtml = `<ul class="tasks">${parado.sort(order).map((t) => taskRow(t, { lite: true })).join('') || '<div class="empty">nada parado.</div>'}</ul>`;
-  return `<div class="todas-top"><form class="addline todas-add" data-form="todas-add" autocomplete="off"><input class="inp" name="text" placeholder="+ escrever uma tarefa (Enter: o app pergunta a cor, o dia e o assunto)" aria-label="Nova tarefa"></form><button class="btn sm" data-act="organizar" title="Dar cor e assunto pro que está solto">🗂 ORGANIZAR</button><button class="btn sm" data-act="urg-open" title="Ver as URGENTES e aliviar">🔥 ${rest.filter((t) => R.colorOfTask(S, t) === 'red').length}</button></div>
-    ${overflowBar()}
-    <div class="todas-grid">${col('agora', '🔥 AGORA', 'atrasadas, até amanhã, URGENTE e ESQUENTANDO', rest.filter((t) => R.isAgora(S, t, td)), 'chega')}${col('depois', '🌱 DEPOIS', 'ESTÁVEL, sem cor, prazo mais longe', rest.filter((t) => !R.isAgora(S, t, td)), 'estavel')}</div>
-    <div class="todas-bottom">${small('blocos', '▣ BLOCOS', blocosHtml, mothers.length)}${small('wait', '⏳ AGUARDANDO', waitHtml, wait.length, 'data-drop-cor="wait"')}${small('parado', '⬛ PARADO', paradoHtml, parado.length, 'data-drop-cor="parado"')}</div>`;
-}
 
 function bossPanel(ui) {
   const ordOf = (b) => R.findBlock(S, b.block)?.ord ?? b.ord, list = [...S.quests.bosses].sort((a, z) => ordOf(a) - ordOf(z)).sort((a, z) => (a.st === 'done') - (z.st === 'done'));
@@ -159,24 +102,11 @@ function group(g, ui, win = null) {
   // v9.5 (pedido do dono): toda janela tem no topo a linha de escrever (pergunta o dia e o bloco), o ORGANIZAR e o 🔥 das urgentes
   const key = win ? 'w:' + win.id : g, urg = S.quests.tasks.filter((t) => t.block && R.isOpen(t) && t.st !== 'wait' && t.color === 'red' && R.catOf(S, t) === key).length;
   return `<div class="group" data-group="${g}">
-    <div class="todas-top"><form class="addline todas-add" data-form="win-add" data-win="${key}" autocomplete="off"><input class="inp" name="text" placeholder="+ escrever uma tarefa nesta janela (Enter: o app pergunta o dia e o bloco)" aria-label="Nova tarefa nesta janela"></form><button class="btn sm" data-act="organizar" title="Dar prazo pro que está sem">🗂 ORGANIZAR</button><button class="btn sm ${urg ? 'urg-n' : ''}" data-act="urg-open" title="As URGENTES (vencem até amanhã)">🔥 ${urg}</button></div>
-    <form class="row" data-form="add-block" data-group="${g}" ${win ? `data-win="${win.id}"` : ''} autocomplete="off"><input class="inp grow" name="title" placeholder="+ novo bloco${g === 'bd' ? ' (🎯 meta)' : ' (3000$ · / MES DIA 05)'}" aria-label="Novo bloco">${win ? `<button type="button" class="btn sm ghost" data-act="win-edit" data-id="${win.id}" title="Renomear, mudar o tipo ou apagar a janela ${esc(win.name)} (funciona como ${esc(R.GROUPS[g].short)})">✎ JANELA</button>` : ''}</form>
+    <div class="todas-top"><form class="addline todas-add" data-form="win-add" data-win="${key}" autocomplete="off"><input class="inp" name="text" placeholder="+ escrever (Enter: tarefa ou bloco novo, o app pergunta o dia e onde)" aria-label="Nova tarefa ou bloco nesta janela"></form><button class="btn sm" data-act="organizar" title="Dar prazo pro que está sem">🗂 ORGANIZAR</button><button class="btn sm ${urg ? 'urg-n' : ''}" data-act="urg-open" title="As URGENTES (vencem até amanhã)">🔥 ${urg}</button></div>
     ${active.length ? `<div class="mcols">${cols3(active.map((b) => blockCard(b, ui)), qs ? [] : active)}</div>` : '<div class="empty">nenhum bloco.</div>'}
     ${blocks.length > active.length ? `<button class="more" data-act="toggle-stalled">⬛ ${blocks.length - active.length} parado(s) · mostrar</button>` : ''}</div>`;
 }
 
-function habitsCard(td) {
-  const ev = R.eventOfDay(S, td);
-  const m = S.marks.days[td]?.h || {};
-  const blanks = S.core.habits.filter((h) => !m[h.id]).length;
-  return `<div class="card"><header><h2>Hábitos de hoje</h2><span class="meta">${blanks ? `faltam ${blanks}` : R.isPerfect(S, td) ? '🌟 PERFEITO x2' : 'tudo marcado'} · +${S.marks.days[td]?.xp || 0} XP</span></header>
-    <div class="habs">${S.core.habits.map((h) => {
-      const v = m[h.id] || '', sk = R.streak(S, h.id, td);
-      return `<button class="hab ${v === 'x' ? 'x' : v === '-' ? 'f' : ''} ${ev?.type === 'habit' && ev.habit === h.id ? 'ev' : ''}" data-act="habit" data-d="${td}" data-h="${h.id}" title="${esc(h.name)} · recorde 🏆${R.bestStreak(S, h.id, td)} · ${sk.forged ? 'forjado' : `${sk.total}/66`}"><span class="hi">${h.icon}</span><span class="hn">${esc(h.name.slice(0, 9))}</span><span class="hs">🔥${sk.streak}${sk.mult > 1 ? ' x' + String(sk.mult).replace('.', ',') : ''}</span></button>`;
-    }).join('')}
-      <button class="hab ${m.rd ? 'x' : ''}" data-act="redemption"><span class="hi">⚔</span><span class="hn">REDENÇÃO</span><span class="hs">+${R.C.RD_XP} · cura</span></button></div>
-    <p class="meta" style="margin:8px 0 0">toque: ✓ fiz → – folga → vazio</p></div>`;
-}
 
 export function filaCard(td) {
   const q = R.deadlineQueue(S, td); // v6.1: completa (antes eram só 12); o cartão rola
@@ -227,7 +157,6 @@ export function togglePin(id) {
   return pinned.includes(id);
 }
 export const pinnedBlockIds = () => pinned;
-export const pinnedBlockId = () => pinned[0] || null;
 export function sidePanel(ui) {
   const td = today(), tot = R.totals(S), st = R.dayStatus(S, td), al = R.alerts(S, td), ch = S.core.chapter || {};
   const open = R.openTasks(S), over = open.filter((t) => t.due && t.due < td).length, hoje = open.filter((t) => t.due === td).length;
@@ -286,8 +215,7 @@ export function viewQuests(ui) {
   const n = { listas: S.quests.tasks.filter((t) => !t.block && !t.mother && !t.link && R.isOpen(t)).length, boss: S.quests.bosses.filter((b) => b.st !== 'done').length };
   for (const [k] of QTABS) if (!(k in n)) n[k] = R.tabBlocks(S, k).filter((b) => b.st !== 'done').length;
   // RECOLHER TUDO: vale para o que está na janela aberta (listas, blocos ou bosses)
-  const ckeys = tab === 'listas' ? [...['agora', 'depois'].flatMap((c) => R.assuntos(S).map(([k]) => `tg:${c}:${k || 'cx'}`)), 'l:blocos', 'l:wait', 'l:parado']
-    : tab === 'boss' ? S.quests.bosses.map((b) => 'b:' + (b.block || b.id))
+  const ckeys = tab === 'boss' ? S.quests.bosses.map((b) => 'b:' + (b.block || b.id))
     : R.tabBlocks(S, tab).filter(stalledOff(ui)).map((b) => 'b:' + b.id);
   // v6.4: também recolhe MISSÕES DA SEMANA e BOSS DO CAPÍTULO (cartões do topo)
   ckeys.push(new Date().getDay() === 0 ? 'c:quests:missoes-da-proxima-semana' : 'c:quests:missoes-da-semana'); if (R.chapterBoss(S)) ckeys.push('c:quests:boss-do-capitulo');
@@ -295,8 +223,7 @@ export function viewQuests(ui) {
   const allCol = ckeys.length > 0 && ckeys.every(isCollapsed); // v6.1: o botão voltou (pedido do dono); tocar de novo na janela aberta continua sendo o memento mori
   const sem = soltas().length; // v9.5: tarefas sem casa (eram da TODAS): o app pergunta pra onde vão
   const mudanca = sem ? `<div class="banner info mud-b">📦 <b>${sem} tarefa${sem === 1 ? '' : 's'} sem casa</b> (eram da janela TODAS, que saiu). <button class="btn sm pri" data-act="mudanca">ESCOLHER PRA ONDE VÃO</button></div>` : '';
-  const body = tab === 'listas' ? `<div class="todas">${todasView(ui)}</div>`
-    : tab === 'boss' ? bossPanel(ui)
+  const body = tab === 'boss' ? bossPanel(ui)
     : group(win ? win.base : tab, ui, win).replace('class="group ', 'class="group wide ');
   return `<div class="quests"><div class="board">
       <div class="band qbar"><div class="seg">${QTABS.map(([k, t]) => `<button class="${tab === k ? 'on' : ''} ${k === 'listas' ? 'mae' : 'filha'} ${R.tabReviewed(S, k) ? 'allrev' : ''}" data-act="qtab" data-tab="${k}" ${k === 'listas' ? 'title="Janela mãe: tudo passa por aqui"' : 'draggable="true" title="arraste pra mudar a ordem"'}>${k === 'listas' ? '◆ ' : ''}${esc(t)}${n[k] != null ? ' · ' + n[k] : ''}</button>`).join('')}<button class="qadd" data-act="win-new" title="Criar uma janela nova">＋</button></div>
@@ -306,7 +233,7 @@ export function viewQuests(ui) {
             <button class="btn sm ${ui.showDone ? 'pri' : 'ghost'}" data-act="toggle-done">${ui.showDone ? '☑' : '☐'} FEITAS</button>
             <button class="btn sm ${ui.showStalled ? 'pri' : 'ghost'}" data-act="toggle-stalled" title="⬛ parados: blocos e tarefas com a cor PARADO">${ui.showStalled ? '☑' : '☐'} PARADOS</button>
             <small class="qpop-h">Dica: Shift + clique no ☐ conclui um intervalo inteiro${matchMedia('(pointer: coarse)').matches ? ' · no celular: segure numa tarefa e arraste o dedo' : ''}</small></div></details></div></div>
-      ${ui.mm ? mementoCard(ui) : `${chapterDue()}${mudanca}${topStrip()}${body}`}
+      ${ui.mm ? mementoCard(ui) : `${chapterDue()}${mudanca}${tresCard()}${topStrip()}${body}`}
     </div>${sidePanel(ui)}</div>`;
 }
 

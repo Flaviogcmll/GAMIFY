@@ -5,7 +5,7 @@ import { S } from './store.js';
 
 import * as A from './actions.js';
 import * as R from './rules.js';
-import { esc, today, addDays, fmtDM, hash, diffDays, weekday } from './util.js';
+import { esc, today, fmtDM, weekday } from './util.js';
 import { openModal, closeModal, toast, modalOpen } from './ui.js';
 import { sfx, blip } from './audio.js';
 import { kingdomData } from './kingdom.js';
@@ -74,14 +74,6 @@ export function bond() {
 }
 
 export { primoLine, lastExpr };
-/** a fala dinâmica agora mora em falas.js; aqui ficam só os apoios de memória */
-function memory() {
-  const td = today(), done = R.allTasks(S).filter((t) => t.st === 'done' && t.doneAt && t.doneAt <= addDays(td, -7) && !/^(↳|>)/.test(t.text));
-  if (!done.length) return null;
-  for (const n of [365, 180, 90, 30, 14, 7]) { const hit = done.find((t) => t.doneAt === addDays(td, -n)); if (hit) return { t: hit, n }; }
-  const t = done[hash('mem' + td) % done.length];
-  return { t, n: diffDays(t.doneAt, td) };
-}
 
 // ───────────────────────── PERGUNTA DO DIA (diário) ─────────────────────────
 const QS = ['O que faria hoje valer a pena?', 'Qual tarefa você está evitando? O que tem nela que assusta?', 'Quem merece uma mensagem sua essa semana?', 'O que te deu energia ontem?',

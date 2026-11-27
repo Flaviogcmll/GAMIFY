@@ -10,6 +10,7 @@ import { sfx } from './audio.js';
 import { vitrine, fig, NOMES, quem, sorte } from './elenco.js';
 import { askDestino } from './organiza.js';
 import { setDue } from './remarcar.js';
+import { travouHtml } from './tres.js';
 import { tone } from './views/rotina.js';
 
 const ls = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* */ } } };
@@ -121,8 +122,9 @@ function planHtml() {
   // v9.4 (sugestão 11): RESUMO DA NOITE: o que você fez hoje, o que sobrou, e empurrar tudo que sobrou de uma vez
   const feitas = S.quests.tasks.filter((t) => t.st === 'done' && t.doneAt === td), xpHoje = R.idx(S).xpByDay[td] || 0;
   const resumo = `<div class="noite-res"><b>✓ Hoje: ${feitas.length} feita${feitas.length === 1 ? '' : 's'} · +${xpHoje} XP</b>${feitas.length ? `<small>${feitas.slice(0, 5).map((t) => esc(clean(t.text))).join(' · ')}${feitas.length > 5 ? ' …' : ''}</small>` : '<small>Amanhã é outro jogo.</small>'}</div>`;
-  return `<div class="planos">${resumo}${quem('rosemia', 1, sorte(['As cartas querem saber: o que vem amanhã? Dá um horário pro que importa.', 'Amanhã a gente vê? Não. Amanhã a gente PLANEJA hoje.']))}<h2>🌙 planejar amanhã <small class="meta">${DOW[weekday(tm)]} ${fmtDM(tm)}</small></h2>
+  return `<div class="planos">${resumo}${travouHtml()}${quem('rosemia', 1, sorte(['As cartas querem saber: o que vem amanhã? Dá um horário pro que importa.', 'Amanhã a gente vê? Não. Amanhã a gente PLANEJA hoje.']))}<h2>🌙 planejar amanhã <small class="meta">${DOW[weekday(tm)]} ${fmtDM(tm)}</small></h2>
     <p class="meta" style="margin:0 0 8px">Dê um horário pro que importa: amanhã cedo é só seguir o MEU DIA na AGENDA.</p>
+    ${((ids) => `<div class="tres-plan">🐸 <b>As 3 de amanhã:</b> ${ids.length ? ids.map((id, i) => `${i ? i + 1 : '🐸'} ${esc(clean(S.quests.tasks.find((x) => x.id === id).text).slice(0, 34))}`).join(' · ') : '<span class="meta">ainda não escolheu (o SAPO primeiro, com hora)</span>'} <button class="btn sm ${ids.length ? 'ghost' : 'pri'}" data-act="tres-edit" data-d="${tm}">${ids.length ? '✎' : 'ESCOLHER'}</button></div>`)(R.tresOf(S, tm))}
     <div class="list">${items.map((t) => `<div class="li"><div class="lt">${esc(clean(t.text))}<small>${esc(R.COR_NAMES[R.corOf(S, t)] || '')}</small></div><input class="inp" type="time" value="${esc(hourOf(t))}" data-plan-at="${t.id}" aria-label="Horário" style="width:auto"></div>`).join('') || '<div class="empty">nada marcado pra amanhã ainda.</div>'}</div>
     <form class="addline" data-form="plan-add" autocomplete="off" style="margin-top:8px"><input class="inp" name="text" placeholder="+ mais uma pra amanhã (Enter)" aria-label="Nova tarefa pra amanhã"></form>
     ${left.length ? `<div class="row" style="justify-content:space-between;align-items:center;margin:14px 0 6px"><h3 class="px" style="font-size:8px;margin:0">SOBROU DE HOJE (${left.length})</h3><button class="btn sm" data-act="plan-push-all" title="Passa tudo que sobrou pra amanhã (o custo e o time box são perguntados, se precisar)">→ TUDO PRA AMANHÃ</button></div><div class="list">${left.map((t) => `<div class="li"><div class="lt">${esc(clean(t.text))}<small>${t.due < td ? 'atrasada' : 'hoje'}</small></div><span class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn sm good" data-act="plan-done" data-id="${t.id}" title="Já fiz">✓</button><button class="btn sm" data-act="plan-move" data-id="${t.id}" data-d="${tm}" title="Vai pra amanhã">→ AMANHÃ</button></span></div>`).join('')}</div>` : ''}
@@ -161,17 +163,6 @@ const reopenPlanos = () => (lastPlan === 'change' ? openPlanChange(pcTab) : open
 const redraw = () => { const m = document.querySelector('.modal .planos'); if (!m) return; m.outerHTML = m.querySelector('[data-act="pc-tab"]') ? changeHtml() : planHtml(); window.__deaccent?.(document.querySelector('.modal')); };
 
 const coarse = () => { try { return matchMedia('(pointer: coarse)').matches; } catch { return false; } };
-/** pergunta a cor de uma tarefa nova (URGENTE, ESQUENTANDO, ESTÁVEL ou AGUARDANDO). Devolve 'red' | 'yellow' | 'green' | 'wait' | null */
-export function askColor(text) {
-  return new Promise((resolve) => {
-    let done = false;
-    const opts = [['red', R.COR_NAMES.urg, 'urg', 'Pra hoje, faz primeiro'], ['yellow', R.COR_NAMES.chega, 'atencao', 'Logo mais'], ['green', R.COR_NAMES.estavel, 'ok', 'Sem pressa'], ['wait', R.COR_NAMES.wait, 'espera', 'Depende de alguém']];
-    const m = openModal(`${quem('cajulina', 2, sorte(['Cada coisa no seu lugar: me diz a cor que eu carimbo.', 'Sem cor fica sem rumo. Escolhe que eu arquivo certinho.']))}<h2>🎨 Qual a cor?</h2><p class="muted">"<b>${esc(text)}</b>": a cor diz a pressa e decide a lista em TODAS.</p>
-      <div class="cor-pick">${opts.map(([k, n, tone, tip], i) => `<button type="button" class="btn cor-b" data-cor="${k}" data-tone="${tone}" title="${tip}" ${i === 0 ? 'autofocus' : ''}><i></i>${n}<small>${tip}</small></button>`).join('')}</div>
-      <div class="actions"><button type="button" class="btn" data-close>CANCELAR</button></div>`, { onClose: () => { if (!done) resolve(null); } });
-    m.addEventListener('click', (e) => { const b = e.target.closest('[data-cor]'); if (!b) return; done = true; closeModal(); resolve(b.dataset.cor); });
-  });
-}
 export function extendPlanos(ACTIONS, FORMS) {
   Object.assign(ACTIONS, {
     // v9.0: na BAGUNÇA, tocar escolhe (e tocar de novo abre a tarefa); depois tocar numa hora encaixa

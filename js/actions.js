@@ -345,6 +345,20 @@ export function startup() {
     S.core.migrations.push('v9-subdue-off'); changedCore = true;
   }
   // (v9-subdue, a herança do prazo do bloco, foi desfeita na v9.3: ver v9-subdue-off acima)
+  if (!S.core.migrations.includes('v9-ligadas-off')) { // v9.7 (pedido do dono: "corrija as coisas antigas"): as tarefas ligadas a um bloco (tarefas-mãe da TODAS e tarefas que viraram bloco) eram cópias do bloco. Saem; o prazo e o "aguardando" passam pro bloco
+    const gone = new Set();
+    for (const t of q.tasks) {
+      if (!t.link) continue;
+      const b = q.blocks.find((x) => x.id === t.link);
+      if (!b) { delete t.link; delete t.linked; delete t.mother; continue; } // bloco não existe mais: vira tarefa solta (a MUDANÇA pergunta onde mora)
+      if (!R.isOpen(t)) continue; // feitas e canceladas ficam pro histórico
+      if (b.st !== 'done') { if (t.due && !b.due) b.due = t.due; if (t.st === 'wait' && b.st !== 'wait') b.st = 'wait'; }
+      gone.add(t.id);
+    }
+    q.tasks = q.tasks.filter((t) => !gone.has(t.id));
+    for (const b of q.blocks) if (b.src && (gone.has(b.src) || !q.tasks.some((t) => t.id === b.src))) delete b.src;
+    S.core.migrations.push('v9-ligadas-off'); changedQ = changedCore = true;
+  }
   if (!S.core.migrations.includes('v8-mapa-off')) { // v8.6 (pedido do dono, 5B): o MAPA MENTAL saiu do app, e os dados dele também
     delete S.core.mapa;
     S.core.migrations.push('v8-mapa-off'); changedCore = true;
@@ -405,8 +419,6 @@ export function startup() {
   // as listas são pela data: ao abrir (e na virada do dia) cada tarefa vai pra lista certa
   if (syncLists().changed) changedQ = true;
   S._epoch++;
-  // prazos ligados (lista ↔ BREAKDOWN) que estavam diferentes: vale o da tarefa; se ela não tem, herda o do bloco
-  for (const t of q.tasks) { const lb = t.link && B(t.link); if (!lb || (lb.due || null) === (t.due || null)) continue; if (t.due) lb.due = t.due; else t.due = lb.due; changedQ = true; }
   // 💥 prazos estourados: conta cada tarefa aberta que passou do prazo (uma vez por prazo; viagem não conta)
   S._blowNew = 0; S._blowHit = false;
   if (!S.core.migrations.includes('estouro5')) { // o que já estava atrasado antes desta regra não conta
@@ -443,13 +455,6 @@ function syncLists() {
   const td = today(), released = [];
   let changed = false;
   const byId = new Map(S.quests.tasks.map((t) => [t.id, t])), blk = new Map(S.quests.blocks.map((b) => [b.id, b]));
-  // janela mãe: bloco ativo (não fechado nem parado, e que não seja BOSS) sem tarefa nas LISTAS ganha uma, ligada a ele, com o prazo final do bloco
-  for (const b of S.quests.blocks) {
-    if (true) continue; // v9.5: a TODAS saiu, as tarefas-mãe não são mais criadas (as antigas ficam escondidas)
-    if (b.st === 'done' || b.color === 'black' || b.group === 'bs' || (b.src && byId.has(b.src))) continue; // BOSSES são as próprias mães
-    const t = { id: uid('t'), area: 'sem', text: b.title.replace(/\s*\(\d+\s*XP\)/i, '').trim(), st: '', due: b.due || null, created: td, ord: maxOrd() + 1, link: b.id, mother: true };
-    S.quests.tasks.push(t); byId.set(t.id, t); b.src = t.id; changed = true;
-  }
   for (const b of S.quests.blocks) { // o bloco também: pelo prazo dele ou da subtarefa mais perto
     if (b.st === 'done' || b.color === 'black') continue;
     const c = R.autoCor(S, R.blockDue(S, b), td); if ((b.color || '') !== c) { b.color = c; changed = true; }
@@ -682,10 +687,7 @@ function chargeResched(t, cost) {
 export function updateTask(id, patch) {
   const t = T(id);
   if (!t) return;
-  // subtarefa não pode passar do prazo final do bloco
-  const bk = B(patch.block !== undefined ? patch.block : t.block), cap = R.dueCap(bk);
-  if ('due' in patch && patch.due !== t.due) delete t.dueInh; // v9.0: mudou na mão = não segue mais o prazo do bloco
-  if ('due' in patch && patch.due && cap && patch.due > cap) return { error: `O bloco "${bk.title}" termina em ${fmtDM(cap)}: a subtarefa não pode passar disso. Mude antes o prazo do bloco.` };
+  // v9.7 (pedido do dono): bloco e subtarefa têm prazos independentes (nenhum empurra nem segura o outro)
   // v5.16 E) time boxing: remarcada 3x, só empurra de novo com horário + duração (patch.box) ou cancelando
   if ('due' in patch && patch.due && t.due && patch.due > t.due && R.reschedLocked(S, t) && !patch.box) return { error: `"${String(t.text).replace(/\s*\(\d+\s*XP\)/i, '').slice(0, 50)}" já foi remarcada ${t.rs}x. Pra empurrar de novo, abra a tarefa e marque um horário e uma duração (time box), ou cancele.`, locked: true };
   const base = 'due' in patch ? reschedBase(t, patch.due || null) : 0, free = base > 0 && freeResched(), cost = free ? 0 : base;
@@ -789,11 +791,8 @@ export function addBlock(group, title, extra = {}) {
 export function updateBlock(id, patch) {
   const b = B(id);
   if (!b) return;
-  const old = b.due || null;
   return commit(['quests'], () => {
-    Object.assign(b, patch); if (!b.due) b.due = null;
-    // mudou o prazo final do bloco: só quem passaria do prazo novo é puxado pra ele (as sem prazo continuam sem; v9.3)
-    if ('due' in patch && (b.due || null) !== old && b.due) for (const t of S.quests.tasks.filter((x) => x.block === b.id && R.isOpen(x))) if (t.due && t.due > b.due) t.due = b.due;
+    Object.assign(b, patch); if (!b.due) b.due = null; // v9.7: o prazo do bloco não mexe no das subtarefas
   });
 }
 export function deleteBlock(id) {
@@ -840,7 +839,6 @@ export function nestTask(id, parentId) {
     [t, ...kids].forEach((x, i) => {
       x.block = dad.block; x.area = 'block'; x.parent = dad.id; x.ord = last.ord + step * (i + 1);
       if (!/^\s*(↳|>)/.test(x.text)) x.text = '↳ ' + x.text.replace(/^\s*⚔\s*/, '');
-      const cap = R.dueCap(B(dad.block)); if (cap && x.due && x.due > cap) x.due = cap;
       if (x.link) { /* tarefa ligada a outro bloco continua ligada */ }
     });
     return { msg: `↳ "${t.text.replace(/^↳\s*/, '').slice(0, 40)}" virou passo de "${dad.text.slice(0, 40)}".` };
@@ -1783,19 +1781,12 @@ export function delScratch(id) {
   commit(['core'], () => { S.core.scratch = (S.core.scratch || []).filter((x) => x.id !== id); });
 }
 /** v6: o mapa é de balões e setas ({ nodes, links }); o formato antigo (texto) ainda é aceito e vira balões ao abrir */
-/** o mapa vira trabalho: a raiz vira um bloco no BREAKDOWN, os galhos viram tarefas e os galhos de galho viram passos ↳ */
-export function mapToBlock(tree) {
-  if (!tree?.text) return;
-  return commit(['quests'], () => {
-    const blk = { id: uid('k'), group: 'bd', title: normalizeMoney(tree.text.toUpperCase()), color: 'green', st: '', due: null, created: today(), ord: maxOrd() + 1 };
-    S.quests.blocks.push(blk);
-    let ord = maxOrd() + 1;
-    for (const k of tree.kids || []) {
-      const t = { id: uid('t'), area: 'block', block: blk.id, text: normalizeMoney(k.text.toUpperCase()), st: '', due: null, created: today(), ord: ord++ };
-      S.quests.tasks.push(t);
-      const walk = (n) => { for (const g of n.kids || []) { S.quests.tasks.push({ id: uid('t'), area: 'block', block: blk.id, parent: t.id, text: '↳ ' + normalizeMoney(g.text.toUpperCase()), st: '', due: null, created: today(), ord: ord++ }); walk(g); } };
-      walk(k);
-    }
-    return { block: blk };
+/** v9.7 AS 3 DO DIA: guarda as escolhidas de um dia (no máximo 3; a 1ª é o SAPO). Mantém só os últimos 14 dias */
+export function setTres(d, ids) {
+  return commit(['core'], () => {
+    const t = (S.core.tres ||= {}), keep = addDays(today(), -14);
+    const list = [...new Set(ids)].slice(0, 3);
+    if (list.length) t[d] = list; else delete t[d];
+    for (const k of Object.keys(t)) if (k < keep) delete t[k];
   });
 }
