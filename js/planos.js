@@ -11,6 +11,9 @@ import { vitrine, fig, NOMES, quem, sorte } from './elenco.js';
 import { askDestino } from './organiza.js';
 import { setDue } from './remarcar.js';
 import { tone } from './views/rotina.js';
+import { markIcons, shareDia } from './meudia.js';
+/** v10: nome da tarefa sem os marcadores no começo, e os ícones deles (🐸 ⭐ 🛡 $) no FIM do nome (pedido do dono) */
+const nomeMk = (t) => { const mk = markIcons(t); return `${esc(clean(t.text).replace(/[⭐🛡💰]/g, '').replace(/\s+/g, ' ').trim())}${mk ? ` <i class="dia-mk">${mk}</i>` : ''}`; };
 
 const ls = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* */ } } };
 const WD = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
@@ -45,19 +48,25 @@ export function diaCard(ui, shut = false) {
   const cur = d === td ? [...hours].reverse().find((h) => toMin(h) <= nowM) : null;
   // v9.1: tarefas E rituais funcionam igual: tocar abre (PC) ou escolhe (celular), arrastar muda a hora
   const chip = (t) => (t.rit ? `<button class="dia-t dia-drag rit" data-act="dia-pick" data-rit="${t.rit.id}" title="Ritual: toque pra ir até ele · arraste pra outra hora ou de volta pra bagunça"><b>${esc(t.rit.at)}</b> 🔁 ${esc(t.rit.name)}</button>`
-    : `<button class="dia-t dia-drag ${picked === t.id ? 'picked' : ''}" data-act="dia-pick" data-id="${t.id}" data-color="${R.colorOfTask(S, t) || ''}" title="Toque pra abrir · arraste pra outra hora, pra AMANHÃ, pra FEITA ou de volta pra bagunça"><b>${esc(hourOf(t))}</b> ${esc(clean(t.text))}</button>`);
+    : `<button class="dia-t dia-drag ${picked === t.id ? 'picked' : ''}" data-act="dia-pick" data-id="${t.id}" data-color="${R.colorOfTask(S, t) || ''}" title="Toque pra abrir · arraste pra outra hora, pra AMANHÃ, pra FEITA ou de volta pra bagunça"><b>${esc(hourOf(t))}</b> ${nomeMk(t)}</button>`);
   const rows = hours.map((h) => { const rot = plan?.grid?.[`${wd}|${h}`] || '', items = bySlot[h] || [], past = d < td || (d === td && cur && toMin(h) < toMin(cur));
     return `<div class="dia-h ${h === cur ? 'now' : ''} ${past ? 'past' : ''} ${items.length ? 'has' : ''}" data-dia-h="${esc(h)}"><span class="dia-hh">${esc(h)}${String(h).includes(':') ? '' : 'h'}</span><span class="dia-rot" style="${rot ? tone(rot) : ''}" title="${esc(rot)}">${esc(rot)}</span><span class="dia-ts">${items.map(chip).join('')}</span></div>`; }).join('');
   // a bagunça: posição e inclinação "aleatórias" mas fixas por tarefa (não pulam a cada redesenho)
   const mess = loose.map((t, i) => { const k = seed(t.id), rot = (k % 9) - 4, dx = (k >> 4) % 9, dy = (k >> 9) % 7;
-    return `<button class="dia-t dia-drag solto ${picked === t.id ? 'picked' : ''}" data-act="dia-pick" data-id="${t.id}" data-color="${R.colorOfTask(S, t) || ''}" style="--r:${rot}deg;--dx:${i % 2 ? dx : -dx}px;--dy:${dy}px" title="Arraste até uma hora (no celular: toque aqui e depois na hora)">${esc(clean(t.text))}</button>`; }).join('');
+    return `<button class="dia-t dia-drag solto ${picked === t.id ? 'picked' : ''}" data-act="dia-pick" data-id="${t.id}" data-color="${R.colorOfTask(S, t) || ''}" style="--r:${rot}deg;--dx:${i % 2 ? dx : -dx}px;--dy:${dy}px" title="Arraste até uma hora (no celular: toque aqui e depois na hora)">${nomeMk(t)}</button>`; }).join('');
   const ritsH = rits.map((x) => `<button class="dia-t dia-drag rit solto ${picked === 'r:' + x.id ? 'picked' : ''}" data-act="dia-pick" data-rit="${x.id}" style="--r:${(seed(x.id) % 7) - 3}deg" title="Ritual do dia: arraste até uma hora (no celular: toque e depois na hora)">🔁 ${esc(x.name)}</button>`).join('');
   const lv = [...timed, ...loose].map((t) => tremLevel(t, td)).filter(Boolean);
   const nT = [1, 2, 3].map((n) => lv.filter((x) => x === n).length);
   const trens = [3, 2, 1].flatMap((n) => Array.from({ length: Math.min(nT[n - 1], 4) }, (_, i) => fig('trem-' + n, (i % 3) + 1, 'dia-trem', `${NOMES['trem-' + n]}${nT[n - 1] > 1 ? ` (${nT[n - 1]} no dia)` : ''}`, true))).slice(0, 8).join('');
   const resumo = [nT[2] && `${nT[2]} TRAPAIADO`, nT[1] && `${nT[1]} CUSTOSO`, nT[0] && `${nT[0]} FEI`].filter(Boolean).join(' · ');
   const nav = `<div class="row dia-nav"><button class="btn sm" data-act="ag-dia" data-dir="-1" aria-label="Dia anterior">◄</button><span class="meta dia-n"><b>${dayName(d)}</b> ${fmtDM(d)}</span><button class="btn sm" data-act="ag-dia" data-dir="1" aria-label="Próximo dia">►</button>${ui.agDay ? '<button class="btn sm ghost" data-act="ag-dia" data-dir="0">HOJE</button>' : ''}<span class="grow"></span><button class="btn sm" data-act="plan-tomorrow">🌙 PLANEJAR AMANHÃ</button><button class="btn sm" data-act="plan-change">🔀 MUDANÇA DE PLANOS</button></div>`;
-  const body = `${nav}<div class="dia-wrap"><div class="dia-grid rot-look">${rows}</div>
+  // v10: faixa de resumo do dia (feitas, a próxima com hora, o SAPO) + 📸 COMPARTILHAR (PNG pro WhatsApp)
+  const feitasD = S.quests.tasks.filter((t) => t.st === 'done' && t.doneAt === d).length, totD = feitasD + timed.length + loose.length;
+  const nowHM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  const prox = d === td ? [...timed.map((t) => ({ h: hourOf(t), txt: clean(t.text) })), ...ritsAt.map((r) => ({ h: r.at, txt: '🔁 ' + r.name }))].filter((x) => toMin(x.h) >= toMin(nowHM)).sort((a, b) => toMin(a.h) - toMin(b.h))[0] : null;
+  const sapoD = [...timed, ...loose].find((t) => t.prio);
+  const top = `<div class="dia-top"><div class="dia-prog"><b>✓ ${feitasD}/${totD}</b><span class="dia-bar"><i style="width:${totD ? Math.round((feitasD / totD) * 100) : 0}%"></i></span></div>${prox ? `<span class="dia-prox">⏭ <b>${esc(prox.h)}</b> ${esc(prox.txt.slice(0, 40))}</span>` : ''}${sapoD ? `<span class="dia-sapo">🐸 ${esc(clean(sapoD.text).replace(/[⭐🛡💰]/g, '').slice(0, 36))}</span>` : ''}<button type="button" class="btn sm" data-act="dia-png" data-d="${d}" title="Gera uma imagem do dia pra mandar no WhatsApp (no PC, baixa o arquivo)">📸 COMPARTILHAR</button></div>`;
+  const body = `${nav}${top}<div class="dia-wrap"><div class="dia-grid rot-look">${rows}</div>
     <aside class="dia-mess" data-dia-mess="1"><header><b>🧺 BAGUNÇA DO DIA</b><small class="meta">${loose.length + rits.length ? `${loose.length + rits.length} sem horário: arraste pra uma hora${picked ? ' · <b>agora toque na hora (ou em AMANHÃ / FEITA)</b>' : ''}` : 'tudo encaixado. Trem bão!'}</small></header>
       <form class="addline" data-form="dia-add" data-d="${d}" autocomplete="off"><input class="inp" name="text" placeholder="+ o que fazer ${dayName(d) === 'HOJE' ? 'hoje' : 'nesse dia'} (Enter: o app pergunta a cor)" aria-label="Nova tarefa nesse dia"></form>
       <div class="dia-zones"><span class="dia-zone" data-dia-zone="amanha" data-act="dia-zone" data-z="amanha" title="Solte aqui (ou toque, no celular) pra passar pro dia seguinte">→ ${d === td ? 'AMANHÃ' : 'DIA SEGUINTE'}</span><span class="dia-zone ok" data-dia-zone="feita" data-act="dia-zone" data-z="feita" title="Solte aqui pra marcar como feita">✓ FEITA</span></div>
@@ -187,6 +196,7 @@ export function extendPlanos(ACTIONS, FORMS) {
         <div class="list">${list.map((t) => `<div class="li"><div class="lt">${esc(clean(t.text))}<small>${t.due ? fmtDM(t.due) : 'sem prazo'}</small></div>${markBtns(t, ['prio', 'star'])}</div>`).join('') || '<div class="empty">nada em aberto. 👏</div>'}</div>
         <div class="actions"><button class="btn pri" data-close>PRONTO</button></div>`, { wide: true });
     },
+    'dia-png': (d) => shareDia(d.d), // v10: PNG do MEU DIA pro WhatsApp
     mark: (d, e, el) => { A.toggleMark(d.id, d.k); sfx('tab'); el?.classList.toggle('on'); },
     'trav-grande': (d) => ACTIONS['add-step']?.(d), // a janela de escrever o 1º passo ↳
     'trav-tempo': async (d) => { closeModal(); await setDue(d.id, d.d, { reopen: backToPlan }); backToPlan(); },
@@ -273,9 +283,10 @@ export function habList() {
       <button class="btn sm ${v === 'x' ? 'good' : ''}" data-act="hab-set" data-h="${h.id}" data-v="x">✓ FIZ</button><button class="btn sm ${v === '-' ? 'pri' : 'ghost'}" data-act="hab-set" data-h="${h.id}" data-v="-">– FOLGA</button>${v ? `<button class="btn sm ghost" data-act="hab-set" data-h="${h.id}" data-v="" title="Desmarcar">↺</button>` : ''}</span></div>`; }).join('')}</div>
     <p class="meta" style="margin:8px 0 0">${falta ? `Faltam ${falta}. Dá pra marcar depois na SOBREVIVÊNCIA.` : '🌟 Todos marcados hoje.'}</p></div>`;
 }
-export function openHabitsAsk() { window.__review?.('hab'); } // v9.9 (pedido do dono): a MESMA janela do ☀ REVISAR do PRIMO
+export function openHabitsAsk() { window.__review?.(); } // v9.9/v10 (pedido do dono): a MESMA janela do ☀ REVISAR do PRIMO, inteira (hábitos de ontem e de hoje, atrasadas…)
 export function maybeHabitsAsk(tries = 0) {
   if (habAsked || !S.core?.habits?.length) return;
+  if (window.__rvShown) { habAsked = true; return; } // a entrevista já abriu nesta visita (ela tem os hábitos)
   const td = today(), m = S.marks.days[td]?.h || {};
   if (!S.core.habits.some((h) => !m[h.id])) { habAsked = true; return; }
   if (modalOpen()) { if (tries < 40) setTimeout(() => maybeHabitsAsk(tries + 1), 3000); return; } // espera a entrevista do dia fechar

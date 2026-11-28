@@ -72,30 +72,48 @@ async function upload(tk, fileId, body) {
   await api(`/upload/drive/v3/files${fileId ? '/' + fileId : ''}?uploadType=multipart`, { method: fileId ? 'PATCH' : 'POST', headers: { 'Content-Type': 'multipart/related; boundary=' + boundary }, body: payload }, tk);
 }
 
+// v10 (pedido do dono: "o Drive tem que estar SEMPRE atualizado; o botão some rápido"): um SELO FIXO no canto mostra o estado
+// (em dia · sincronizando · toque pra reconectar) e o 1º TOQUE em qualquer lugar do app já reconecta e sincroniza sozinho.
+let state = 'idle';
+function pill(st, extra = '') {
+  state = st;
+  if (ls.get('gamify-ui:gdrive') !== '1' || backendKind() !== 'local') { document.getElementById('drive-pill')?.remove(); return; }
+  let el = document.getElementById('drive-pill');
+  if (!el) { el = document.createElement('button'); el.id = 'drive-pill'; el.type = 'button'; el.dataset.act = 'drive-sync'; document.body.appendChild(el); }
+  const at = ls.get('gamify-ui:gsync-at'), hm = at ? new Date(+at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+  el.dataset.st = st;
+  el.innerHTML = st === 'sync' ? '☁ sincronizando…' : st === 'ok' ? `☁ em dia${hm ? ' ' + hm : ''}` : st === 'login' ? '☁ toque pra reconectar' : st === 'err' ? `☁ erro: toque pra tentar${extra ? '' : ''}` : `☁ ${hm ? 'última ' + hm : 'Drive'}`;
+  el.title = st === 'login' ? 'O Google pede pra confirmar a cada 1 hora. Toque em QUALQUER lugar do app (ou aqui) que ele reconecta e sincroniza.' : st === 'err' ? String(extra || 'Não deu certo') : 'Sincronização com o Google Drive (toque pra sincronizar agora)';
+}
 /** sincroniza: sobe, baixa ou pergunta quando os dois lados mudaram */
 export async function driveSync({ interactive = true, render = () => {} } = {}) {
   if (busy || backendKind() !== 'local') return;
   busy = true;
   if (interactive) warned = false;
+  const quiet = interactive === 'gesture'; // v10: reconexão pelo 1º toque: sem avisos de "já está igual"
+  pill('sync');
+  let ok = false;
   try {
     const tk = await getToken(interactive);
     await rememberAccount(tk);
     const file = await findFile(tk);
     const localNow = snapHash(), lastSynced = ls.get('gamify-ui:gsnap'), localChanged = localNow !== lastSynced;
-    if (!file) { await upload(tk, null, JSON.stringify(exportAll())); ls.set('gamify-ui:gsnap', localNow); markBackup(); if (interactive) toast('☁ Primeiro backup criado no seu Drive', 'good'); return; }
+    if (!file) { await upload(tk, null, JSON.stringify(exportAll())); ls.set('gamify-ui:gsnap', localNow); markBackup(); ok = true; if (interactive && !quiet) toast('☁ Primeiro backup criado no seu Drive', 'good'); return; }
     const remote = await (await api(`/drive/v3/files/${file.id}?alt=media`, {}, tk)).json();
     const remoteHash = String(hash(JSON.stringify(remote.docs || {})));
-    if (remoteHash === localNow) { ls.set('gamify-ui:gsnap', localNow); markBackup(); if (interactive) toast('☁ Já está tudo igual', 'good'); return; }
+    if (remoteHash === localNow) { ls.set('gamify-ui:gsnap', localNow); markBackup(); ok = true; if (interactive && !quiet) toast('☁ Já está tudo igual', 'good'); return; }
     const remoteChanged = remoteHash !== lastSynced;
     let useRemote = remoteChanged && !localChanged;
     if (remoteChanged && localChanged) useRemote = await ask('Os dois lados mudaram', `A nuvem foi atualizada em ${new Date(file.modifiedTime).toLocaleString('pt-BR')} e este aparelho também tem mudanças novas. Qual versão vale?`, 'USAR A DA NUVEM', false) ? true : false;
-    if (remoteChanged && localChanged && !useRemote && !(await ask('Manter este aparelho?', 'A versão da nuvem será substituída pela daqui.', 'MANTER ESTE', true))) return;
+    if (remoteChanged && localChanged && !useRemote && !(await ask('Manter este aparelho?', 'A versão da nuvem será substituída pela daqui.', 'MANTER ESTE', true))) { pill('idle'); return; }
     if (useRemote) { restoreDocs(remote.docs); ls.set('gamify-ui:gsnap', remoteHash); markBackup(); render(); toast('☁ Dados baixados do Drive', 'good'); sfx('coin'); }
-    else { await upload(tk, file.id, JSON.stringify(exportAll())); ls.set('gamify-ui:gsnap', localNow); markBackup(); if (interactive) toast('☁ Enviado pro Drive', 'good'); }
+    else { await upload(tk, file.id, JSON.stringify(exportAll())); ls.set('gamify-ui:gsnap', localNow); markBackup(); if (interactive && !quiet) toast('☁ Enviado pro Drive', 'good'); }
+    ok = true;
   } catch (e) {
-    if (interactive) { sfx('error'); toast('☁ ' + esc(e.message || 'Não deu certo'), 'bad'); }
-    else if (e.needLogin && !warned) { warned = true; toast('☁ O Google pediu pra entrar de novo: as mudanças deste aparelho ainda NÃO foram pro Drive. <button class="btn sm pri" data-act="drive-sync">☁ SINCRONIZAR</button>', 'gold'); }
-  } finally { busy = false; }
+    if (e.needLogin) { pill('login'); return; } // v10: sem aviso que some: o selo fica "toque pra reconectar" e o 1º toque resolve
+    pill('err', e.message);
+    if (interactive && !quiet) { sfx('error'); toast('☁ ' + esc(e.message || 'Não deu certo'), 'bad'); }
+  } finally { busy = false; if (ok) { ls.set('gamify-ui:gsync-at', String(Date.now())); pill('ok'); } }
 }
 let warned = false, soonT = 0;
 /** v8.3: depois de cada mudança, manda pro Drive (20 s depois da última, pra juntar várias). Antes só mandava ao abrir e ao sair da aba,
@@ -123,6 +141,16 @@ export function extendDrive(ACTIONS, render) {
     if (!f) return;
     e.preventDefault(); ls.set('gamify-ui:gclient', f.id.value.trim()); toast('ID salvo', 'good'); render();
   });
+  // v10: o 1º toque em qualquer lugar (o Google só abre login com um toque seu) reconecta e sincroniza; e renova a chave
+  // antes de vencer enquanto você usa o app (assim o celular não fica 1 h sem sincronizar)
+  document.addEventListener('pointerdown', (e) => {
+    if (ls.get('gamify-ui:gdrive') !== '1' || busy || e.target.closest?.('#drive-pill')) return;
+    cachedToken();
+    const venc = !token || Date.now() > tokenExp - 5 * 60e3;
+    if ((state === 'login' || state === 'err' || venc) && Date.now() - lastTry > 30e3) { lastTry = Date.now(); driveSync({ interactive: 'gesture', render }); } // no máximo 1 tentativa a cada 30 s
+  }, true);
+  let lastTry = 0;
+  if (ls.get('gamify-ui:gdrive') === '1') { loadGis().catch(() => {}); setTimeout(() => pill('idle'), 300); }
   // ao abrir e depois de mudanças (20 s), tenta sincronizar sozinho quando já conectado
   let t = null;
   setTimeout(() => { if (ls.get('gamify-ui:gdrive') === '1') driveSync({ interactive: false, render }); }, 4000);

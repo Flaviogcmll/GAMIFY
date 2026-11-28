@@ -63,7 +63,7 @@ export const AREA_KEYS = ['hoje', 'amanha', 'semana', 'depois', 'sem', 'wait'];
 // (HOJE cheio, fechamento do dia, fila…), mas a tela mostra URGENTE · CHEGANDO · ESTÁVEL · A CLASSIFICAR · AGUARDANDO · PARADO.
 // A cor da tarefa-mãe é a do bloco ligado (mexeu num, muda no outro). Quando o prazo chega, ela sobe sozinha pra URGENTE (syncLists).
 export const COR_KEYS = ['urg', 'chega', 'estavel', 'semcor', 'wait', 'parado'];
-export const COR_NAMES = { urg: 'URGENTE', chega: 'ESQUENTANDO', estavel: 'ESTÁVEL', semcor: 'A CLASSIFICAR', wait: 'AGUARDANDO', parado: 'PARADO' };
+export const COR_NAMES = { urg: 'PRA HOJE', chega: 'ESSA SEMANA', estavel: 'MAIS PRA FRENTE', semcor: 'SEM DATA', wait: 'AGUARDANDO', parado: 'PARADO' };
 export const COR_COLOR = { urg: 'red', chega: 'yellow', estavel: 'green', semcor: '', parado: 'black' };
 const COLOR_COR = { red: 'urg', yellow: 'chega', green: 'estavel', black: 'parado', purple: 'wait' };
 /** a cor que vale pra uma tarefa das listas: a do bloco ligado (tarefa-mãe) ou a dela */
@@ -957,7 +957,7 @@ export const listReviewed = (s, k, now = Date.now()) => reviewed({ rev: s.core?.
 export const tabBlocks = (s, k) => { const ws = new Set(windows(s).map((w) => w.id)); return (s.quests?.blocks || []).filter((b) => (k.startsWith('w:') ? b.win === k.slice(2) : b.group === k && !ws.has(b.win))); };
 /** aba toda revisada: todas as listas com tarefa aberta, ou todos os blocos ativos (não fechados nem parados) */
 export function tabReviewed(s, k) {
-  if (k === 'boss') return false;
+  if (k === 'boss') { const bl = (s.quests?.bosses || []).filter((b) => b.st !== 'done').map((b) => findBlock(s, b.block)).filter(Boolean); return bl.length > 0 && bl.every((b) => reviewed(b)); } // v10: BOSSES também fica verde quando todos estão revisados
   if (k === 'listas') { const ks = COR_KEYS.filter((a) => a !== 'parado' && (s.quests?.tasks || []).some((t) => !t.block && isOpen(t) && corOf(s, t) === a)); return ks.length > 0 && ks.every((a) => listReviewed(s, a)); }
   const bl = tabBlocks(s, k).filter((b) => b.st !== 'done' && b.color !== 'black');
   return bl.length > 0 && bl.every((b) => reviewed(b));
@@ -1583,7 +1583,7 @@ export function ritualRepete(r) {
 export function autoCor(s, due, td = today()) {
   if (!due) return '';
   const cfg = moscaCfg(s), left = diffDays(td, due);
-  return left <= cfg.mosca2 ? 'red' : left <= cfg.mosca1 ? 'yellow' : 'green';
+  return left <= 0 ? 'red' : left <= cfg.mosca1 ? 'yellow' : 'green'; // v10 (pedido do dono): vermelho = PRA HOJE (hoje ou atrasada) · amarelo = ESSA SEMANA · verde = MAIS PRA FRENTE
 }
 /** o prazo que manda na cor do bloco: o dele, ou a subtarefa aberta com prazo mais perto */
 export function blockDue(s, b) {
