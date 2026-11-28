@@ -12,6 +12,7 @@ import { openModal, closeModal, modalOpen, toast } from './ui.js';
 import { sfx } from './audio.js';
 import { mountPortraits } from './primo.js';
 import { say } from './v35.js';
+import { habList } from './planos.js';
 
 const ls = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* */ } } };
 const GAP_DAYS = R.WELCOME_GAP; // v9.7: a partir de 2 dias sem abrir vira BOAS-VINDAS (era 3)
@@ -26,6 +27,7 @@ const todays = () => R.openTasks(S).filter((t) => t.due && t.due <= today() && t
 const waiting = () => R.openTasks(S).filter((t) => t.st === 'wait');
 const blanksYesterday = () => { const y = addDays(today(), -1); if (y < (S.core.startDate || y)) return []; const m = S.marks.days[y]?.h || {}; return S.core.habits.filter((h) => !m[h.id]); };
 
+const habBlankToday = () => { const m = S.marks.days[today()]?.h || {}; return (S.core.habits || []).some((h) => !m[h.id]); };
 const BOSS_NUDGE = 'gamify-ui:boss-nudge'; // o lembrete do boss parado aparece no máximo 1 vez por semana
 const bossNudgeDue = () => { const l = ls.get(BOSS_NUDGE); return !l || l <= addDays(today(), -7); };
 function buildSteps(gap, only) {
@@ -34,6 +36,7 @@ function buildSteps(gap, only) {
   if (R.migrationPending(S)) steps.push('mes');
   if (gap >= GAP_DAYS) steps.push('gap');
   else if (blanksYesterday().length) steps.push('ontem');
+  if (habBlankToday()) steps.push('hab'); // v9.9: os hábitos de hoje moram aqui (a mesma janela abre ao entrar no app)
   if (late().length) steps.push('atras');
   if (R.staleBosses(S).length && bossNudgeDue()) steps.push('boss');
   if (R.moscaMorta(S).length) steps.push('mosca'); // v8: o PARADO não some mais de todo aviso
@@ -93,6 +96,12 @@ const VIEW = {
         <button class="li rv-opt" data-rv="trip"><span class="lt">✈ FOI VIAGEM OU VISITA<small>Congela esses dias: sem multa de atraso, e os prazos que venceram andam pra frente sem custo.</small></span></button>
         <button class="li rv-opt" data-rv="next"><span class="lt">▶ SÓ SUMI, BORA RETOMAR<small>Seguimos a revisão: o que ficou pra trás e por onde recomeçar.</small></span></button></div>`,
     next: false,
+  }),
+  hab: () => ({
+    title: 'hábitos de hoje',
+    line: 'Cuidar de si também é tarefa, sô. Bora marcar os de hoje: ✓ fiz, – folga.',
+    body: habList(),
+    next: true,
   }),
   ontem: () => {
     const y = addDays(today(), -1), m = S.marks.days[y]?.h || {};
@@ -214,4 +223,5 @@ let ACT = {};
 export function extendReview(ACTIONS) {
   ACT = ACTIONS;
   Object.assign(ACTIONS, { review: () => openReview(0), migrate: () => openReview(0, null, 'mes') });
+  window.__review = (only) => openReview(0, null, only || null); // v9.9: os hábitos ao abrir o app usam ESTA janela (o passo 'hab')
 }

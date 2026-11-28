@@ -1,7 +1,8 @@
 // APP — liga tudo: abas (como na planilha), dia/noite, cliques, janelas, PRIMO, SOS, arrastar e soltar, sons.
-import { extendOrganiza, maybeOrganiza } from './organiza.js';
+import { extendOrganiza, maybeOrganiza, moveOptions, destBlock } from './organiza.js';
 import { extendLobo, loboTermo } from './lobo.js';
-import { extendTres } from './tres.js';
+import { extendPagamentos, isMoney } from './pagamentos.js';
+import { vilaReage, vilaViva } from './vila.js';
 import { checkAvisos } from './planos.js';
 import { setDue } from './remarcar.js';
 import { FALAS, NOMES, quem, sorte } from './elenco.js';
@@ -283,7 +284,8 @@ function welcome() {
 
 // ───────────────────────── RECOMPENSAS NA TELA ─────────────────────────
 A.onFeedback((fb) => {
-  driveSoon(render); // v8.3: toda mudança vai pro Drive uns segundos depois (o celular não perde mais o que foi feito)
+  driveSoon(render);
+  try { vilaReage(fb); } catch (err) { console.error(err); } // v9.9: a vila reage ao que você fez // v8.3: toda mudança vai pro Drive uns segundos depois (o celular não perde mais o que foi feito)
   // 🧠 dopamina sob controle: tarefa fácil (menos de 20 XP, sem ⭐ ⚔) ganha só o "tic"; o número voando e os fogos ficam pro que custou
   const easy = R.neuroOn(S, 'calm') && fb.task && fb.xp < 20 && !/⚔|⭐/.test(fb.task.text || '');
   if (fb.task && fb.xp > 0 && fb.task.due) poof(fb.at); // v7.3b/v8: o TREM se resolveu (nuvenzinha de poeira e palha)
@@ -354,7 +356,7 @@ function editTask(id) {
     ${t.block ? '' : `<label class="lbl" for="t-cat">Assunto <span class="meta">· o grupo dela na TODAS (sem assunto = CAIXA DE ENTRADA)</span></label><select class="inp" id="t-cat" name="cat">${R.assuntos(S).map(([k, n]) => `<option value="${k}" ${R.catOf(S, t) === k ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>`}
     <div class="waitbox"><label class="lbl" for="t-who">⏳ Aguardando quem ou o quê</label><div class="row">
       <input class="inp grow" id="t-who" name="who" value="${esc(t.who || '')}" list="who-list" placeholder="PREFEITURA, CLIENTE, FULANO…" autocomplete="off"><datalist id="who-list">${R.people(S).map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
-      <select class="inp" name="dep" aria-label="Depende de outra tarefa" style="flex:1 1 220px;min-width:0"><option value="">— não depende de outra tarefa —</option>${R.openTasks(S).filter((x) => x.id !== t.id && x.dep !== t.id).sort((x, y) => (x.block === t.block ? 0 : 1) - (y.block === t.block ? 0 : 1) || x.text.localeCompare(y.text)).map((x) => `<option value="${x.id}" ${t.dep === x.id ? 'selected' : ''}>🔗 ${esc(x.text.replace(/\s*\(\d+\s*XP\)/i, '').slice(0, 60))}</option>`).join('')}</select></div></div>
+      <div class="dep-box"><input class="inp dep-q" data-dep-q placeholder="🔍 depende de… (digite pra achar tarefa ou bloco)" aria-label="Procurar a tarefa ou o bloco" autocomplete="off"><select class="inp" name="dep" aria-label="Depende de outra tarefa ou de um bloco inteiro"><option value="">— não depende de outra tarefa —</option><optgroup label="TAREFAS">${R.openTasks(S).filter((x) => x.id !== t.id && x.dep !== t.id).sort((x, y) => (x.block === t.block ? 0 : 1) - (y.block === t.block ? 0 : 1) || x.text.localeCompare(y.text)).map((x) => `<option value="${x.id}" ${t.dep === x.id ? 'selected' : ''}>🔗 ${esc(x.text.replace(/\s*\(\d+\s*XP\)/i, '').slice(0, 60))}</option>`).join('')}</optgroup><optgroup label="BLOCOS INTEIROS (libera quando o bloco fechar)">${S.quests.blocks.filter((b) => b.st !== 'done' && b.id !== t.block).sort((a, z) => a.title.localeCompare(z.title)).map((b) => `<option value="${b.id}" ${t.dep === b.id ? 'selected' : ''}>▣ ${esc(b.title.slice(0, 60))}</option>`).join('')}</optgroup></select></div></div></div>
     <label class="lbl" for="t-due">Prazo <span class="meta">· ⏰ horário (opcional: aparece no MEU DIA da AGENDA)</span></label><div class="row"><input class="inp" type="date" id="t-due" name="due" value="${t.due || ''}" style="width:auto"><input class="inp" type="time" name="at" value="${esc(t.at || '')}" style="width:auto" aria-label="Horário">
       ${[['HOJE', td], ['AMANHÃ', addDays(td, 1)], ['+3', addDays(td, 3)], ['PRÓX. SEG', nextMon], ['SEM', '']].map(([n, d]) => `<button type="button" class="pill" data-act="due-quick" data-d="${d}"><span>${n}</span></button>`).join('')}
       ${t.due ? `<span class="minfo" title="${t.due < td ? `Atrasada: concluir agora paga ${Math.round(Math.max(R.C.LATE_MIN, 1 - R.C.LATE_DAY * diffDays(t.due, td)) * 100)}% do XP. ` : ''}Empurrar o prazo custa ${A.reschedBase({ ...t, due: '0' }, '9')} XP${A.freeResched() ? ' (a 1ª da semana é grátis)' : ''}. Antecipar é de graça.">${t.due < td ? '⏰' : 'ⓘ'}${t.rs ? ` remarcada ${t.rs}x` : ''}</span>` : ''}</div>
@@ -362,10 +364,11 @@ function editTask(id) {
       <div class="row" style="margin-top:6px"><label>⏰ às <input class="inp" type="time" name="box_at" value="${esc(t.box?.at || '')}" style="width:auto;display:inline-block"></label>
       ${['08:00', '10:00', '14:00', '16:00', '19:00'].map((h) => `<button type="button" class="pill" data-act="set-field" data-name="box_at" data-v="${h}"><span>${h}</span></button>`).join('')}</div><div class="row" style="margin-top:6px">
       <label>por <select class="inp" name="box_min" style="width:auto;display:inline-block">${[15, 25, 50, 90].map((m) => `<option value="${m}" ${(t.box?.min || 25) === m ? 'selected' : ''}>${m} min</option>`).join('')}</select></label></div></div>` : t.box ? `<p class="meta" style="margin:4px 0 0">⏰ time box: ${esc(t.box.at)} · ${t.box.min} min</p>` : ''}
+    ${R.isOpen(t) ? `<label class="lbl" for="t-move">📦 Mudar de lugar <span class="meta">· outro bloco (de qualquer janela) ou virar um bloco novo</span></label><select class="inp" id="t-move" name="move">${moveOptions(t)}</select>` : ''}
     <label class="lbl">Marcadores</label><div class="pills">
       ${pill('radio', 'kind', '', !p.mini && !p.step, '• tarefa', 'Tarefa comum')}${pill('radio', 'kind', 'mini', p.mini, '⚔ mini-boss', 'Uma vitória no meio do caminho: vale mais XP e solta fogos')}${pill('radio', 'kind', 'step', p.step, '↳ passo', 'Ação pequena embaixo de outra')}
       ${pill('checkbox', 'star', null, p.star, '⭐ chata', 'Tarefa que você vive adiando: vale x2')}${pill('checkbox', 'home', null, p.home, '🛡 casa', 'Casa e família: vale mais')}${pill('checkbox', 'money', null, p.money, '$ dinheiro', 'Traz dinheiro: vale x1,5')}
-      ${pill('checkbox', 'prio', null, t.prio, '! prioridade', 'Sobe pro topo da fila')}${pill('checkbox', 'cycle', null, t.cycle || suggestCycle, `🔁 vai e volta${suggestCycle ? ' ✨' : ''}`, 'Prefeitura, aprovação, cliente revisando: cada rodada dá XP')}</div>
+      ${pill('checkbox', 'prio', null, t.prio, '🐸 SAPO (prioridade)', 'A que importa: sobe pro topo da fila e o PRIMO cobra ela primeiro')}${pill('checkbox', 'cycle', null, t.cycle || suggestCycle, `🔁 vai e volta${suggestCycle ? ' ✨' : ''}`, 'Prefeitura, aprovação, cliente revisando: cada rodada dá XP')}</div>
     <label class="lbl">XP</label><div class="pills xpset">${[['', 'AUTO'], [5, '5'], [10, '10'], [30, '30'], [60, '60'], [100, '100']].map(([v, n]) => `<button type="button" class="pill ${String(p.xpFix ?? '') === String(v) ? 'on' : ''}" data-act="xp-preset" data-v="${v}"><span>${n}</span></button>`).join('')}<input class="inp" type="number" min="1" name="xp" value="${p.xpFix ?? ''}" placeholder="outro" aria-label="XP fixo" style="width:76px"></div>
     ${(t.duck || []).length ? `<p class="meta" style="margin:8px 0 0">🦆 ${esc([t.duck.at(-1).tried, t.duck.at(-1).nok].filter(Boolean).join(' · ').slice(0, 140))} <a href="#" data-act="duck" data-id="${id}">explicar de novo</a></p>` : ''}
     ${imgSection(t)}
@@ -390,9 +393,8 @@ function editBlock(id) {
       <div><label class="lbl">Cor</label>${swatches(color, true, R.blockDue(S, b))}</div></div>
     <label class="lbl" for="b-due">◆ Prazo final <span class="meta">· só do bloco: as subtarefas têm o prazo que você der a cada uma</span></label><div class="row"><input class="inp" type="date" id="b-due" name="due" value="${b.due || ''}" style="width:auto">
       ${[['HOJE', td], ['AMANHÃ', addDays(td, 1)], ['+7', addDays(td, 7)], ['PRÓX. SEG', nextMon], ['SEM', '']].map(([n, d]) => `<button type="button" class="pill" data-act="due-quick" data-d="${d}"><span>${n}</span></button>`).join('')}</div>
-    ${open.length ? `<label class="lbl">Subtarefas</label><div class="mlist">${open.slice(0, 12).map((t) => `<button type="button" class="dia-t" data-act="edit-task" data-id="${t.id}" data-color="${R.colorOfTask(S, t) || ''}">${esc(t.text.replace(/\s*\(\d+\s*XP\)/i, ''))}${t.due ? ` <small class="meta">${fmtDM(t.due)}</small>` : ''}</button>`).join('')}${open.length > 12 ? `<span class="meta">+${open.length - 12}</span>` : ''}</div>` : ''}
     ${b.group !== 'bs' ? `<details class="merge-b"><summary class="meta">↘ virar subtarefa de outro bloco <span class="meta">(ou arraste o bloco pelo ⠿ pra dentro de outro bloco aberto)</span></summary><div class="row" style="margin-top:6px"><select class="inp grow" data-merge-into="${id}" aria-label="Bloco de destino"><option value="">— escolha o bloco —</option>${S.quests.blocks.filter((x) => x.id !== id && x.st !== 'done' && x.group !== 'bs').sort((a, z) => a.title.localeCompare(z.title)).map((x) => `<option value="${x.id}">${esc(x.title)}${R.winOf(S, x) ? ' · ' + esc(R.winOf(S, x).name) : ''}</option>`).join('')}</select></div><p class="meta" style="margin:4px 0 0">O título vira uma tarefa lá dentro e as tarefas daqui viram passos ↳ dela. Dá pra desfazer no ↩.</p></details>` : ''}
-    <div class="actions"><div class="left">${open.length && b.st !== 'done' ? `<button type="button" class="btn sm" data-act="done-all" data-id="${id}" title="Concluir todas as tarefas deste bloco">✓ CONCLUIR TUDO</button>` : ''}<button type="button" class="btn sm danger" data-act="del-block" data-id="${id}">APAGAR</button></div>
+    <div class="actions"><div class="left">${isMoney(b) ? `<button type="button" class="btn sm" data-act="pay-open" data-id="${id}" title="Quanto entrou e quanto falta">💰 PAGAMENTOS</button>` : ''}${open.length && b.st !== 'done' ? `<button type="button" class="btn sm" data-act="done-all" data-id="${id}" title="Concluir todas as tarefas deste bloco">✓ CONCLUIR TUDO</button>` : ''}<button type="button" class="btn sm danger" data-act="del-block" data-id="${id}">APAGAR</button></div>
       <button type="button" class="btn" data-close>FECHAR</button><button class="btn pri">SALVAR</button></div></form>`, { wide: true });
 }
 function distribute() {
@@ -461,6 +463,9 @@ function editBoss(id) {
     <div class="msplit">
       <div><label class="lbl">Situação</label><div class="pills">${b.st === 'done' ? pill('radio', 'st', 'done', true, '✓ RESOLVIDO', 'Já se resolveu') : ''}${pill('radio', 'st', '', st === '', '○ EM ABERTO', 'Na luta')}${pill('radio', 'st', 'wait', st === 'wait', '⏳ AGUARDANDO', 'Depende de outra pessoa')}${b.st !== 'done' ? pill('radio', 'st', 'pause', st === 'pause', '⏸ PAUSADO', `Pausa de até ${R.BOSS_PAUSE_MAX} dias: os prazos andam junto, sem custo, e ele volta sozinho`) : ''}</div></div>
       <div><label class="lbl" for="bo-xp">XP</label><input class="inp" id="bo-xp" name="xp" type="number" min="1" value="${b.xp}" style="width:120px"></div></div>
+    ${((blk) => blk && b.st !== 'done' ? `<label class="lbl" for="bo-due">◆ Prazo final <span class="meta">· a cor do boss vem dele</span></label><div class="row"><input class="inp" type="date" id="bo-due" name="due" value="${blk.due || ''}" style="width:auto">${[['HOJE', td], ['+7', addDays(td, 7)], ['+30', addDays(td, 30)], ['SEM', '']].map(([n, d]) => `<button type="button" class="pill" data-act="due-quick" data-d="${d}"><span>${n}</span></button>`).join('')}</div>
+    <label class="lbl" for="bo-group">Janela <span class="meta">· tirar dos BOSSES = vira um bloco comum</span></label><select class="inp" id="bo-group" name="group"><option value="bs" selected>👹 BOSSES</option>${Object.entries(R.GROUPS).filter(([g]) => g !== 'bs').map(([g, i]) => `<option value="${g}">${i.name}</option>`).join('')}${R.windows(S).map((w) => `<option value="win:${w.id}">▣ ${esc(w.name)}</option>`).join('')}</select>
+    <div class="row" style="gap:6px;margin-top:8px">${R.reviewed(blk) ? '<span class="chip rev">👁 REVISADO</span>' : `<button type="button" class="btn sm" data-act="review-block" data-id="${blk.id}">👁 MARCAR REVISADO</button>`}${S.quests.tasks.some((t) => t.block === blk.id && R.isOpen(t)) ? `<button type="button" class="btn sm" data-act="done-all" data-id="${blk.id}" title="Concluir todas as subtarefas">✓ CONCLUIR TUDO</button>` : ''}</div>` : '')(R.findBlock(S, b.block))}
     ${b.st !== 'done' ? `<div class="pausef"><label class="lbl" for="bo-pause">⏸ volta em</label><input class="inp" type="date" id="bo-pause" name="pause" value="${paused ? b.pause : addDays(td, 7)}" min="${addDays(td, 1)}" max="${addDays(td, R.BOSS_PAUSE_MAX)}" style="width:auto"></div>` : ''}
     ${R.neuroOn(S, 'why') ? `<label class="lbl" for="bo-why">💡 Por que isso importa pra mim?</label><textarea class="inp" id="bo-why" name="why" rows="2" maxlength="300" placeholder="opcional">${esc(b.why || '')}</textarea>
     <label class="lbl" for="bo-fear" title="Quando o boss ficar ${R.BOSS_IDLE_DAYS} dias parado, o PRIMO te lembra destas respostas">⚠ O que acontece se eu NÃO fizer?</label><textarea class="inp" id="bo-fear" name="fear" rows="2" maxlength="300" placeholder="opcional">${esc(b.fear || '')}</textarea>` : ''}
@@ -662,12 +667,12 @@ const ACTIONS = {
 
   // v5.16: a setinha ⤴ pergunta pra qual janela a tarefa vai (vira um bloco lá)
   'to-breakdown': (d) => {
-    const wins = [['bd', R.GROUPS.bd.short, '🧩'], ['tr', R.GROUPS.tr.short, '📐'], ['cap', R.GROUPS.cap.short, '🧲'], ['gs', R.GROUPS.gs.short, '🗂'], ...R.windows(S).map((w) => ['w:' + w.id, w.name, '▣'])];
-    openModal(`<h2>⤴ mandar pra qual janela?</h2><p class="muted">A tarefa vira um bloco lá e continua aqui nas LISTAS, ligada a ele.</p>
+    const wins = [['bd', R.GROUPS.bd.short, '🧩'], ['tr', R.GROUPS.tr.short, '📐'], ['cap', R.GROUPS.cap.short, '🧲'], ['gs', R.GROUPS.gs.short, '🗂'], ...R.windows(S).map((w) => ['w:' + w.id, w.name, '▣']), ['boss', 'BOSSES', '👹']];
+    openModal(`<h2>✨ virar bloco em qual janela?</h2><p class="muted">A tarefa vira um BLOCO lá (os passos ↳ dela viram as tarefas do bloco). Dá pra desfazer no ↩.</p>
       <div class="pickgrid">${wins.map(([k, n, ic]) => `<button class="pick" data-act="send-to" data-id="${d.id}" data-to="${k}"><span class="pi">${ic}</span>${esc(n)}</button>`).join('')}</div>
       <div class="actions"><button class="btn" data-close>CANCELAR</button></div>`);
   },
-  'send-to': (d) => { closeModal(); const r = A.toBreakdown(d.id, d.to); if (r?.error) { sfx('error'); toast(esc(r.error), 'bad'); return; } sfx('upgrade'); if (r?.block) jumpBlock(r.block.id); },
+  'send-to': (d) => { closeModal(); const r = A.taskToBlock(d.id, d.to); if (r?.error) { sfx('error'); toast(esc(r.error), 'bad'); return; } sfx('upgrade'); if (r?.block) jumpBlock(r.block.id); },
   unlink: (d) => { A.unlinkTask(d.id); closeModal(); },
   'edit-task': (d) => { const t = S.quests.tasks.find((x) => x.id === d.id), lb = t?.mother && t.link && R.findBlock(S, t.link); if (lb && lb.group !== 'bs') editBlock(lb.id); else editTask(d.id); }, // v8.4: a tarefa-mãe É o bloco: abre a mesma janela
   'set-status': (d) => { A.setStatus(d.id, d.st); closeModal(); },
@@ -916,6 +921,9 @@ const FORMS = {
     const r = A.updateTask(t.id, rest);
     if (r?.error) { toast(esc(r.error), 'bad'); return; }
     closeModal();
+    // v9.9: MUDAR DE LUGAR (outro bloco/janela, ou virar bloco novo/BOSS)
+    const mv = f.move?.value;
+    if (mv) { const m = mv.startsWith('blk:') ? A.taskToBlock(t.id, mv.slice(4)) : A.moveToBlock(t.id, destBlock(mv)); if (m?.error) { toast(esc(m.error), 'bad'); return; } sfx('upgrade'); toast(m?.msg ? esc(m.msg) : '📦 Mudou de lugar.', 'good'); if (mv.startsWith('blk:')) return; }
     if ((due || null) !== (t.due || null) || box) { const cost = A.reschedCost(t, due || null); if (await setDue(t.id, due, { extra: box ? { box } : {}, reopen: () => editTask(t.id) }) && cost) primoReact('remarcou', { xp: cost }); }
   },
   block: (f) => {
@@ -933,6 +941,10 @@ const FORMS = {
     if (f.why) { patch.why = f.why.value.trim() || undefined; patch.fear = f.fear.value.trim() || undefined; }
     if (st !== 'done') patch.st = st === 'pause' ? '' : st;
     A.updateBoss(b.id, patch);
+    // v9.9: prazo final e janela do boss moram no bloco dele (tirar dos BOSSES = vira bloco comum)
+    const blk = R.findBlock(S, b.block);
+    if (blk && f.due && (f.due.value || null) !== (blk.due || null)) A.updateBlock(blk.id, { due: f.due.value || null });
+    if (blk && f.group && f.group.value !== 'bs') { const gv = f.group.value, gw = gv.startsWith('win:') ? R.windows(S).find((w) => 'win:' + w.id === gv) : null; A.updateBlock(blk.id, { group: gw ? gw.base : gv, win: gw ? gw.id : undefined }); closeModal(); toast('📦 Saiu dos BOSSES: agora é um bloco comum.', 'good'); return; }
     if (st === 'pause' && f.pause?.value && f.pause.value !== b.pause) A.pauseBoss(b.id, f.pause.value);
     else if (st !== 'pause' && R.bossPaused(b)) A.resumeBoss(b.id);
     closeModal();
@@ -979,7 +991,8 @@ extendBujo(ACTIONS, FORMS);
 extendMapa(ACTIONS, FORMS);
 extendPlanos(ACTIONS, FORMS);
 extendLobo(ACTIONS);
-extendTres(ACTIONS); // v9.7 AS 3 DO DIA
+extendPagamentos(ACTIONS); // v9.9 pagamentos no bloco
+vilaViva(); // v9.9: de vez em quando um morador comenta o estado da vila
 extendOrganiza(ACTIONS, FORMS); // depois do extendPrimo: a linha do lobo abre a janela do termômetro
 extendPraga(ACTIONS, FORMS, jump);
 extendPraga2(ACTIONS, jump);
@@ -1047,8 +1060,21 @@ document.addEventListener('drop', (e) => {
 });
 
 // ───────────────────────── ATALHOS ─────────────────────────
+// v9.9: digitar no "depende de…" filtra a lista (tarefas e blocos) e já escolhe a 1ª que bate
+document.addEventListener('input', (e) => {
+  if (!e.target.matches?.('[data-dep-q]')) return;
+  const q = e.target.value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''), sel = e.target.parentElement.querySelector('select');
+  let first = null;
+  for (const o of sel.options) { if (!o.value) continue; const ok = !q || o.text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(q); o.hidden = !ok; if (ok && !first) first = o; }
+  if (q && first) sel.value = first.value;
+});
+document.addEventListener('fullscreenchange', () => { if (document.fullscreenElement) navigator.keyboard?.lock?.(['Escape']).catch?.(() => {}); }); // v9.9: entrou na tela cheia (botão ou F11) = o Esc fica com o app
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') { if (modalOpen()) { document.activeElement?.blur?.(); closeModal(); } return; } // blur antes: salva o texto em edição
+  // v9.9: F11 usa a tela cheia do APP (a do navegador não deixa o app segurar o Esc: o Esc saía da tela cheia em vez de fechar a janela)
+  if (e.key === 'F11') { e.preventDefault(); ACTIONS.fullscreen(); return; }
+  // v9.9: Enter no título de uma janela (bloco, tarefa) salva e fecha; Shift+Enter quebra a linha
+  if (e.key === 'Enter' && !e.shiftKey && e.target.matches?.('.modal textarea.mtitle')) { e.preventDefault(); e.target.form?.requestSubmit(); return; }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openFind(); return; } // v8.5: busca rápida
   if (modalOpen() || e.ctrlKey || e.metaKey || e.altKey || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName) || document.activeElement?.isContentEditable) return; // v6: escrevendo num balão do mapa, as letras não viram atalho
   const r = ROUTES.find((x) => x[4] && x[4] === e.key.toLowerCase());

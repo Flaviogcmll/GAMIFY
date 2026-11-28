@@ -353,6 +353,8 @@ export function startup() {
     for (const t of S.quests.tasks) if (t.dueInh) { const b = t.block && q.blocks.find((x) => x.id === t.block); if (!b || t.due === b.due) { t.due = null; delete t.dueSet; } delete t.dueInh; changedQ = true; }
     S.core.migrations.push('v9-subdue-off'); changedCore = true;
   }
+  if (ensureBosses()) changedQ = true; // v9.9: bloco nos BOSSES sem boss (mandado pra lá antes) ganha o boss dele
+  if (!S.core.migrations.includes('v9-tres-off')) { delete S.core.tres; S.core.migrations.push('v9-tres-off'); changedCore = true; } // v9.9: o AS 3 DO DIA saiu (pedido do dono: usar os marcadores que já existem)
   // (v9-subdue, a herança do prazo do bloco, foi desfeita na v9.3: ver v9-subdue-off acima)
   if (!S.core.migrations.includes('v9-ligadas-off')) { // v9.7 (pedido do dono: "corrija as coisas antigas"): as tarefas ligadas a um bloco (tarefas-mãe da TODAS e tarefas que viraram bloco) eram cópias do bloco. Saem; o prazo e o "aguardando" passam pro bloco
     const gone = new Set();
@@ -470,7 +472,7 @@ function syncLists() {
   }
   for (const t of S.quests.tasks) {
     if (t.dep) {
-      const d = byId.get(t.dep);
+      const d = byId.get(t.dep) || blk.get(t.dep); // v9.9: dependência pode ser um BLOCO (libera quando ele fecha)
       if (!d || d.st === 'done' || d.st === 'cancel') { delete t.dep; if (!t.who && t.st === 'wait') t.st = ''; released.push({ id: t.id, text: t.text }); changed = true; }
     }
     // v9.5 (pedido do dono): a COR sai do PRAZO, sozinha (PARADO e AGUARDANDO são escolha sua e ficam)
@@ -679,7 +681,7 @@ export function setStatus(id, st) {
 /** tarefa da lista ligada a um bloco do BREAKDOWN: o prazo é um só (a tarefa manda, o bloco acompanha) */
 function syncLink(t) { const lb = t?.link && B(t.link); if (lb) lb.due = t.due || null; }
 export function reschedBase(t, newDue) {
-  if (!t || !t.due || !newDue || newDue <= t.due) return 0;
+  if (!t || !t.due || (newDue && newDue <= t.due)) return 0; // v9.9: tirar o prazo (newDue vazio) conta como adiar: vira TREM e junta mosca, igual remarcar
   if (t.dueSet === today()) return 0; // v8.8 (pedido do dono): acabou de pôr o prazo hoje e mudou no mesmo dia = não paga
   return Math.min(R.C.RESCHED * 2 ** (t.rs || 0), R.C.RESCHED * R.RESCHED_CAP);
 }
@@ -770,7 +772,7 @@ export function avulsasBlock(winKey) {
   return addBlock(group, AVULSAS, win ? { win: win.id } : {})?.block?.id || null;
 }
 /** v9.5: muda uma tarefa (com os passos) pra dentro de um bloco */
-export function moveToBlock(id, blockId) { const t = T(id); if (!t || !B(blockId)) return; const r = updateTask(id, { block: blockId }); delete t.cat; return r; }
+export function moveToBlock(id, blockId) { const t = T(id); if (!t || !B(blockId)) return; const r = updateTask(id, { block: blockId }); delete t.cat; if (!r?.error) commit(['quests'], () => { for (const k of S.quests.tasks.filter((x) => x.parent === t.id)) k.block = blockId; }, { noUndo: true }); return r; } // v9.9: os passos ↳ vão junto
 /** v9.5 (pedido do dono): ESVAZIAR a NOTA FISCAL sem perder a conta. As compras já usadas dos meses que passaram viram UMA linha por mês
  *  (somando XP, ferro, tickets e quantas compras eram), então o saldo não muda. Forjados, o que está na SACOLA e o mês atual ficam. */
 export function compactPurchases() {
@@ -800,8 +802,10 @@ export function addBlock(group, title, extra = {}) {
 export function updateBlock(id, patch) {
   const b = B(id);
   if (!b) return;
+  const wasBoss = b.group === 'bs';
   return commit(['quests'], () => {
     Object.assign(b, patch); if (!b.due) b.due = null; // v9.7: o prazo do bloco não mexe no das subtarefas
+    if (b.group === 'bs') ensureBosses(); else if (wasBoss) S.quests.bosses = S.quests.bosses.filter((x) => x.block !== b.id || x.st === 'done'); // v9.9
   });
 }
 export function deleteBlock(id) {
@@ -946,16 +950,27 @@ export function deleteBoss(id) {
 }
 /** 🔗 manda uma tarefa da lista pro BREAKDOWN: vira um bloco ligado; concluir o bloco conclui a tarefa (sem XP em dobro) */
 /** v5.16: `dest` = tipo-base (bd, tr, cap, gs) ou 'w:<id>' de uma janela do dono */
-export function toBreakdown(id, dest = 'bd') {
+/** v9.9 (pedido do dono): uma TAREFA vira um BLOCO novo em qualquer janela (ou um BOSS). Os passos ↳ dela viram as tarefas do bloco;
+ *  o prazo e o AGUARDANDO vão junto. dest = 'bd' | 'tr' | 'cap' | 'gs' | 'w:<id>' | 'boss' */
+export function taskToBlock(id, dest = 'bd') {
   const t = T(id);
-  if (!t || t.block || t.link) return { error: 'Só tarefas das listas que ainda não estão ligadas.' };
-  const win = String(dest).startsWith('w:') ? R.windows(S).find((w) => 'w:' + w.id === dest) : null, group = win ? win.base : R.GROUPS[dest] ? dest : 'bd';
+  if (!t || !R.isOpen(t)) return { error: 'Só dá pra transformar tarefa em aberto.' };
+  const win = String(dest).startsWith('w:') ? R.windows(S).find((w) => 'w:' + w.id === dest) : null, group = dest === 'boss' ? 'bs' : win ? win.base : R.GROUPS[dest] ? dest : 'bd';
   return commit(['quests'], () => {
-    const blk = { id: uid('k'), group, ...(win ? { win: win.id } : {}), title: t.text.replace(/\s*\(\d+\s*XP\)/i, '').trim(), color: 'green', st: '', due: t.due || null, created: today(), ord: maxOrd() + 1, src: t.id };
+    const title = t.text.replace(/\s*\(\d+\s*XP\)/i, '').replace(/^\s*(↳|>|⚔)\s*/, '').trim();
+    const blk = { id: uid('k'), group, ...(win ? { win: win.id } : {}), title, color: 'green', st: t.st === 'wait' ? 'wait' : '', due: t.due || null, created: today(), ord: maxOrd() + 1 };
     S.quests.blocks.push(blk);
-    t.link = blk.id;
-    return { block: blk, msg: `Foi pra ${win ? win.name : R.GROUPS[group].short}. A bolinha ao lado dela leva até lá.` };
+    for (const k of S.quests.tasks.filter((x) => x.parent === t.id)) { k.block = blk.id; delete k.parent; k.text = k.text.replace(/^\s*(↳|>)\s*/, ''); }
+    S.quests.tasks = S.quests.tasks.filter((x) => x !== t);
+    if (group === 'bs') S.quests.bosses.push({ id: uid('b'), text: title, xp: R.C.XP_BOSS, st: '', ord: maxOrd() + 1, block: blk.id });
+    return { block: blk, msg: `Virou ${group === 'bs' ? 'um BOSS' : 'bloco'} em ${win ? win.name : group === 'bs' ? 'BOSSES' : R.GROUPS[group].short}.` };
   });
+}
+/** v9.9: todo bloco na janela BOSSES tem o boss dele (antes, mandar um bloco pra lá não fazia ele aparecer). Roda dentro de um commit. */
+function ensureBosses() {
+  let n = 0;
+  for (const b of S.quests.blocks) if (b.group === 'bs' && b.st !== 'done' && !S.quests.bosses.some((x) => x.block === b.id)) { S.quests.bosses.push({ id: uid('b'), text: b.title, xp: R.C.XP_BOSS, st: '', ord: b.ord || maxOrd() + 1, block: b.id }); n++; }
+  return n;
 }
 export function unlinkTask(id) {
   const t = T(id);
@@ -988,6 +1003,7 @@ export function setHabit(d, hid, val) {
     S.marks.days[d] ||= { h: {}, xp: 0 };
     if (val) S.marks.days[d].h[hid] = val; else delete S.marks.days[d].h[hid];
     recomputeHabitXp(d);
+    if (val === 'x') return { feedback: { habit: hid } }; // v9.9: a vila comenta (vila.js)
   });
 }
 export function updateHabits(list) {
@@ -1074,11 +1090,11 @@ export function planRitual(id, date) {
   const before = R.ritualStatus(r).next; // v9.5: empurrar o ritual pra depois junta uma mosca (zera quando faz)
   return commit(['core'], () => { if (date && before && date > before) r.rs = (r.rs || 0) + 1; if (date) r.plan = date; else delete r.plan; return { msg: date ? `📅 ${r.name}: marcado.` : `${r.name}: dia desmarcado.` }; });
 }
-/** REVISADO de uma lista do QUESTS (selo de 24 h) */
+/** REVISADO de uma lista do QUESTS (selo de 2 dias) */
 export function reviewList(k) {
   return commit(['core'], () => { S.core.rev ||= {}; if (R.listReviewed(S, k)) delete S.core.rev[k]; else S.core.rev[k] = Date.now(); });
 }
-/** REVISADO: você olhou o bloco e está tudo em ordem. Vale 24 h (é só um selo: não dá XP). */
+/** REVISADO: você olhou o bloco e está tudo em ordem. Vale 2 dias (é só um selo: não dá XP). */
 export function reviewBlock(id) {
   const b = B(id);
   if (!b) return;
@@ -1790,12 +1806,22 @@ export function delScratch(id) {
   commit(['core'], () => { S.core.scratch = (S.core.scratch || []).filter((x) => x.id !== id); });
 }
 /** v6: o mapa é de balões e setas ({ nodes, links }); o formato antigo (texto) ainda é aceito e vira balões ao abrir */
-/** v9.7 AS 3 DO DIA: guarda as escolhidas de um dia (no máximo 3; a 1ª é o SAPO). Mantém só os últimos 14 dias */
-export function setTres(d, ids) {
-  return commit(['core'], () => {
-    const t = (S.core.tres ||= {}), keep = addDays(today(), -14);
-    const list = [...new Set(ids)].slice(0, 3);
-    if (list.length) t[d] = list; else delete t[d];
-    for (const k of Object.keys(t)) if (k < keep) delete t[k];
+/** v9.9 (pedido do dono: usar os MARCADORES que já existem): liga/desliga um marcador da tarefa.
+ *  k = 'prio' (🐸 SAPO, fica em t.prio) · 'star' (⭐ chata x2) · 'home' (🛡 casa) · 'money' (💰 dinheiro); os 3 últimos moram no texto */
+export const MARKS = { prio: '🐸 SAPO', star: '⭐ CHATA', home: '🛡 CASA', money: '$ DINHEIRO' };
+export const hasMark = (t, k) => (k === 'prio' ? !!t.prio : k === 'star' ? /⭐/.test(t.text) : k === 'home' ? /🛡/.test(t.text) : /💰/.test(t.text));
+export function toggleMark(id, k) {
+  const t = T(id); if (!t) return;
+  return commit(['quests'], () => {
+    if (k === 'prio') { if (t.prio) delete t.prio; else t.prio = true; return; }
+    const on = hasMark(t, k), sym = { star: '⭐', home: '🛡', money: '💰' }[k];
+    if (on) t.text = t.text.replace(new RegExp(k === 'money' ? '\\s*💰' : sym + '\\s*', 'g'), '').trim();
+    else if (k === 'money') t.text = t.text.trim() + ' 💰';
+    else { const pre = (t.text.match(/^(⚔|↳)\s*/) || [''])[0]; t.text = pre + sym + ' ' + t.text.slice(pre.length); }
   });
 }
+// v9.9 PAGAMENTOS NO BLOCO (pagamentos.js): b.pay = { total?, got: [{ id, d, v }] }
+export function payAdd(bid, v, d = today()) { const b = B(bid); if (!b || !(+v > 0)) return; return commit(['quests'], () => { (b.pay ||= { got: [] }).got ||= []; b.pay.got.push({ id: uid('pg'), d, v: +v }); }); }
+export function payDel(bid, id) { const b = B(bid); if (!b?.pay?.got) return; return commit(['quests'], () => { b.pay.got = b.pay.got.filter((x) => x.id !== id); }); }
+export function payTotal(bid, v) { const b = B(bid); if (!b) return; return commit(['quests'], () => { (b.pay ||= { got: [] }); if (+v > 0) b.pay.total = +v; else delete b.pay.total; }); }
+

@@ -12,12 +12,13 @@ import { sfx, voz } from './audio.js';
 import { quem, sorte, fig } from './elenco.js';
 import { confetti } from './fx.js';
 import { setDue } from './remarcar.js';
+import { markBtns } from './planos.js';
 
 const ls = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* */ } } };
 const clean = (t) => String(t?.text || '').replace(/\s*\(\d+\s*XP\)/i, '').replace(/^\s*(↳|>)\s*/, '');
 const loose = () => S.quests.tasks.filter((t) => !t.mother && !t.link && R.isOpen(t) && t.st !== 'wait' && t.color !== 'black'); // v9.5: tarefas de verdade (em qualquer janela)
 // v9.5: a cor vem do prazo; organizar = dar um PRAZO (HOJE, AMANHÃ, +7 ou uma data)
-const orgRow = (t) => { const td = today(), b = t.block && R.findBlock(S, t.block); return `<div class="li org-row"><div class="lt">${esc(clean(t))}<small>${b ? esc(b.title) + ' · ' : ''}${t.due ? fmtDM(t.due) : 'sem prazo'}</small></div><span class="row org-acts">${[['HOJE', td], ['AMANHÃ', addDays(td, 1)], ['+7', addDays(td, 7)]].map(([n, d]) => `<button class="btn sm ghost" data-act="org-due" data-id="${t.id}" data-d="${d}">${n}</button>`).join('')}<input class="inp pc-date" type="date" data-org-due="${t.id}" min="${td}" aria-label="Outro dia"></span></div>`; };
+const orgRow = (t) => { const td = today(), b = t.block && R.findBlock(S, t.block); return `<div class="li org-row"><div class="lt">${esc(clean(t))}<small>${b ? esc(b.title) + ' · ' : ''}${t.due ? fmtDM(t.due) : 'sem prazo'}</small></div><span class="row org-acts">${[['HOJE', td], ['AMANHÃ', addDays(td, 1)], ['+7', addDays(td, 7)]].map(([n, d]) => `<button class="btn sm ghost" data-act="org-due" data-id="${t.id}" data-d="${d}">${n}</button>`).join('')}<input class="inp pc-date" type="date" data-org-due="${t.id}" min="${td}" aria-label="Outro dia">${markBtns(t)}</span></div>`; };
 
 // ───── 4) LIMITE DE URGENTE ─────
 /** v9.5: pra onde uma tarefa vai (toda tarefa mora numa janela, dentro de um bloco). Opções: os blocos de cada janela + "📥 AVULSAS" da janela */
@@ -28,6 +29,11 @@ export function destOptions(sel = '') {
     out.push(`<optgroup label="${esc(n)}">${blocks.some((b) => b.title === A.AVULSAS) ? '' : `<option value="new:${k}" ${sel === 'new:' + k ? 'selected' : ''}>📥 AVULSAS (${esc(n)})</option>`}${blocks.map((b) => `<option value="${b.id}" ${sel === b.id || (b.title === A.AVULSAS && sel === 'new:' + k) ? 'selected' : ''}>${esc(b.title)}</option>`).join('')}</optgroup>`);
   }
   return out.join('');
+}
+/** v9.9 (pedido do dono): "📦 MUDAR DE LUGAR" na janela da tarefa: qualquer bloco de qualquer janela, ou virar um bloco novo (ou BOSS) */
+export function moveOptions(t) {
+  const wins = R.assuntos(S).slice(1);
+  return `<option value="">— fica onde está${t?.block ? ' (' + esc(R.findBlock(S, t.block)?.title || '') + ')' : ''} —</option>${destOptions('').replace(new RegExp(`<option value="${t?.block}"[^>]*>[^<]*</option>`), '')}<optgroup label="✨ VIRAR UM BLOCO NOVO">${wins.map(([k, n]) => `<option value="blk:${k}">✨ bloco novo em ${esc(n)}</option>`).join('')}<option value="blk:boss">👹 virar um BOSS</option></optgroup>`;
 }
 /** resolve o valor escolhido ('new:<janela>' cria/acha o AVULSAS) e devolve o id do bloco */
 export const destBlock = (v) => (!v ? null : v.startsWith('new:') ? A.avulsasBlock(v.slice(4)) : v);

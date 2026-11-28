@@ -23,6 +23,7 @@ export function quickAdd(text = '', where = '') {
     <label class="lbl">É</label><div class="row seg qtipo">${[['task', '✎ UMA TAREFA'], ['block', '📦 UM BLOCO NOVO']].map(([v, n], i) => `<label class="btn sm ghost"><input type="radio" name="tipo" value="${v}" ${i ? '' : 'checked'}> ${n}</label>`).join('')}</div>
     <label class="lbl">Dia <span class="meta">· a cor vem do prazo: até amanhã URGENTE, até 7 dias ESQUENTANDO, depois ESTÁVEL</span></label><div class="row seg qwhen">${[[td, 'HOJE'], [addDays(td, 1), 'AMANHÃ'], ['outro', 'OUTRO'], ['', 'SEM PRAZO']].map(([d, n], i) => `<label class="btn sm ghost"><input type="radio" name="due" value="${d}" ${i ? '' : 'checked'}> ${n}</label>`).join('')}<input class="inp" type="date" name="dia" aria-label="Outro dia" style="width:auto"></div>
     <label class="lbl">Onde mora</label><select class="inp" name="dest" aria-label="Janela e bloco">${destOptions(where || 'new:bd')}</select>
+    <label class="lbl">Marcadores <span class="meta">· o 🐸 SAPO é a que importa (o PRIMO cobra primeiro); ⭐ chata vale x2</span></label><div class="pills qmarks">${[['prio', '🐸 SAPO'], ['star', '⭐ CHATA'], ['home', '🛡 CASA'], ['money', '$ DINHEIRO']].map(([k, n]) => `<label class="pill"><input type="checkbox" name="mk-${k}"><span>${n}</span></label>`).join('')}</div>
     <label class="row" style="gap:6px;margin-top:8px"><input type="checkbox" name="wait"> ⏳ aguardando alguém</label>
     <div class="actions"><button type="button" class="btn" data-close>FECHAR</button><button class="btn pri">ANOTAR</button></div></form>`);
 }
@@ -108,7 +109,12 @@ export function extendBujo(ACTIONS, FORMS) {
   Object.assign(FORMS, {
     'win-add': (f) => { const text = f.text.value.trim(); if (!text) return; f.text.value = ''; quickAdd(text, 'new:' + f.dataset.win); }, // v9.5: a linha do topo de cada janela
     quick: (f) => {
-      const text = f.text.value.trim();
+      let text = f.text.value.trim();
+      // v9.9: os marcadores entram no texto (⭐ chata, 🛡 casa, 💰 dinheiro); o 🐸 SAPO fica em t.prio
+      if (text && f['mk-money']?.checked && !/💰/.test(text)) text += ' 💰';
+      if (text && f['mk-home']?.checked && !/🛡/.test(text)) text = '🛡 ' + text;
+      if (text && f['mk-star']?.checked && !/⭐/.test(text)) text = '⭐ ' + text;
+      const prio = !!f['mk-prio']?.checked;
       if (!text) return;
       let due = f.querySelector('[name=due]:checked')?.value || null;
       if (due === 'outro' || f.dia.value) due = f.dia.value || null; // digitou uma data: ela vale
@@ -124,6 +130,7 @@ export function extendBujo(ACTIONS, FORMS) {
       }
       const block = destBlock(f.dest.value);
       const r = A.addTask({ text, block, due, area: 'block' });
+      if (prio && r?.task) A.toggleMark(r.task.id, 'prio');
       if (f.wait.checked && r?.task) A.setStatus(r.task.id, 'wait');
       closeModal(); sfx('tab');
       const b = block && S.quests.blocks.find((x) => x.id === block);

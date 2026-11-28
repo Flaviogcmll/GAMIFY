@@ -9,14 +9,14 @@ import { primoHead } from '../primo.js';
 import { arrange } from '../v35.js';
 import { moscasHtml, moscaMortaHtml } from '../moscas.js';
 import { soltas } from '../organiza.js';
-import { tresCard } from '../tres.js';
+import { payChip } from '../pagamentos.js';
 
 const sortOrd = (a, b) => a.ord - b.ord;
 /** v7.1: ORDENAR pelo menu ≡ (só na tela: a ordem guardada não muda). Uma escolha por janela, lembrada no aparelho.
  *  'date' = prazo mais perto em cima · 'urg' = pela cor da urgência (vermelho, laranja, amarelo, verde, cinza, roxo) */
 export function qsortOf(ui, tab) {
   if (!ui.qsort) { try { ui.qsort = JSON.parse(localStorage.getItem('gamify-ui:qsort')) || {}; } catch { ui.qsort = {}; } }
-  return ''; // v9.5 (pedido do dono): ORDENAR por data/urgência saiu do ≡ (a cor já vem do prazo); a ordem é a que você arrasta
+  return ui.qsort[tab] === 'urg' ? 'urg' : ''; // v9.9 (pedido do dono): voltou o ORDENAR POR URGÊNCIA (só ele; a data já está na cor). Desligado = a ordem que você arrasta
 }
 const URG_RANK = { hoje: 0, amanha: 1, semana: 2, depois: 3, sem: 4, wait: 5 };
 const byDue = (a, b) => (a.due || '9').localeCompare(b.due || '9') || sortOrd(a, b);
@@ -42,8 +42,8 @@ const cols3 = (items, blocks = []) => {
 };
 /** sem MOSTRAR FEITAS: some tudo que foi feito ou cancelado (o ↩ desfaz um clique errado) */
 const visible = (t) => R.isOpen(t) || t.st === 'sent';
-/** botão REVISADO (selo de 24 h) no fim de uma lista ou bloco */
-const revBtn = (act, attr, on) => `<button class="rev-btn ${on ? 'on' : ''}" data-act="${act}" ${attr} title="${on ? 'Tirar o selo de revisado' : 'Olhei e está tudo em ordem. O selo dura 24 horas.'}">${on ? '👁 revisado · tirar' : '👁 marcar como revisado'}</button>`;
+/** botão REVISADO (selo de 2 dias) no fim de uma lista ou bloco */
+const revBtn = (act, attr, on) => `<button class="rev-btn ${on ? 'on' : ''}" data-act="${act}" ${attr} title="${on ? 'Tirar o selo de revisado' : 'Olhei e está tudo em ordem. O selo dura 2 dias.'}">${on ? '👁 revisado · tirar' : '👁 marcar como revisado'}</button>`;
 /** ⬛ parado: só aparece com MOSTRAR PARADOS ligado */
 const stalledOff = (ui) => (t) => t.color !== 'black' || ui.showStalled;
 
@@ -57,7 +57,7 @@ function bossPanel(ui) {
     const ck = blk?.id || b.id;
     return `<article class="block boss-b ${done ? 'closed' : ''} ${paused ? 'paused' : ''} ${isCollapsed('b:' + ck) ? 'collapsed' : ''}" data-color="red" ${blk ? `data-drop-block="${blk.id}"` : ''}>
       <div class="bh"><div class="stripe"></div><button class="icon-btn bchev" data-act="collapse" data-k="b:${ck}" aria-label="Recolher boss"><span class="chev">${isCollapsed('b:' + ck) ? '▸' : '▾'}</span></button><div class="bt" data-act="edit-boss" data-id="${b.id}"><h3>👹 ${esc(b.text.replace(/:\s*[\d.]+\s*XP.*$/i, ''))}</h3>
-        <div class="bm"><span class="acc">${fmtN(b.xp)} XP + 1🎟</span>${hp && hp.total ? `<span>HP ${fmtN(hp.left)}/${fmtN(hp.total)}</span>` : '<span>quebre em subtarefas ↓</span>'}${done ? `<span class="good">RESOLVIDO ${fmtDM(b.doneAt)}</span>` : paused ? `<span class="info">⏸ volta ${fmtDM(b.pause)}</span>` : b.st === 'wait' ? '<span>⏳ aguardando</span>' : idle >= R.BOSS_IDLE_DAYS && R.neuroOn(S, 'why') ? `<span class="warn">💤 ${idle} dias parado</span>` : ''}</div>
+        <div class="bm"><span class="acc">${fmtN(b.xp)} XP + 1🎟</span>${blk && R.reviewed(blk) ? `<span class="chip rev" title="Revisado: vale até ${new Date(blk.rev + R.REV_MS).toLocaleString('pt-BR', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}">👁 REVISADO</span>` : ''}${hp && hp.total ? `<span>HP ${fmtN(hp.left)}/${fmtN(hp.total)}</span>` : '<span>quebre em subtarefas ↓</span>'}${done ? `<span class="good">RESOLVIDO ${fmtDM(b.doneAt)}</span>` : paused ? `<span class="info">⏸ volta ${fmtDM(b.pause)}</span>` : b.st === 'wait' ? '<span>⏳ aguardando</span>' : idle >= R.BOSS_IDLE_DAYS && R.neuroOn(S, 'why') ? `<span class="warn">💤 ${idle} dias parado</span>` : ''}</div>
         ${!done && b.why && R.neuroOn(S, 'why') ? `<p class="bwhy">💡 ${esc(b.why)}</p>` : ''}
         ${hp && hp.total && !done ? segBar(hp.pct, 'hp') : ''}</div>
        <div class="bbtns">${blk ? `<span class="handle" data-handle="block" data-id="${blk.id}" title="Segure e arraste">⠿</span>` : ''}<button class="icon-btn" data-act="boss-toggle" data-id="${b.id}" aria-label="${done ? 'Reabrir' : 'Resolver'} boss" title="${done ? 'Reabrir' : 'Resolver na hora'}">${done ? '↺' : '⚔'}</button>${blk ? `<button class="icon-btn" data-act="sort" data-block="${blk.id}" title="Organizar por data">⇅</button>` : ''}</div></div>
@@ -83,7 +83,7 @@ function blockCard(b, ui, opts = {}) {
   return `<article class="block ${b.st === 'done' ? 'closed' : ''} ${isCollapsed('b:' + b.id) ? 'collapsed' : ''} ${rev ? 'reviewed' : ''}" data-color="${b.st === 'wait' ? 'purple' : b.color}" data-drop-block="${b.id}">
     <div class="bh"><div class="stripe"></div>
       <button class="icon-btn bchev" data-act="collapse" data-k="b:${b.id}" aria-label="Recolher bloco"><span class="chev">${isCollapsed('b:' + b.id) ? '▸' : '▾'}</span></button><div class="bt" data-act="edit-block" data-id="${b.id}"><h3>${esc(b.title)}</h3>
-        <div class="bm">${b.color === 'black' && b.st !== 'done' ? moscaMortaHtml('Mosca morta: este bloco está PARADO (o PRIMO lembra dele a cada 7 dias)') : ''}<span>${done.length}/${counted.length}</span>${rev ? `<span class="chip rev" title="Revisado: vale até ${new Date(b.rev + 864e5).toLocaleString('pt-BR', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}">👁 REVISADO</span>` : ''}${b.src && S.quests.tasks.find((x) => x.id === b.src) ? `<button class="lnk-dot" data-g="lista" data-act="jump" data-id="${b.src}" title="Esta tarefa também está nas LISTAS. Toque pra ir lá." aria-label="Ir pra tarefa nas listas"></button>` : ''}${b.st === 'done' ? `<span class="good">FECHADO ${fmtDM(b.doneAt)} · +${b.xp}</span>` : `<span>${b.due ? '◆ ' + fmtDM(b.due) : dues[0] ? 'próx. ' + fmtDM(dues[0]) : 'sem prazo'}</span><span class="acc">${fmtN(xpLeft)} XP</span>`}</div>
+        <div class="bm">${b.color === 'black' && b.st !== 'done' ? moscaMortaHtml('Mosca morta: este bloco está PARADO (o PRIMO lembra dele a cada 7 dias)') : ''}<span>${done.length}/${counted.length}</span>${rev ? `<span class="chip rev" title="Revisado: vale até ${new Date(b.rev + R.REV_MS).toLocaleString('pt-BR', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}">👁 REVISADO</span>` : ''}${b.src && S.quests.tasks.find((x) => x.id === b.src) ? `<button class="lnk-dot" data-g="lista" data-act="jump" data-id="${b.src}" title="Esta tarefa também está nas LISTAS. Toque pra ir lá." aria-label="Ir pra tarefa nas listas"></button>` : ''}${b.st === 'done' ? `<span class="good">FECHADO ${fmtDM(b.doneAt)} · +${b.xp}</span>` : `<span>${b.due ? '◆ ' + fmtDM(b.due) : dues[0] ? 'próx. ' + fmtDM(dues[0]) : 'sem prazo'}</span><span class="acc">${fmtN(xpLeft)} XP</span>${payChip(b)}`}</div>
         ${segBar(counted.length ? done.length / counted.length : 0, 'good sm')}</div>
       <div class="bbtns">${b.st !== 'done' && S.quests.tasks.some((t) => t.block === b.id && R.isOpen(t)) ? `<button class="icon-btn done-all" data-act="done-all" data-id="${b.id}" title="Concluir todas as tarefas deste bloco" aria-label="Concluir tudo">✓</button>` : ''}<span class="handle" data-handle="block" data-id="${b.id}" title="Segure e arraste">⠿</span><button class="icon-btn" data-act="sort" data-block="${b.id}" title="Organizar por data">⇅</button><button class="icon-btn ${pinned.includes(b.id) ? 'on' : ''}" data-act="pin-block" data-id="${b.id}" title="${pinned.includes(b.id) ? 'Tirar do painel da direita' : 'Fixar no painel da direita (fica sempre à mão)'}" aria-label="Fixar bloco">📌</button></div>
     </div>
@@ -101,7 +101,7 @@ function group(g, ui, win = null) {
   const qs = qsortOf(ui, win ? 'w:' + win.id : g), active = sortBlocks(blocks.filter(stalledOff(ui)), qs); // v7.7: ordenado = em sequência nas 3 colunas (a coluna guardada vale sem ordenar)
   // v9.5 (pedido do dono): toda janela tem no topo a linha de escrever (pergunta o dia e o bloco), o ORGANIZAR e o 🔥 das urgentes
   const key = win ? 'w:' + win.id : g, urg = S.quests.tasks.filter((t) => t.block && R.isOpen(t) && t.st !== 'wait' && t.color === 'red' && R.catOf(S, t) === key).length;
-  return `<div class="group" data-group="${g}">
+  return `<div class="group" data-group="${g}" data-win="${key}">
     <div class="todas-top"><form class="addline todas-add" data-form="win-add" data-win="${key}" autocomplete="off"><input class="inp" name="text" placeholder="+ escrever (Enter: tarefa ou bloco novo, o app pergunta o dia e onde)" aria-label="Nova tarefa ou bloco nesta janela"></form><button class="btn sm" data-act="organizar" title="Dar prazo pro que está sem">🗂 ORGANIZAR</button><button class="btn sm ${urg ? 'urg-n' : ''}" data-act="urg-open" title="As URGENTES (vencem até amanhã)">🔥 ${urg}</button></div>
     ${active.length ? `<div class="mcols">${cols3(active.map((b) => blockCard(b, ui)), qs ? [] : active)}</div>` : '<div class="empty">nenhum bloco.</div>'}
     ${blocks.length > active.length ? `<button class="more" data-act="toggle-stalled">⬛ ${blocks.length - active.length} parado(s) · mostrar</button>` : ''}</div>`;
@@ -229,11 +229,13 @@ export function viewQuests(ui) {
       <div class="band qbar"><div class="seg">${QTABS.map(([k, t]) => `<button class="${tab === k ? 'on' : ''} ${k === 'listas' ? 'mae' : 'filha'} ${R.tabReviewed(S, k) ? 'allrev' : ''}" data-act="qtab" data-tab="${k}" ${k === 'listas' ? 'title="Janela mãe: tudo passa por aqui"' : 'draggable="true" title="arraste pra mudar a ordem"'}>${k === 'listas' ? '◆ ' : ''}${esc(t)}${n[k] != null ? ' · ' + n[k] : ''}</button>`).join('')}<button class="qadd" data-act="win-new" title="Criar uma janela nova">＋</button></div>
         <div class="qtools">${win ? `<button class="btn sm ghost" data-act="win-edit" data-id="${win.id}" title="Renomear ou apagar esta janela (${esc(win.name)})">✎</button>` : ''}<button class="btn sm ghost qcol" data-act="collapse-all" title="Recolhe ou abre tudo desta janela de uma vez">${allCol ? '▾ ABRIR' : '▸ RECOLHER'}</button>
         <details class="qmenu"><summary class="btn sm ghost qham" title="Abrir/recolher, ordenar, concluir e o que aparece">≡${qs ? `<small class="qh-m">${qs === 'urg' ? 'URGÊNCIA' : 'DATA'}</small>` : ''}${ui.showDone || ui.showStalled ? '<small class="qh-m">👁</small>' : ''}</summary><div class="qpop">
+            <small class="qpop-h">ORDENAR OS BLOCOS</small>
+            <button class="btn sm ${qs === 'urg' ? 'pri' : 'ghost'}" data-act="qsort" data-v="urg" title="Atrasado, URGENTE, ESQUENTANDO… primeiro. Toque de novo pra voltar à sua ordem">${qs === 'urg' ? '☑' : '☐'} POR URGÊNCIA</button>
             <small class="qpop-h">MOSTRAR</small>
             <button class="btn sm ${ui.showDone ? 'pri' : 'ghost'}" data-act="toggle-done">${ui.showDone ? '☑' : '☐'} FEITAS</button>
             <button class="btn sm ${ui.showStalled ? 'pri' : 'ghost'}" data-act="toggle-stalled" title="⬛ parados: blocos e tarefas com a cor PARADO">${ui.showStalled ? '☑' : '☐'} PARADOS</button>
             <small class="qpop-h">Dica: Shift + clique no ☐ conclui um intervalo inteiro${matchMedia('(pointer: coarse)').matches ? ' · no celular: segure numa tarefa e arraste o dedo' : ''}</small></div></details></div></div>
-      ${ui.mm ? mementoCard(ui) : `${chapterDue()}${mudanca}${tresCard()}${topStrip()}${body}`}
+      ${ui.mm ? mementoCard(ui) : `${chapterDue()}${mudanca}${topStrip()}${body}`}
     </div>${sidePanel(ui)}</div>`;
 }
 

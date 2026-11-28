@@ -10,7 +10,6 @@ import { sfx } from './audio.js';
 import { vitrine, fig, NOMES, quem, sorte } from './elenco.js';
 import { askDestino } from './organiza.js';
 import { setDue } from './remarcar.js';
-import { travouHtml } from './tres.js';
 import { tone } from './views/rotina.js';
 
 const ls = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* */ } } };
@@ -116,6 +115,20 @@ function onUp(e) {
 }
 
 // ───── 🌙 PLANEJAR AMANHÃ: o que vai pra amanhã, com horário, e o que sobrou de hoje ─────
+/** botõezinhos de marcador (🐸 SAPO, ⭐ CHATA…) que ligam/desligam na hora */
+export const markBtns = (t, ks = ['prio', 'star', 'home', 'money']) => `<span class="mk-btns">${ks.map((k) => `<button type="button" class="mk ${A.hasMark(t, k) ? 'on' : ''}" data-act="mark" data-id="${t.id}" data-k="${k}" title="${esc(A.MARKS[k])}">${A.MARKS[k].split(' ')[0]}</button>`).join('')}</span>`;
+// v9.7/v9.9 REVISÃO DA NOITE SEM CULPA: os SAPOS (🐸 prioridade) de hoje que não saíram ganham "o que travou?" com 4 saídas. Quem se perdoa procrastina menos (Wohl 2010).
+const PERDAO = ['Acontece, sô. Amanhã começa pelo passo pequeno.', 'Não saiu hoje? A gente costura amanhã. Sem drama.', 'Travar é normal. O importante é saber onde travou.'];
+function travouHtml() {
+  const td = today(), tm = addDays(td, 1), left = R.openTasks(S).filter((t) => t.prio && t.st !== 'wait' && t.due && t.due <= td);
+  if (!left.length) return '';
+  return `<div class="travou"><h3 class="px" style="font-size:8px;margin:0 0 6px">🐸 O QUE TRAVOU HOJE?</h3><p class="meta" style="margin:0 0 6px">${esc(PERDAO[new Date().getDate() % PERDAO.length])}</p>
+    ${left.map((t) => `<div class="li trav-row"><div class="lt">${esc(clean(t.text))}</div><span class="row trav-acts">
+      <button class="btn sm" data-act="trav-grande" data-id="${t.id}" title="Quebrar em passos pequenos">🧩 GRANDE DEMAIS</button>
+      <button class="btn sm" data-act="trav-tempo" data-id="${t.id}" data-d="${tm}" title="Vai pra amanhã">⏳ FALTOU TEMPO</button>
+      <button class="btn sm" data-act="trav-alguem" data-id="${t.id}" title="Vira AGUARDANDO">🙋 DEPENDO DE ALGUÉM</button>
+      <button class="btn sm ghost" data-act="trav-nao" data-id="${t.id}" title="Tudo bem: fica onde está">🤷 NÃO QUIS</button></span></div>`).join('')}</div>`;
+}
 function planHtml() {
   const td = today(), tm = addDays(td, 1), items = R.openTasks(S).filter((t) => t.due === tm && t.st !== 'wait' && !t.mother).sort((a, b) => (hourOf(a) || '99').localeCompare(hourOf(b) || '99'));
   const left = R.openTasks(S).filter((t) => t.due && t.due <= td && t.st !== 'wait' && !t.mother);
@@ -124,8 +137,8 @@ function planHtml() {
   const resumo = `<div class="noite-res"><b>✓ Hoje: ${feitas.length} feita${feitas.length === 1 ? '' : 's'} · +${xpHoje} XP</b>${feitas.length ? `<small>${feitas.slice(0, 5).map((t) => esc(clean(t.text))).join(' · ')}${feitas.length > 5 ? ' …' : ''}</small>` : '<small>Amanhã é outro jogo.</small>'}</div>`;
   return `<div class="planos">${resumo}${travouHtml()}${quem('rosemia', 1, sorte(['As cartas querem saber: o que vem amanhã? Dá um horário pro que importa.', 'Amanhã a gente vê? Não. Amanhã a gente PLANEJA hoje.']))}<h2>🌙 planejar amanhã <small class="meta">${DOW[weekday(tm)]} ${fmtDM(tm)}</small></h2>
     <p class="meta" style="margin:0 0 8px">Dê um horário pro que importa: amanhã cedo é só seguir o MEU DIA na AGENDA.</p>
-    ${((ids) => `<div class="tres-plan">🐸 <b>As 3 de amanhã:</b> ${ids.length ? ids.map((id, i) => `${i ? i + 1 : '🐸'} ${esc(clean(S.quests.tasks.find((x) => x.id === id).text).slice(0, 34))}`).join(' · ') : '<span class="meta">ainda não escolheu (o SAPO primeiro, com hora)</span>'} <button class="btn sm ${ids.length ? 'ghost' : 'pri'}" data-act="tres-edit" data-d="${tm}">${ids.length ? '✎' : 'ESCOLHER'}</button></div>`)(R.tresOf(S, tm))}
-    <div class="list">${items.map((t) => `<div class="li"><div class="lt">${esc(clean(t.text))}<small>${esc(R.COR_NAMES[R.corOf(S, t)] || '')}</small></div><input class="inp" type="time" value="${esc(hourOf(t))}" data-plan-at="${t.id}" aria-label="Horário" style="width:auto"></div>`).join('') || '<div class="empty">nada marcado pra amanhã ainda.</div>'}</div>
+    <p class="meta" style="margin:0 0 6px">🐸 Marque o <b>SAPO</b> (a que importa: o PRIMO cobra ela primeiro) e o que é ⭐ chata (vale x2).</p>
+    <div class="list">${items.map((t) => `<div class="li"><div class="lt">${esc(clean(t.text))}<small>${esc(R.COR_NAMES[R.corOf(S, t)] || '')}</small></div>${markBtns(t, ['prio', 'star'])}<input class="inp" type="time" value="${esc(hourOf(t))}" data-plan-at="${t.id}" aria-label="Horário" style="width:auto"></div>`).join('') || '<div class="empty">nada marcado pra amanhã ainda.</div>'}</div>
     <form class="addline" data-form="plan-add" autocomplete="off" style="margin-top:8px"><input class="inp" name="text" placeholder="+ mais uma pra amanhã (Enter)" aria-label="Nova tarefa pra amanhã"></form>
     ${left.length ? `<div class="row" style="justify-content:space-between;align-items:center;margin:14px 0 6px"><h3 class="px" style="font-size:8px;margin:0">SOBROU DE HOJE (${left.length})</h3><button class="btn sm" data-act="plan-push-all" title="Passa tudo que sobrou pra amanhã (o custo e o time box são perguntados, se precisar)">→ TUDO PRA AMANHÃ</button></div><div class="list">${left.map((t) => `<div class="li"><div class="lt">${esc(clean(t.text))}<small>${t.due < td ? 'atrasada' : 'hoje'}</small></div><span class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn sm good" data-act="plan-done" data-id="${t.id}" title="Já fiz">✓</button><button class="btn sm" data-act="plan-move" data-id="${t.id}" data-d="${tm}" title="Vai pra amanhã">→ AMANHÃ</button></span></div>`).join('')}</div>` : ''}
     <div class="actions"><button class="btn pri" data-act="plan-ok">BOA NOITE ▸</button></div></div>`;
@@ -164,7 +177,21 @@ const redraw = () => { const m = document.querySelector('.modal .planos'); if (!
 
 const coarse = () => { try { return matchMedia('(pointer: coarse)').matches; } catch { return false; } };
 export function extendPlanos(ACTIONS, FORMS) {
+  const backToPlan = () => setTimeout(openPlanTomorrow, 60);
   Object.assign(ACTIONS, {
+    // v9.9: marcador liga/desliga na hora, em qualquer lugar (o botão muda sozinho; a tela de trás se redesenha no commit)
+    'sapo-escolher': () => {
+      const td = today(), rank = (t) => (t.due && t.due < td ? 0 : t.due === td ? 1 : t.due === addDays(td, 1) ? 2 : t.due ? 3 : 4);
+      const list = R.openTasks(S).filter((t) => t.st !== 'wait' && t.color !== 'black').sort((a, b) => rank(a) - rank(b) || (a.due || '9').localeCompare(b.due || '9')).slice(0, 25);
+      openModal(`${quem('frog-lipe', 2, sorte(['Ribbit. Qual é o sapo de hoje? A que importa, não a que tá gritando.', 'Engole o sapo primeiro, sô. O resto desce fácil.']))}<h2>🐸 Qual é o SAPO?</h2><p class="meta" style="margin:0 0 8px">Marque 🐸 na que importa (pode ser mais de uma, mas poucas). ⭐ = chata, vale x2.</p>
+        <div class="list">${list.map((t) => `<div class="li"><div class="lt">${esc(clean(t.text))}<small>${t.due ? fmtDM(t.due) : 'sem prazo'}</small></div>${markBtns(t, ['prio', 'star'])}</div>`).join('') || '<div class="empty">nada em aberto. 👏</div>'}</div>
+        <div class="actions"><button class="btn pri" data-close>PRONTO</button></div>`, { wide: true });
+    },
+    mark: (d, e, el) => { A.toggleMark(d.id, d.k); sfx('tab'); el?.classList.toggle('on'); },
+    'trav-grande': (d) => ACTIONS['add-step']?.(d), // a janela de escrever o 1º passo ↳
+    'trav-tempo': async (d) => { closeModal(); await setDue(d.id, d.d, { reopen: backToPlan }); backToPlan(); },
+    'trav-alguem': (d) => { A.setStatus(d.id, 'wait'); sfx('tab'); toast('🙋 Foi pra AGUARDANDO. Quando a pessoa responder, ela volta.'); closeModal(); backToPlan(); },
+    'trav-nao': (d) => { sfx('tab'); toast('🤷 Tudo bem. Ela fica onde está, sem castigo.'); const r = document.querySelector(`.modal [data-act="trav-nao"][data-id="${d.id}"]`)?.closest('.trav-row'); if (r) r.style.display = 'none'; },
     // v9.0: na BAGUNÇA, tocar escolhe (e tocar de novo abre a tarefa); depois tocar numa hora encaixa
     // no PC (mouse) tocar ABRE (tarefa: a janela dela; ritual: vai até ele); no celular tocar escolhe e o 2º toque abre
     'dia-pick': (d) => {
@@ -173,7 +200,7 @@ export function extendPlanos(ACTIONS, FORMS) {
       picked = key; sfx('tab'); window.__render?.();
     },
     'dia-zone': (d) => { if (picked) dropZone(picked, d.z); else toast('Arraste uma tarefa até aqui (no celular: toque na tarefa e depois aqui).'); },
-    'hab-set': (d) => { A.setHabit(today(), d.h, d.v); sfx(d.v === 'x' ? 'habit' : 'tab'); const m = document.querySelector('.modal .hab-ask'); if (m) { m.outerHTML = habHtml(); window.__deaccent?.(document.querySelector('.modal')); } },
+    'hab-set': (d) => { A.setHabit(today(), d.h, d.v); sfx(d.v === 'x' ? 'habit' : 'tab'); const m = document.querySelector('.modal .hab-list'); if (m) { m.outerHTML = habList(); window.__deaccent?.(document.querySelector('.modal')); } },
     'hab-ask': () => openHabitsAsk(),
     'ag-dia': (d) => { const ui = window.__ui; if (!ui) return; ui.agDay = +d.dir === 0 ? 0 : (ui.agDay || 0) + +d.dir; window.__render?.(); },
     'plan-tomorrow': () => openPlanTomorrow(),
@@ -238,16 +265,15 @@ export function checkAvisos(now = new Date()) {
 // ───── v9.3 (pedido do dono): os HÁBITOS saíram do painel das MISSÕES; toda vez que o app abre, a EVE LÃ pergunta dos de hoje ─────
 // (só se ainda tiver hábito sem marcar, uma vez por abertura do app, depois da entrevista do dia se ela aparecer)
 let habAsked = false;
-function habHtml() {
+/** v9.9: a lista dos hábitos de hoje (✓ FIZ / – FOLGA). Mora num passo da ENTREVISTA DO DIA (a mesma janela do ☀ REVISAR do PRIMO) */
+export function habList() {
   const td = today(), m = S.marks.days[td]?.h || {}, hs = S.core.habits || [];
   const falta = hs.filter((h) => !m[h.id]).length;
-  return `<div class="hab-ask">${quem('eve-la', 2, falta ? 'Cuidar de si também é tarefa, sô. Como tão os hábitos de hoje?' : 'Tudo marcado. Agora uma água e segue o baile.')}
-    <div class="list">${hs.map((h) => { const v = m[h.id] || ''; return `<div class="li hab-row ${v === 'x' ? 'ok' : v === '-' ? 'folga' : ''}"><div class="lt">${h.icon} ${esc(h.name)}</div><span class="row" style="gap:6px;flex-wrap:nowrap">
+  return `<div class="hab-list"><div class="list">${hs.map((h) => { const v = m[h.id] || ''; return `<div class="li hab-row ${v === 'x' ? 'ok' : v === '-' ? 'folga' : ''}"><div class="lt">${h.icon} ${esc(h.name)}</div><span class="row" style="gap:6px;flex-wrap:nowrap">
       <button class="btn sm ${v === 'x' ? 'good' : ''}" data-act="hab-set" data-h="${h.id}" data-v="x">✓ FIZ</button><button class="btn sm ${v === '-' ? 'pri' : 'ghost'}" data-act="hab-set" data-h="${h.id}" data-v="-">– FOLGA</button>${v ? `<button class="btn sm ghost" data-act="hab-set" data-h="${h.id}" data-v="" title="Desmarcar">↺</button>` : ''}</span></div>`; }).join('')}</div>
-    <p class="meta" style="margin:8px 0 0">${falta ? `Faltam ${falta}. Dá pra marcar depois em SURVIVAL.` : '🌟 Todos marcados hoje.'}</p>
-    <div class="actions"><button class="btn" data-close>DEPOIS</button><button class="btn pri" data-close>PRONTO</button></div></div>`;
+    <p class="meta" style="margin:8px 0 0">${falta ? `Faltam ${falta}. Dá pra marcar depois na SOBREVIVÊNCIA.` : '🌟 Todos marcados hoje.'}</p></div>`;
 }
-export function openHabitsAsk() { openModal(habHtml(), { wide: true }); }
+export function openHabitsAsk() { window.__review?.('hab'); } // v9.9 (pedido do dono): a MESMA janela do ☀ REVISAR do PRIMO
 export function maybeHabitsAsk(tries = 0) {
   if (habAsked || !S.core?.habits?.length) return;
   const td = today(), m = S.marks.days[td]?.h || {};
