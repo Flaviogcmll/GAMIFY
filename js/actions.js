@@ -353,6 +353,10 @@ export function startup() {
     for (const t of S.quests.tasks) if (t.dueInh) { const b = t.block && q.blocks.find((x) => x.id === t.block); if (!b || t.due === b.due) { t.due = null; delete t.dueSet; } delete t.dueInh; changedQ = true; }
     S.core.migrations.push('v9-subdue-off'); changedCore = true;
   }
+  // v10.1 (pedido do dono: "sempre que fizer o que está nas anotações do APP, marca como concluído"): os pedidos do bloco APP
+  // que o Claude já fez ficam em APP_FEITOS, pelo código (id) de cada tarefa. Ao abrir, o app risca cada um UMA vez (sem XP:
+  // quem fez foi a IA). Se o dono desmarcar, ele não marca de novo (os ids já vistos ficam em core.appFeitos).
+  { const seen = (S.core.appFeitos ||= []); for (const id of APP_FEITOS) { if (seen.includes(id)) continue; seen.push(id); changedCore = true; const t = q.tasks.find((x) => x.id === id); if (t && R.isOpen(t)) { t.st = 'done'; t.doneAt = td; t.xp = 0; t.byClaude = true; changedQ = true; } } }
   if (ensureBosses()) changedQ = true; // v9.9: bloco nos BOSSES sem boss (mandado pra lá antes) ganha o boss dele
   if (!S.core.migrations.includes('v9-tres-off')) { delete S.core.tres; S.core.migrations.push('v9-tres-off'); changedCore = true; } // v9.9: o AS 3 DO DIA saiu (pedido do dono: usar os marcadores que já existem)
   // (v9-subdue, a herança do prazo do bloco, foi desfeita na v9.3: ver v9-subdue-off acima)
@@ -966,6 +970,15 @@ export function taskToBlock(id, dest = 'bd') {
     return { block: blk, msg: `Virou ${group === 'bs' ? 'um BOSS' : 'bloco'} em ${win ? win.name : group === 'bs' ? 'BOSSES' : R.GROUPS[group].short}.` };
   });
 }
+/** v10.1: pedidos do bloco APP já feitos pelo Claude (ids das tarefas; ver o startup). A cada rodada, acrescente os novos aqui. */
+const APP_FEITOS = [
+  // v10.0
+  'tmwzsha395lxc', 'tmwzshqws4wcg', 'tmwzsm1wzzqph', 'tmwzso35eo5h6', 'tmwzstl3svz38', 'tmx0ebyp854uh', 'tmx0ecncgwsjw', 'tmx0eec5wxgro', 'tmx0eg437uo4q',
+  'tmx0egz0qchh9', 'tmx0ehwiqitn7', 'tmx0eigsylirq', 'tmx0emhiopwix', 'tmx0en9vc0jvj', 'tmx0fd6pa7v8a', 'tmx0fejp9ghq4', 'tmx0fg3gal2h2',
+  // v10.1
+  'tmwzsve7zfee7', 'tmx0rnkyomovn', 'tmx0l22gq8647', 'tmx0l57yknpde', 'tmx0ldve0ph7d', 'tmx0len44scuf', 'tmx0lhjq0hib4', 'tmx0ljfxkolpv', 'tmx0lmvftujf1',
+  'tmx0loaod6if9', 'tmx0nc055wp48', 'tmx0nqmuqbdkv', 'tmx0nxnaofpg1', 'tmx0nymwunge3', 'tmx0rijhuvi6i',
+];
 /** v9.9: todo bloco na janela BOSSES tem o boss dele (antes, mandar um bloco pra lá não fazia ele aparecer). Roda dentro de um commit. */
 function ensureBosses() {
   let n = 0;
@@ -1149,9 +1162,9 @@ export function undoPurchase(id) {
     if (q) { v.q = v.q.filter((x) => x !== q); const b = v.b.find((x) => x.id === q.id); if (b && !b.lv) v.b = v.b.filter((x) => x !== b); }
   });
 }
-export function addGold({ date, from, amount }) {
+export function addGold({ date, from, amount, key }) {
   if (!(+amount > 0)) return;
-  commit(['loja'], () => { S.loja.goldIn.push({ id: uid('g'), date: date || today(), from: String(from || '').trim(), amount: +amount }); });
+  commit(['loja'], () => { S.loja.goldIn.push({ id: uid('g'), date: date || today(), from: String(from || '').trim(), amount: +amount, ...(key ? { key } : {}) }); }); // v10.1: key = bloco|mês (pagamento mensal: o lembrete da CARTEIRA daquele mês some)
 }
 export function deleteGold(id) {
   commit(['loja'], () => { S.loja.goldIn = S.loja.goldIn.filter((g) => g.id !== id); });

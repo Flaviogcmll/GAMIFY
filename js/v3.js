@@ -144,11 +144,22 @@ function targetAt(x, y, kind) {
     return { li: other, zone };
   }
   const art = el.closest('article.block'), col = el.closest('.group[data-group]');
+  // v7.0: a coluna (0 a 2) onde o bloco vai cair. No celular as colunas viram uma só: aí não muda a coluna, só a ordem
+  const mc = matchMedia('(max-width: 860px)').matches ? null : el.closest('.mcol[data-col]');
+  // v10.1 (pedido do dono): dá pra soltar ABAIXO de um bloco: a faixa de baixo do bloco (os últimos 30 px, ou a metade de baixo
+  // de um bloco recolhido) põe o bloco depois dele, não por cima
+  if (art && art.dataset.dropBlock !== drag.id) {
+    const r = art.getBoundingClientRect(), low = art.classList.contains('collapsed') ? y > r.top + r.height / 2 : y > r.bottom - 30;
+    if (low) { // o bloco de baixo (cada bloco mora numa caixinha .mitem): pula o próprio bloco que está sendo arrastado
+      const artOf = (n) => (n?.matches?.('article.block') ? n : n?.querySelector?.('article.block')) || null;
+      let nx = (art.closest('.mitem') || art).nextElementSibling;
+      while (nx && (!artOf(nx) || artOf(nx).dataset.dropBlock === drag.id)) nx = nx.nextElementSibling;
+      return col ? { li: artOf(nx), after: art, zone: col, mc } : null;
+    }
+  }
   // v9.0 (pedido do dono): soltar um bloco DENTRO de outro bloco aberto (na lista de tarefas dele) = vira subtarefa dele
   const body = el.closest('article.block:not(.collapsed) .bbody'), host = body?.closest('article.block[data-drop-block]');
   if (host && host.dataset.dropBlock !== drag.id && !host.classList.contains('boss-b')) return { merge: host, zone: col };
-  // v7.0: a coluna (0 a 2) onde o bloco vai cair. No celular as colunas viram uma só: aí não muda a coluna, só a ordem
-  const mc = matchMedia('(max-width: 860px)').matches ? null : el.closest('.mcol[data-col]');
   return col ? { li: art && art.dataset.dropBlock !== drag.id ? art : null, zone: col, mc } : null;
 }
 document.addEventListener('pointerdown', (e) => {
@@ -170,19 +181,19 @@ document.addEventListener('pointermove', (e) => {
     document.body.appendChild(drag.ghost); drag.src.classList.add('dragging');
   }
   drag.ghost.style.left = e.clientX - 20 + 'px'; drag.ghost.style.top = e.clientY - 14 + 'px';
-  document.querySelectorAll('.drop-before,.drop-zone,.drop-nest').forEach((x) => x.classList.remove('drop-before', 'drop-zone', 'drop-nest'));
+  document.querySelectorAll('.drop-before,.drop-zone,.drop-nest,.drop-after').forEach((x) => x.classList.remove('drop-before', 'drop-zone', 'drop-nest', 'drop-after'));
   drag.ghost.style.display = 'none';
   const t = targetAt(e.clientX, e.clientY, drag.kind);
   drag.ghost.style.display = '';
   drag.target = t;
-  if (t) (t.nest || t.merge || t.li || t.mc || t.zone).classList.add(t.nest || t.merge ? 'drop-nest' : t.li ? 'drop-before' : 'drop-zone');
+  if (t) { if (t.after) t.after.classList.add('drop-after'); else (t.nest || t.merge || t.li || t.mc || t.zone).classList.add(t.nest || t.merge ? 'drop-nest' : t.li ? 'drop-before' : 'drop-zone'); }
   if (e.clientY < 70) scrollBy(0, -12); else if (e.clientY > innerHeight - 70) scrollBy(0, 12);
 });
 document.addEventListener('pointerup', () => {
   if (!drag) return;
   const d = drag; drag = null;
   d.ghost?.remove(); d.src?.classList.remove('dragging');
-  document.querySelectorAll('.drop-before,.drop-zone,.drop-nest').forEach((x) => x.classList.remove('drop-before', 'drop-zone', 'drop-nest'));
+  document.querySelectorAll('.drop-before,.drop-zone,.drop-nest,.drop-after').forEach((x) => x.classList.remove('drop-before', 'drop-zone', 'drop-nest', 'drop-after'));
   if (!d.on || !d.target) return;
   const z = d.target.zone;
   // v9.4: TODAS: soltar num grupo = muda o ASSUNTO; trocar de coluna = AGORA vira ESQUENTANDO, DEPOIS vira ESTÁVEL; AGUARDANDO/PARADO = a cor deles

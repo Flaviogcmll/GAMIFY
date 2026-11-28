@@ -490,6 +490,8 @@ export function groupOf(s, t) {
 export function taskBaseXp(s, t) {
   const p = parse(t.text);
   if (p.xpFix != null) return p.xpFix;
+  // v10.1 (pedido do dono): bloco com XP FIXO ("APP (10XP)") vale só ele: as tarefas de dentro não dão XP (menos o boss, que usa as tarefas como vida)
+  if (t.block) { const b = findBlock(s, t.block); if (b && b.group !== 'bs' && parse(b.title).xpFix != null) return 0; }
   if (p.step) return C.XP_STEP;
   if (p.mini) return C.XP_MINI;
   if (p.home) return C.XP_HOME;

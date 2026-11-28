@@ -1,6 +1,6 @@
 // APP — liga tudo: abas (como na planilha), dia/noite, cliques, janelas, PRIMO, SOS, arrastar e soltar, sons.
 import { extendOrganiza, maybeOrganiza, moveOptions, destBlock } from './organiza.js';
-import { extendLobo, loboTermo } from './lobo.js';
+import { extendLobo } from './lobo.js';
 import { extendPagamentos, isMoney } from './pagamentos.js';
 import { vilaReage, vilaViva } from './vila.js';
 import { checkAvisos } from './planos.js';
@@ -38,7 +38,7 @@ import { extend4, afterRender4, captureFocus, checkMilestones, dropTaskSmart } f
 
 import { extendPrimo, openPrimoHub, primoFeedback, primoReact } from './primo.js';
 
-import { extendDrive, driveSoon } from './drive.js';
+import { extendDrive, driveSoon, drivePill } from './drive.js';
 import { extendImgs, imgSection, fillImgs } from './imgs.js';
 import { autoSnapshot, backupBanner, extendBackup, markBackup, restoreDocs } from './backup.js';
 import { tripBanner, tripCheck, extendTrip } from './trip.js';
@@ -111,7 +111,7 @@ function header() {
     <div class="hero"><div class="lv"><span>NV</span><b>${tot.level}</b></div>
       <div class="who"><div class="t">⚔ ${esc(tot.title)}</div>${segBar(tot.pct, 'sm')}<div class="x">${fmtN(tot.into)}/${fmtN(tot.need)} XP · CAP. ${esc(ch.n)} ${esc(ch.title)}</div></div></div>
     <div class="row" style="gap:6px;flex-wrap:nowrap">
-      <div class="wallet"><div class="coin"><small>XP</small><b class="acc">${fmtN(tot.balance)}</b></div><div class="coin"><small>FERRO</small><b class="gold">${fmtN(tot.gold)}</b></div><div class="coin" style="min-width:52px"><small>🎟</small><b class="tk">${tot.tickets}</b></div></div>
+      <div class="wallet">${drivePill()}<div class="coin"><small>XP</small><b class="acc">${fmtN(tot.balance)}</b></div><div class="coin"><small>FERRO</small><b class="gold">${fmtN(tot.gold)}</b></div><div class="coin" style="min-width:52px"><small>🎟</small><b class="tk">${tot.tickets}</b></div></div>
       <div class="tools">${using.map((p) => `<button class="timer-chip" data-act="goto-bag" title="${esc(p.item)}" data-countdown="${p.endsAt}">${mmss(p.endsAt - Date.now())}</button>`).join('')}
         <button class="btn sm" data-act="undo" data-undo-btn ${A.undoState().undo ? '' : 'disabled'} title="Desfazer (Ctrl+Z)" aria-label="Desfazer">↩</button><button class="btn sm" data-act="redo" data-redo-btn ${A.undoState().redo ? '' : 'disabled'} title="Refazer (Ctrl+Y)" aria-label="Refazer">↪</button>
         <button class="btn sm" data-act="find" title="Buscar e ir direto (Ctrl+K)" aria-label="Buscar">🔍</button>
@@ -135,7 +135,7 @@ function render() {
     else if (S._blowNew) toast(`💥 ${S._blowNew} prazo(s) estourou(aram). Faltam ${R.blowState(S).left} pro castigo.`);
     try { if (!localStorage.getItem('gamify-ui:tour')) setTimeout(tour, 600); else tripCheck(); } catch { /* */ }
   }
-  document.getElementById('top').innerHTML = header();
+  document.getElementById('top').innerHTML = header(); window.__drivePill?.();
   document.getElementById('tabs').innerHTML = tabOrder().map(([k, n, ic]) => `<a href="#${k}" draggable="true" data-tabk="${k}" class="${k === cur ? 'on' : ''}">${px(ic, 12)}${n}</a>`).join('');
   const bn = (k, n, ic, cls = '') => `<a href="#${k}" class="${cls} ${k === cur ? 'on' : ''}">${px(ic, 18)}${n}</a>`;
   document.getElementById('bottom').innerHTML = bn('quests', 'MISSÕES', 'quests') + bn('survival', 'SOBREVIVÊNCIA', 'survival') + bn('shop', 'FEIRA', 'shop', 'primo-btn') + bn('agenda', 'AGENDA', 'agenda') + `<a href="#" data-act="more">${px('regras', 18)}MAIS</a>`;
@@ -167,7 +167,7 @@ function render() {
   try { afterRenderBujo(); } catch (err) { console.error(err); }
   try { renderPostit(); } catch (err) { console.error(err); }
   try { pragaGuide(); } catch (err) { console.error(err); }
-  try { loboTermo(); } catch (err) { console.error(err); } // v9.2: o lobo-termômetro no cantinho // v6.7/v8: a mosca pousa onde a tarefa infectada está
+  document.getElementById('lobo-termo')?.remove(); // v10.1 (pedido do dono): o lobo-termômetro do canto saiu (o lugar é do post-it no celular)
   try { tabTools(cur); } catch (err) { console.error(err); }
   tips($main); // v6.1: os afterRender acima ainda acrescentam botões; eles também ganham legenda
   refocus();
@@ -1120,7 +1120,7 @@ let pendingRender = false;
 const typing = () => /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName) && $main.contains(document.activeElement);
 document.addEventListener('focusout', () => setTimeout(() => { if (pendingRender && !typing()) { pendingRender = false; render(); } }, 0));
 onChange((why) => {
-  if (why === 'status') { if (status.loaded && S.core) document.getElementById('top').innerHTML = header(); else render(); return; }
+  if (why === 'status') { if (status.loaded && S.core) { document.getElementById('top').innerHTML = header(); window.__drivePill?.(); } else render(); return; }
   if (why === 'remote' && started && typing()) { pendingRender = true; return; }
   render();
 });
