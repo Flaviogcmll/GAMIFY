@@ -1,6 +1,6 @@
 // v3 — companheiro, cenários por aba, fogueira de foco, arrastar com dedo/mouse, recolher e arquivo com filtro.
 import { vozDaAba } from './vozes.js';
-import { fig, ANFITRIAO } from './elenco.js';
+import { fig, ANFITRIAO, quem } from './elenco.js';
 import { historyCard, dropTaskSmart } from './v4.js';
 
 import { S } from './store.js';
@@ -137,7 +137,7 @@ function targetAt(x, y, kind) {
   if (!el) return null;
   if (kind === 'task') {
     const li = el.closest('li.task'), zone = el.closest('[data-drop-cat],[data-drop-area],[data-drop-block],[data-drop-cor]');
-    if (!zone) return null;
+    if (!zone) { const grp = el.closest('.group[data-win]'); return grp && !el.closest('article.block') ? { toBlock: grp, zone: grp } : null; } // v9.9: solta fora de qualquer bloco = vira bloco nesta janela
     const other = li && li.dataset.id !== drag.id ? li : null;
     // v9.0 (pedido do dono): soltar EM CIMA de outra subtarefa do bloco (metade de baixo da linha) = vira passo ↳ dela
     if (other && zone.dataset.dropBlock && !other.classList.contains('step')) { const r = other.getBoundingClientRect(); if (y > r.top + r.height * 0.4) return { nest: other, zone }; }
@@ -193,6 +193,11 @@ document.addEventListener('pointerup', () => {
       else A.setCor(t.id, z.dataset.dropCor);
       sfx('drop'); return;
     }
+  }
+  if (d.target.toBlock) {
+    const t = S.quests.tasks.find((x) => x.id === d.id), key = d.target.toBlock.dataset.win;
+    ask('Virar um bloco?', `"${String(t?.text || '').replace(/\s*\(\d+\s*XP\)/i, '')}" vira um BLOCO nesta janela (os passos ↳ dela viram as tarefas). Dá pra desfazer no ↩.`, 'VIRAR BLOCO', false, quem('boi-nilton', 2, 'Tarefa que cresceu vira obra, sô.')).then((ok) => { if (!ok) return; const r = A.taskToBlock(d.id, key); if (r?.error) toast(esc(r.error), 'bad'); else { sfx('upgrade'); toast(esc(r.msg), 'good'); } });
+    return;
   }
   if (d.target.nest) { const r = A.nestTask(d.id, d.target.nest.dataset.id); if (r?.error) toast(esc(r.error), 'bad'); sfx('drop'); return; }
   if (d.target.merge) {

@@ -248,6 +248,7 @@ function neuroCard() {
     <div class="neurogrid">
       ${ck('clock', '🕰 Relógio do corpo', 'No QUESTS, um cartão diz a fase do seu dia (despertar, pico de foco, vale da tarde, segundo pico, desacelerar) e o que fazer nela; no pico, sugere a tarefa mais pesada. Mostra a próxima refeição (comer sempre no mesmo horário acerta o relógio do corpo) e até quando vale o café.')}
       ${ck('curfew', '🌙 Sono inegociável', '1 hora antes de dormir, o QUESTS troca as listas pelo fechamento do dia: o que você fez, o que fica pra amanhã e os hábitos. Dá pra abrir as listas por 15 min se precisar.')}
+      ${ck('vila', '🏡 A vila reage', 'Os moradores do BARRANCO BAIXO comentam o que você faz (o FROG comemora o SAPO, a EVE LÃ o dinheiro…) e, de vez em quando, contam como a vila está. Tocar no balão = ouvir a voz.')}
       ${ck('calm', '🎯 Dopamina sob controle', 'Tarefa fácil ganha só o "tic". Número voando e fogos ficam pro que custou (⭐, ⚔, 20 XP ou mais, bloco, boss): o cérebro aprende a gostar do difícil. Na ALQUIMISTA, item comprado 4 vezes em 7 dias avisa pra variar (a mesma recompensa repetida perde o efeito).')}
       ${ck('ladder', `🪜 Escada do esforço${ladder.length ? ' · degrau ' + ladder.length : ''}`, `7 dias seguidos batendo a meta → ela sobe 5% (até ${R.LADDER_MAX} degraus). Errar não desce o degrau. Meta de hoje: ${R.dailyGoal(S).goal} XP.`)}
     </div>

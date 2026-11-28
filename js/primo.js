@@ -231,13 +231,19 @@ export function heroStage(c, pet, mk) {
 }
 const moodLine = (mk, m, name) => `<span title="${esc(m.tip)}">${m.ico} ${esc(name)} está <b>${m.label}</b><span class="msay">: ${esc(MOOD_SAY[mk]?.() || '')}</span></span>`;
 /** v9.0: as dicas do relógio do corpo (neurociência) viram fala do PRIMO, em cima dele (antes ficavam no FOCO AGORA) */
+/** v9.9: o PRIMO cobra o SAPO (🐸 prioridade) do dia primeiro: a que vence hoje ou antes, senão a mais antiga sem prazo */
+function sapoLine() {
+  const td = today(), s = R.openTasks(S).filter((t) => t.prio && t.st !== 'wait' && t.color !== 'black').sort((a, b) => (a.due || '9').localeCompare(b.due || '9'))[0];
+  if (!s) return `<div class="psapo vazio" data-act="sapo-escolher" title="Marque uma tarefa como 🐸 SAPO (a que importa)">🐸 Sem SAPO hoje. Qual é a que importa? <u>marcar</u></div>`;
+  return `<div class="psapo" data-act="edit-task" data-id="${s.id}" title="Seu SAPO: engole primeiro, o resto desce fácil">🐸 <b>SAPO:</b> ${esc(String(s.text).replace(/\s*\(\d+\s*XP\)/i, '').replace(/^\s*(↳|>)\s*/, '').slice(0, 60))}${s.due && s.due < td ? ' <small>atrasado</small>' : ''}</div>`;
+}
 function primoTip() {
-  if (!R.neuroOn(S, 'clock')) return '';
+  if (!R.neuroOn(S, 'clock')) return sapoLine();
   const c = R.bodyClock(S);
   const h = (m) => (m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? String(m % 60).padStart(2, '0') : ''}` : `${m} min`);
   const meta = [c.key === 'sono' ? `acordar ${c.wake}` : `dormir ${c.bed} (faltam ${h(c.toBed)})`, c.meal ? `comer ${c.meal.at}${c.meal.in ? ` (em ${h(c.meal.in)})` : ' (agora)'}` : '', ['despertar', 'foco', 'vale'].includes(c.key) ? `café até ${c.coffeeUntil}` : '', ['vale', 'pico2'].includes(c.key) ? `treino até ${c.trainUntil}` : ''].filter(Boolean).join(' · ');
   const curto = c.tip.split(/(?<=[.!?])\s/)[0];
-  return `<div class="ptip" data-phase="${c.key}" title="Relógio do corpo (PERKS → 🧠): ${esc(c.tip)}"><b>${c.icon} ${esc(c.name)}</b> ${esc(curto)}<small>${esc(meta)}</small></div>`;
+  return sapoLine() + `<div class="ptip" data-phase="${c.key}" title="Relógio do corpo (PERKS → 🧠): ${esc(c.tip)}"><b>${c.icon} ${esc(c.name)}</b> ${esc(curto)}<small>${esc(meta)}</small></div>`;
 }
 export function primoMood() {
   const g = R.dailyGoal(S), st = R.dayStatus(S, today());

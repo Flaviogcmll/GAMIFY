@@ -125,8 +125,8 @@ export function dueForList(k, td = today(), cur = null) {
 }
 /** quem/o quê está segurando a tarefa, pra mostrar na tela */
 export function waitingOn(s, t) {
-  const dep = t.dep ? allTasks(s).find((x) => x.id === t.dep) : null;
-  return { who: t.who || '', dep, label: [t.who, dep && '🔗 ' + dep.text.replace(/\s*\(\d+\s*XP\)/i, '')].filter(Boolean).join(' · ') };
+  const dep = t.dep ? allTasks(s).find((x) => x.id === t.dep) : null, depB = t.dep && !dep ? findBlock(s, t.dep) : null; // v9.9: pode depender de um BLOCO inteiro
+  return { who: t.who || '', dep: dep || depB, label: [t.who, dep && '🔗 ' + dep.text.replace(/\s*\(\d+\s*XP\)/i, ''), depB && '🔗 ▣ ' + depB.title].filter(Boolean).join(' · ') };
 }
 /** todas as pessoas já usadas em "aguardando quem" */
 export const people = (s) => [...new Set(allTasks(s).map((t) => t.who).filter(Boolean))].sort();
@@ -496,9 +496,6 @@ export function taskBaseXp(s, t) {
   return t.area === 'block' ? C.XP_SUB : C.XP_LIST;
 }
 /** XP que a tarefa dá se for concluída no dia `d` (com explicação). */
-/** v9.7 AS 3 DO DIA (tres.js): os ids escolhidos pra um dia (o 1º é o SAPO) e o bônus de cada posição */
-export const TRES_MULT = [1.5, 1.25, 1.25];
-export const tresOf = (s, d = today()) => (s.core?.tres?.[d] || []).filter((id) => (s.quests?.tasks || []).some((t) => t.id === id));
 export function taskXp(s, t, d = today()) {
   const p = parse(t.text), g = groupOf(s, t), ev = eventOfDay(s, d);
   const base = taskBaseXp(s, t);
@@ -522,7 +519,6 @@ export function taskXp(s, t, d = today()) {
   }
   if (p.mini && ev?.type === 'mini') { m *= 2; parts.push('⚔ x2'); }
   if ((s.core?.weekly?.[weekStart(d)] || []).includes(t.id)) { m *= 1.5; parts.push('📌 missão da semana x1,5'); }
-  { const ti = (s.core?.tres?.[d] || []).indexOf(t.id); if (ti >= 0) { const k = TRES_MULT[ti] || 1.25; m *= k; parts.push(ti === 0 ? '🐸 SAPO do dia x1,5' : '⭐ uma das 3 do dia x1,25'); } }
   if (d === today()) { const pg = praga(s, d); if (pg.mult < 1 && !pg.list.some((x) => x.id === t.id)) { m *= pg.mult; parts.push(`🐛 TREM TRAPAIADO −${Math.round((1 - pg.mult) * 100)}%`); } }
   const tm = dayStatus(s, d).taskMult;
   if (tm !== 1) { m *= tm; parts.push(`${tm > 1 ? '✨' : '⚠'} status ${tm > 1 ? '+' : ''}${Math.round((tm - 1) * 100)}%`); }
@@ -946,15 +942,16 @@ export function ritualStatus(r, td = today()) {
   const plan = ritualPlan(r), next = plan || ritualNext(r, td);
   if (!next) return { next: null, left: null, label: 'SEM FREQUÊNCIA', tone: 'muted' };
   const left = diffDays(td, next);
-  if (plan && left > 0) return { next, left, plan, label: left === 1 ? '📅 AMANHÃ' : `📅 EM ${left}d`, tone: 'good' };
-  if (left < 0) return { next, left, label: `⚠ ATRASADO ${-left}d`, tone: 'bad' };
-  if (left === 0) return { next, left, label: 'HOJE', tone: 'warn' };
-  if (left <= 2) return { next, left, label: `⏳ EM ${left}d`, tone: 'warn' };
-  return { next, left, label: '✔ EM DIA', tone: 'good' };
+  // v9.9 (pedido do dono: "um padrão só"): ATRASADO Nd · HOJE · AMANHÃ · EM Nd, igual pra todo ritual (📅 = dia marcado por você)
+  const when = left === 0 ? 'HOJE' : left === 1 ? 'AMANHÃ' : `EM ${left}d`;
+  if (left < 0) return { next, left, plan, label: `⚠ ATRASADO ${-left}d`, tone: 'bad' };
+  if (plan && left > 0) return { next, left, plan, label: `📅 ${when}`, tone: 'good' };
+  return { next, left, plan, label: when, tone: left <= 1 ? 'warn' : left <= 2 ? 'warn' : 'good' };
 }
-/** bloco marcado como REVISADO nas últimas 24 h */
-export const reviewed = (b, now = Date.now()) => !!b?.rev && now - b.rev < 864e5;
-/** lista do QUESTS marcada como revisada nas últimas 24 h (core.rev = { hoje: hora, amanha: hora… }) */
+/** v9.9 (pedido do dono): o selo 👁 REVISADO vale 2 dias (era 24 h) */
+export const REV_MS = 2 * 864e5;
+export const reviewed = (b, now = Date.now()) => !!b?.rev && now - b.rev < REV_MS;
+/** lista do QUESTS marcada como revisada nos últimos 2 dias (core.rev = { hoje: hora, amanha: hora… }) */
 export const listReviewed = (s, k, now = Date.now()) => reviewed({ rev: s.core?.rev?.[k] }, now);
 /** os blocos de uma aba do QUESTS: 'bd', 'tr', 'cap', 'gs' (sem os guardados em janelas do dono) ou 'w:<id>' (janela do dono) */
 export const tabBlocks = (s, k) => { const ws = new Set(windows(s).map((w) => w.id)); return (s.quests?.blocks || []).filter((b) => (k.startsWith('w:') ? b.win === k.slice(2) : b.group === k && !ws.has(b.win))); };

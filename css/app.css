@@ -2323,34 +2323,6 @@ aside.postit .tasks { flex: 1 1 auto; min-height: 0; }
 @media (prefers-reduced-motion: reduce) { #main[data-route="shop"] .vitrine::after, #main[data-route="shop"] .card::after { animation: none; display: none; } }
 #main[data-route="shop"] .tiles .stat b, #main[data-route="shop"] .tiles .stat strong { color: var(--c-premio); }
 
-/* v9.7 AS 3 DO DIA (tres.js): cartão no topo das MISSÕES + janela de escolher. Verde-musgo do SAPO = --c-ok (feito/bom). */
-.tres-card { margin: 0 0 12px; border-color: color-mix(in srgb, var(--c-ok) 55%, var(--line)); }
-.tres-card header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.tres-card header h2 { margin: 0; }
-.tres-card header .meta { flex: 1; }
-.tres-card.vazio { display: flex; align-items: center; gap: 12px; padding: 10px 14px; flex-wrap: wrap; }
-.tres-card.vazio .tres-txt { flex: 1 1 240px; display: flex; flex-direction: column; gap: 3px; font-size: 13px; }
-img.tres-art { height: 70px; width: auto; image-rendering: pixelated; } /* metade exata (140 → 70): pixel continua quadrado */
-.tres-l { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
-.tres-i { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 2px solid var(--line); border-radius: var(--rad, 12px); background: var(--panel); }
-.tres-i.sapo { border-color: color-mix(in srgb, var(--c-ok) 70%, var(--line)); background: color-mix(in srgb, var(--c-ok) 10%, var(--panel)); }
-.tres-i.done { opacity: .6; }
-.tres-i.done .tres-t { text-decoration: line-through; }
-.tres-chk { flex: 0 0 26px; width: 26px; height: 26px; border: 2px solid var(--ink); border-radius: 8px; background: var(--panel); font-weight: 700; cursor: var(--cur-hand, pointer); }
-.tres-i.done .tres-chk { background: var(--c-ok); color: #fffaf1; border-color: var(--c-ok); }
-.tres-t { flex: 1; min-width: 0; cursor: var(--cur-hand, pointer); font-size: 14px; overflow-wrap: anywhere; }
-.tres-t small { display: block; color: var(--muted); font-size: 11px; }
-.tres-x { font: 700 11px/1 'Roboto Mono', monospace; color: var(--c-premio); white-space: nowrap; }
-.tres-card.ok { box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-ok) 45%, transparent), var(--shadow, none); }
-.tres-plan { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 8px 10px; margin: 0 0 10px; border: 2px dashed color-mix(in srgb, var(--c-ok) 60%, var(--line)); border-radius: var(--rad, 12px); font-size: 13px; }
-.tres-sel { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 8px; }
-.tres-slot { flex: 1 1 140px; min-width: 0; padding: 6px 8px; border: 2px dashed var(--line); border-radius: 10px; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tres-slot.on { border-style: solid; border-color: var(--c-ok); }
-.tres-cands { max-height: 46vh; overflow: auto; }
-.tres-c { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; cursor: var(--cur-hand, pointer); }
-.tres-c.on { outline: 2px solid var(--c-ok); outline-offset: -2px; background: color-mix(in srgb, var(--c-ok) 12%, var(--panel)); }
-.tres-n { flex: 0 0 24px; text-align: center; font-weight: 700; }
-.tres-c .lt { flex: 1; min-width: 0; }
 /* v9.7: em qualquer lista (também MISSÕES DA SEMANA), quando não cabe, os chips (prazo, horário, moscas) descem pra linha de baixo
    em vez de espremer o texto até uma letra por linha */
 li.task { grid-template-columns: auto minmax(110px, 1fr) minmax(0, auto); }
@@ -2367,3 +2339,50 @@ li.task > .info { min-width: 0; flex-wrap: wrap; justify-content: flex-end; }
 @keyframes bv-pula { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
 .bv-bonus { text-align: center; padding: 8px; border: 2px dashed var(--c-premio); border-radius: var(--rad, 12px); }
 @media (prefers-reduced-motion: reduce) { .bv-festa img.bv-f { animation: none; } }
+/* v9.9 marcadores na hora (🐸 SAPO, ⭐ CHATA, 🛡 CASA, $ DINHEIRO): apagados até ligar */
+.mk-btns { display: inline-flex; gap: 4px; flex: none; }
+.mk { width: 30px; height: 30px; border: 2px solid var(--line); border-radius: 8px; background: var(--panel); font-size: 15px; line-height: 1; opacity: .45; filter: grayscale(1); cursor: var(--cur-hand, pointer); }
+.mk.on { opacity: 1; filter: none; border-color: var(--c-ok); background: color-mix(in srgb, var(--c-ok) 14%, var(--panel)); }
+.psapo { margin: 0 0 6px; padding: 6px 10px; border: 2px solid color-mix(in srgb, var(--c-ok) 55%, var(--line)); border-radius: var(--rad, 12px); background: color-mix(in srgb, var(--c-ok) 10%, var(--panel)); font-size: 13px; cursor: var(--cur-hand, pointer); overflow-wrap: anywhere; }
+.psapo.vazio { border-style: dashed; opacity: .85; }
+.psapo small { color: var(--c-urg); font-weight: 700; }
+.dep-box { flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+
+/* v9.9 (pedido do dono): a ABA da FEIRA (lá em cima, junto de AGENDA e CONQUISTAS, e o botão do meio da barra de baixo) em DOURADO,
+   reluzindo de vez em quando, com mais destaque. Dourado = --c-premio (prêmio). */
+#tabs a[data-tabk="shop"], #bottom a[href="#shop"] {
+  position: relative; overflow: hidden; isolation: isolate;
+  background: linear-gradient(160deg, #ffe7a3, #e9b65a 55%, #c98a2c) !important; color: #3a2410 !important;
+  border-color: #a8742a !important; box-shadow: 0 0 0 1px color-mix(in srgb, var(--c-premio) 60%, transparent), 0 0 12px color-mix(in srgb, #ffd36b 55%, transparent);
+  text-shadow: 0 1px 0 #fff3cf; font-weight: 800;
+}
+#tabs a[data-tabk="shop"].on, #tabs a[data-tabk="shop"][aria-current], #bottom a[href="#shop"].on { box-shadow: 0 0 0 2px #a8742a, 0 0 18px color-mix(in srgb, #ffd36b 75%, transparent); }
+#tabs a[data-tabk="shop"]::after, #bottom a[href="#shop"]::after {
+  content: ''; position: absolute; top: -30%; bottom: -30%; left: -70%; width: 45%; pointer-events: none; z-index: -1; /* atrás das letras */
+  background: linear-gradient(100deg, transparent, rgba(255, 250, 225, .85), transparent); transform: skewX(-20deg);
+  animation: feira-aba 6s ease-in-out infinite;
+}
+@keyframes feira-aba { 0%, 82% { left: -70%; } 100% { left: 140%; } }
+@media (prefers-reduced-motion: reduce) { #tabs a[data-tabk="shop"]::after, #bottom a[href="#shop"]::after { animation: none; display: none; } }
+/* v9.9 PAGAMENTOS (pagamentos.js): dinheiro = --c-premio (prêmio/ouro) */
+.chip.pay { border: 2px solid color-mix(in srgb, var(--c-premio) 70%, var(--line)); background: color-mix(in srgb, var(--c-premio) 14%, var(--panel)); color: var(--ink); font-weight: 700; cursor: var(--cur-hand, pointer); }
+.chip.pay.ok { border-color: var(--c-ok); background: color-mix(in srgb, var(--c-ok) 16%, var(--panel)); }
+.pay-sum { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 6px 0; }
+.pay-sum span { display: flex; flex-direction: column; align-items: center; padding: 8px; border: 2px solid var(--line); border-radius: var(--rad, 12px); }
+.pay-sum small { font-size: 10px; color: var(--muted); }
+.pay-sum b { font-size: 16px; }
+.pay-bar { height: 10px; border: 2px solid var(--line); border-radius: 99px; overflow: hidden; margin: 4px 0 8px; }
+.pay-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--c-premio), #ffd36b); }
+/* v9.9 (bug do dono: "post-it bugado"): no post-it, a linha não pode encolher além do texto (texto comprido ficava um por cima do outro) */
+aside.postit .tasks > li { flex-shrink: 0; height: auto; min-height: min-content; }
+/* v9.9 A VILA REAGE (vila.js): um morador aparece num balão no canto e comenta o que você fez. Tocar = ouvir a voz */
+#vila-bark { position: fixed; left: 96px; bottom: 18px; z-index: 60; display: flex; align-items: flex-end; gap: 8px; max-width: min(420px, calc(100vw - 110px)); padding: 0; border: 0; background: none; text-align: left; cursor: var(--cur-hand, pointer); opacity: 0; transform: translateY(16px); pointer-events: none; transition: opacity .25s, transform .25s; }
+#vila-bark.on { opacity: 1; transform: none; pointer-events: auto; }
+#vila-bark img.vb-art { height: 70px; width: auto; image-rendering: pixelated; flex: none; }
+#vila-bark.on img.vb-art { animation: vb-hop .5s ease-out; }
+@keyframes vb-hop { 0% { transform: translateY(10px); } 60% { transform: translateY(-6px); } 100% { transform: none; } }
+#vila-bark .vb-say { position: relative; margin-bottom: 14px; padding: 8px 12px; border: 2px solid var(--plum, #2e2430); border-radius: 14px; background: var(--panel); color: var(--ink); font-size: 13px; line-height: 1.35; box-shadow: 3px 3px 0 var(--shadow); }
+#vila-bark .vb-say b { display: block; font-size: 10px; letter-spacing: .5px; color: var(--c-premio); }
+#vila-bark .vb-say::before { content: ''; position: absolute; left: -9px; bottom: 10px; border: 8px solid transparent; border-right-color: var(--plum, #2e2430); border-left: 0; }
+@media (max-width: 860px) { #vila-bark { left: 8px; bottom: calc(84px + env(safe-area-inset-bottom)); max-width: calc(100vw - 16px); } }
+@media (prefers-reduced-motion: reduce) { #vila-bark, #vila-bark.on img.vb-art { transition: none; animation: none; } }
