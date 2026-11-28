@@ -2403,30 +2403,6 @@ article.block.reviewed { outline: 3px solid var(--c-ok); outline-offset: 2px; } 
 .rv-dia { margin: 4px 0 8px; padding: 8px 12px; border-radius: var(--rad, 12px); font: 800 15px/1.2 var(--f-mono, monospace); letter-spacing: .5px; text-align: center; }
 .rv-dia.ontem { background: color-mix(in srgb, var(--c-espera) 18%, var(--panel)); border: 2px solid var(--c-espera); color: var(--ink); }
 .rv-dia.hoje { background: color-mix(in srgb, var(--c-premio) 20%, var(--panel)); border: 2px solid var(--c-premio); color: var(--ink); }
-/* v10 LINHA DO TEMPO por semana (agenda.js timelineCard) */
-.tlws { display: grid; gap: 8px; }
-.tlw { border: 2px solid var(--line); border-radius: var(--rad, 12px); padding: 8px 10px; background: var(--panel); }
-.tlw.cur { border-color: var(--c-premio); box-shadow: 0 0 0 1px color-mix(in srgb, var(--c-premio) 40%, transparent); }
-.tlw.late { border-color: var(--c-urg); margin-bottom: 8px; }
-.tlw-h { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.tlw-h > b { font: 800 12px/1.2 var(--f-mono, monospace); }
-.tlw-h > b small { font-weight: 600; color: var(--muted); }
-.tlw-bars { display: flex; gap: 3px; align-items: flex-end; height: 34px; margin-left: auto; }
-.tlb { width: 18px; height: 34px; padding: 0; border: 0; background: color-mix(in srgb, var(--line) 35%, transparent); border-radius: 4px; position: relative; display: flex; flex-direction: column; justify-content: flex-end; cursor: var(--cur-hand, pointer); }
-.tlb i { display: block; width: 100%; border-radius: 4px 4px 0 0; background: var(--c-ok); min-height: 0; }
-.tlb i.l4 { background: var(--c-atencao); } .tlb i.l6 { background: var(--c-urg); }
-.tlb small { position: absolute; bottom: -13px; left: 0; right: 0; font-size: 8px; text-align: center; color: var(--muted); }
-.tlb.today { outline: 2px solid var(--c-premio); outline-offset: 1px; } .tlb.off { background: color-mix(in srgb, var(--c-calma) 18%, transparent); } .tlb.past { opacity: .45; }
-.tlw-items { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 14px; }
-.tlc { display: inline-flex; gap: 5px; align-items: center; max-width: 100%; padding: 4px 8px; border: 2px solid var(--line); border-radius: 999px; background: var(--panel); font-size: 12px; text-align: left; cursor: var(--cur-hand, pointer); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tlc b { font: 700 10px/1 var(--f-mono, monospace); color: var(--muted); }
-.tlc.red, .tlc.late { border-color: var(--c-urg); background: color-mix(in srgb, var(--c-urg) 10%, var(--panel)); }
-.tlc.yellow { border-color: var(--c-atencao); background: color-mix(in srgb, var(--c-atencao) 12%, var(--panel)); }
-.tlc.green { border-color: var(--c-ok); }
-.tlc.rit { border-style: dashed; }
-.cal-part.c12, .tlws, .tlw, .tlw-items { min-width: 0; max-width: 100%; }
-.tlc em { font-style: normal; font-weight: 800; color: var(--c-calma); }
-@media (max-width: 860px) { .tlw-bars { margin-left: 0; width: 100%; justify-content: space-between; } .tlb { flex: 1; } .tlc { max-width: 100%; } }
 /* v10 MEU DIA: faixa de resumo (feitas, próxima, SAPO, compartilhar) e os marcadores no fim do nome */
 .dia-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 6px 0 10px; padding: 8px 10px; border: 2px solid var(--line); border-radius: var(--rad, 12px); background: color-mix(in srgb, var(--c-premio) 8%, var(--panel)); font-size: 13px; }
 .dia-prog { display: flex; align-items: center; gap: 6px; }
@@ -2436,11 +2412,65 @@ article.block.reviewed { outline: 3px solid var(--c-ok); outline-offset: 2px; } 
 .dia-sapo { color: var(--c-ok); font-weight: 700; }
 .dia-top .btn { margin-left: auto; }
 .dia-mk { font-style: normal; margin-left: 4px; letter-spacing: 1px; }
-/* v10 selo do Drive: fixo no canto, nunca some (verde = em dia; dourado piscando = precisa de um toque) */
-#drive-pill { position: fixed; right: 12px; top: calc(var(--stick, 0px) + 8px); z-index: 55; padding: 4px 10px; border: 2px solid var(--line); border-radius: 999px; background: var(--panel); color: var(--ink); font: 700 11px/1.2 var(--f-mono, monospace); box-shadow: 2px 2px 0 var(--shadow); cursor: var(--cur-hand, pointer); opacity: .92; }
-#drive-pill[data-st="ok"] { border-color: var(--c-ok); color: var(--c-ok); }
-#drive-pill[data-st="sync"] { border-color: var(--c-calma); }
+/* v10.1 selo do Drive: uma "moedinha" no topo, junto do XP (no PC à esquerda dele). Verde = em dia; dourado piscando = precisa de um toque */
+#drive-pill { cursor: var(--cur-hand, pointer); min-width: 56px; }
+#drive-pill b { font-size: 12px; }
+#drive-pill[data-st="ok"] b { color: var(--c-ok); }
 #drive-pill[data-st="login"], #drive-pill[data-st="err"] { border-color: var(--c-premio); background: color-mix(in srgb, var(--c-premio) 18%, var(--panel)); animation: dp-pisca 1.6s ease-in-out infinite; }
 @keyframes dp-pisca { 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--c-premio) 35%, transparent); } }
-@media (max-width: 860px) { #drive-pill { top: auto; bottom: calc(80px + env(safe-area-inset-bottom)); right: 8px; } }
 @media (prefers-reduced-motion: reduce) { #drive-pill { animation: none !important; } }
+
+/* v10.1 (celular): o post-it recolhido mora no canto ESQUERDO de baixo (o lobo-termômetro saiu); aberto ocupa a largura */
+@media (max-width: 860px) { #postit.min { left: 10px; right: auto; bottom: calc(80px + env(safe-area-inset-bottom)); max-width: 62vw; } #postit.min .addline { display: none; } }
+/* v10.1 (pedido do dono: "as notificações do celular ficam na frente das coisas"): no celular o aviso vira uma faixinha fina
+   no TOPO (onde não tem botão), no máximo 2 linhas, meio transparente; tocar some na hora */
+@media (max-width: 860px) {
+  .toasts { top: calc(env(safe-area-inset-top) + 6px) !important; bottom: auto !important; left: 8px; right: 8px; align-items: center; }
+  .toast { max-width: 100% !important; padding: 6px 10px !important; font-size: 12px !important; line-height: 1.3; border-width: 1px; border-left-width: 4px; border-radius: 999px; box-shadow: 0 4px 14px var(--shadow) !important; opacity: .94; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; animation: toast-desce .2s ease-out; }
+  .toast .btn { display: none; } /* botão dentro do aviso não cabe na faixinha: a ação fica na tela */
+}
+@keyframes toast-desce { from { transform: translateY(-120%); opacity: 0; } }
+/* v10.1 celular: ⠿ (arrastar) e ⇅ (ordenar) trocam de lugar no cabeçalho do bloco; ORGANIZAR e 🔥 nunca espremem (era uma letra por linha) */
+@media (max-width: 860px) {
+  .block > .bh .bbtns > .done-all { order: 1; } .block > .bh .bbtns > [data-act="sort"] { order: 2; } .block > .bh .bbtns > .handle { order: 3; } .block > .bh .bbtns > [data-act="pin-block"] { order: 4; }
+  .todas-top { flex-wrap: wrap; } .todas-top .todas-add { flex: 1 1 100%; min-width: 0; } .todas-top > .btn { flex: 1 1 auto; white-space: nowrap; }
+}
+/* v10.1 (pedido do dono: "MEU DIA no celular mal distribuído, dá pra usar metade da tela"): no celular cada hora é UMA linha
+   [hora | rotina (estreita)] e as tarefas ocupam a LARGURA TODA logo abaixo, uma por linha */
+@media (max-width: 600px) {
+  .dia-grid.rot-look .dia-h { grid-template-columns: 38px 1fr; row-gap: 4px; }
+  .dia-grid.rot-look .dia-h .dia-rot { max-width: 100%; justify-self: start; }
+  .dia-grid.rot-look .dia-h .dia-ts { grid-column: 1 / -1; padding-left: 38px; }
+  .dia-grid.rot-look .dia-h .dia-ts .dia-t { flex: 1 1 100%; max-width: 100%; text-align: left; }
+  .dia-grid.rot-look .dia-h:not(.has) { min-height: 30px; }
+}
+article.block.drop-after { box-shadow: 0 5px 0 var(--accent) !important; } /* v10.1: o bloco vai cair ABAIXO deste */
+.pay-mensal { margin: 4px 0; padding: 6px 10px; border-radius: var(--rad, 12px); background: color-mix(in srgb, var(--c-calma) 12%, var(--panel)); font-size: 13px; }
+.pay-meses { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; }
+.pay-meses span { display: flex; flex-direction: column; align-items: center; padding: 6px 2px; border: 2px solid var(--line); border-radius: 10px; font-size: 11px; }
+.pay-meses span.ok { border-color: var(--c-ok); background: color-mix(in srgb, var(--c-ok) 12%, var(--panel)); }
+.pay-meses span.meio { border-color: var(--c-atencao); }
+.pay-meses span.falta { border-color: var(--c-urg); opacity: .8; }
+.pay-meses small { color: var(--muted); }
+@media (max-width: 600px) { .pay-meses { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+/* v10.1 LINHA DO TEMPO (tabela de volta, mais legível) */
+.tl2 th, .tl2 td { min-width: 26px; height: 28px; }
+.tl2 td.name, .tl2 th.name { position: sticky; left: 0; z-index: 2; min-width: 170px; max-width: 200px; background: var(--panel); text-align: left; padding: 2px 8px; box-shadow: 2px 0 0 var(--line); }
+.tl2 td.name small { display: block; font-size: 9.5px; color: var(--muted); }
+.tl2 thead th { position: sticky; top: 0; z-index: 1; }
+.tl2 thead tr:nth-child(2) th { top: 22px; }
+.tl2 thead th.name { z-index: 3; }
+.tl2 .wk0 { border-left: 3px solid color-mix(in srgb, var(--ink) 45%, var(--line)) !important; }
+.tl2 td.today, .tl2 th.today { background: color-mix(in srgb, var(--c-premio) 22%, var(--panel)) !important; }
+.tl2 td.span.h-urg { background: color-mix(in srgb, var(--c-urg) 24%, var(--panel)); }
+.tl2 td.span.h-atencao { background: color-mix(in srgb, var(--c-atencao) 26%, var(--panel)); }
+.tl2 td.span.h-ok { background: color-mix(in srgb, var(--c-ok) 18%, var(--panel)); }
+.tl2 td b { font: 800 12px/1 var(--f-mono, monospace); }
+.tl2 td.end { font-size: 13px; color: var(--ink); box-shadow: inset -3px 0 0 var(--ink); }
+.tl2 tr.tl-sec td { background: var(--panel-2); font: 800 10px/1 var(--f-mono, monospace); letter-spacing: .5px; height: 22px; color: var(--muted); }
+.tl2 td.rit { background: color-mix(in srgb, var(--c-calma) 14%, var(--panel)); font-size: 12px; }
+.tl2 td.rit.late { background: color-mix(in srgb, var(--c-urg) 16%, var(--panel)); }
+.tl2 td.sapo { background: color-mix(in srgb, var(--c-ok) 22%, var(--panel)); }
+.tl2 tr:hover td:not(.name) { filter: brightness(.96); }
+.tl-leg { margin: 0 0 6px; }
+@media (max-width: 600px) { .tl2 td.name, .tl2 th.name { min-width: 104px; max-width: 110px; font-size: 10.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .tl2 th, .tl2 td { min-width: 24px; } }

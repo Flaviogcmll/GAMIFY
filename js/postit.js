@@ -23,10 +23,11 @@ function one(id, i) {
   const inp = el?.querySelector('input[name="text"]'), draft = inp?.value || '', focused = inp && document.activeElement === inp;
   if (!el) { el = document.createElement('aside'); el.className = 'postit'; el.dataset.id = id; el.setAttribute('aria-label', 'Post-it'); document.body.appendChild(el); }
   if (i === 0) el.id = 'postit'; else el.removeAttribute('id');
-  const min = (ls.get(MIN + ':' + id) ?? (i === 0 ? ls.get(MIN) : null)) === '1', items = S.quests.tasks.filter((t) => t.block === b.id && R.isOpen(t)).sort((x, y) => x.ord - y.ord);
+  // v10.1: no celular o post-it começa RECOLHIDO, no canto esquerdo de baixo (onde ficava o lobo); tocar abre
+  const mob = innerWidth <= 860, saved = ls.get(MIN + ':' + id) ?? (i === 0 ? ls.get(MIN) : null), min = (saved ?? (mob ? '1' : '0')) === '1', items = S.quests.tasks.filter((t) => t.block === b.id && R.isOpen(t)).sort((x, y) => x.ord - y.ord);
   el.classList.toggle('min', min);
   el.style.setProperty('--pi', i);
-  el.innerHTML = `<header class="pi-h" title="Arraste por aqui"><b>📌 ${esc(b.title)}</b><span class="meta">${items.length}</span>
+  el.innerHTML = `<header class="pi-h" title="Arraste por aqui"><b>📌 ${esc(b.title.replace(/\s*\(\d+\s*XP\)/i, ''))}</b><span class="meta">${items.length}</span>
       <button class="icon-btn" data-pi="min" aria-label="${min ? 'Abrir' : 'Recolher'} post-it" title="${min ? 'Abrir' : 'Recolher'}">${min ? '▴' : '▾'}</button><button class="icon-btn" data-act="pin-block" data-id="${b.id}" aria-label="Guardar post-it" title="Guardar (tirar da tela)">×</button></header>
     ${min ? '' : `<ul class="tasks">${items.map((t) => taskRow(t)).join('') || '<div class="empty">vazio: anote abaixo.</div>'}</ul>`}
     <form class="addline" data-form="add-task" data-block="${b.id}" autocomplete="off"><input class="inp" name="text" placeholder="+ anotar aqui (Enter)" aria-label="Anotar no post-it"></form>`; // v8.3: dá pra anotar mesmo recolhido
@@ -55,10 +56,12 @@ function fitPostit(el) {
 addEventListener('resize', () => document.querySelectorAll('aside.postit').forEach(fitPostit));
 // recolher e arrastar (cada post-it por si)
 document.addEventListener('click', (e) => {
-  const b = e.target.closest?.('aside.postit [data-pi="min"]');
+  const pi = e.target.closest?.('aside.postit');
+  if (!pi) return;
+  // a setinha abre/recolhe; recolhido, tocar em qualquer parte do cabeçalho também abre (no celular é o jeito mais fácil)
+  const b = e.target.closest('[data-pi="min"]') || (pi.classList.contains('min') && e.target.closest('.pi-h') && !e.target.closest('[data-act]') ? pi : null);
   if (!b) return;
-  const id = b.closest('aside.postit').dataset.id, k = MIN + ':' + id;
-  ls.set(k, (ls.get(k) ?? ls.get(MIN)) === '1' ? '0' : '1'); renderPostit();
+  ls.set(MIN + ':' + pi.dataset.id, pi.classList.contains('min') ? '0' : '1'); renderPostit();
 });
 document.addEventListener('pointerdown', (e) => {
   const h = e.target.closest?.('aside.postit .pi-h');

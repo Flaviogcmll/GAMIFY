@@ -75,14 +75,18 @@ async function upload(tk, fileId, body) {
 // v10 (pedido do dono: "o Drive tem que estar SEMPRE atualizado; o botão some rápido"): um SELO FIXO no canto mostra o estado
 // (em dia · sincronizando · toque pra reconectar) e o 1º TOQUE em qualquer lugar do app já reconecta e sincroniza sozinho.
 let state = 'idle';
+/** v10.1 (pedido do dono): o selo mora NO TOPO (no PC à esquerda do XP; no celular junto do XP/ferro/tickets), não fica mais grudado na tela */
+export function drivePill() {
+  if (ls.get('gamify-ui:gdrive') !== '1' || backendKind() !== 'local') return '';
+  return `<button type="button" id="drive-pill" class="coin dpill" data-act="drive-sync"></button>`;
+}
 function pill(st, extra = '') {
   state = st;
-  if (ls.get('gamify-ui:gdrive') !== '1' || backendKind() !== 'local') { document.getElementById('drive-pill')?.remove(); return; }
-  let el = document.getElementById('drive-pill');
-  if (!el) { el = document.createElement('button'); el.id = 'drive-pill'; el.type = 'button'; el.dataset.act = 'drive-sync'; document.body.appendChild(el); }
+  const el = document.getElementById('drive-pill');
+  if (!el) return; // o topo desenha o selo; aqui só atualiza
   const at = ls.get('gamify-ui:gsync-at'), hm = at ? new Date(+at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
   el.dataset.st = st;
-  el.innerHTML = st === 'sync' ? '☁ sincronizando…' : st === 'ok' ? `☁ em dia${hm ? ' ' + hm : ''}` : st === 'login' ? '☁ toque pra reconectar' : st === 'err' ? `☁ erro: toque pra tentar${extra ? '' : ''}` : `☁ ${hm ? 'última ' + hm : 'Drive'}`;
+  el.innerHTML = `<small>DRIVE</small><b>${st === 'sync' ? '⟳' : st === 'ok' ? '✓ ' + (hm || '') : st === 'login' ? '☁ TOQUE' : st === 'err' ? '⚠' : hm || '☁'}</b>`;
   el.title = st === 'login' ? 'O Google pede pra confirmar a cada 1 hora. Toque em QUALQUER lugar do app (ou aqui) que ele reconecta e sincroniza.' : st === 'err' ? String(extra || 'Não deu certo') : 'Sincronização com o Google Drive (toque pra sincronizar agora)';
 }
 /** sincroniza: sobe, baixa ou pergunta quando os dois lados mudaram */
@@ -150,7 +154,8 @@ export function extendDrive(ACTIONS, render) {
     if ((state === 'login' || state === 'err' || venc) && Date.now() - lastTry > 30e3) { lastTry = Date.now(); driveSync({ interactive: 'gesture', render }); } // no máximo 1 tentativa a cada 30 s
   }, true);
   let lastTry = 0;
-  if (ls.get('gamify-ui:gdrive') === '1') { loadGis().catch(() => {}); setTimeout(() => pill('idle'), 300); }
+  if (ls.get('gamify-ui:gdrive') === '1') loadGis().catch(() => {});
+  window.__drivePill = () => pill(state); // o topo redesenha o selo: devolve o estado atual
   // ao abrir e depois de mudanças (20 s), tenta sincronizar sozinho quando já conectado
   let t = null;
   setTimeout(() => { if (ls.get('gamify-ui:gdrive') === '1') driveSync({ interactive: false, render }); }, 4000);
