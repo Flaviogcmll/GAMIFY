@@ -62,8 +62,8 @@ export const URG_MAX = 5;
 const urgentes = () => R.openTasks(S).filter((t) => !t.mother && t.st !== 'wait' && R.colorOfTask(S, t) === 'red');
 function urgHtml() {
   const list = urgentes();
-  return `<div class="org">${quem('rosemia', 4, sorte([`Menino, tem ${list.length} URGENTE. Urgente demais é urgente nenhum. Escolhe o que pode ir pra semana que vem.`, `As cartas não mentem: ${list.length} URGENTE não cabe num dia. Alivia aí.`]))}
-    <h2>🔥 URGENTE demais (${list.length} de ${URG_MAX})</h2><p class="meta">Marque as que podem esperar: elas vão pra SEMANA QUE VEM (a cor muda sozinha com o prazo).</p>
+  return `<div class="org">${quem('rosemia', 4, sorte([`Menino, tem ${list.length} PRA HOJE. Urgente demais é urgente nenhum. Escolhe o que pode ir pra semana que vem.`, `As cartas não mentem: ${list.length} URGENTE não cabe num dia. Alivia aí.`]))}
+    <h2>🔥 PRA HOJE demais (${list.length} de ${URG_MAX})</h2><p class="meta">Marque as que podem esperar: elas vão pra SEMANA QUE VEM (a cor muda sozinha com o prazo).</p>
     <form data-form="urg-limit" autocomplete="off"><div class="list">${list.map((t) => `<label class="li"><input type="checkbox" name="id" value="${t.id}"> <span class="lt">${esc(clean(t))}<small>${t.due ? fmtDM(t.due) : 'sem data'}${t.block ? ' · ' + esc(R.findBlock(S, t.block)?.title || '') : ''}</small></span></label>`).join('')}</div>
     <div class="actions"><button type="button" class="btn" data-close>DEIXA ASSIM</button><button class="btn pri">→ SEMANA QUE VEM</button></div></form></div>`;
 }
@@ -80,7 +80,7 @@ const SEM_DIAS = 3;
 const semRumo = () => loose().filter((t) => !t.due && t.created && t.created <= addDays(today(), -SEM_DIAS)); // v9.5: sem PRAZO há 3+ dias
 function orgHtml(list, titulo) {
   return `<div class="org">${quem('cajulina', 2, sorte(['Tem papel sem data na mesa, sô. Me diz quando que eu carimbo.', 'Sem prazo fica sem rumo. Bora dar um dia pra cada?']))}
-    <h2>${titulo}</h2><p class="meta">Dê um prazo: a cor vem sozinha (até amanhã URGENTE, até 7 dias ESQUENTANDO, depois ESTÁVEL).</p>
+    <h2>${titulo}</h2><p class="meta">Dê um prazo: a cor vem sozinha (hoje ou atrasada PRA HOJE, até 7 dias ESSA SEMANA, depois MAIS PRA FRENTE).</p>
     <div class="list org-list">${list.map(orgRow).join('') || '<div class="empty">tudo organizado. Trem bão!</div>'}</div>
     <div class="actions"><button class="btn pri" data-close>PRONTO</button></div></div>`;
 }

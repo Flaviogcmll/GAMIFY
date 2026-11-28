@@ -31,6 +31,18 @@
   ],
   "shortcuts": [
     {
+      "name": "Meu dia",
+      "short_name": "Meu dia",
+      "description": "Só o meu dia de hoje (com o botão de mandar pro WhatsApp)",
+      "url": "./#hoje",
+      "icons": [
+        {
+          "src": "assets/icon-192-v2.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
       "name": "Fila de prazos",
       "short_name": "Fila",
       "description": "Tudo que tem prazo, do mais perto pro mais longe",

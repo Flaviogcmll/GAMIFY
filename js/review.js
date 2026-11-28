@@ -27,6 +27,7 @@ const todays = () => R.openTasks(S).filter((t) => t.due && t.due <= today() && t
 const waiting = () => R.openTasks(S).filter((t) => t.st === 'wait');
 const blanksYesterday = () => { const y = addDays(today(), -1); if (y < (S.core.startDate || y)) return []; const m = S.marks.days[y]?.h || {}; return S.core.habits.filter((h) => !m[h.id]); };
 
+const DOW_RV = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
 const habBlankToday = () => { const m = S.marks.days[today()]?.h || {}; return (S.core.habits || []).some((h) => !m[h.id]); };
 const BOSS_NUDGE = 'gamify-ui:boss-nudge'; // o lembrete do boss parado aparece no máximo 1 vez por semana
 const bossNudgeDue = () => { const l = ls.get(BOSS_NUDGE); return !l || l <= addDays(today(), -7); };
@@ -98,9 +99,9 @@ const VIEW = {
     next: false,
   }),
   hab: () => ({
-    title: 'hábitos de hoje',
-    line: 'Cuidar de si também é tarefa, sô. Bora marcar os de hoje: ✓ fiz, – folga.',
-    body: habList(),
+    title: 'hábitos de HOJE',
+    line: 'Cuidar de si também é tarefa, sô. Bora marcar os de HOJE: ✓ fiz, – folga.',
+    body: `<div class="rv-dia hoje">☀ HOJE · ${DOW_RV[new Date().getDay()]} ${fmtDM(today())}</div>${habList()}`,
     next: true,
   }),
   ontem: () => {
@@ -110,9 +111,9 @@ const VIEW = {
     const BRONCA = [`Ô sô, ontem ficou ${lista} pra trás. Não quero saber de desculpa: hoje cê faz, uai.`, `Uai, cadê ${lista} de ontem? Corrente que arrebenta um elo, a gente emenda HOJE, sô.`,
       `Ontem cê deixou ${lista} na mão. Fiquei triste, mas não bravo... tá, um pouco bravo. Bora compensar hoje.`, `Ontem passou batido: ${lista}. Se fez e esqueceu de marcar, marca aí. Se não fez, hoje é dia de cumprir, uai.`];
     return {
-      title: 'ontem',
+      title: 'hábitos de ONTEM',
       line: miss.length ? BRONCA[new Date().getDate() % BRONCA.length] : 'Ontem foi tudo marcadinho. Assim que eu gosto, sô.',
-      body: `<p class="muted">Hábitos de ${fmtDM(y)}. Toque: ✓ fiz → – folga → vazio.</p>
+      body: `<div class="rv-dia ontem">📅 ONTEM · ${DOW_RV[new Date(y + 'T12:00').getDay()]} ${fmtDM(y)}</div><p class="muted">Hábitos de ONTEM. Toque: ✓ fiz → – folga → vazio.</p>
         <div class="habs">${S.core.habits.map((h) => { const v = m[h.id] || ''; return `<button class="hab ${v === 'x' ? 'x' : v === '-' ? 'f' : ''}" data-rv="habit" data-h="${h.id}"><span class="hi">${h.icon}</span><span class="hn">${esc(h.name.slice(0, 9))}</span><span class="hs">${v === 'x' ? '✓' : v === '-' ? '–' : '·'}</span></button>`; }).join('')}</div>`,
     };
   },
@@ -146,12 +147,12 @@ const VIEW = {
 function draw() {
   const m = document.querySelector('.modal');
   if (!m || !st) return;
-  const key = st.steps[st.i], v = VIEW[key](), n = st.steps.length;
+  const key = st.steps[st.i], v = VIEW[key](), n = st.steps.length, fim = v.last || st.i >= n - 1; // v10: no último passo o botão confirma e fecha
   m.innerHTML = `<div class="brief review">${fig('primo', 1, 'pav', 'PRIMO')}
     <div class="px meta" style="font-size:7px;text-align:center">${st.gap >= GAP_DAYS ? 'BOAS-VINDAS' : 'ENTREVISTA DO DIA'} · PASSO ${st.i + 1} DE ${n}</div>
     <h2>${esc(v.title)}</h2><div class="speech" id="rv-say"></div>${v.body}
     <div class="actions"><div class="left"><button class="btn sm ghost" data-rv="skip">PULAR TUDO</button></div>
-      ${st.i > 0 ? '<button class="btn" data-rv="prev">◄</button>' : ''}${v.next === false ? '' : `<button class="btn pri" data-rv="${v.last ? 'end' : 'next'}" autofocus>${v.last ? 'BORA ▶' : 'PRÓXIMO ►'}</button>`}</div>
+      ${st.i > 0 ? '<button class="btn" data-rv="prev">◄</button>' : ''}${v.next === false ? '' : `<button class="btn pri" data-rv="${fim ? 'end' : 'next'}" autofocus>${v.last ? 'BORA ▶' : fim ? 'PRONTO ✓' : 'PRÓXIMO ►'}</button>`}</div>
     <label class="meta" style="display:block;text-align:center;margin-top:8px"><input type="checkbox" data-rv-off ${ls.get('gamify-ui:brief-off') === '1' ? 'checked' : ''}> não mostrar a entrevista do dia</label></div>`;
   mountPortraits(m);
   if (st.said !== key + v.line) { st.said = key + v.line; setTimeout(() => { const el = m.querySelector('#rv-say'); if (el) say(el, v.line, { voice: false }); }, 150); } else m.querySelector('#rv-say').textContent = v.line;
@@ -160,6 +161,7 @@ function draw() {
 
 export function openReview(gap = 0, prev = null, only = null) {
   st = { gap, prev: prev || today(), steps: buildSteps(gap, only), i: 0, said: '' };
+  window.__rvShown = true; // v10: já abriu nesta visita (os hábitos não abrem a entrevista de novo)
   mig = { skip: new Set() };
   if (st.steps.includes('mes')) A.markMigrated(); // oferecida uma vez por mês (dá pra abrir de novo em PERKS → 🧠)
   if (st.steps.includes('boss')) ls.set(BOSS_NUDGE, today());
@@ -185,7 +187,7 @@ function mountReview() {
     e.preventDefault();
     const k = b.dataset.rv, id = b.dataset.id;
     if (k === 'skip' || k === 'end') { if (k === 'end') sfx('ready'); closeModal(); return; }
-    if (k === 'next') { st.i = Math.min(st.steps.length - 1, st.i + 1); sfx('tab'); }
+    if (k === 'next') { if (st.i >= st.steps.length - 1) { sfx('ready'); closeModal(); return; } st.i += 1; sfx('tab'); }
     else if (k === 'prev') { st.i = Math.max(0, st.i - 1); sfx('tab'); }
     else if (k === 'trip') { const from = addDays(st.prev, 1); closeModal(); A.startTrip(from <= today() ? from : today(), null); document.querySelector('[data-act="trip-back"]')?.click(); return; }
     else if (k === 'dist') { closeModal(); document.querySelector('[data-act="distribute"]')?.click(); return; }
@@ -196,7 +198,7 @@ function mountReview() {
     else if (k === 'boss-pause') { A.pauseBoss(id, addDays(today(), R.BOSS_PAUSE_MAX)); sfx('tab'); }
     else if (k === 'boss-edit') { closeModal(); ACT['edit-boss']?.({ id }); return; }
     else if (k === 'boss-go') { const bo = S.quests.bosses.find((x) => x.id === id); closeModal(); if (bo?.block) ACT['jump-block']?.({ id: bo.block }); return; }
-    else if (k === 'mosca-wake') { A.moscaWake(id); sfx('ready'); toast('▶ Voltou a andar: agora tá ESQUENTANDO.', 'good'); }
+    else if (k === 'mosca-wake') { A.moscaWake(id); sfx('ready'); toast('▶ Voltou a andar: agora tá ESSA SEMANA.', 'good'); }
     else if (k === 'mosca-go') { closeModal(); ACT[b.dataset.k === 'block' ? 'jump-block' : 'jump']?.({ id }); return; }
     else if (k === 'done') A.setStatus(id, 'done');
     else if (k === 'wait') A.setStatus(id, 'wait');

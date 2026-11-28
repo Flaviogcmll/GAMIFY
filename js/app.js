@@ -43,7 +43,7 @@ import { extendImgs, imgSection, fillImgs } from './imgs.js';
 import { autoSnapshot, backupBanner, extendBackup, markBackup, restoreDocs } from './backup.js';
 import { tripBanner, tripCheck, extendTrip } from './trip.js';
 import { maybeReview, extendReview } from './review.js';
-import { extendPlanos, maybePlanAsk, maybeHabitsAsk } from './planos.js';
+import { extendPlanos, maybePlanAsk, maybeHabitsAsk, diaCard } from './planos.js';
 import { extendBujo, afterRenderBujo } from './bujo.js';
 import { perksGo, applyCursor, CURSOR_KEY } from './telas.js';
 import { extendMapa } from './mapa.js';
@@ -59,9 +59,11 @@ const ROUTES = [
   ['arquivo', 'ARQUIVO', 'arquivo', viewArquivo3, ''],
   // v8.5: a FILA DE PRAZOS sozinha numa tela (atalho do app instalado: segure o ícone no celular, ou clique com o direito na barra do PC)
   ['fila', 'FILA', 'agenda', () => `<div class="page-title"><div><h1><em>fila de prazos</em>.</h1></div></div>${filaCard(today())}`, ''],
+  // v10 (pedido do dono: "um gadget mostrando meu dia"): página leve só com o MEU DIA de hoje (atalho no ícone do app: segure o ícone → Meu dia)
+  ['hoje', 'MEU DIA', 'agenda', () => `<div class="page-title"><div><h1><em>meu dia</em>.</h1></div><div class="page-actions"><button class="btn pri" data-act="dia-png" data-d="${today()}">📸 MANDAR PRO WHATSAPP</button><a class="btn" href="#quests">ABRIR O APP ▸</a></div></div>${diaCard({ agDay: 0 }, false)}`, ''],
 ];
 /** a ordem das abas de cima é sua: arraste uma aba sobre outra */
-const HIDDEN_TABS = ['filtro', 'fila', 'domingo', 'rotina']; // v9.5: a ROTINA mora dentro da SOBREVIVÊNCIA
+const HIDDEN_TABS = ['filtro', 'fila', 'hoje', 'domingo', 'rotina']; // v9.5: a ROTINA mora dentro da SOBREVIVÊNCIA
  // v6.1: o FILTRO mora dentro da AGENDA · v8.5: a FILA é só pelo atalho
 function tabOrder() {
   let saved = [];
@@ -332,9 +334,9 @@ function rebuildText(text, { star, home, money, xp, kind }) {
   return t.trim();
 }
 // v9.5 (pedido do dono): a COR vem do PRAZO sozinha. Na janela só dá pra escolher AUTOMÁTICA, AGUARDANDO ou PARADO
-const swatches = (cur, withNone = false, due = null) => { void withNone; const auto = R.autoCor(S, due), nm = { red: 'URGENTE', yellow: 'ESQUENTANDO', green: 'ESTÁVEL', '': 'SEM PRAZO' }[auto], tone = { red: 'urg', yellow: 'atencao', green: 'ok', '': 'none' }[auto];
+const swatches = (cur, withNone = false, due = null) => { void withNone; const auto = R.autoCor(S, due), nm = { red: 'PRA HOJE', yellow: 'ESSA SEMANA', green: 'MAIS PRA FRENTE', '': 'SEM PRAZO' }[auto], tone = { red: 'urg', yellow: 'atencao', green: 'ok', '': 'none' }[auto];
   const k0 = cur === 'wait' || cur === 'black' ? cur : '';
-  return `<div class="swatches">${[['', `AUTOMÁTICA: ${nm}`, tone, 'A cor sai do prazo: até amanhã URGENTE, até 7 dias ESQUENTANDO, depois ESTÁVEL'], ['wait', 'AGUARDANDO', 'espera', 'Depende de outra pessoa ou de outra coisa'], ['black', 'PARADO', 'neutro', 'Parado de propósito']].map(([k, n, tn, tip]) => `<label class="csw" title="${tip}"><input type="radio" name="color" value="${k}" ${k0 === k ? 'checked' : ''}><i data-tone="${tn}"></i><span>${n}</span></label>`).join('')}</div>`; };
+  return `<div class="swatches">${[['', `AUTOMÁTICA: ${nm}`, tone, 'A cor sai do prazo: hoje ou atrasada PRA HOJE, até 7 dias ESSA SEMANA, depois MAIS PRA FRENTE'], ['wait', 'AGUARDANDO', 'espera', 'Depende de outra pessoa ou de outra coisa'], ['black', 'PARADO', 'neutro', 'Parado de propósito']].map(([k, n, tn, tip]) => `<label class="csw" title="${tip}"><input type="radio" name="color" value="${k}" ${k0 === k ? 'checked' : ''}><i data-tone="${tn}"></i><span>${n}</span></label>`).join('')}</div>`; };
 /** marcador redondo (checkbox ou radio) com legenda ao passar o mouse */
 const pill = (type, name, value, on, label, tip) => `<label class="pill" title="${tip}"><input type="${type}" name="${name}" ${value != null ? `value="${value}"` : ''} ${on ? 'checked' : ''}><span>${label}</span></label>`;
 function editTask(id) {
@@ -380,21 +382,27 @@ function editTask(id) {
 function editBlock(id) {
   const b = S.quests.blocks.find((x) => x.id === id);
   if (!b) return;
-  // v9.0 (pedido do dono): a janela do BLOCO tem o mesmo desenho da janela da TAREFA (cabeçalho, título grande, cor ao lado, prazo com atalhos, ações embaixo)
+  // v10 (pedido do dono: "a janela do bloco tá muito diferente da da tarefa"): MESMA ordem e as MESMAS peças da janela da tarefa:
+  // cabeçalho → título → [andamento | cor] → prazo com atalhos → marcadores → XP → mudar de lugar → ações
   const color = b.st === 'wait' ? 'wait' : b.color, td = today(), nextMon = addDays(td, ((8 - weekday(td)) % 7) || 7);
-  const items = S.quests.tasks.filter((t) => t.block === b.id && t.st !== 'cancel').sort((x, y) => x.ord - y.ord), open = items.filter(R.isOpen);
+  const items = S.quests.tasks.filter((t) => t.block === b.id && t.st !== 'cancel'), open = items.filter(R.isOpen), done = items.length - open.length;
+  const p = R.parse(b.title), xpFix = p.xpFix ?? '';
+  const where = R.winOf(S, b)?.name || R.GROUPS[b.group]?.name || '';
   openModal(`<form data-form="block" data-id="${id}" autocomplete="off" class="mform">
-    <div class="mhead"><span class="mtype">bloco</span><span class="mwhere">${esc(R.winOf(S, b)?.name || R.GROUPS[b.group]?.name || '')}</span>
-      <span class="chip xp" title="Fechar o bloco vale isso${R.projectValue(b.title) ? ` · projeto de ${fmtN(R.projectValue(b.title))}: sua metade ${fmtN(R.projectValue(b.title) / 2)} gold` : ''}">${R.blockXp(b)} XP</span></div>
-    <textarea class="inp mtitle" id="b-title" name="title" rows="2" aria-label="Título" title="Dicas: 🎯 no começo = meta · 3000$ = projeto que vale dinheiro · (500XP) fixa o XP" autofocus>${esc(b.title.replace(/💰/g, '$'))}</textarea>
+    <div class="mhead"><span class="mtype">${b.group === 'bs' ? '👹 boss' : '▣ bloco'}</span><span class="mwhere">${esc(where)}</span>
+      <span class="chip xp" title="Fechar o bloco vale isso${R.projectValue(b.title) ? ` · projeto de ${fmtN(R.projectValue(b.title))}` : ''}">${R.blockXp(b)} XP</span></div>
+    <textarea class="inp mtitle" id="b-title" name="title" rows="2" aria-label="Título" autofocus>${esc(b.title.replace(/💰/g, '$').replace(/\s*\(\d+\s*XP\)/i, '').replace(/^🎯\s*/, ''))}</textarea>
     <div class="msplit">
-      <div><label class="lbl" for="b-group">Janela</label><select class="inp" id="b-group" name="group">${Object.entries(R.GROUPS).map(([g, i]) => `<option value="${g}" ${b.group === g && !R.winOf(S, b) ? 'selected' : ''}>${i.name}</option>`).join('')}${R.windows(S).map((w) => `<option value="win:${w.id}" ${b.win === w.id ? 'selected' : ''}>▣ ${esc(w.name)}</option>`).join('')}</select>
-        <p class="meta" style="margin:6px 0 0">${items.length - open.length}/${items.length} feitas${open.length ? ` · ${open.length} em aberto` : ''}</p></div>
+      <div><label class="lbl">Andamento</label>${segBar(items.length ? done / items.length : 0, 'good sm')}<p class="meta" style="margin:6px 0 0">${done}/${items.length} feitas${open.length ? ` · ${open.length} em aberto` : ''}</p>
+        ${open.length && b.st !== 'done' ? `<button type="button" class="btn sm" data-act="done-all" data-id="${id}" title="Concluir todas as tarefas deste bloco" style="margin-top:6px">✓ CONCLUIR TUDO</button>` : ''}</div>
       <div><label class="lbl">Cor</label>${swatches(color, true, R.blockDue(S, b))}</div></div>
     <label class="lbl" for="b-due">◆ Prazo final <span class="meta">· só do bloco: as subtarefas têm o prazo que você der a cada uma</span></label><div class="row"><input class="inp" type="date" id="b-due" name="due" value="${b.due || ''}" style="width:auto">
-      ${[['HOJE', td], ['AMANHÃ', addDays(td, 1)], ['+7', addDays(td, 7)], ['PRÓX. SEG', nextMon], ['SEM', '']].map(([n, d]) => `<button type="button" class="pill" data-act="due-quick" data-d="${d}"><span>${n}</span></button>`).join('')}</div>
+      ${[['HOJE', td], ['AMANHÃ', addDays(td, 1)], ['+3', addDays(td, 3)], ['PRÓX. SEG', nextMon], ['SEM', '']].map(([n, d]) => `<button type="button" class="pill" data-act="due-quick" data-d="${d}"><span>${n}</span></button>`).join('')}</div>
+    <label class="lbl">Marcadores</label><div class="pills">${pill('checkbox', 'goal', null, p.goal, '🎯 meta', 'Uma meta grande (vale mais XP)')}${pill('checkbox', 'money', null, /💰/.test(b.title) || R.projectValue(b.title) > 0, '$ dinheiro', 'Mexe com dinheiro: ganha o 💰 PAGAMENTOS (quanto entrou e quanto falta)')}</div>
+    <label class="lbl">XP <span class="meta">· quanto vale FECHAR o bloco (AUTO = pelo tipo da janela)</span></label><div class="pills xpset">${[['', 'AUTO'], [50, '50'], [100, '100'], [200, '200'], [300, '300'], [500, '500']].map(([v, n]) => `<button type="button" class="pill ${String(xpFix) === String(v) ? 'on' : ''}" data-act="xp-preset" data-v="${v}"><span>${n}</span></button>`).join('')}<input class="inp" type="number" min="1" name="xp" value="${xpFix}" placeholder="outro" aria-label="XP fixo" style="width:76px"></div>
+    <label class="lbl" for="b-group">📦 Mudar de lugar <span class="meta">· a janela onde o bloco mora (BOSSES = vira boss)</span></label><select class="inp" id="b-group" name="group">${Object.entries(R.GROUPS).map(([g, i]) => `<option value="${g}" ${b.group === g && !R.winOf(S, b) ? 'selected' : ''}>${i.name}</option>`).join('')}${R.windows(S).map((w) => `<option value="win:${w.id}" ${b.win === w.id ? 'selected' : ''}>▣ ${esc(w.name)}</option>`).join('')}</select>
     ${b.group !== 'bs' ? `<details class="merge-b"><summary class="meta">↘ virar subtarefa de outro bloco <span class="meta">(ou arraste o bloco pelo ⠿ pra dentro de outro bloco aberto)</span></summary><div class="row" style="margin-top:6px"><select class="inp grow" data-merge-into="${id}" aria-label="Bloco de destino"><option value="">— escolha o bloco —</option>${S.quests.blocks.filter((x) => x.id !== id && x.st !== 'done' && x.group !== 'bs').sort((a, z) => a.title.localeCompare(z.title)).map((x) => `<option value="${x.id}">${esc(x.title)}${R.winOf(S, x) ? ' · ' + esc(R.winOf(S, x).name) : ''}</option>`).join('')}</select></div><p class="meta" style="margin:4px 0 0">O título vira uma tarefa lá dentro e as tarefas daqui viram passos ↳ dela. Dá pra desfazer no ↩.</p></details>` : ''}
-    <div class="actions"><div class="left">${isMoney(b) ? `<button type="button" class="btn sm" data-act="pay-open" data-id="${id}" title="Quanto entrou e quanto falta">💰 PAGAMENTOS</button>` : ''}${open.length && b.st !== 'done' ? `<button type="button" class="btn sm" data-act="done-all" data-id="${id}" title="Concluir todas as tarefas deste bloco">✓ CONCLUIR TUDO</button>` : ''}<button type="button" class="btn sm danger" data-act="del-block" data-id="${id}">APAGAR</button></div>
+    <div class="actions"><div class="left">${isMoney(b) ? `<button type="button" class="btn sm" data-act="pay-open" data-id="${id}" title="Quanto entrou e quanto falta">💰 PAGAMENTOS</button>` : ''}${b.st !== 'done' ? `<button type="button" class="btn sm" data-act="review-block" data-id="${id}" title="Olhei e está tudo em ordem (2 dias)">👁 ${R.reviewed(b) ? 'REVISADO ✓' : 'REVISAR'}</button>` : ''}<button type="button" class="btn sm danger" data-act="del-block" data-id="${id}">APAGAR</button></div>
       <button type="button" class="btn" data-close>FECHAR</button><button class="btn pri">SALVAR</button></div></form>`, { wide: true });
 }
 function distribute() {
@@ -498,15 +506,18 @@ function sos(taskId) {
   clearInterval(sosTimer);
   const td = today();
   const t = taskId ? S.quests.tasks.find((x) => x.id === taskId) : null;
-  const smallest = R.openTasks(S).filter((x) => x.st !== 'wait').sort((a, b) => R.taskBaseXp(S, a) - R.taskBaseXp(S, b) || (a.due || '9').localeCompare(b.due || '9')).slice(0, 3);
+  // v10 (pedido do dono): o MENOR PASSO = os passos ↳ (mini-tarefas) das tarefas em aberto com prazo mais perto; sem passo nenhum, as menores tarefas
+  const TT = (id) => S.quests.tasks.find((x) => x.id === id), dueOf = (x) => x.due || TT(x.parent)?.due || R.findBlock(S, x.block)?.due || '9';
+  const passos = R.openTasks(S).filter((x) => x.st !== 'wait' && (x.parent || /^\s*(↳|>)/.test(x.text)) && (!x.parent || R.isOpen(TT(x.parent) || {}))).sort((a, b) => dueOf(a).localeCompare(dueOf(b))).slice(0, 5);
+  const smallest = passos.length ? passos : R.openTasks(S).filter((x) => x.st !== 'wait').sort((a, b) => R.taskBaseXp(S, a) - R.taskBaseXp(S, b) || (a.due || '9').localeCompare(b.due || '9')).slice(0, 3);
   const m = openModal(`<div style="text-align:center" id="sos"><h2>🆘 travei.</h2><p class="muted">Não é falta de força de vontade: é o corpo em modo "congelar". Primeiro a gente desliga o alarme.</p>
     <div class="sos-ring" id="sos-ring">toque pra<br>começar</div><p class="px" id="sos-step" style="font-size:9px">3 suspiros fisiológicos</p>
     <div class="actions" style="justify-content:center"><button class="btn pri" id="sos-go">RESPIRAR</button><button class="btn ghost" id="sos-skip">PULAR</button></div></div>`, { onClose: () => clearInterval(sosTimer) });
   const ring = m.querySelector('#sos-ring'), stepEl = m.querySelector('#sos-step');
   const phase2 = () => {
     clearInterval(sosTimer);
-    m.innerHTML = `<h2>o menor passo.</h2><p class="muted">Escolha UMA coisa e combine só 10 minutos. Não precisa terminar.</p>
-      <div class="list">${(t ? [t] : smallest).map((x) => `<button class="li" style="width:100%;text-align:left;border:0;background:none;cursor:var(--cur-hand,pointer)" data-act="sos-pick" data-id="${x.id}"><span class="lt">${esc(x.text)}<small>${esc(x.block ? R.findBlock(S, x.block)?.title : R.AREAS[x.area])}</small></span><span class="chip">10 MIN</span></button>`).join('')}</div>
+    m.innerHTML = `<h2>o menor passo.</h2><p class="muted">${passos.length ? 'Os passinhos (↳) das tarefas com prazo mais perto. ' : ''}Escolha UMA coisa e combine só 10 minutos. Não precisa terminar.</p>
+      <div class="list">${(t ? [t] : smallest).map((x) => `<button class="li" style="width:100%;text-align:left;border:0;background:none;cursor:var(--cur-hand,pointer)" data-act="sos-pick" data-id="${x.id}"><span class="lt">${esc(x.text.replace(/^\s*(↳|>)\s*/, '↳ '))}<small>${esc(x.parent && TT(x.parent) ? 'passo de: ' + TT(x.parent).text.replace(/\s*\(\d+\s*XP\)/i, '') : x.block ? R.findBlock(S, x.block)?.title : R.AREAS[x.area])}${dueOf(x) !== '9' ? ' · ' + fmtDM(dueOf(x)) : ''}</small></span><span class="chip">10 MIN</span></button>`).join('')}</div>
       ${R.neuroOn(S, 'pato') ? `<p class="meta" style="margin:10px 0 0">Nem sabe por onde começar? <a href="#" data-act="duck" data-id="${t?.id || ''}">🦆 explique pro PRIMO</a>: o que tentou, o que funcionou, o que não.</p>` : ''}
       <form data-form="sos-tiny" class="row" style="margin-top:10px"><input class="inp grow" name="text" placeholder="ou escreva um micro-passo (ex.: abrir o arquivo)" aria-label="Micro-passo"><button class="btn">OK</button></form>
       <div class="actions"><button class="btn" data-close>FECHAR</button></div>`;
@@ -930,7 +941,13 @@ const FORMS = {
     const b = S.quests.blocks.find((x) => x.id === f.dataset.id);
     const gv = f.group.value, gw = gv.startsWith('win:') ? R.windows(S).find((w) => 'win:' + w.id === gv) : null;
     const col = f.querySelector('[name=color]:checked')?.value ?? b.color;
-    const patch = { title: A.normalizeMoney(f.title.value.trim()) || b.title, due: f.due.value || null, group: gw ? gw.base : gv, win: gw ? gw.id : undefined };
+    // v10: o título guarda os marcadores (🎯 meta no começo, 💰 no fim) e o XP fixo "(NXP)", igual às tarefas
+    let title = A.normalizeMoney(f.title.value.trim()) || b.title.replace(/\s*\(\d+\s*XP\)/i, '').replace(/^🎯\s*/, '');
+    title = title.replace(/^🎯\s*/, '').replace(/\s*\(\d+\s*XP\)/i, '');
+    if (f.goal?.checked) title = '🎯 ' + title;
+    if (f.money) { if (f.money.checked && !/💰/.test(title) && !R.projectValue(title)) title += ' 💰'; else if (!f.money.checked && !R.projectValue(title)) title = title.replace(/\s*💰/g, ''); }
+    if (+f.xp?.value > 0) title += ` (${+f.xp.value}XP)`;
+    const patch = { title: title.trim(), due: f.due.value || null, group: gw ? gw.base : gv, win: gw ? gw.id : undefined };
     if (b.st !== 'done') { if (col === 'wait') patch.st = 'wait'; else { patch.st = ''; patch.color = col; } }
     A.updateBlock(b.id, patch);
     closeModal();

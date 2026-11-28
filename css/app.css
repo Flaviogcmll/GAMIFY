@@ -1804,7 +1804,7 @@ li.task[data-praga], .banner.praga-b, .praga-pop, .praga-modal .modal, .chip.lat
 
 /* v7.7: os botões do PRIMO todos na mesma grade (4 colunas nos comandos, 3 nos de prosa, mesma altura) */
 .pcmds .btn { min-height: 42px; justify-content: center; }
-.pcmds.pcmds3 { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 0; }
+.pcmds.pcmds3 { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 0; }
 
 /* v7.7: BARRACAS do FERREIRO = linhas simples dentro do banner do FERREIRO */
 .vit-b > .card.barraca { margin: 0 0 10px; }
@@ -2386,3 +2386,61 @@ aside.postit .tasks > li { flex-shrink: 0; height: auto; min-height: min-content
 #vila-bark .vb-say::before { content: ''; position: absolute; left: -9px; bottom: 10px; border: 8px solid transparent; border-right-color: var(--plum, #2e2430); border-left: 0; }
 @media (max-width: 860px) { #vila-bark { left: 8px; bottom: calc(84px + env(safe-area-inset-bottom)); max-width: calc(100vw - 16px); } }
 @media (prefers-reduced-motion: reduce) { #vila-bark, #vila-bark.on img.vb-art { transition: none; animation: none; } }
+
+/* ───── v10 (bloco APP de 28/11) ───── */
+/* cor do bloco mais forte (pedido do dono: "tá ruim de identificar"): borda na cor, cabeçalho tingido e um véu leve no corpo.
+   A cor é a da DATA: vermelho PRA HOJE · amarelo ESSA SEMANA · verde MAIS PRA FRENTE · roxo AGUARDANDO · cinza PARADO */
+article.block[data-color]:not([data-color=""]) { border-color: color-mix(in srgb, var(--bc) 70%, var(--line)) !important; border-width: 2px; background: linear-gradient(180deg, color-mix(in srgb, var(--bc) 9%, var(--panel)), var(--panel) 60%); }
+article.block[data-color]:not([data-color=""]) > .bh { background: linear-gradient(90deg, color-mix(in srgb, var(--bc) 24%, var(--panel)), color-mix(in srgb, var(--bc) 8%, var(--panel)) 75%) !important; }
+article.block[data-color]:not([data-color=""]) > .bh > .stripe { width: 7px; }
+:root[data-mode="night"] article.block[data-color]:not([data-color=""]) > .bh { background: linear-gradient(90deg, color-mix(in srgb, var(--bc) 30%, var(--panel)), color-mix(in srgb, var(--bc) 10%, var(--panel)) 75%) !important; }
+/* fila de prazos do painel da direita: bem mais comprida (antes ficava encolhida) */
+.side > .sitem:has(.fila-q) { min-height: 560px; }
+.fila-q .list { max-height: calc(100vh - 220px); min-height: 420px; }
+@media (max-width: 860px) { .fila-q .list { min-height: 0; max-height: 70vh; } }
+article.block.reviewed { outline: 3px solid var(--c-ok); outline-offset: 2px; } /* v10: REVISADO = só o contorno verde (por fora, sem esconder a cor do bloco) */
+/* v10: na entrevista, ONTEM e HOJE em destaque (pedido do dono: "pra não confundir") */
+.rv-dia { margin: 4px 0 8px; padding: 8px 12px; border-radius: var(--rad, 12px); font: 800 15px/1.2 var(--f-mono, monospace); letter-spacing: .5px; text-align: center; }
+.rv-dia.ontem { background: color-mix(in srgb, var(--c-espera) 18%, var(--panel)); border: 2px solid var(--c-espera); color: var(--ink); }
+.rv-dia.hoje { background: color-mix(in srgb, var(--c-premio) 20%, var(--panel)); border: 2px solid var(--c-premio); color: var(--ink); }
+/* v10 LINHA DO TEMPO por semana (agenda.js timelineCard) */
+.tlws { display: grid; gap: 8px; }
+.tlw { border: 2px solid var(--line); border-radius: var(--rad, 12px); padding: 8px 10px; background: var(--panel); }
+.tlw.cur { border-color: var(--c-premio); box-shadow: 0 0 0 1px color-mix(in srgb, var(--c-premio) 40%, transparent); }
+.tlw.late { border-color: var(--c-urg); margin-bottom: 8px; }
+.tlw-h { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.tlw-h > b { font: 800 12px/1.2 var(--f-mono, monospace); }
+.tlw-h > b small { font-weight: 600; color: var(--muted); }
+.tlw-bars { display: flex; gap: 3px; align-items: flex-end; height: 34px; margin-left: auto; }
+.tlb { width: 18px; height: 34px; padding: 0; border: 0; background: color-mix(in srgb, var(--line) 35%, transparent); border-radius: 4px; position: relative; display: flex; flex-direction: column; justify-content: flex-end; cursor: var(--cur-hand, pointer); }
+.tlb i { display: block; width: 100%; border-radius: 4px 4px 0 0; background: var(--c-ok); min-height: 0; }
+.tlb i.l4 { background: var(--c-atencao); } .tlb i.l6 { background: var(--c-urg); }
+.tlb small { position: absolute; bottom: -13px; left: 0; right: 0; font-size: 8px; text-align: center; color: var(--muted); }
+.tlb.today { outline: 2px solid var(--c-premio); outline-offset: 1px; } .tlb.off { background: color-mix(in srgb, var(--c-calma) 18%, transparent); } .tlb.past { opacity: .45; }
+.tlw-items { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 14px; }
+.tlc { display: inline-flex; gap: 5px; align-items: center; max-width: 100%; padding: 4px 8px; border: 2px solid var(--line); border-radius: 999px; background: var(--panel); font-size: 12px; text-align: left; cursor: var(--cur-hand, pointer); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tlc b { font: 700 10px/1 var(--f-mono, monospace); color: var(--muted); }
+.tlc.red, .tlc.late { border-color: var(--c-urg); background: color-mix(in srgb, var(--c-urg) 10%, var(--panel)); }
+.tlc.yellow { border-color: var(--c-atencao); background: color-mix(in srgb, var(--c-atencao) 12%, var(--panel)); }
+.tlc.green { border-color: var(--c-ok); }
+.tlc.rit { border-style: dashed; }
+.cal-part.c12, .tlws, .tlw, .tlw-items { min-width: 0; max-width: 100%; }
+.tlc em { font-style: normal; font-weight: 800; color: var(--c-calma); }
+@media (max-width: 860px) { .tlw-bars { margin-left: 0; width: 100%; justify-content: space-between; } .tlb { flex: 1; } .tlc { max-width: 100%; } }
+/* v10 MEU DIA: faixa de resumo (feitas, próxima, SAPO, compartilhar) e os marcadores no fim do nome */
+.dia-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 6px 0 10px; padding: 8px 10px; border: 2px solid var(--line); border-radius: var(--rad, 12px); background: color-mix(in srgb, var(--c-premio) 8%, var(--panel)); font-size: 13px; }
+.dia-prog { display: flex; align-items: center; gap: 6px; }
+.dia-bar { width: 90px; height: 10px; border: 2px solid var(--line); border-radius: 99px; overflow: hidden; }
+.dia-bar i { display: block; height: 100%; background: var(--c-ok); }
+.dia-prox, .dia-sapo { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.dia-sapo { color: var(--c-ok); font-weight: 700; }
+.dia-top .btn { margin-left: auto; }
+.dia-mk { font-style: normal; margin-left: 4px; letter-spacing: 1px; }
+/* v10 selo do Drive: fixo no canto, nunca some (verde = em dia; dourado piscando = precisa de um toque) */
+#drive-pill { position: fixed; right: 12px; top: calc(var(--stick, 0px) + 8px); z-index: 55; padding: 4px 10px; border: 2px solid var(--line); border-radius: 999px; background: var(--panel); color: var(--ink); font: 700 11px/1.2 var(--f-mono, monospace); box-shadow: 2px 2px 0 var(--shadow); cursor: var(--cur-hand, pointer); opacity: .92; }
+#drive-pill[data-st="ok"] { border-color: var(--c-ok); color: var(--c-ok); }
+#drive-pill[data-st="sync"] { border-color: var(--c-calma); }
+#drive-pill[data-st="login"], #drive-pill[data-st="err"] { border-color: var(--c-premio); background: color-mix(in srgb, var(--c-premio) 18%, var(--panel)); animation: dp-pisca 1.6s ease-in-out infinite; }
+@keyframes dp-pisca { 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--c-premio) 35%, transparent); } }
+@media (max-width: 860px) { #drive-pill { top: auto; bottom: calc(80px + env(safe-area-inset-bottom)); right: 8px; } }
+@media (prefers-reduced-motion: reduce) { #drive-pill { animation: none !important; } }

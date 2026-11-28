@@ -312,7 +312,7 @@ function body(big, compact = false) {
       ${loboLine()}
       ${askHtml()}
       <div class="pcmds">${CMDS.map(([k, i, l, t]) => `<button class="btn sm ${k === 'trip' && trip ? 'pri' : ''}" data-act="pcmd" data-k="${k}" title="${esc(t)}"><span>${i}</span>${k === 'trip' && trip ? 'VOLTEI' : l}</button>`).join('')}</div>
-      <div class="pcmds pcmds3"><button class="btn sm" data-act="saber" data-g="all" title="Uma curiosidade verdadeira, com fonte"><span>📚</span>ME CONTA</button><button class="btn sm" data-act="plan-change" title="Mudança de planos: mexer no HOJE e no AMANHÃ de uma vez"><span>🔀</span>MUDOU O PLANO</button><button class="btn sm" data-act="diary" title="O diário que ele escreve toda semana"><span>📖</span>DIÁRIO</button></div></div></div>`; // v7.7: tudo na mesma grade
+      <div class="pcmds pcmds3"><button class="btn sm" data-act="saber" data-g="all" title="Uma curiosidade verdadeira, com fonte"><span>📚</span>ME CONTA</button><button class="btn sm" data-act="plan-change" title="Mudança de planos: mexer no HOJE e no AMANHÃ de uma vez"><span>🔀</span>MUDOU O PLANO</button></div></div></div>`; // v7.7: tudo na mesma grade
 }
 /** cartão da aba QUESTS */
 /** v8.5 (pedido do dono): imagem, fala e "PRIMO está…" presos no topo do painel da direita; o cartão (status, BRASINHA, lobo, pedido, botões) rola por baixo */
